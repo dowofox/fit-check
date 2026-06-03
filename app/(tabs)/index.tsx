@@ -5,6 +5,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
+  const [situation, setSituation] = useState("데이트");
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -41,6 +42,27 @@ export default function HomeScreen() {
       <Text style={styles.title}>FitCheck</Text>
 
       <Text style={styles.subtitle}>코디 실수를 줄여주는 AI</Text>
+      <View style={styles.situationContainer}>
+  {["데이트", "소개팅", "학교", "카페", "출근"].map((item) => (
+    <Pressable
+      key={item}
+      style={[
+        styles.situationButton,
+        situation === item && styles.selectedSituationButton,
+      ]}
+      onPress={() => setSituation(item)}
+    >
+      <Text
+        style={[
+          styles.situationText,
+          situation === item && styles.selectedSituationText,
+        ]}
+      >
+        {item}
+      </Text>
+    </Pressable>
+  ))}
+</View>
 
       <Pressable style={styles.button} onPress={pickImage}>
         <Text style={styles.buttonText}>사진 선택하기</Text>
@@ -61,6 +83,7 @@ export default function HomeScreen() {
               pathname: "/result",
               params: {
                 imageUri: image,
+                situation: situation,
               },
             })
           }
@@ -133,5 +156,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     paddingVertical: 15,
     borderRadius: 12,
+  },
+  situationContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 28,
+  },
+  situationButton: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  selectedSituationButton: {
+    backgroundColor: "#000",
+    borderColor: "#000",
+  },
+  situationText: {
+    color: "#333",
+    fontSize: 14,
+  },
+  selectedSituationText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });

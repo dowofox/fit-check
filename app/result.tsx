@@ -2,11 +2,12 @@ import { useLocalSearchParams } from "expo-router";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 export default function ResultScreen() {
-  const { imageUri } = useLocalSearchParams();
+  const { imageUri, situation } = useLocalSearchParams();
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>분석 결과</Text>
+      <Text style={styles.situation}>상황: {situation}</Text>
       {imageUri && (
         <Image
             source={{ uri: imageUri as string }}
@@ -67,5 +68,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 20,
     alignSelf: "center",
+  },
+  situation: {
+  fontSize: 16,
+  color: "#666",
+  marginBottom: 20,
   },
 });
