@@ -11,7 +11,6 @@ export default function HomeScreen() {
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
       quality: 1,
     });
 
@@ -29,7 +28,6 @@ export default function HomeScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
       quality: 1,
     });
 
@@ -104,11 +102,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     backgroundColor: "#fff",
-    paddingTop: 100,
+    paddingTop: 50,
     paddingHorizontal: 20,
   },
   title: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: "bold",
   },
   subtitle: {
@@ -117,7 +115,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   button: {
-    marginTop: 40,
+    marginTop: 24,
     backgroundColor: "#000",
     paddingHorizontal: 30,
     paddingVertical: 15,
@@ -146,9 +144,9 @@ const styles = StyleSheet.create({
     color: "#888",
   },
   image: {
-    marginTop: 30,
-    width: 260,
-    height: 360,
+    marginTop: 16,
+    width: 160,
+    height: 210,
     borderRadius: 16,
   },
   analyzeButton: {
