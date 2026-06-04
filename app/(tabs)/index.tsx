@@ -5,8 +5,6 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
-  const [situation, setSituation] = useState("데이트");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -40,28 +38,17 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>FitCheck</Text>
 
-      <Text style={styles.subtitle}>코디 실수를 줄여주는 AI</Text>
-      <View style={styles.situationContainer}>
-  {["데이트", "소개팅", "학교", "카페", "출근"].map((item) => (
-    <Pressable
-      key={item}
-      style={[
-        styles.situationButton,
-        situation === item && styles.selectedSituationButton,
-      ]}
-      onPress={() => setSituation(item)}
-    >
-      <Text
-        style={[
-          styles.situationText,
-          situation === item && styles.selectedSituationText,
-        ]}
-      >
-        {item}
-      </Text>
-    </Pressable>
-  ))}
-</View>
+      <Text style={styles.subtitle}>오늘 코디, 실패 확률부터 확인해요</Text>
+
+      <View style={styles.heroCard}>
+        <Text style={styles.heroTitle}>
+          AI가 코디를 객관적으로 분석해요
+        </Text>
+
+        <Text style={styles.heroText}>
+          실패 위험, 코디 포인트, 문제점을 솔직하게 알려드립니다.
+        </Text>
+      </View>
 
       <Pressable style={styles.button} onPress={pickImage}>
         <Text style={styles.buttonText}>사진 선택하기</Text>
@@ -72,27 +59,35 @@ export default function HomeScreen() {
       </Pressable>
 
       {image ? (
-  <>
-        <Image source={{ uri: image }} style={styles.image} />
+        <>
+          <View style={styles.previewCard}>
+            <Text style={styles.previewTitle}>선택한 코디 사진</Text>
+            <Image source={{ uri: image }} style={styles.image} />
+          </View>
 
-        <Pressable
-          style={styles.analyzeButton}
-          onPress={() =>
-            router.push({
-              pathname: "/analyzing",
-              params: {
-                imageUri: image,
-                situation: situation,
-              },
-            })
-          }
-        >
-          <Text style={styles.buttonText}>분석하기</Text>
-        </Pressable>
-      </>
-    ) : (
-      <Text style={styles.info}>아직 선택된 사진이 없습니다.</Text>
-    )}
+          <Pressable
+            style={styles.analyzeButton}
+            onPress={() =>
+              router.push({
+                pathname: "/analyzing",
+                params: {
+                  imageUri: image,
+                },
+              })
+            }
+          >
+            <Text style={styles.buttonText}>분석하기</Text>
+          </Pressable>
+        </>
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>👕</Text>
+          <Text style={styles.emptyTitle}>아직 분석 할 사진이 없어요</Text>
+          <Text style={styles.emptyText}>
+            전신이 보이는 사진을 올리면 더 정확하게 분석할 수 있어요.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -101,85 +96,131 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
-    backgroundColor: "#fff",
-    paddingTop: 50,
+    backgroundColor: "#f3f4f6",
+    paddingTop: 54,
     paddingHorizontal: 20,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
+    fontSize: 34,
+    fontWeight: "900",
+    color: "#111",
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#666",
-    marginTop: 10,
+    marginTop: 8,
+    marginBottom: 22,
   },
   button: {
-    marginTop: 24,
-    backgroundColor: "#000",
-    paddingHorizontal: 30,
+    width: "100%",
+    backgroundColor: "#111",
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  secondaryButton: {
+    width: "100%",
+    marginTop: 10,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: "center",
   },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
   },
-  secondaryButton: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#000",
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 12,
-  },
   secondaryButtonText: {
     color: "#000",
     fontSize: 16,
     fontWeight: "600",
   },
-  info: {
-    marginTop: 20,
-    color: "#888",
-  },
   image: {
-    marginTop: 16,
-    width: 160,
-    height: 210,
-    borderRadius: 16,
-  },
-  analyzeButton: {
-    marginTop: 20,
-    backgroundColor: "#111",
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 12,
-  },
-  situationContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 28,
-  },
-  situationButton: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    width: 190,
+    height: 250,
     borderRadius: 20,
   },
-  selectedSituationButton: {
-    backgroundColor: "#000",
-    borderColor: "#000",
+  analyzeButton: {
+    width: "100%",
+    marginTop: 18,
+    backgroundColor: "#111",
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
   },
-  situationText: {
-    color: "#333",
+  emptyCard: {
+    marginTop: 20,
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    paddingVertical: 34,
+    paddingHorizontal: 22,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  emptyIcon: {
+    fontSize: 44,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#111",
+    marginBottom: 8,
+  },
+  emptyText: {
     fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 21,
   },
-  selectedSituationText: {
+  previewCard: {
+    marginTop: 20,
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111",
+    marginBottom: 14,
+  },
+  heroCard: {
+    width: "100%",
+    backgroundColor: "#111",
+    borderRadius: 24,
+    padding: 22,
+    marginTop: 18,
+    marginBottom: 20,
+  },
+
+  heroTitle: {
     color: "#fff",
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 8,
   },
+
+  heroText: {
+    color: "#d1d5db",
+    fontSize: 14,
+    lineHeight: 22,
+  },
+
 });

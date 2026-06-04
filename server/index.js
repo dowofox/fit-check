@@ -2,7 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const { GoogleGenAI } = require("@google/genai");
+const OpenAI = require("openai");
 
 const app = express();
 const PORT = 3001;
@@ -10,41 +10,128 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
 });
 
 app.get("/", (req, res) => {
-  res.send("FitCheck AI server is running");
+    res.send("FitCheck AI server is running");
 });
 
 app.post("/analyze", async (req, res) => {
-  try {
-    const { situation } = req.body;
+    try {
+        console.log("분석 요청 받음");
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: `남성 코디를 ${situation} 상황 기준으로 분석해줘. 아직 이미지는 연결 전이라 테스트 응답만 해줘.`,
-    });
+        const { image } = req.body;
 
-    res.json({
-      result: response.text,
-    });
-  } catch (error) {
-    console.error(error);
+        console.log("OpenAI 요청 시작");
 
-    const { situation } = req.body;
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            temperature: 0,
+            response_format: { type: "json_object" },
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `
+이 이미지를 보고 남성 패션 코디를 분석해줘.
 
-    res.json({
-        mock: true,
-        clothingType: "블랙 가죽 자켓",
-        mainColor: "블랙",
-        recommendedColor: "화이트",
-        recommendation: `${situation} 상황에서는 블랙 자켓과 화이트 계열 아이템 조합이 잘 어울립니다.`,
-    });
+반드시 JSON만 반환해.
+
+{
+  "score": "0부터 100 사이의 숫자",
+  "riskLevel": "낮음 / 보통 / 높음 중 하나",
+  "style": "스타일 분석",
+  "point": "이 코디의 핵심 포인트",
+  "clothingType": "옷 종류",
+  "mainColor": "주 색상",
+  "matchingColors": "잘 어울리는 색상",
+  "goodPoints": "이 코디의 장점",
+  "problems": "문제점. 없으면 '큰 문제 없음'",
+  "improvement": "개선하면 좋은 점",
+  "recommendedSituations": "어울리는 상황",
+  "summary": "단호한 총평"
+}
+
+규칙:
+- style은 캐주얼, 미니멀, 스트릿, 댄디, 아메카지, 시티보이 등 실제 패션 스타일로 분석
+- matchingColors는 실제로 코디했을 때 잘 어울리는 색상 추천
+- goodPoints는 잘 입은 부분 설명
+- improvement는 개선하면 더 좋아질 점 설명
+- recommendedSituations는 어울리는 장소와 상황 추천
+- JSON 외의 문장은 절대 출력하지 마
+- 억지로 칭찬하지 마
+- 별로인 부분은 단호하게 지적해
+- 실패 위험이 높으면 높다고 말해
+- point는 이 코디에서 가장 눈에 띄는 포인트를 설명
+- score는 전체 코디 완성도를 0~100점으로 평가해
+- 무난하면 70점대, 좋으면 80점대, 매우 좋으면 90점대, 실패 위험이 있으면 60점 이하로 줘
+`,
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:image/jpeg;base64,${image}`,
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+
+        console.log("OpenAI 응답 받음");
+
+        const text = completion.choices[0].message.content;
+
+        console.log("응답 내용:", text);
+
+        try {
+            const cleanedText = text
+                .replace(/```json/g, "")
+                .replace(/```/g, "")
+                .trim();
+
+            const parsed = JSON.parse(cleanedText);
+
+            return res.json(parsed);
+
+        } catch (e) {
+            console.log("JSON 파싱 실패:", text);
+
+            return res.json({
+                style: "파싱 실패",
+                clothingType: "파싱 실패",
+                mainColor: "-",
+                matchingColors: "-",
+                goodPoints: "-",
+                improvement: text,
+                recommendedSituations: "-",
+            });
+        }
+
+    } catch (error) {
+        console.error("OpenAI 에러:", error);
+
+        res.json({
+            riskLevel: "분석 실패",
+            style: "AI 분석 실패",
+            point: "-",
+            clothingType: "AI 분석 실패",
+            mainColor: "AI 분석 실패",
+            matchingColors: "-",
+            goodPoints: "-",
+            problems: "-",
+            improvement: "OpenAI 분석 실패",
+            recommendedSituations: "-",
+            summary: "분석에 실패했어요.",
+        });
     }
 });
 
 app.listen(PORT, () => {
-  console.log(`FitCheck server running on http://localhost:${PORT}`);
+    console.log(`FitCheck server running on http://localhost:${PORT}`);
 });
+
