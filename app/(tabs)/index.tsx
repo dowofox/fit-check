@@ -6,6 +6,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [situation, setSituation] = useState("데이트");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -80,7 +81,7 @@ export default function HomeScreen() {
           style={styles.analyzeButton}
           onPress={() =>
             router.push({
-              pathname: "/result",
+              pathname: "/analyzing",
               params: {
                 imageUri: image,
                 situation: situation,
