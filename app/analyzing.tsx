@@ -55,22 +55,7 @@ export default function AnalyzingScreen() {
 
                 router.replace({
                     pathname: "/result",
-                    params: {
-                        imageUri: imageUri as string,
-                        score: data.score,
-
-                        riskLevel: data.riskLevel,
-                        style: data.style,
-                        point: data.point,
-                        clothingType: data.clothingType,
-                        mainColor: data.mainColor,
-                        matchingColors: data.matchingColors,
-                        goodPoints: data.goodPoints,
-                        problems: data.problems,
-                        improvement: data.improvement,
-                        recommendedSituations: data.recommendedSituations,
-                        summary: data.summary,
-                    },
+                    params: savedResult,
                 });
             } catch (error) {
                 console.error(error);

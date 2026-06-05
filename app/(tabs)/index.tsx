@@ -64,20 +64,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.uploadCard}>
-        {recentResult && (
-          <View style={styles.recentCard}>
-            <Text style={styles.recentTitle}>최근 분석</Text>
 
-            <View style={styles.recentRow}>
-              <Text style={styles.recentScore}>{recentResult.score}점</Text>
-              <Text style={styles.recentRisk}>실패 위험 {recentResult.riskLevel}</Text>
-            </View>
-
-            <Text style={styles.recentSummary} numberOfLines={2}>
-              {recentResult.summary}
-            </Text>
-          </View>
-        )}
         {image ? (
           <>
             <Text style={styles.cardTitle}>선택한 코디 사진</Text>
@@ -117,6 +104,21 @@ export default function HomeScreen() {
           <Text style={styles.secondaryButtonText}>촬영</Text>
         </Pressable>
       </View>
+
+      {recentResult && (
+        <View style={styles.recentCard}>
+          <Text style={styles.recentTitle}>최근 분석</Text>
+
+          <View style={styles.recentRow}>
+            <Text style={styles.recentScore}>{recentResult.score}점</Text>
+            <Text style={styles.recentRisk}>실패 위험 {recentResult.riskLevel}</Text>
+          </View>
+
+          <Text style={styles.recentSummary} numberOfLines={2}>
+            {recentResult.summary}
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
