@@ -106,8 +106,18 @@ export default function HomeScreen() {
       </View>
 
       {recentResult && (
-        <View style={styles.recentCard}>
-          <Text style={styles.recentTitle}>최근 분석</Text>
+        <Pressable
+          style={styles.recentCard}
+          onPress={() =>
+            router.push({
+              pathname: "/result",
+              params: recentResult,
+            })
+          }
+        >
+          <Text style={styles.recentTitle}>
+            최근 분석 →
+          </Text>
 
           <View style={styles.recentRow}>
             <Text style={styles.recentScore}>{recentResult.score}점</Text>
@@ -117,7 +127,7 @@ export default function HomeScreen() {
           <Text style={styles.recentSummary} numberOfLines={2}>
             {recentResult.summary}
           </Text>
-        </View>
+        </Pressable>
       )}
     </ScrollView>
   );
