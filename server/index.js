@@ -20,8 +20,6 @@ app.get("/", (req, res) => {
 
 app.post("/analyze", async (req, res) => {
   try {
-    console.log("분석 요청 받음");
-
     const { image } = req.body;
 
     if (!image) {
@@ -34,8 +32,6 @@ app.post("/analyze", async (req, res) => {
         improvement: "사진을 다시 선택한 뒤 분석해주세요.",
       });
     }
-
-    console.log("OpenAI 요청 시작");
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -64,16 +60,13 @@ app.post("/analyze", async (req, res) => {
 규칙:
 - JSON 외의 문장은 절대 출력하지 마세요.
 - 모든 답변은 반드시 자연스러운 한국어 존댓말로 작성해주세요.
-- 반말, 명령조, 과한 비난 표현은 쓰지 마세요.
 - 단호하게 말하되 무례하지 않게 말해주세요.
 - 억지로 칭찬하지 마세요.
 - 별로인 부분은 명확하게 지적해주세요.
-- 실패 위험이 높으면 높다고 말해주세요.
-- score는 전체 코디 완성도를 0~100점 숫자로 평가해주세요.
+- score는 0~100점 숫자로 평가해주세요.
 - 무난하면 70점대, 좋으면 80점대, 매우 좋으면 90점대, 실패 위험이 있으면 60점 이하로 주세요.
 - riskLevel은 반드시 "낮음", "보통", "높음" 중 하나만 사용해주세요.
-- summary는 1~2문장으로 짧게 작성해주세요.
-- point, problems, improvement도 각각 1~2문장으로 작성해주세요.
+- summary, point, problems, improvement는 각각 1~2문장으로 짧게 작성해주세요.
 `,
             },
             {
@@ -87,37 +80,15 @@ app.post("/analyze", async (req, res) => {
       ],
     });
 
-    console.log("OpenAI 응답 받음");
-
     const text = completion.choices[0].message.content;
 
-    console.log("응답 내용:", text);
+    const parsed = JSON.parse(text);
 
-    try {
-      const cleanedText = text
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-
-      const parsed = JSON.parse(cleanedText);
-
-      return res.json(parsed);
-    } catch (e) {
-      console.log("JSON 파싱 실패:", text);
-
-      return res.json({
-        score: 0,
-        riskLevel: "분석 실패",
-        summary: "AI 응답 형식을 처리하지 못했습니다.",
-        point: "-",
-        problems: "-",
-        improvement: text,
-      });
-    }
+    return res.json(parsed);
   } catch (error) {
     console.error("OpenAI 에러:", error);
 
-    res.json({
+    return res.json({
       score: 0,
       riskLevel: "분석 실패",
       summary: "분석에 실패했어요.",

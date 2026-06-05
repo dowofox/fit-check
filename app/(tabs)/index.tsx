@@ -7,13 +7,13 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
-  const [recentResult, setRecentResult] = useState<any>(null);
+  const [recentResults, setRecentResults] = useState<any[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       const loadRecent = async () => {
         const history = await getAnalysisHistory();
-        setRecentResult(history[0] ?? null);
+        setRecentResults(history.slice(0, 5));
       };
 
       loadRecent();
@@ -105,29 +105,32 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {recentResult && (
-        <Pressable
-          style={styles.recentCard}
-          onPress={() =>
-            router.push({
-              pathname: "/result",
-              params: recentResult,
-            })
-          }
-        >
-          <Text style={styles.recentTitle}>
-            최근 분석 →
-          </Text>
+      {recentResults.length > 0 && (
+        <View style={styles.recentSection}>
+          <Text style={styles.recentTitle}>최근 분석</Text>
 
-          <View style={styles.recentRow}>
-            <Text style={styles.recentScore}>{recentResult.score}점</Text>
-            <Text style={styles.recentRisk}>실패 위험 {recentResult.riskLevel}</Text>
-          </View>
-
-          <Text style={styles.recentSummary} numberOfLines={2}>
-            {recentResult.summary}
-          </Text>
-        </Pressable>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.recentList}
+          >
+            {recentResults.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.recentImageCard}
+                onPress={() =>
+                  router.push({
+                    pathname: "/result",
+                    params: item,
+                  })
+                }
+              >
+                <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
+                <Text style={styles.recentScore}>{item.score}점</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       )}
     </ScrollView>
   );
@@ -243,37 +246,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
   },
-  recentCard: {
-    backgroundColor: "#fff",
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 16,
-  },
   recentTitle: {
     fontSize: 15,
     fontWeight: "900",
     color: "#111",
     marginBottom: 10,
   },
-  recentRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
   recentScore: {
     fontSize: 28,
     fontWeight: "900",
     color: "#111",
   },
-  recentRisk: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#666",
+  recentSection: {
+    marginTop: 18,
+    marginBottom: 16,
   },
-  recentSummary: {
-    fontSize: 14,
-    color: "#555",
-    lineHeight: 20,
+  recentList: {
+    gap: 12,
+  },
+  recentImageCard: {
+    width: 92,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 8,
+    alignItems: "center",
+  },
+  recentImage: {
+    width: 76,
+    height: 96,
+    borderRadius: 14,
+    backgroundColor: "#ddd",
+    marginBottom: 6,
   },
 });
