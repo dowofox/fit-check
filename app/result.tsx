@@ -16,9 +16,9 @@ export default function ResultScreen() {
 
   const riskIcon =
     riskText.includes("낮음") ? "🟢" :
-    riskText.includes("보통") ? "🟡" :
-    riskText.includes("높음") ? "🔴" :
-    "⚪";
+      riskText.includes("보통") ? "🟡" :
+        riskText.includes("높음") ? "🔴" :
+          "⚪";
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -33,7 +33,9 @@ export default function ResultScreen() {
             <Text style={styles.score}>{score ?? "-"}점</Text>
 
             <View style={styles.riskPill}>
-              <Text style={styles.riskText}>{riskIcon} {riskText}</Text>
+              <Text style={styles.riskText}>
+                {riskIcon} 실패 위험 {riskText}
+              </Text>
             </View>
           </View>
         </View>

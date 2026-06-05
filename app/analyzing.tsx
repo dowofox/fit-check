@@ -1,3 +1,4 @@
+import { saveAnalysis } from "@/utils/storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
@@ -37,6 +38,20 @@ export default function AnalyzingScreen() {
                 });
 
                 const data = await response.json();
+
+                const savedResult = {
+                    id: String(Date.now()),
+                    createdAt: new Date().toISOString(),
+                    imageUri: imageUri as string,
+                    score: data.score,
+                    riskLevel: data.riskLevel,
+                    summary: data.summary,
+                    point: data.point,
+                    problems: data.problems,
+                    improvement: data.improvement,
+                };
+
+                await saveAnalysis(savedResult);
 
                 router.replace({
                     pathname: "/result",
@@ -96,6 +111,8 @@ export default function AnalyzingScreen() {
         </View>
     );
 }
+
+
 
 const styles = StyleSheet.create({
     container: {
