@@ -1,7 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
@@ -35,145 +35,119 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>FitCheck</Text>
-
-      <Text style={styles.subtitle}>오늘 코디, 실패 확률부터 확인해요</Text>
+    <ScrollView contentContainerStyle={styles.container}>
 
       <View style={styles.heroCard}>
+        <Text style={styles.heroBadge}>NAES AI</Text>
+
         <Text style={styles.heroTitle}>
-          AI가 코디를 객관적으로 분석해요
+          오늘 코디는 몇 점?
         </Text>
 
         <Text style={styles.heroText}>
-          실패 위험, 코디 포인트, 문제점을 솔직하게 알려드립니다.
+          당신만의 스타일리스트가 실패 위험, 코디 포인트, 문제점을 솔직하게 분석해드려요.
         </Text>
       </View>
 
-      <Pressable style={styles.button} onPress={pickImage}>
-        <Text style={styles.buttonText}>사진 선택하기</Text>
-      </Pressable>
-
-      <Pressable style={styles.secondaryButton} onPress={takePhoto}>
-        <Text style={styles.secondaryButtonText}>카메라로 촬영하기</Text>
-      </Pressable>
-
-      {image ? (
-        <>
-          <View style={styles.previewCard}>
-            <Text style={styles.previewTitle}>선택한 코디 사진</Text>
+      <View style={styles.uploadCard}>
+        {image ? (
+          <>
+            <Text style={styles.cardTitle}>선택한 코디 사진</Text>
             <Image source={{ uri: image }} style={styles.image} />
-          </View>
 
-          <Pressable
-            style={styles.analyzeButton}
-            onPress={() =>
+            <Pressable style={styles.analyzeButton} onPress={() =>
               router.push({
                 pathname: "/analyzing",
-                params: {
-                  imageUri: image,
-                },
+                params: { imageUri: image },
               })
-            }
-          >
-            <Text style={styles.buttonText}>분석하기</Text>
-          </Pressable>
-        </>
-      ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>👕</Text>
-          <Text style={styles.emptyTitle}>아직 분석 할 사진이 없어요</Text>
-          <Text style={styles.emptyText}>
-            전신이 보이는 사진을 올리면 더 정확하게 분석할 수 있어요.
+            }>
+              <Text style={styles.analyzeButtonText}>AI 분석하기</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={styles.emptyIcon}>👕</Text>
+            <Text style={styles.cardTitle}>
+              오늘 코디를 보여주세요
+            </Text>
+
+            <Text style={styles.emptyText}>
+              전신 사진일수록 더 정확한 분석 결과를 받을 수 있어요.
+            </Text>
+          </>
+        )}
+      </View>
+
+      <View style={styles.actionRow}>
+        <Pressable style={styles.primaryButton} onPress={pickImage}>
+          <Text style={styles.primaryButtonText}>
+            {image ? "사진 변경" : "앨범에서 선택"}
           </Text>
-        </View>
-      )}
-    </View>
+        </Pressable>
+
+        <Pressable style={styles.secondaryButton} onPress={takePhoto}>
+          <Text style={styles.secondaryButtonText}>촬영</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    alignItems: "center",
-    backgroundColor: "#f3f4f6",
-    paddingTop: 54,
+    flexGrow: 1,
+    backgroundColor: "#f4f4f5",
+    paddingTop: 28,
     paddingHorizontal: 20,
+    paddingBottom: 70,
   },
-  title: {
-    fontSize: 34,
+  heroCard: {
+    backgroundColor: "#111",
+    borderRadius: 26,
+    padding: 22,
+    marginTop: 0,
+    marginBottom: 18,
+  },
+  heroBadge: {
+    color: "#a3e635",
+    fontSize: 12,
     fontWeight: "900",
-    color: "#111",
+    marginBottom: 10,
+    letterSpacing: 1,
   },
-  subtitle: {
-    fontSize: 15,
-    color: "#666",
-    marginTop: 8,
-    marginBottom: 22,
-  },
-  button: {
-    width: "100%",
-    backgroundColor: "#111",
-    paddingVertical: 15,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  secondaryButton: {
-    width: "100%",
-    marginTop: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    paddingVertical: 15,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  buttonText: {
+  heroTitle: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 23,
+    fontWeight: "900",
+    lineHeight: 30,
   },
-  secondaryButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "600",
+  heroText: {
+    marginTop: 10,
+    color: "#d1d5db",
+    fontSize: 14,
+    lineHeight: 22,
   },
-  image: {
-    width: 190,
-    height: 250,
-    borderRadius: 20,
-  },
-  analyzeButton: {
-    width: "100%",
-    marginTop: 18,
-    backgroundColor: "#111",
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  emptyCard: {
-    marginTop: 20,
-    width: "100%",
+  uploadCard: {
     backgroundColor: "#fff",
-    borderRadius: 24,
-    paddingVertical: 34,
-    paddingHorizontal: 22,
+    borderRadius: 26,
+    padding: 22,
     alignItems: "center",
+    marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: 12,
     elevation: 4,
   },
   emptyIcon: {
     fontSize: 44,
     marginBottom: 12,
   },
-  emptyTitle: {
+  cardTitle: {
     fontSize: 18,
     fontWeight: "900",
     color: "#111",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   emptyText: {
     fontSize: 14,
@@ -181,46 +155,52 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 21,
   },
-  previewCard: {
-    marginTop: 20,
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 4,
+  image: {
+    width: 150,
+    height: 200,
+    borderRadius: 20,
+    marginBottom: 16,
   },
-  previewTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111",
-    marginBottom: 14,
-  },
-  heroCard: {
+  analyzeButton: {
     width: "100%",
     backgroundColor: "#111",
-    borderRadius: 24,
-    padding: 22,
-    marginTop: 18,
-    marginBottom: 20,
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: "center",
   },
-
-  heroTitle: {
+  analyzeButtonText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
-    marginBottom: 8,
   },
-
-  heroText: {
-    color: "#d1d5db",
-    fontSize: 14,
-    lineHeight: 22,
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
   },
-
+  primaryButton: {
+    flex: 1,
+    backgroundColor: "#111",
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  secondaryButton: {
+    width: 96,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: "#111",
+    fontSize: 16,
+    fontWeight: "800",
+  },
 });
