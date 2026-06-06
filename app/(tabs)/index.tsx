@@ -127,6 +127,9 @@ export default function HomeScreen() {
               >
                 <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
                 <Text style={styles.recentScore}>{item.score}점</Text>
+                <Text style={styles.recentDate}>
+                  {new Date(item.createdAt).toLocaleDateString("ko-KR")}
+                </Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -140,7 +143,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     backgroundColor: "#f4f4f5",
-    paddingTop: 28,
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 70,
   },
@@ -253,12 +256,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   recentScore: {
-    fontSize: 28,
+    fontSize: 13,
     fontWeight: "900",
     color: "#111",
   },
   recentSection: {
-    marginTop: 18,
+    marginTop: 16,
     marginBottom: 16,
   },
   recentList: {
@@ -277,5 +280,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#ddd",
     marginBottom: 6,
+  },
+  recentDate: {
+    fontSize: 11,
+    color: "#666",
+    marginTop: 2,
   },
 });

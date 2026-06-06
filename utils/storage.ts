@@ -7,10 +7,11 @@ export async function saveAnalysis(result: any) {
     const history = existing ? JSON.parse(existing) : [];
 
     history.unshift(result);
+    const limitedHistory = history.slice(0, 20);
 
     await AsyncStorage.setItem(
       "analysis_history",
-      JSON.stringify(history)
+      JSON.stringify(limitedHistory)
     );
 
   } catch (error) {
