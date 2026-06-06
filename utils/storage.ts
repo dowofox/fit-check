@@ -1,6 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "analysis_history";
+const PROFILE_KEY = "naes_profile";
+
+export type UserProfile = {
+  gender?: string;
+  height?: string;
+  weight?: string;
+  bodyType?: string;
+};
 
 export async function saveAnalysis(result: any) {
   try {
@@ -46,5 +54,24 @@ export async function deleteAnalysis(id: string) {
   } catch (error) {
     console.log("삭제 실패:", error);
     return [];
+  }
+}
+
+export async function saveUserProfile(profile: UserProfile) {
+  try {
+    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  } catch (error) {
+    console.log("프로필 저장 실패:", error);
+  }
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  try {
+    const data = await AsyncStorage.getItem(PROFILE_KEY);
+
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.log("프로필 불러오기 실패:", error);
+    return null;
   }
 }
