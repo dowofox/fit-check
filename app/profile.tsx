@@ -1,3 +1,4 @@
+import BottomNav from "@/components/BottomNav";
 import { getUserProfile, saveUserProfile } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -42,127 +43,122 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Feather name="chevron-left" size={22} color="#111" />
-        </Pressable>
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Feather name="chevron-left" size={22} color="#111" />
+          </Pressable>
 
-        <View>
-          <Text style={styles.headerEyebrow}>MY STYLE PROFILE</Text>
           <Text style={styles.headerTitle}>마이페이지</Text>
+
+          <View style={styles.headerBlank} />
         </View>
 
-        <View style={styles.headerBlank} />
-      </View>
+        <View style={styles.formCard}>
+          <Text style={styles.sectionEyebrow}>STYLE PROFILE</Text>
+          <Text style={styles.sectionTitle}>기본 정보</Text>
+          <Text style={styles.sectionDescription}>
+            체형 정보를 저장하면 이후 코디 분석에서 핏과 비율 평가에 함께 반영됩니다.
+          </Text>
 
-      <View style={styles.heroCard}>
-        <View>
-          <Text style={styles.heroBadge}>NAES PROFILE</Text>
-          <Text style={styles.heroTitle}>내 체형 정보를{`\n`}저장해보세요</Text>
-          <Text style={styles.heroText}>
-            저장된 정보는 코디 분석 시 핏과 비율 평가에 함께 반영됩니다.
+          <Text style={styles.inputLabel}>성별</Text>
+          <View style={styles.optionRow}>
+            {genderOptions.map((option) => (
+              <Pressable
+                key={option}
+                style={[styles.optionButton, gender === option && styles.activeOptionButton]}
+                onPress={() => setGender(option)}
+              >
+                <Text style={[styles.optionText, gender === option && styles.activeOptionText]}>
+                  {option}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.inputRow}>
+            <View style={styles.inputBox}>
+              <Text style={styles.inputLabel}>키</Text>
+              <View style={styles.textInputWrap}>
+                <TextInput
+                  value={height}
+                  onChangeText={setHeight}
+                  placeholder="175"
+                  keyboardType="numeric"
+                  style={styles.textInput}
+                />
+                <Text style={styles.unitText}>cm</Text>
+              </View>
+            </View>
+
+            <View style={styles.inputBox}>
+              <Text style={styles.inputLabel}>몸무게</Text>
+              <View style={styles.textInputWrap}>
+                <TextInput
+                  value={weight}
+                  onChangeText={setWeight}
+                  placeholder="68"
+                  keyboardType="numeric"
+                  style={styles.textInput}
+                />
+                <Text style={styles.unitText}>kg</Text>
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.inputLabel}>체형</Text>
+          <View style={styles.bodyTypeGrid}>
+            {bodyTypeOptions.map((option) => (
+              <Pressable
+                key={option}
+                style={[styles.bodyTypeButton, bodyType === option && styles.activeBodyTypeButton]}
+                onPress={() => setBodyType(option)}
+              >
+                <Text style={[styles.bodyTypeText, bodyType === option && styles.activeBodyTypeText]}>
+                  {option}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.infoCard}>
+          <View style={styles.infoIconCircle}>
+            <Feather name="lock" size={16} color="#111" />
+          </View>
+          <Text style={styles.infoText}>
+            입력한 정보는 내 기기 안에 저장됩니다. 나중에 분석 정확도를 높이는 개인화 기준으로 사용됩니다.
           </Text>
         </View>
 
-        <View style={styles.heroObject}>
-          <Text style={styles.heroObjectLogo}>N</Text>
-          <Text style={styles.heroObjectSub}>BODY</Text>
-        </View>
-      </View>
+        <Pressable style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>저장하기</Text>
+        </Pressable>
+      </ScrollView>
 
-      <View style={styles.formCard}>
-        <Text style={styles.sectionTitle}>기본 정보</Text>
-
-        <Text style={styles.inputLabel}>성별</Text>
-        <View style={styles.optionRow}>
-          {genderOptions.map((option) => (
-            <Pressable
-              key={option}
-              style={[styles.optionButton, gender === option && styles.activeOptionButton]}
-              onPress={() => setGender(option)}
-            >
-              <Text style={[styles.optionText, gender === option && styles.activeOptionText]}>
-                {option}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.inputRow}>
-          <View style={styles.inputBox}>
-            <Text style={styles.inputLabel}>키</Text>
-            <View style={styles.textInputWrap}>
-              <TextInput
-                value={height}
-                onChangeText={setHeight}
-                placeholder="175"
-                keyboardType="numeric"
-                style={styles.textInput}
-              />
-              <Text style={styles.unitText}>cm</Text>
-            </View>
-          </View>
-
-          <View style={styles.inputBox}>
-            <Text style={styles.inputLabel}>몸무게</Text>
-            <View style={styles.textInputWrap}>
-              <TextInput
-                value={weight}
-                onChangeText={setWeight}
-                placeholder="68"
-                keyboardType="numeric"
-                style={styles.textInput}
-              />
-              <Text style={styles.unitText}>kg</Text>
-            </View>
-          </View>
-        </View>
-
-        <Text style={styles.inputLabel}>체형</Text>
-        <View style={styles.bodyTypeGrid}>
-          {bodyTypeOptions.map((option) => (
-            <Pressable
-              key={option}
-              style={[styles.bodyTypeButton, bodyType === option && styles.activeBodyTypeButton]}
-              onPress={() => setBodyType(option)}
-            >
-              <Text style={[styles.bodyTypeText, bodyType === option && styles.activeBodyTypeText]}>
-                {option}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.infoCard}>
-        <View style={styles.infoIconCircle}>
-          <Feather name="info" size={17} color="#111" />
-        </View>
-        <Text style={styles.infoText}>
-          체형 정보는 앱 안에 저장되며, 이후 코디 분석에서 핏과 비율을 더 개인화해서 평가하는 데 사용됩니다.
-        </Text>
-      </View>
-
-      <Pressable style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>프로필 저장하기</Text>
-      </Pressable>
-    </ScrollView>
+      <BottomNav activeTab="profile" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
+    flex: 1,
     backgroundColor: "#f5f2ee",
-    paddingTop: 52,
+  },
+  container: {
+    flexGrow: 1,
+    backgroundColor: "#f5f2ee",
+    paddingTop: 34,
     paddingHorizontal: 20,
-    paddingBottom: 48,
+    paddingBottom: 104,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 16,
   },
   backButton: {
     width: 40,
@@ -178,77 +174,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
-  headerEyebrow: {
-    color: "#9b7a4b",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    textAlign: "center",
-  },
   headerTitle: {
     color: "#111",
     fontSize: 24,
     fontWeight: "900",
-    marginTop: 2,
     textAlign: "center",
-  },
-  heroCard: {
-    backgroundColor: "#111",
-    borderRadius: 30,
-    padding: 22,
-    minHeight: 178,
-    marginBottom: 16,
-    position: "relative",
-    overflow: "hidden",
-  },
-  heroBadge: {
-    color: "#caa46a",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    marginBottom: 12,
-  },
-  heroTitle: {
-    color: "#fff",
-    fontSize: 29,
-    fontWeight: "900",
-    lineHeight: 38,
-    letterSpacing: -1,
-  },
-  heroText: {
-    color: "#d8d2ca",
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 22,
-    marginTop: 12,
-    width: "68%",
-  },
-  heroObject: {
-    position: "absolute",
-    right: 24,
-    top: 48,
-    width: 86,
-    height: 108,
-    borderTopLeftRadius: 44,
-    borderTopRightRadius: 44,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    borderWidth: 1.3,
-    borderColor: "#caa46a",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroObjectLogo: {
-    color: "#caa46a",
-    fontSize: 28,
-    fontWeight: "900",
-    marginBottom: 6,
-  },
-  heroObjectSub: {
-    color: "#caa46a",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 2,
   },
   formCard: {
     backgroundColor: "#faf8f5",
@@ -258,11 +188,25 @@ const styles = StyleSheet.create({
     borderColor: "#f0eee9",
     marginBottom: 14,
   },
+  sectionEyebrow: {
+    color: "#9b7a4b",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginBottom: 7,
+  },
   sectionTitle: {
     color: "#111",
-    fontSize: 21,
+    fontSize: 23,
     fontWeight: "900",
-    marginBottom: 18,
+    marginBottom: 8,
+  },
+  sectionDescription: {
+    color: "#6b6258",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 20,
+    marginBottom: 20,
   },
   inputLabel: {
     color: "#5d554d",
