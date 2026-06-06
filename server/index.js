@@ -32,6 +32,14 @@ function getRiskLevel(score) {
   return "높음";
 }
 
+function normalizeComment(comment, fallback) {
+  if (typeof comment === "string" && comment.trim().length > 0) {
+    return comment.trim();
+  }
+
+  return fallback;
+}
+
 function getProfileText(profile = {}) {
   const gender = profile.gender || "미입력";
   const age = profile.age || "미입력";
@@ -63,6 +71,14 @@ function normalizeAnalysisResult(result) {
     seasonScore: normalizeScore(result.seasonScore ?? normalizedScore),
     trendScore: normalizeScore(result.trendScore ?? normalizedScore),
     finishScore: normalizeScore(result.finishScore ?? normalizedScore),
+    fitComment: normalizeComment(result.fitComment, "핏과 실루엣을 기준으로 평가했습니다."),
+    colorComment: normalizeComment(result.colorComment, "색 조합과 톤 매칭을 기준으로 평가했습니다."),
+    balanceComment: normalizeComment(result.balanceComment, "상하의 비율과 전체 균형을 기준으로 평가했습니다."),
+    bodyFitComment: normalizeComment(result.bodyFitComment, "체형과 착장의 조화를 기준으로 평가했습니다."),
+    itemComment: normalizeComment(result.itemComment, "아이템 간 조화를 기준으로 평가했습니다."),
+    seasonComment: normalizeComment(result.seasonComment, "계절감과 소재감을 기준으로 평가했습니다."),
+    trendComment: normalizeComment(result.trendComment, "현재 스타일 감각을 기준으로 평가했습니다."),
+    finishComment: normalizeComment(result.finishComment, "전체 완성도와 정돈감을 기준으로 평가했습니다."),
     summary: result.summary || "전체적인 코디 분석 결과입니다.",
     point: result.point || "코디의 핵심 포인트를 판단하기 어렵습니다.",
     problems: result.problems || "큰 문제는 없습니다.",
@@ -90,6 +106,14 @@ app.post("/analyze", async (req, res) => {
         seasonScore: 0,
         trendScore: 0,
         finishScore: 0,
+        fitComment: "이미지가 없어 핏을 분석하지 못했습니다.",
+        colorComment: "이미지가 없어 색 조합을 분석하지 못했습니다.",
+        balanceComment: "이미지가 없어 비율을 분석하지 못했습니다.",
+        bodyFitComment: "이미지가 없어 체형 적합도를 분석하지 못했습니다.",
+        itemComment: "이미지가 없어 아이템 조화를 분석하지 못했습니다.",
+        seasonComment: "이미지가 없어 계절감을 분석하지 못했습니다.",
+        trendComment: "이미지가 없어 트렌드를 분석하지 못했습니다.",
+        finishComment: "이미지가 없어 완성도를 분석하지 못했습니다.",
         summary: "이미지가 전달되지 않았습니다.",
         point: "-",
         problems: "-",
@@ -134,6 +158,14 @@ ${profileText}
   "seasonScore": 0,
   "trendScore": 0,
   "finishScore": 0,
+  "fitComment": "핏에 대한 한 줄 평가",
+  "colorComment": "색조합에 대한 한 줄 평가",
+  "balanceComment": "비율에 대한 한 줄 평가",
+  "bodyFitComment": "체형적합에 대한 한 줄 평가",
+  "itemComment": "아이템조화에 대한 한 줄 평가",
+  "seasonComment": "계절감에 대한 한 줄 평가",
+  "trendComment": "트렌드에 대한 한 줄 평가",
+  "finishComment": "완성도에 대한 한 줄 평가",
   "summary": "전체 코디에 대한 짧고 단호한 총평",
   "point": "이 코디의 핵심 포인트",
   "problems": "가장 아쉬운 문제점. 없으면 '큰 문제는 없습니다.'",
@@ -149,6 +181,12 @@ ${profileText}
 - seasonScore: 계절감, 소재감, 두께감, 색감이 현재 외출 코디로 자연스러운지 평가해주세요.
 - trendScore: 현재 감각, 스타일 완성도, 촌스럽지 않은지, 과하게 유행만 따라간 느낌은 아닌지 평가해주세요.
 - finishScore: 전체 정돈감, 디테일, 구김/어수선함, 실제 외출 가능성, 완성도를 평가해주세요.
+
+코멘트 작성 규칙:
+- 각 세부 코멘트는 1문장으로 작성해주세요.
+- 코멘트는 점수 이유가 바로 이해되게 구체적으로 작성해주세요.
+- 막연한 칭찬보다 실제 보이는 핏, 색, 비율, 아이템 문제를 말해주세요.
+- 프로필 정보가 있으면 bodyFitComment에 개인 체형 기준 평가를 반영해주세요.
 
 규칙:
 - JSON 외의 문장은 절대 출력하지 마세요.
@@ -209,6 +247,14 @@ ${profileText}
       seasonScore: 0,
       trendScore: 0,
       finishScore: 0,
+      fitComment: "분석에 실패해 핏 평가를 불러오지 못했습니다.",
+      colorComment: "분석에 실패해 색조합 평가를 불러오지 못했습니다.",
+      balanceComment: "분석에 실패해 비율 평가를 불러오지 못했습니다.",
+      bodyFitComment: "분석에 실패해 체형 적합 평가를 불러오지 못했습니다.",
+      itemComment: "분석에 실패해 아이템 조화 평가를 불러오지 못했습니다.",
+      seasonComment: "분석에 실패해 계절감 평가를 불러오지 못했습니다.",
+      trendComment: "분석에 실패해 트렌드 평가를 불러오지 못했습니다.",
+      finishComment: "분석에 실패해 완성도 평가를 불러오지 못했습니다.",
       summary: "분석에 실패했어요.",
       point: "-",
       problems: "-",
