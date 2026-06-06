@@ -47,6 +47,10 @@ export default function AnalyzingScreen() {
                     imageUri: imageUri as string,
                     score: data.score,
                     riskLevel: data.riskLevel,
+                    fitScore: data.fitScore,
+                    colorScore: data.colorScore,
+                    balanceScore: data.balanceScore,
+                    trendScore: data.trendScore,
                     summary: data.summary,
                     point: data.point,
                     problems: data.problems,
@@ -68,6 +72,10 @@ export default function AnalyzingScreen() {
                         score: "0",
                         imageUri: imageUri as string,
                         riskLevel: "분석 실패",
+                        fitScore: "0",
+                        colorScore: "0",
+                        balanceScore: "0",
+                        trendScore: "0",
                         point: "-",
                         problems: "-",
                         improvement: "서버 연결에 실패했어요.",
@@ -84,7 +92,7 @@ export default function AnalyzingScreen() {
         <View style={styles.container}>
             <ActivityIndicator size="large" color="#000" />
             <Text style={styles.title}>AI가 코디를 분석하고 있어요</Text>
-            <Text style={styles.subtitle}>저장된 프로필과 스타일 정보를 함께 분석하는 중이에요.</Text>
+            <Text style={styles.subtitle}>핏, 색 조합, 비율, 트렌드까지 함께 분석하는 중이에요.</Text>
         </View>
     );
 }
