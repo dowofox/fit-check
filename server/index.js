@@ -55,6 +55,10 @@ function normalizeAnalysisResult(result) {
   return {
     score: normalizedScore,
     riskLevel: getRiskLevel(normalizedScore),
+    fitScore: normalizeScore(result.fitScore ?? normalizedScore),
+    colorScore: normalizeScore(result.colorScore ?? normalizedScore),
+    balanceScore: normalizeScore(result.balanceScore ?? normalizedScore),
+    trendScore: normalizeScore(result.trendScore ?? normalizedScore),
     summary: result.summary || "전체적인 코디 분석 결과입니다.",
     point: result.point || "코디의 핵심 포인트를 판단하기 어렵습니다.",
     problems: result.problems || "큰 문제는 없습니다.",
@@ -74,6 +78,10 @@ app.post("/analyze", async (req, res) => {
       return res.status(400).json({
         score: 0,
         riskLevel: "분석 실패",
+        fitScore: 0,
+        colorScore: 0,
+        balanceScore: 0,
+        trendScore: 0,
         summary: "이미지가 전달되지 않았습니다.",
         point: "-",
         problems: "-",
@@ -110,11 +118,21 @@ ${profileText}
 {
   "score": 0,
   "riskLevel": "낮음 / 보통 / 높음 중 하나",
+  "fitScore": 0,
+  "colorScore": 0,
+  "balanceScore": 0,
+  "trendScore": 0,
   "summary": "전체 코디에 대한 짧고 단호한 총평",
   "point": "이 코디의 핵심 포인트",
   "problems": "가장 아쉬운 문제점. 없으면 '큰 문제는 없습니다.'",
   "improvement": "더 좋아지기 위한 구체적인 개선 팁"
 }
+
+세부 점수 기준:
+- fitScore: 옷의 핏, 사이즈감, 체형과의 조화, 실루엣을 평가해주세요.
+- colorScore: 색 조합, 톤 매칭, 과하거나 밋밋하지 않은지를 평가해주세요.
+- balanceScore: 상하의 비율, 아이템 배치, 전체 균형감을 평가해주세요.
+- trendScore: 현재 감각, 스타일 완성도, 너무 촌스럽거나 과하지 않은지를 평가해주세요.
 
 규칙:
 - JSON 외의 문장은 절대 출력하지 마세요.
@@ -122,7 +140,7 @@ ${profileText}
 - 단호하게 말하되 무례하지 않게 말해주세요.
 - 억지로 칭찬하지 마세요.
 - 별로인 부분은 명확하게 지적해주세요.
-- score는 0~100점 숫자로 평가해주세요.
+- score와 모든 세부 점수는 0~100점 숫자로 평가해주세요.
 - 점수는 아래 기준표를 최우선으로 사용해주세요.
 - 비슷한 수준의 코디는 매번 비슷한 점수가 나오도록 평가 기준을 보수적으로 유지해주세요.
 - 애매하면 높은 점수보다 낮은 구간을 선택해주세요.
@@ -166,6 +184,10 @@ ${profileText}
     return res.json({
       score: 0,
       riskLevel: "분석 실패",
+      fitScore: 0,
+      colorScore: 0,
+      balanceScore: 0,
+      trendScore: 0,
       summary: "분석에 실패했어요.",
       point: "-",
       problems: "-",
