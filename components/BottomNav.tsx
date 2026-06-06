@@ -1,21 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import * as NavigationBar from "expo-navigation-bar";
 import { router } from "expo-router";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { hideAndroidNavigationBar, useHideAndroidNavigationBar } from "@/utils/navigationBar";
 
 export type BottomNavTab = "home" | "analyze" | "history" | "profile";
-
-async function hideAndroidNavigationBar() {
-  if (Platform.OS !== "android") return;
-
-  try {
-    await NavigationBar.setBehaviorAsync("overlay-swipe");
-    await NavigationBar.setVisibilityAsync("hidden");
-    await NavigationBar.setBackgroundColorAsync("#00000000");
-  } catch (error) {
-    console.log("NavigationBar hide failed:", error);
-  }
-}
 
 function NavItem({
   active,
@@ -30,106 +19,87 @@ function NavItem({
 }) {
   return (
     <Pressable
-      style={[styles.navItem, active && styles.activeNavItem]}
+      style={styles.navItem}
       onPress={async () => {
         await hideAndroidNavigationBar();
         onPress();
       }}
     >
-      {active ? (
-        <View style={styles.activeIconCircle}>
-          <Feather name={icon} size={16} color="#fff" />
-        </View>
-      ) : (
-        <Feather name={icon} size={19} color="#8c8c8c" />
-      )}
+      <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
+        <Feather name={icon} size={19} color={active ? "#111" : "#8f8a84"} />
+      </View>
       <Text style={active ? styles.navTextActive : styles.navText}>{label}</Text>
+      {active && <View style={styles.activeLine} />}
     </Pressable>
   );
 }
 
 export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
+  useHideAndroidNavigationBar();
+
   return (
-    <View style={styles.bottomNav}>
-      <NavItem
-        active={activeTab === "home"}
-        icon="home"
-        label="홈"
-        onPress={() => router.replace("/")}
-      />
-      <View style={styles.divider} />
-      <NavItem
-        active={activeTab === "analyze"}
-        icon="search"
-        label="분석"
-        onPress={() => router.replace("/")}
-      />
-      <View style={styles.divider} />
-      <NavItem
-        active={activeTab === "history"}
-        icon="archive"
-        label="기록"
-        onPress={() => router.push("/history")}
-      />
-      <View style={styles.divider} />
-      <NavItem
-        active={activeTab === "profile"}
-        icon="user"
-        label="마이"
-        onPress={() => router.push("/profile")}
-      />
+    <View style={styles.bottomNavWrap}>
+      <View style={styles.bottomNav}>
+        <NavItem active={activeTab === "home"} icon="home" label="홈" onPress={() => router.replace("/")} />
+        <View style={styles.divider} />
+        <NavItem active={activeTab === "analyze"} icon="search" label="분석" onPress={() => router.replace("/")} />
+        <View style={styles.divider} />
+        <NavItem active={activeTab === "history"} icon="archive" label="기록" onPress={() => router.push("/history")} />
+        <View style={styles.divider} />
+        <NavItem active={activeTab === "profile"} icon="user" label="마이" onPress={() => router.push("/profile")} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bottomNav: {
+  bottomNavWrap: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: 56,
     backgroundColor: "#fff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingTop: 4,
-    paddingBottom: 3,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     borderTopWidth: 1,
     borderColor: "#eee7dd",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 7,
+    elevation: 8,
+  },
+  bottomNav: {
+    height: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingTop: 5,
+    paddingBottom: 3,
   },
   navItem: {
     flex: 1,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    height: 48,
-    borderRadius: 14,
+    gap: 1,
+    position: "relative",
   },
-  activeNavItem: {
-    backgroundColor: "#f6f3ef",
+  iconWrap: {
+    width: 30,
+    height: 26,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activeIconWrap: {
+    backgroundColor: "#f3ede5",
   },
   divider: {
     width: 1,
-    height: 28,
+    height: 24,
     backgroundColor: "#eee7dd",
-    marginHorizontal: 2,
-  },
-  activeIconCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 999,
-    backgroundColor: "#111",
-    alignItems: "center",
-    justifyContent: "center",
+    opacity: 0.9,
   },
   navTextActive: {
     color: "#111",
@@ -137,8 +107,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   navText: {
-    color: "#8c8c8c",
+    color: "#8f8a84",
     fontSize: 10,
     fontWeight: "900",
+  },
+  activeLine: {
+    position: "absolute",
+    bottom: 0,
+    width: 18,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "#111",
   },
 });
