@@ -107,7 +107,13 @@ export default function HomeScreen() {
 
       {recentResults.length > 0 && (
         <View style={styles.recentSection}>
-          <Text style={styles.recentTitle}>내 코디 기록</Text>
+          <View style={styles.recentHeader}>
+            <Text style={styles.recentTitle}>내 코디 기록</Text>
+
+            <Pressable onPress={() => router.push("/history")}>
+              <Text style={styles.seeAllText}>전체보기 →</Text>
+            </Pressable>
+          </View>
 
           <ScrollView
             horizontal
@@ -254,6 +260,17 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#111",
     marginBottom: 10,
+  },
+  recentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#666",
   },
   recentScore: {
     fontSize: 13,
