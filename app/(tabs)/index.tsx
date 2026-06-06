@@ -85,7 +85,7 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           <Text style={styles.logo}>NAES</Text>
           <Pressable style={styles.alertButton}>
-            <Feather name="bell" size={20} color="#111" />
+            <Feather name="bell" size={18} color="#111" />
           </Pressable>
         </View>
 
@@ -99,8 +99,9 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.heroObject}>
-            <Feather name="award" size={34} color="#caa46a" />
+            <Text style={styles.heroObjectLogo}>N</Text>
             <Text style={styles.heroObjectSub}>STYLE</Text>
+            <Text style={styles.heroObjectSmall}>EST. 2026</Text>
           </View>
 
           <View style={styles.heroArcLarge} />
@@ -110,17 +111,23 @@ export default function HomeScreen() {
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{totalCount}</Text>
-            <Text style={styles.statLabel}>분석 횟수</Text>
+            <Text style={styles.statLabel}>분석</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{highestScore}</Text>
-            <Text style={styles.statLabel}>최고 점수</Text>
+            <View style={styles.statValueRow}>
+              <Text style={styles.statValue}>{highestScore}</Text>
+              <Text style={styles.statUnit}>점</Text>
+            </View>
+            <Text style={styles.statLabel}>최고</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{averageScore}</Text>
-            <Text style={styles.statLabel}>평균 점수</Text>
+            <View style={styles.statValueRow}>
+              <Text style={styles.statValue}>{averageScore}</Text>
+              <Text style={styles.statUnit}>점</Text>
+            </View>
+            <Text style={styles.statLabel}>평균</Text>
           </View>
         </View>
 
@@ -149,21 +156,21 @@ export default function HomeScreen() {
           ) : (
             <>
               <View style={styles.uploadIconCircle}>
-                <Feather name="plus" size={26} color="#8c6f47" />
+                <Feather name="plus" size={25} color="#8c6f47" />
               </View>
-              <Text style={styles.uploadTitle}>오늘 코디 업로드</Text>
-              <Text style={styles.uploadText}>
-                사진을 업로드하고 AI 분석을 받아보세요.
+              <Text style={styles.uploadTitle}>오늘 어떤 스타일인가요?</Text>
+              <Text style={styles.uploadTextCenter}>
+                사진 한 장으로 AI 스타일 분석을 시작해보세요.
               </Text>
 
               <View style={styles.uploadButtonRow}>
                 <Pressable style={styles.uploadChoiceButton} onPress={pickImage}>
-                  <Feather name="image" size={24} color="#73522d" />
+                  <Feather name="image" size={23} color="#73522d" />
                   <Text style={styles.uploadChoiceText}>앨범에서 선택</Text>
                 </Pressable>
 
                 <Pressable style={styles.uploadChoiceButton} onPress={takePhoto}>
-                  <Feather name="camera" size={24} color="#73522d" />
+                  <Feather name="camera" size={23} color="#73522d" />
                   <Text style={styles.uploadChoiceText}>촬영하기</Text>
                 </Pressable>
               </View>
@@ -229,7 +236,9 @@ export default function HomeScreen() {
 
       <View style={styles.bottomNav}>
         <View style={styles.navItemActive}>
-          <Feather name="home" size={20} color="#111" />
+          <View style={styles.activeIconCircle}>
+            <Feather name="home" size={18} color="#fff" />
+          </View>
           <Text style={styles.navTextActive}>홈</Text>
         </View>
         <View style={styles.navItem}>
@@ -273,8 +282,8 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
   alertButton: {
-    width: 42,
-    height: 42,
+    width: 38,
+    height: 38,
     borderRadius: 999,
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -282,10 +291,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.035,
+    shadowRadius: 8,
+    elevation: 1,
   },
   heroCard: {
     backgroundColor: "#111",
@@ -336,12 +345,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 2,
   },
+  heroObjectLogo: {
+    color: "#caa46a",
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
   heroObjectSub: {
     color: "#caa46a",
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 2,
-    marginTop: 9,
+  },
+  heroObjectSmall: {
+    color: "#8f744e",
+    fontSize: 7,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    marginTop: 7,
   },
   heroArcLarge: {
     position: "absolute",
@@ -366,9 +388,9 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   statsCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#faf8f5",
     borderRadius: 26,
-    paddingVertical: 17,
+    paddingVertical: 16,
     marginBottom: 18,
     flexDirection: "row",
     alignItems: "center",
@@ -385,19 +407,30 @@ const styles = StyleSheet.create({
     height: 34,
     backgroundColor: "#e7e1d8",
   },
+  statValueRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
   statValue: {
-    fontSize: 27,
+    fontSize: 25,
     fontWeight: "900",
     color: "#111",
+  },
+  statUnit: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#111",
+    marginLeft: 2,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: "#7c746a",
-    marginTop: 5,
+    marginTop: 4,
     fontWeight: "900",
   },
   uploadCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#faf8f5",
     borderRadius: 28,
     padding: 18,
     alignItems: "center",
@@ -406,9 +439,9 @@ const styles = StyleSheet.create({
     borderColor: "#f0eee9",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.045,
     shadowRadius: 16,
-    elevation: 3,
+    elevation: 2,
   },
   selectedContent: {
     width: "100%",
@@ -436,9 +469,9 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 999,
-    backgroundColor: "#f4efe8",
+    backgroundColor: "#f0e7dc",
     borderWidth: 1,
-    borderColor: "#eee4d8",
+    borderColor: "#e6d9cb",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
@@ -454,6 +487,13 @@ const styles = StyleSheet.create({
     color: "#6b6258",
     lineHeight: 20,
     fontWeight: "700",
+  },
+  uploadTextCenter: {
+    fontSize: 13,
+    color: "#6b6258",
+    lineHeight: 20,
+    fontWeight: "700",
+    textAlign: "center",
   },
   uploadButtonRow: {
     width: "100%",
@@ -614,6 +654,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minWidth: 54,
     gap: 3,
+  },
+  activeIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
   },
   navTextActive: {
     color: "#111",
