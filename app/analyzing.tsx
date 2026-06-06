@@ -1,15 +1,17 @@
-import { saveAnalysis } from "@/utils/storage";
+import { getUserProfile, saveAnalysis } from "@/utils/storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
+const ANALYZE_URL = "http://192.168.219.104:3001/analyze";
+
 export default function AnalyzingScreen() {
     const { imageUri } = useLocalSearchParams();
-    console.log("imageUri:", imageUri);
 
     useEffect(() => {
         const analyzeOutfit = async () => {
             try {
+                const profile = await getUserProfile();
                 const imageResponse = await fetch(imageUri as string);
                 const imageBlob = await imageResponse.blob();
 
@@ -26,14 +28,14 @@ export default function AnalyzingScreen() {
                     reader.readAsDataURL(imageBlob);
                 });
 
-                console.log("Base64 길이:", base64Image.length);
-                const response = await fetch("http://192.168.219.104:3001/analyze", {
+                const response = await fetch(ANALYZE_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
                         image: base64Image,
+                        profile,
                     }),
                 });
 
@@ -81,17 +83,11 @@ export default function AnalyzingScreen() {
     return (
         <View style={styles.container}>
             <ActivityIndicator size="large" color="#000" />
-
             <Text style={styles.title}>AI가 코디를 분석하고 있어요</Text>
-
-            <Text style={styles.subtitle}>
-                스타일과 색 조합을 분석하는 중이에요.
-            </Text>
+            <Text style={styles.subtitle}>저장된 프로필과 스타일 정보를 함께 분석하는 중이에요.</Text>
         </View>
     );
 }
-
-
 
 const styles = StyleSheet.create({
     container: {
