@@ -45,6 +45,7 @@ function getScoreColor(score?: number | string) {
 export default function HistoryScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const [sortType, setSortType] = useState<"recent" | "score">("recent");
+  const [openedMenuId, setOpenedMenuId] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     const data = await getAnalysisHistory();
@@ -54,6 +55,7 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       loadHistory();
+      setOpenedMenuId(null);
     }, [loadHistory])
   );
 
@@ -83,6 +85,7 @@ export default function HistoryScreen() {
           onPress: async () => {
             const updatedHistory = await deleteAnalysis(id);
             setHistory(updatedHistory);
+            setOpenedMenuId(null);
           },
         },
       ]
@@ -132,7 +135,10 @@ export default function HistoryScreen() {
         <View style={styles.filterRow}>
           <Pressable
             style={[styles.filterButton, sortType === "recent" && styles.activeFilterButton]}
-            onPress={() => setSortType("recent")}
+            onPress={() => {
+              setSortType("recent");
+              setOpenedMenuId(null);
+            }}
           >
             <Text style={[styles.filterText, sortType === "recent" && styles.activeFilterText]}>
               최근 순
@@ -141,7 +147,10 @@ export default function HistoryScreen() {
 
           <Pressable
             style={[styles.filterButton, sortType === "score" && styles.activeFilterButton]}
-            onPress={() => setSortType("score")}
+            onPress={() => {
+              setSortType("score");
+              setOpenedMenuId(null);
+            }}
           >
             <Text style={[styles.filterText, sortType === "score" && styles.activeFilterText]}>
               높은 점수순
@@ -161,17 +170,23 @@ export default function HistoryScreen() {
           sortedHistory.map((item) => {
             const riskStyle = getRiskStyle(item.riskLevel);
             const scoreColor = getScoreColor(item.score);
+            const isMenuOpen = openedMenuId === item.id;
 
             return (
               <Pressable
                 key={item.id}
                 style={styles.card}
-                onPress={() =>
+                onPress={() => {
+                  if (isMenuOpen) {
+                    setOpenedMenuId(null);
+                    return;
+                  }
+
                   router.push({
                     pathname: "/result",
                     params: item,
-                  })
-                }
+                  });
+                }}
               >
                 <Image source={{ uri: item.imageUri }} style={styles.image} />
 
@@ -193,15 +208,29 @@ export default function HistoryScreen() {
                   </Text>
                 </View>
 
-                <Pressable
-                  style={styles.deleteButton}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    handleDelete(item.id);
-                  }}
-                >
-                  <Text style={styles.deleteIcon}>×</Text>
-                </Pressable>
+                <View style={styles.actionArea}>
+                  {isMenuOpen && (
+                    <Pressable
+                      style={styles.deleteAction}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        handleDelete(item.id);
+                      }}
+                    >
+                      <Text style={styles.deleteActionText}>삭제</Text>
+                    </Pressable>
+                  )}
+
+                  <Pressable
+                    style={[styles.menuButton, isMenuOpen && styles.activeMenuButton]}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      setOpenedMenuId(isMenuOpen ? null : item.id);
+                    }}
+                  >
+                    <Text style={styles.menuButtonText}>•••</Text>
+                  </Pressable>
+                </View>
               </Pressable>
             );
           })
@@ -470,20 +499,43 @@ const styles = StyleSheet.create({
     marginTop: 9,
     fontWeight: "600",
   },
-  deleteButton: {
-    backgroundColor: "#fff1f1",
+  actionArea: {
+    width: 58,
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  menuButton: {
+    backgroundColor: "#faf8f5",
     width: 42,
     height: 42,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+    borderColor: "#ebe3d8",
+  },
+  activeMenuButton: {
+    backgroundColor: "#111",
+    borderColor: "#111",
+  },
+  menuButtonText: {
+    color: "#8c8175",
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 18,
+    marginTop: -5,
+  },
+  deleteAction: {
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
     borderColor: "#ffd7d7",
   },
-  deleteIcon: {
+  deleteActionText: {
     color: "#dc2626",
-    fontSize: 25,
-    fontWeight: "700",
-    lineHeight: 26,
+    fontSize: 12,
+    fontWeight: "900",
   },
 });
