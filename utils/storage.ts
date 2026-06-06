@@ -5,6 +5,7 @@ const PROFILE_KEY = "naes_profile";
 
 export type UserProfile = {
   gender?: string;
+  age?: string;
   height?: string;
   weight?: string;
   bodyType?: string;
