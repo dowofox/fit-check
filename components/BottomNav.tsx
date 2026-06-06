@@ -30,7 +30,7 @@ function NavItem({
 }) {
   return (
     <Pressable
-      style={styles.navItem}
+      style={[styles.navItem, active && styles.activeNavItem]}
       onPress={async () => {
         await hideAndroidNavigationBar();
         onPress();
@@ -38,10 +38,10 @@ function NavItem({
     >
       {active ? (
         <View style={styles.activeIconCircle}>
-          <Feather name={icon} size={18} color="#fff" />
+          <Feather name={icon} size={16} color="#fff" />
         </View>
       ) : (
-        <Feather name={icon} size={20} color="#8c8c8c" />
+        <Feather name={icon} size={19} color="#8c8c8c" />
       )}
       <Text style={active ? styles.navTextActive : styles.navText}>{label}</Text>
     </Pressable>
@@ -57,18 +57,21 @@ export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
         label="홈"
         onPress={() => router.replace("/")}
       />
+      <View style={styles.divider} />
       <NavItem
         active={activeTab === "analyze"}
         icon="search"
         label="분석"
         onPress={() => router.replace("/")}
       />
+      <View style={styles.divider} />
       <NavItem
         active={activeTab === "history"}
         icon="archive"
         label="기록"
         onPress={() => router.push("/history")}
       />
+      <View style={styles.divider} />
       <NavItem
         active={activeTab === "profile"}
         icon="user"
@@ -85,32 +88,44 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 66,
+    height: 56,
     backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingTop: 6,
-    paddingBottom: 4,
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 3,
     borderTopWidth: 1,
     borderColor: "#eee7dd",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 7,
   },
   navItem: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 54,
-    gap: 3,
+    gap: 2,
+    height: 48,
+    borderRadius: 14,
+  },
+  activeNavItem: {
+    backgroundColor: "#f6f3ef",
+  },
+  divider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#eee7dd",
+    marginHorizontal: 2,
   },
   activeIconCircle: {
-    width: 30,
-    height: 30,
+    width: 26,
+    height: 26,
     borderRadius: 999,
     backgroundColor: "#111",
     alignItems: "center",
