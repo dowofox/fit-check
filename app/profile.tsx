@@ -10,6 +10,7 @@ const bodyTypeOptions = ["마름", "보통", "근육형", "통통"];
 
 export default function ProfileScreen() {
   const [gender, setGender] = useState("남성");
+  const [age, setAge] = useState("");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [bodyType, setBodyType] = useState("보통");
@@ -21,6 +22,7 @@ export default function ProfileScreen() {
 
         if (profile) {
           setGender(profile.gender || "남성");
+          setAge(profile.age || "");
           setHeight(profile.height || "");
           setWeight(profile.weight || "");
           setBodyType(profile.bodyType || "보통");
@@ -34,12 +36,13 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     await saveUserProfile({
       gender,
+      age,
       height,
       weight,
       bodyType,
     });
 
-    Alert.alert("저장 완료", "내 체형 정보가 저장됐어요.");
+    Alert.alert("저장 완료", "내 프로필 정보가 저장됐어요.");
   };
 
   return (
@@ -59,7 +62,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionEyebrow}>STYLE PROFILE</Text>
           <Text style={styles.sectionTitle}>기본 정보</Text>
           <Text style={styles.sectionDescription}>
-            체형 정보를 저장하면 이후 코디 분석에서 핏과 비율 평가에 함께 반영됩니다.
+            프로필 정보를 저장하면 이후 코디 분석에서 나이, 체형, 핏과 비율 평가에 함께 반영됩니다.
           </Text>
 
           <Text style={styles.inputLabel}>성별</Text>
@@ -79,6 +82,20 @@ export default function ProfileScreen() {
 
           <View style={styles.inputRow}>
             <View style={styles.inputBox}>
+              <Text style={styles.inputLabel}>나이</Text>
+              <View style={styles.textInputWrap}>
+                <TextInput
+                  value={age}
+                  onChangeText={setAge}
+                  placeholder="25"
+                  keyboardType="numeric"
+                  style={styles.textInput}
+                />
+                <Text style={styles.unitText}>세</Text>
+              </View>
+            </View>
+
+            <View style={styles.inputBox}>
               <Text style={styles.inputLabel}>키</Text>
               <View style={styles.textInputWrap}>
                 <TextInput
@@ -91,7 +108,9 @@ export default function ProfileScreen() {
                 <Text style={styles.unitText}>cm</Text>
               </View>
             </View>
+          </View>
 
+          <View style={styles.inputRow}>
             <View style={styles.inputBox}>
               <Text style={styles.inputLabel}>몸무게</Text>
               <View style={styles.textInputWrap}>
@@ -105,6 +124,8 @@ export default function ProfileScreen() {
                 <Text style={styles.unitText}>kg</Text>
               </View>
             </View>
+
+            <View style={styles.inputBoxPlaceholder} />
           </View>
 
           <Text style={styles.inputLabel}>체형</Text>
@@ -128,7 +149,7 @@ export default function ProfileScreen() {
             <Feather name="lock" size={16} color="#111" />
           </View>
           <Text style={styles.infoText}>
-            입력한 정보는 내 기기 안에 저장됩니다. 나중에 분석 정확도를 높이는 개인화 기준으로 사용됩니다.
+            입력한 정보는 내 기기 안에 저장됩니다. AI 분석 요청 시 개인화 기준으로 함께 사용됩니다.
           </Text>
         </View>
 
@@ -246,6 +267,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   inputBox: {
+    flex: 1,
+  },
+  inputBoxPlaceholder: {
     flex: 1,
   },
   textInputWrap: {
