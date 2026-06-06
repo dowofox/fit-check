@@ -8,6 +8,22 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [recentResults, setRecentResults] = useState<any[]>([]);
+  const totalCount = recentResults.length;
+
+  const highestScore =
+    recentResults.length > 0
+      ? Math.max(...recentResults.map((r) => Number(r.score)))
+      : 0;
+
+  const averageScore =
+    recentResults.length > 0
+      ? Math.round(
+        recentResults.reduce(
+          (sum, r) => sum + Number(r.score),
+          0
+        ) / recentResults.length
+      )
+      : 0;
 
   useFocusEffect(
     useCallback(() => {
@@ -61,6 +77,23 @@ export default function HomeScreen() {
         <Text style={styles.heroText}>
           당신만의 스타일리스트가 실패 위험, 코디 포인트, 문제점을 솔직하게 분석해드려요.
         </Text>
+      </View>
+
+      <View style={styles.statsCard}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{totalCount}</Text>
+          <Text style={styles.statLabel}>분석 횟수</Text>
+        </View>
+
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{highestScore}</Text>
+          <Text style={styles.statLabel}>최고 점수</Text>
+        </View>
+
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{averageScore}</Text>
+          <Text style={styles.statLabel}>평균 점수</Text>
+        </View>
       </View>
 
       <View style={styles.uploadCard}>
@@ -303,5 +336,29 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 2,
     fontWeight: "700",
+  },
+  statsCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 18,
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+
+  statItem: {
+    alignItems: "center",
+  },
+
+  statValue: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#111",
+  },
+
+  statLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 4,
   },
 });
