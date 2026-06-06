@@ -38,7 +38,7 @@ export default function RootLayout() {
         <Stack.Screen
           name="result"
           options={{
-            title: "분석 결과",
+            headerShown: false,
           }}
         />
 
