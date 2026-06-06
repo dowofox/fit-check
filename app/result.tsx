@@ -5,16 +5,13 @@ import { Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "rea
 
 function getRiskStyle(riskLevel?: string) {
   const risk = String(riskLevel ?? "");
-
   if (risk.includes("낮음")) return { backgroundColor: "#edf6df", dotColor: "#84cc16", textColor: "#3f6212" };
   if (risk.includes("높음")) return { backgroundColor: "#fee2e2", dotColor: "#ef4444", textColor: "#991b1b" };
-
   return { backgroundColor: "#fff3d6", dotColor: "#f59e0b", textColor: "#92400e" };
 }
 
 function getScoreMessage(score?: string | string[]) {
   const numericScore = Number(score ?? 0);
-
   if (numericScore >= 90) return "완성도 높은 스타일이에요.";
   if (numericScore >= 80) return "안정적으로 좋은 코디예요.";
   if (numericScore >= 70) return "무난하지만 조금 더 다듬으면 좋아요.";
@@ -25,13 +22,11 @@ function getScoreMessage(score?: string | string[]) {
 function getStars(score?: string | string[]) {
   const numericScore = Number(score ?? 0);
   const filledCount = Math.max(0, Math.min(5, Math.round(numericScore / 20)));
-
   return "★".repeat(filledCount) + "☆".repeat(5 - filledCount);
 }
 
 export default function ResultScreen() {
   const { imageUri, score, riskLevel, point, problems, improvement, summary } = useLocalSearchParams();
-
   const scoreText = String(score ?? "-");
   const riskText = String(riskLevel ?? "-");
   const summaryText = String(summary ?? "분석 결과를 불러오지 못했어요.");
@@ -41,101 +36,46 @@ export default function ResultScreen() {
   const riskStyle = getRiskStyle(riskText);
 
   const handleShare = async () => {
-    await Share.share({
-      message: `NAES 스타일 분석 결과\n\nSTYLE SCORE ${scoreText}점\n실패 위험 ${riskText}\n\n${summaryText}`,
-    });
+    await Share.share({ message: `NAES 스타일 분석 결과\n\nSTYLE SCORE ${scoreText}점\n실패 위험 ${riskText}\n\n${summaryText}` });
   };
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={22} color="#111" />
-          </Pressable>
-
-          <View>
-            <Text style={styles.headerEyebrow}>ANALYSIS COMPLETE</Text>
-            <Text style={styles.headerTitle}>분석 결과</Text>
-          </View>
-
-          <Pressable style={styles.shareIconButton} onPress={handleShare}>
-            <Feather name="share-2" size={18} color="#111" />
-          </Pressable>
+          <Pressable style={styles.backButton} onPress={() => router.back()}><Feather name="chevron-left" size={22} color="#111" /></Pressable>
+          <View><Text style={styles.headerEyebrow}>ANALYSIS COMPLETE</Text><Text style={styles.headerTitle}>분석 결과</Text></View>
+          <Pressable style={styles.shareIconButton} onPress={handleShare}><Feather name="share-2" size={18} color="#111" /></Pressable>
         </View>
 
         <View style={styles.scoreCard}>
           <View style={styles.scoreCardTop}>
             <View>
               <Text style={styles.scoreLabel}>STYLE SCORE</Text>
-              <View style={styles.scoreRow}>
-                <Text style={styles.score}>{scoreText}</Text>
-                <Text style={styles.scoreUnit}>점</Text>
-              </View>
+              <View style={styles.scoreRow}><Text style={styles.score}>{scoreText}</Text><Text style={styles.scoreUnit}>점</Text></View>
               <Text style={styles.stars}>{getStars(score as string)}</Text>
             </View>
-
             {imageUri && <Image source={{ uri: imageUri as string }} style={styles.image} />}
           </View>
-
           <View style={styles.scoreDivider} />
           <Text style={styles.scoreMessage}>{getScoreMessage(score as string)}</Text>
         </View>
 
         <View style={styles.riskCard}>
-          <View>
-            <Text style={styles.sectionEyebrow}>RISK CHECK</Text>
-            <Text style={styles.riskTitle}>실패 위험</Text>
-          </View>
-
-          <View style={[styles.riskPill, { backgroundColor: riskStyle.backgroundColor }]}>
-            <View style={[styles.riskDot, { backgroundColor: riskStyle.dotColor }]} />
-            <Text style={[styles.riskText, { color: riskStyle.textColor }]}>{riskText}</Text>
-          </View>
+          <View><Text style={styles.sectionEyebrow}>RISK CHECK</Text><Text style={styles.riskTitle}>실패 위험</Text></View>
+          <View style={[styles.riskPill, { backgroundColor: riskStyle.backgroundColor }]}><View style={[styles.riskDot, { backgroundColor: riskStyle.dotColor }]} /><Text style={[styles.riskText, { color: riskStyle.textColor }]}>{riskText}</Text></View>
         </View>
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.sectionEyebrow}>AI REVIEW</Text>
-          <Text style={styles.cardTitle}>AI 총평</Text>
-          <Text style={styles.summaryText}>{summaryText}</Text>
-        </View>
-
-        <View style={styles.detailCard}>
-          <View style={styles.detailHeaderRow}>
-            <View style={styles.detailIconCircle}><Feather name="check" size={17} color="#111" /></View>
-            <Text style={styles.cardTitle}>코디 포인트</Text>
-          </View>
-          <Text style={styles.cardText}>{pointText}</Text>
-        </View>
-
-        <View style={styles.detailCard}>
-          <View style={styles.detailHeaderRow}>
-            <View style={styles.detailIconCircle}><Feather name="alert-circle" size={17} color="#111" /></View>
-            <Text style={styles.cardTitle}>아쉬운 점</Text>
-          </View>
-          <Text style={styles.cardText}>{problemsText}</Text>
-        </View>
-
-        <View style={styles.detailCard}>
-          <View style={styles.detailHeaderRow}>
-            <View style={styles.detailIconCircle}><Feather name="trending-up" size={17} color="#111" /></View>
-            <Text style={styles.cardTitle}>개선 팁</Text>
-          </View>
-          <Text style={styles.cardText}>{improvementText}</Text>
-        </View>
+        <View style={styles.summaryCard}><Text style={styles.sectionEyebrow}>AI REVIEW</Text><Text style={styles.cardTitle}>AI 총평</Text><Text style={styles.summaryText}>{summaryText}</Text></View>
+        <View style={styles.detailCard}><View style={styles.detailHeaderRow}><View style={styles.detailIconCircle}><Feather name="check" size={17} color="#111" /></View><Text style={styles.cardTitle}>코디 포인트</Text></View><Text style={styles.cardText}>{pointText}</Text></View>
+        <View style={styles.detailCard}><View style={styles.detailHeaderRow}><View style={styles.detailIconCircle}><Feather name="alert-circle" size={17} color="#111" /></View><Text style={styles.cardTitle}>아쉬운 점</Text></View><Text style={styles.cardText}>{problemsText}</Text></View>
+        <View style={styles.detailCard}><View style={styles.detailHeaderRow}><View style={styles.detailIconCircle}><Feather name="trending-up" size={17} color="#111" /></View><Text style={styles.cardTitle}>개선 팁</Text></View><Text style={styles.cardText}>{improvementText}</Text></View>
 
         <View style={styles.buttonRow}>
-          <Pressable style={styles.primaryButton} onPress={handleShare}>
-            <Feather name="share-2" size={18} color="#fff" />
-            <Text style={styles.primaryButtonText}>공유하기</Text>
-          </Pressable>
-
-          <Pressable style={styles.secondaryButton} onPress={() => router.replace("/")}>
-            <Text style={styles.secondaryButtonText}>다시 분석</Text>
-          </Pressable>
+          <Pressable style={styles.primaryButton} onPress={handleShare}><Feather name="share-2" size={18} color="#fff" /><Text style={styles.primaryButtonText}>공유하기</Text></Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => router.replace("/")}><Text style={styles.secondaryButtonText}>다시 분석</Text></Pressable>
         </View>
       </ScrollView>
-
       <BottomNav activeTab="analyze" />
     </View>
   );
@@ -143,7 +83,7 @@ export default function ResultScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f2ee" },
-  container: { backgroundColor: "#f5f2ee", paddingTop: 36, paddingHorizontal: 20, paddingBottom: 112 },
+  container: { backgroundColor: "#f5f2ee", paddingTop: 24, paddingHorizontal: 20, paddingBottom: 112 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   backButton: { width: 40, height: 40, borderRadius: 999, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#eee7dd" },
   shareIconButton: { width: 40, height: 40, borderRadius: 999, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#eee7dd" },
