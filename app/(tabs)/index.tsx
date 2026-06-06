@@ -107,7 +107,7 @@ export default function HomeScreen() {
 
       {recentResults.length > 0 && (
         <View style={styles.recentSection}>
-          <Text style={styles.recentTitle}>최근 분석</Text>
+          <Text style={styles.recentTitle}>내 코디 기록</Text>
 
           <ScrollView
             horizontal
@@ -268,15 +268,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   recentImageCard: {
-    width: 130,
+    width: 92,
     backgroundColor: "#fff",
     borderRadius: 18,
     padding: 8,
     alignItems: "center",
   },
   recentImage: {
-    width: 114,
-    height: 145,
+    width: 76,
+    height: 96,
     borderRadius: 14,
     backgroundColor: "#ddd",
     marginBottom: 6,
