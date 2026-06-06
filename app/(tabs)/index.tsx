@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#111",
     borderRadius: 26,
     padding: 22,
-    marginTop: 0,
+    marginTop: 8,
     marginBottom: 18,
   },
   heroBadge: {
