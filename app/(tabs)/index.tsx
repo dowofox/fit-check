@@ -229,19 +229,19 @@ export default function HomeScreen() {
 
       <View style={styles.bottomNav}>
         <View style={styles.navItemActive}>
-          <Feather name="home" size={22} color="#111" />
+          <Feather name="home" size={20} color="#111" />
           <Text style={styles.navTextActive}>홈</Text>
         </View>
         <View style={styles.navItem}>
-          <Feather name="search" size={22} color="#8c8c8c" />
+          <Feather name="search" size={20} color="#8c8c8c" />
           <Text style={styles.navText}>분석</Text>
         </View>
         <Pressable style={styles.navItem} onPress={() => router.push("/history")}>
-          <Feather name="archive" size={22} color="#8c8c8c" />
+          <Feather name="archive" size={20} color="#8c8c8c" />
           <Text style={styles.navText}>기록</Text>
         </Pressable>
         <View style={styles.navItem}>
-          <Feather name="user" size={22} color="#8c8c8c" />
+          <Feather name="user" size={20} color="#8c8c8c" />
           <Text style={styles.navText}>마이</Text>
         </View>
       </View>
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 52,
     paddingHorizontal: 20,
-    paddingBottom: 112,
+    paddingBottom: 88,
   },
   topBar: {
     flexDirection: "row",
@@ -586,42 +586,43 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 84,
+    height: 66,
     backgroundColor: "#fff",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingBottom: 10,
-    borderWidth: 1,
+    paddingTop: 6,
+    paddingBottom: 4,
+    borderTopWidth: 1,
     borderColor: "#eee7dd",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 8,
   },
   navItem: {
     alignItems: "center",
     justifyContent: "center",
     minWidth: 54,
-    gap: 4,
+    gap: 3,
   },
   navItemActive: {
     alignItems: "center",
     justifyContent: "center",
     minWidth: 54,
-    gap: 4,
+    gap: 3,
   },
   navTextActive: {
     color: "#111",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
   },
   navText: {
     color: "#8c8c8c",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
   },
 });
