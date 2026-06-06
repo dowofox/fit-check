@@ -13,7 +13,7 @@ export default function HomeScreen() {
     useCallback(() => {
       const loadRecent = async () => {
         const history = await getAnalysisHistory();
-        setRecentResults(history.slice(0, 5));
+        setRecentResults(history.slice(0, 10));
       };
 
       loadRecent();
@@ -127,8 +127,8 @@ export default function HomeScreen() {
               >
                 <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
                 <Text style={styles.recentScore}>{item.score}점</Text>
-                <Text style={styles.recentDate}>
-                  {new Date(item.createdAt).toLocaleDateString("ko-KR")}
+                <Text style={styles.recentRisk}>
+                  실패 위험 {item.riskLevel}
                 </Text>
               </Pressable>
             ))}
@@ -268,22 +268,23 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   recentImageCard: {
-    width: 92,
+    width: 130,
     backgroundColor: "#fff",
     borderRadius: 18,
     padding: 8,
     alignItems: "center",
   },
   recentImage: {
-    width: 76,
-    height: 96,
+    width: 114,
+    height: 145,
     borderRadius: 14,
     backgroundColor: "#ddd",
     marginBottom: 6,
   },
-  recentDate: {
+  recentRisk: {
     fontSize: 11,
     color: "#666",
     marginTop: 2,
+    fontWeight: "700",
   },
 });
