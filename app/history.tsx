@@ -5,15 +5,10 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 function formatDate(createdAt?: string) {
-  if (!createdAt) {
-    return "날짜 없음";
-  }
+  if (!createdAt) return "날짜 없음";
 
   const date = new Date(createdAt);
-
-  if (Number.isNaN(date.getTime())) {
-    return "날짜 없음";
-  }
+  if (Number.isNaN(date.getTime())) return "날짜 없음";
 
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -22,6 +17,29 @@ function formatDate(createdAt?: string) {
   const minute = String(date.getMinutes()).padStart(2, "0");
 
   return `${year}.${month}.${day} ${hour}:${minute}`;
+}
+
+function getRiskStyle(riskLevel?: string) {
+  const risk = String(riskLevel ?? "");
+
+  if (risk.includes("낮음")) {
+    return { backgroundColor: "#edf6df", dotColor: "#84cc16", textColor: "#3f6212" };
+  }
+
+  if (risk.includes("높음")) {
+    return { backgroundColor: "#fee2e2", dotColor: "#ef4444", textColor: "#991b1b" };
+  }
+
+  return { backgroundColor: "#fff3d6", dotColor: "#f59e0b", textColor: "#92400e" };
+}
+
+function getScoreColor(score?: number | string) {
+  const numericScore = Number(score);
+
+  if (numericScore >= 90) return "#b88932";
+  if (numericScore >= 80) return "#111";
+  if (numericScore >= 70) return "#2b2b2b";
+  return "#dc2626";
 }
 
 export default function HistoryScreen() {
@@ -46,6 +64,12 @@ export default function HistoryScreen() {
 
     return history;
   }, [history, sortType]);
+
+  const totalCount = history.length;
+  const highestScore = totalCount > 0 ? Math.max(...history.map((item) => Number(item.score))) : 0;
+  const averageScore = totalCount > 0
+    ? Math.round(history.reduce((sum, item) => sum + Number(item.score), 0) / totalCount)
+    : 0;
 
   const handleDelete = (id: string) => {
     Alert.alert(
@@ -88,6 +112,23 @@ export default function HistoryScreen() {
       </View>
 
       <View style={styles.listPanel}>
+        <View style={styles.statsCard}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{totalCount}</Text>
+            <Text style={styles.statLabel}>분석</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{highestScore}</Text>
+            <Text style={styles.statLabel}>최고</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{averageScore}</Text>
+            <Text style={styles.statLabel}>평균</Text>
+          </View>
+        </View>
+
         <View style={styles.filterRow}>
           <Pressable
             style={[styles.filterButton, sortType === "recent" && styles.activeFilterButton]}
@@ -106,10 +147,6 @@ export default function HistoryScreen() {
               높은 점수순
             </Text>
           </Pressable>
-
-          <View style={styles.filterIconButton}>
-            <Text style={styles.filterIconText}>☰</Text>
-          </View>
         </View>
 
         {history.length === 0 ? (
@@ -121,49 +158,53 @@ export default function HistoryScreen() {
             </Text>
           </View>
         ) : (
-          sortedHistory.map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.card}
-              onPress={() =>
-                router.push({
-                  pathname: "/result",
-                  params: item,
-                })
-              }
-            >
-              <Image source={{ uri: item.imageUri }} style={styles.image} />
+          sortedHistory.map((item) => {
+            const riskStyle = getRiskStyle(item.riskLevel);
+            const scoreColor = getScoreColor(item.score);
 
-              <View style={styles.info}>
-                <Text style={styles.date}>▣ {formatDate(item.createdAt)}</Text>
-
-                <View style={styles.scoreRow}>
-                  <Text style={styles.score}>{item.score}</Text>
-                  <Text style={styles.scoreUnit}>점</Text>
-                </View>
-
-                <View style={styles.riskPill}>
-                  <View style={styles.riskDot} />
-                  <Text style={styles.risk}>실패 위험 {item.riskLevel}</Text>
-                </View>
-
-                <Text style={styles.summary} numberOfLines={2}>
-                  {item.summary}
-                </Text>
-              </View>
-
+            return (
               <Pressable
-                style={styles.deleteButton}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  handleDelete(item.id);
-                }}
+                key={item.id}
+                style={styles.card}
+                onPress={() =>
+                  router.push({
+                    pathname: "/result",
+                    params: item,
+                  })
+                }
               >
-                <Text style={styles.deleteIcon}>⌫</Text>
-                <Text style={styles.deleteButtonText}>삭제</Text>
+                <Image source={{ uri: item.imageUri }} style={styles.image} />
+
+                <View style={styles.info}>
+                  <Text style={styles.date}>□ {formatDate(item.createdAt)}</Text>
+
+                  <View style={styles.scoreRow}>
+                    <Text style={[styles.score, { color: scoreColor }]}>{item.score}</Text>
+                    <Text style={[styles.scoreUnit, { color: scoreColor }]}>점</Text>
+                  </View>
+
+                  <View style={[styles.riskPill, { backgroundColor: riskStyle.backgroundColor }]}>
+                    <View style={[styles.riskDot, { backgroundColor: riskStyle.dotColor }]} />
+                    <Text style={[styles.risk, { color: riskStyle.textColor }]}>실패 위험 {item.riskLevel}</Text>
+                  </View>
+
+                  <Text style={styles.summary} numberOfLines={2}>
+                    {item.summary}
+                  </Text>
+                </View>
+
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    handleDelete(item.id);
+                  }}
+                >
+                  <Text style={styles.deleteIcon}>×</Text>
+                </Pressable>
               </Pressable>
-            </Pressable>
-          ))
+            );
+          })
         )}
       </View>
     </ScrollView>
@@ -178,10 +219,10 @@ const styles = StyleSheet.create({
     paddingBottom: 44,
   },
   heroArea: {
-    minHeight: 230,
+    minHeight: 220,
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 28,
+    paddingTop: 18,
+    paddingBottom: 24,
     position: "relative",
     overflow: "hidden",
   },
@@ -190,10 +231,10 @@ const styles = StyleSheet.create({
   },
   heroAccentLine: {
     position: "absolute",
-    left: -10,
-    top: 6,
+    left: -9,
+    top: 5,
     width: 1,
-    height: 136,
+    height: 128,
     backgroundColor: "#b99862",
   },
   heroBadge: {
@@ -201,14 +242,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 8,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   heroTitle: {
     color: "#111",
-    fontSize: 40,
+    fontSize: 38,
     fontWeight: "900",
     letterSpacing: -2,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   heroDescription: {
     color: "#5f5a55",
@@ -218,14 +259,14 @@ const styles = StyleSheet.create({
   },
   heroObject: {
     position: "absolute",
-    right: 22,
-    top: 78,
-    width: 118,
-    height: 148,
-    borderTopLeftRadius: 56,
-    borderTopRightRadius: 56,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+    right: 30,
+    top: 86,
+    width: 98,
+    height: 124,
+    borderTopLeftRadius: 48,
+    borderTopRightRadius: 48,
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
     backgroundColor: "#111",
     borderWidth: 1,
     borderColor: "#9b7a4b",
@@ -235,57 +276,89 @@ const styles = StyleSheet.create({
   },
   heroObjectIcon: {
     color: "#caa46a",
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: 21,
+    marginBottom: 7,
   },
   heroObjectText: {
     color: "#caa46a",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "900",
     letterSpacing: 2,
   },
   heroObjectSubText: {
     color: "#caa46a",
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "800",
     letterSpacing: 2,
-    marginTop: 6,
+    marginTop: 5,
   },
   heroGhostText: {
     position: "absolute",
-    right: 12,
-    top: 20,
-    color: "#e9e3dc",
-    fontSize: 58,
+    right: 18,
+    top: 28,
+    color: "#ede8e1",
+    fontSize: 54,
     fontWeight: "900",
     letterSpacing: 2,
   },
   heroStar: {
     position: "absolute",
-    right: 22,
-    top: 38,
+    right: 24,
+    top: 48,
     color: "#111",
-    fontSize: 22,
+    fontSize: 19,
   },
   listPanel: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 18,
     paddingBottom: 24,
     minHeight: 540,
+  },
+  statsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    backgroundColor: "#faf8f5",
+    borderRadius: 24,
+    paddingVertical: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#f0eee9",
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 23,
+    fontWeight: "900",
+    color: "#111",
+  },
+  statLabel: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#8c8175",
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#e7e1d8",
   },
   filterRow: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
     backgroundColor: "#f6f3ef",
     borderRadius: 999,
-    padding: 6,
+    padding: 5,
     marginBottom: 18,
   },
   filterButton: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 11,
     borderRadius: 999,
   },
@@ -299,20 +372,6 @@ const styles = StyleSheet.create({
   },
   activeFilterText: {
     color: "#fff",
-  },
-  filterIconButton: {
-    marginLeft: "auto",
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterIconText: {
-    color: "#111",
-    fontSize: 16,
-    fontWeight: "900",
   },
   emptyCard: {
     backgroundColor: "#fff",
@@ -343,7 +402,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 24,
     padding: 12,
-    marginBottom: 14,
+    marginBottom: 18,
     flexDirection: "row",
     gap: 14,
     alignItems: "center",
@@ -351,7 +410,7 @@ const styles = StyleSheet.create({
     borderColor: "#f0eee9",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 3,
   },
@@ -377,13 +436,11 @@ const styles = StyleSheet.create({
   score: {
     fontSize: 34,
     fontWeight: "900",
-    color: "#111",
     letterSpacing: -1,
   },
   scoreUnit: {
     fontSize: 17,
     fontWeight: "900",
-    color: "#111",
     marginBottom: 5,
     marginLeft: 3,
   },
@@ -391,7 +448,6 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#edf6df",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
@@ -401,13 +457,11 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 999,
-    backgroundColor: "#84cc16",
     marginRight: 6,
   },
   risk: {
     fontSize: 12,
     fontWeight: "900",
-    color: "#333",
   },
   summary: {
     fontSize: 14,
@@ -417,22 +471,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   deleteButton: {
-    backgroundColor: "#fee2e2",
-    width: 58,
-    height: 58,
+    backgroundColor: "#fff1f1",
+    width: 42,
+    height: 42,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#ffd7d7",
   },
   deleteIcon: {
     color: "#dc2626",
-    fontSize: 16,
-    fontWeight: "900",
-    marginBottom: 1,
-  },
-  deleteButtonText: {
-    color: "#dc2626",
-    fontSize: 12,
-    fontWeight: "900",
+    fontSize: 25,
+    fontWeight: "700",
+    lineHeight: 26,
   },
 });
