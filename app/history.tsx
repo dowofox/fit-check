@@ -1,3 +1,4 @@
+import BottomNav from "@/components/BottomNav";
 import { deleteAnalysis, getAnalysisHistory } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
@@ -93,159 +94,162 @@ export default function HistoryScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.heroArea}>
-        <View style={styles.heroTextArea}>
-          <View style={styles.heroAccentLine} />
-          <Text style={styles.heroBadge}>ARCHIVE</Text>
-          <Text style={styles.heroTitle}>내 코디 기록</Text>
-          <Text style={styles.heroDescription}>
-            지금까지 분석한 코디를{"\n"}한눈에 확인해보세요.
-          </Text>
-        </View>
-
-        <View style={styles.heroObject}>
-          <Text style={styles.heroObjectIcon}>♢</Text>
-          <Text style={styles.heroObjectText}>NAES</Text>
-          <Text style={styles.heroObjectSubText}>ARCHIVE</Text>
-        </View>
-
-        <Text style={styles.heroGhostText}>NAES</Text>
-        <Text style={styles.heroStar}>✦</Text>
-      </View>
-
-      <View style={styles.listPanel}>
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{totalCount}</Text>
-            <Text style={styles.statLabel}>분석</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{highestScore}</Text>
-            <Text style={styles.statLabel}>최고</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{averageScore}</Text>
-            <Text style={styles.statLabel}>평균</Text>
-          </View>
-        </View>
-
-        <View style={styles.filterRow}>
-          <Pressable
-            style={[styles.filterButton, sortType === "recent" && styles.activeFilterButton]}
-            onPress={() => {
-              setSortType("recent");
-              setOpenedMenuId(null);
-            }}
-          >
-            <Text style={[styles.filterText, sortType === "recent" && styles.activeFilterText]}>
-              최근 순
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.filterButton, sortType === "score" && styles.activeFilterButton]}
-            onPress={() => {
-              setSortType("score");
-              setOpenedMenuId(null);
-            }}
-          >
-            <Text style={[styles.filterText, sortType === "score" && styles.activeFilterText]}>
-              높은 점수순
-            </Text>
-          </Pressable>
-        </View>
-
-        {history.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>◇</Text>
-            <Text style={styles.emptyTitle}>기록이 없어요</Text>
-            <Text style={styles.emptyText}>
-              분석한 코디가 여기에 표시됩니다.
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroArea}>
+          <View style={styles.heroTextArea}>
+            <View style={styles.heroAccentLine} />
+            <Text style={styles.heroBadge}>ARCHIVE</Text>
+            <Text style={styles.heroTitle}>내 코디 기록</Text>
+            <Text style={styles.heroDescription}>
+              지금까지 분석한 코디를{"\n"}한눈에 확인해보세요.
             </Text>
           </View>
-        ) : (
-          sortedHistory.map((item) => {
-            const riskStyle = getRiskStyle(item.riskLevel);
-            const scoreColor = getScoreColor(item.score);
-            const isMenuOpen = openedMenuId === item.id;
 
-            return (
-              <Pressable
-                key={item.id}
-                style={styles.card}
-                onPress={() => {
-                  if (isMenuOpen) {
-                    setOpenedMenuId(null);
-                    return;
-                  }
+          <View style={styles.heroObject}>
+            <Text style={styles.heroObjectIcon}>♢</Text>
+            <Text style={styles.heroObjectText}>NAES</Text>
+            <Text style={styles.heroObjectSubText}>ARCHIVE</Text>
+          </View>
 
-                  router.push({
-                    pathname: "/result",
-                    params: item,
-                  });
-                }}
-              >
-                <Image source={{ uri: item.imageUri }} style={styles.image} />
+          <Text style={styles.heroGhostText}>NAES</Text>
+          <Text style={styles.heroStar}>✦</Text>
+        </View>
 
-                <View style={styles.info}>
-                  <Text style={styles.date}>□ {formatDate(item.createdAt)}</Text>
+        <View style={styles.listPanel}>
+          <View style={styles.statsCard}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{totalCount}</Text>
+              <Text style={styles.statLabel}>분석</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{highestScore}</Text>
+              <Text style={styles.statLabel}>최고</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{averageScore}</Text>
+              <Text style={styles.statLabel}>평균</Text>
+            </View>
+          </View>
 
-                  <View style={styles.scoreRow}>
-                    <Text style={[styles.score, { color: scoreColor }]}>{item.score}</Text>
-                    <Text style={[styles.scoreUnit, { color: scoreColor }]}>점</Text>
+          <View style={styles.filterRow}>
+            <Pressable
+              style={[styles.filterButton, sortType === "recent" && styles.activeFilterButton]}
+              onPress={() => {
+                setSortType("recent");
+                setOpenedMenuId(null);
+              }}
+            >
+              <Text style={[styles.filterText, sortType === "recent" && styles.activeFilterText]}>
+                최근 순
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.filterButton, sortType === "score" && styles.activeFilterButton]}
+              onPress={() => {
+                setSortType("score");
+                setOpenedMenuId(null);
+              }}
+            >
+              <Text style={[styles.filterText, sortType === "score" && styles.activeFilterText]}>
+                높은 점수순
+              </Text>
+            </Pressable>
+          </View>
+
+          {history.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyIcon}>◇</Text>
+              <Text style={styles.emptyTitle}>기록이 없어요</Text>
+              <Text style={styles.emptyText}>분석한 코디가 여기에 표시됩니다.</Text>
+            </View>
+          ) : (
+            sortedHistory.map((item) => {
+              const riskStyle = getRiskStyle(item.riskLevel);
+              const scoreColor = getScoreColor(item.score);
+              const isMenuOpen = openedMenuId === item.id;
+
+              return (
+                <Pressable
+                  key={item.id}
+                  style={styles.card}
+                  onPress={() => {
+                    if (isMenuOpen) {
+                      setOpenedMenuId(null);
+                      return;
+                    }
+
+                    router.push({ pathname: "/result", params: item });
+                  }}
+                >
+                  <Image source={{ uri: item.imageUri }} style={styles.image} />
+
+                  <View style={styles.info}>
+                    <Text style={styles.date}>□ {formatDate(item.createdAt)}</Text>
+
+                    <View style={styles.scoreRow}>
+                      <Text style={[styles.score, { color: scoreColor }]}>{item.score}</Text>
+                      <Text style={[styles.scoreUnit, { color: scoreColor }]}>점</Text>
+                    </View>
+
+                    <View style={[styles.riskPill, { backgroundColor: riskStyle.backgroundColor }]}>
+                      <View style={[styles.riskDot, { backgroundColor: riskStyle.dotColor }]} />
+                      <Text style={[styles.risk, { color: riskStyle.textColor }]}>실패 위험 {item.riskLevel}</Text>
+                    </View>
+
+                    <Text style={styles.summary} numberOfLines={2}>
+                      {item.summary}
+                    </Text>
                   </View>
 
-                  <View style={[styles.riskPill, { backgroundColor: riskStyle.backgroundColor }]}>
-                    <View style={[styles.riskDot, { backgroundColor: riskStyle.dotColor }]} />
-                    <Text style={[styles.risk, { color: riskStyle.textColor }]}>실패 위험 {item.riskLevel}</Text>
-                  </View>
+                  <View style={styles.actionArea}>
+                    {isMenuOpen && (
+                      <Pressable
+                        style={styles.deleteAction}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          handleDelete(item.id);
+                        }}
+                      >
+                        <Text style={styles.deleteActionText}>삭제</Text>
+                      </Pressable>
+                    )}
 
-                  <Text style={styles.summary} numberOfLines={2}>
-                    {item.summary}
-                  </Text>
-                </View>
-
-                <View style={styles.actionArea}>
-                  {isMenuOpen && (
                     <Pressable
-                      style={styles.deleteAction}
+                      style={[styles.menuButton, isMenuOpen && styles.activeMenuButton]}
                       onPress={(event) => {
                         event.stopPropagation();
-                        handleDelete(item.id);
+                        setOpenedMenuId(isMenuOpen ? null : item.id);
                       }}
                     >
-                      <Text style={styles.deleteActionText}>삭제</Text>
+                      <Text style={styles.menuButtonText}>•••</Text>
                     </Pressable>
-                  )}
+                  </View>
+                </Pressable>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
 
-                  <Pressable
-                    style={[styles.menuButton, isMenuOpen && styles.activeMenuButton]}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      setOpenedMenuId(isMenuOpen ? null : item.id);
-                    }}
-                  >
-                    <Text style={styles.menuButtonText}>•••</Text>
-                  </Pressable>
-                </View>
-              </Pressable>
-            );
-          })
-        )}
-      </View>
-    </ScrollView>
+      <BottomNav activeTab="history" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#f5f2ee",
+  },
   container: {
     backgroundColor: "#f5f2ee",
     paddingTop: 42,
     paddingHorizontal: 0,
-    paddingBottom: 44,
+    paddingBottom: 104,
   },
   heroArea: {
     minHeight: 220,
