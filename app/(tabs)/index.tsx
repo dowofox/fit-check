@@ -249,10 +249,10 @@ export default function HomeScreen() {
           <Feather name="archive" size={20} color="#8c8c8c" />
           <Text style={styles.navText}>기록</Text>
         </Pressable>
-        <View style={styles.navItem}>
+        <Pressable style={styles.navItem} onPress={() => router.push("/profile")}>
           <Feather name="user" size={20} color="#8c8c8c" />
           <Text style={styles.navText}>마이</Text>
-        </View>
+        </Pressable>
       </View>
     </View>
   );
