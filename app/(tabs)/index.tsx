@@ -1,4 +1,5 @@
 import { getAnalysisHistory } from "@/utils/storage";
+import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -84,7 +85,7 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           <Text style={styles.logo}>NAES</Text>
           <Pressable style={styles.alertButton}>
-            <Text style={styles.alertText}>♢</Text>
+            <Feather name="bell" size={20} color="#111" />
           </Pressable>
         </View>
 
@@ -98,12 +99,12 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.heroObject}>
-            <Text style={styles.heroObjectIcon}>⌒</Text>
+            <Feather name="award" size={34} color="#caa46a" />
             <Text style={styles.heroObjectSub}>STYLE</Text>
           </View>
 
-          <Text style={styles.heroCircleOne}>◜</Text>
-          <Text style={styles.heroCircleTwo}>◝</Text>
+          <View style={styles.heroArcLarge} />
+          <View style={styles.heroArcSmall} />
         </View>
 
         <View style={styles.statsCard}>
@@ -147,7 +148,9 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              <Text style={styles.uploadIcon}>＋</Text>
+              <View style={styles.uploadIconCircle}>
+                <Feather name="plus" size={26} color="#8c6f47" />
+              </View>
               <Text style={styles.uploadTitle}>오늘 코디 업로드</Text>
               <Text style={styles.uploadText}>
                 사진을 업로드하고 AI 분석을 받아보세요.
@@ -155,12 +158,12 @@ export default function HomeScreen() {
 
               <View style={styles.uploadButtonRow}>
                 <Pressable style={styles.uploadChoiceButton} onPress={pickImage}>
-                  <Text style={styles.uploadChoiceIcon}>▧</Text>
+                  <Feather name="image" size={24} color="#73522d" />
                   <Text style={styles.uploadChoiceText}>앨범에서 선택</Text>
                 </Pressable>
 
                 <Pressable style={styles.uploadChoiceButton} onPress={takePhoto}>
-                  <Text style={styles.uploadChoiceIcon}>▣</Text>
+                  <Feather name="camera" size={24} color="#73522d" />
                   <Text style={styles.uploadChoiceText}>촬영하기</Text>
                 </Pressable>
               </View>
@@ -171,10 +174,12 @@ export default function HomeScreen() {
         {image && (
           <View style={styles.actionRow}>
             <Pressable style={styles.primaryButton} onPress={pickImage}>
+              <Feather name="image" size={18} color="#fff" />
               <Text style={styles.primaryButtonText}>사진 변경</Text>
             </Pressable>
 
             <Pressable style={styles.secondaryButton} onPress={takePhoto}>
+              <Feather name="camera" size={18} color="#111" />
               <Text style={styles.secondaryButtonText}>촬영</Text>
             </Pressable>
           </View>
@@ -224,19 +229,19 @@ export default function HomeScreen() {
 
       <View style={styles.bottomNav}>
         <View style={styles.navItemActive}>
-          <Text style={styles.navIconActive}>◆</Text>
+          <Feather name="home" size={22} color="#111" />
           <Text style={styles.navTextActive}>홈</Text>
         </View>
         <View style={styles.navItem}>
-          <Text style={styles.navIcon}>◎</Text>
+          <Feather name="search" size={22} color="#8c8c8c" />
           <Text style={styles.navText}>분석</Text>
         </View>
         <Pressable style={styles.navItem} onPress={() => router.push("/history")}>
-          <Text style={styles.navIcon}>□</Text>
+          <Feather name="archive" size={22} color="#8c8c8c" />
           <Text style={styles.navText}>기록</Text>
         </Pressable>
         <View style={styles.navItem}>
-          <Text style={styles.navIcon}>○</Text>
+          <Feather name="user" size={22} color="#8c8c8c" />
           <Text style={styles.navText}>마이</Text>
         </View>
       </View>
@@ -253,7 +258,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 52,
     paddingHorizontal: 20,
-    paddingBottom: 118,
+    paddingBottom: 112,
   },
   topBar: {
     flexDirection: "row",
@@ -281,11 +286,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 2,
-  },
-  alertText: {
-    color: "#111",
-    fontSize: 22,
-    fontWeight: "900",
   },
   heroCard: {
     backgroundColor: "#111",
@@ -336,32 +336,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 2,
   },
-  heroObjectIcon: {
-    color: "#caa46a",
-    fontSize: 30,
-    marginBottom: 2,
-  },
   heroObjectSub: {
     color: "#caa46a",
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 2,
+    marginTop: 9,
   },
-  heroCircleOne: {
+  heroArcLarge: {
     position: "absolute",
-    right: 6,
-    top: 2,
-    color: "#6f5634",
-    fontSize: 188,
-    opacity: 0.36,
+    right: -26,
+    top: -18,
+    width: 190,
+    height: 190,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#6f5634",
+    opacity: 0.55,
   },
-  heroCircleTwo: {
+  heroArcSmall: {
     position: "absolute",
-    right: 40,
-    top: 26,
-    color: "#caa46a",
-    fontSize: 138,
-    opacity: 0.46,
+    right: 16,
+    top: 28,
+    width: 120,
+    height: 120,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#caa46a",
+    opacity: 0.55,
   },
   statsCard: {
     backgroundColor: "#fff",
@@ -430,11 +432,16 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: 5,
   },
-  uploadIcon: {
-    fontSize: 38,
-    color: "#caa46a",
-    fontWeight: "300",
-    marginBottom: 8,
+  uploadIconCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 999,
+    backgroundColor: "#f4efe8",
+    borderWidth: 1,
+    borderColor: "#eee4d8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
   },
   uploadTitle: {
     fontSize: 20,
@@ -460,14 +467,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 17,
     alignItems: "center",
+    gap: 7,
     borderWidth: 1,
     borderColor: "#eee4d8",
-  },
-  uploadChoiceIcon: {
-    color: "#73522d",
-    fontSize: 24,
-    fontWeight: "900",
-    marginBottom: 6,
   },
   uploadChoiceText: {
     color: "#5b3d1e",
@@ -499,6 +501,9 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 18,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
   },
   primaryButtonText: {
     color: "#fff",
@@ -506,13 +511,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   secondaryButton: {
-    width: 96,
+    width: 104,
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#e7e1d8",
     paddingVertical: 15,
     borderRadius: 18,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
   },
   secondaryButtonText: {
     color: "#111",
@@ -575,49 +583,41 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 18,
-    height: 72,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 84,
     backgroundColor: "#fff",
-    borderRadius: 26,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
+    paddingBottom: 10,
     borderWidth: 1,
     borderColor: "#eee7dd",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.08,
     shadowRadius: 20,
-    elevation: 8,
+    elevation: 10,
   },
   navItem: {
     alignItems: "center",
     justifyContent: "center",
     minWidth: 54,
+    gap: 4,
   },
   navItemActive: {
     alignItems: "center",
     justifyContent: "center",
     minWidth: 54,
-  },
-  navIconActive: {
-    color: "#111",
-    fontSize: 20,
-    fontWeight: "900",
-    marginBottom: 4,
+    gap: 4,
   },
   navTextActive: {
     color: "#111",
     fontSize: 11,
     fontWeight: "900",
-  },
-  navIcon: {
-    color: "#8c8c8c",
-    fontSize: 19,
-    fontWeight: "900",
-    marginBottom: 4,
   },
   navText: {
     color: "#8c8c8c",
