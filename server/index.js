@@ -58,7 +58,11 @@ function normalizeAnalysisResult(result) {
     fitScore: normalizeScore(result.fitScore ?? normalizedScore),
     colorScore: normalizeScore(result.colorScore ?? normalizedScore),
     balanceScore: normalizeScore(result.balanceScore ?? normalizedScore),
+    bodyFitScore: normalizeScore(result.bodyFitScore ?? normalizedScore),
+    itemScore: normalizeScore(result.itemScore ?? normalizedScore),
+    seasonScore: normalizeScore(result.seasonScore ?? normalizedScore),
     trendScore: normalizeScore(result.trendScore ?? normalizedScore),
+    finishScore: normalizeScore(result.finishScore ?? normalizedScore),
     summary: result.summary || "전체적인 코디 분석 결과입니다.",
     point: result.point || "코디의 핵심 포인트를 판단하기 어렵습니다.",
     problems: result.problems || "큰 문제는 없습니다.",
@@ -81,7 +85,11 @@ app.post("/analyze", async (req, res) => {
         fitScore: 0,
         colorScore: 0,
         balanceScore: 0,
+        bodyFitScore: 0,
+        itemScore: 0,
+        seasonScore: 0,
         trendScore: 0,
+        finishScore: 0,
         summary: "이미지가 전달되지 않았습니다.",
         point: "-",
         problems: "-",
@@ -121,7 +129,11 @@ ${profileText}
   "fitScore": 0,
   "colorScore": 0,
   "balanceScore": 0,
+  "bodyFitScore": 0,
+  "itemScore": 0,
+  "seasonScore": 0,
   "trendScore": 0,
+  "finishScore": 0,
   "summary": "전체 코디에 대한 짧고 단호한 총평",
   "point": "이 코디의 핵심 포인트",
   "problems": "가장 아쉬운 문제점. 없으면 '큰 문제는 없습니다.'",
@@ -129,10 +141,14 @@ ${profileText}
 }
 
 세부 점수 기준:
-- fitScore: 옷의 핏, 사이즈감, 체형과의 조화, 실루엣을 평가해주세요.
-- colorScore: 색 조합, 톤 매칭, 과하거나 밋밋하지 않은지를 평가해주세요.
-- balanceScore: 상하의 비율, 아이템 배치, 전체 균형감을 평가해주세요.
-- trendScore: 현재 감각, 스타일 완성도, 너무 촌스럽거나 과하지 않은지를 평가해주세요.
+- fitScore: 옷의 실제 핏, 사이즈감, 어깨선, 기장, 품, 실루엣이 자연스러운지 평가해주세요.
+- colorScore: 색 조합, 톤 매칭, 명도/채도 균형, 과하거나 밋밋하지 않은지를 평가해주세요.
+- balanceScore: 상하의 비율, 시선 분산, 다리 길이 보정, 전체 균형감을 평가해주세요.
+- bodyFitScore: 사용자의 키, 몸무게, 체형과 착장이 잘 맞는지 평가해주세요. 프로필이 없으면 이미지 기준으로 평가해주세요.
+- itemScore: 상의, 하의, 신발, 아우터, 액세서리 등 아이템끼리 조화로운지 평가해주세요.
+- seasonScore: 계절감, 소재감, 두께감, 색감이 현재 외출 코디로 자연스러운지 평가해주세요.
+- trendScore: 현재 감각, 스타일 완성도, 촌스럽지 않은지, 과하게 유행만 따라간 느낌은 아닌지 평가해주세요.
+- finishScore: 전체 정돈감, 디테일, 구김/어수선함, 실제 외출 가능성, 완성도를 평가해주세요.
 
 규칙:
 - JSON 외의 문장은 절대 출력하지 마세요.
@@ -141,6 +157,7 @@ ${profileText}
 - 억지로 칭찬하지 마세요.
 - 별로인 부분은 명확하게 지적해주세요.
 - score와 모든 세부 점수는 0~100점 숫자로 평가해주세요.
+- score는 세부 점수의 단순 평균이 아니라 전체 코디 완성도를 종합해서 평가해주세요.
 - 점수는 아래 기준표를 최우선으로 사용해주세요.
 - 비슷한 수준의 코디는 매번 비슷한 점수가 나오도록 평가 기준을 보수적으로 유지해주세요.
 - 애매하면 높은 점수보다 낮은 구간을 선택해주세요.
@@ -187,7 +204,11 @@ ${profileText}
       fitScore: 0,
       colorScore: 0,
       balanceScore: 0,
+      bodyFitScore: 0,
+      itemScore: 0,
+      seasonScore: 0,
       trendScore: 0,
+      finishScore: 0,
       summary: "분석에 실패했어요.",
       point: "-",
       problems: "-",
