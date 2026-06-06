@@ -7,6 +7,7 @@ export async function hideAndroidNavigationBar() {
   if (Platform.OS !== "android") return;
 
   try {
+    await NavigationBar.setPositionAsync("absolute");
     await NavigationBar.setBehaviorAsync("overlay-swipe");
     await NavigationBar.setVisibilityAsync("hidden");
     await NavigationBar.setBackgroundColorAsync("#00000000");
@@ -16,28 +17,44 @@ export async function hideAndroidNavigationBar() {
   }
 }
 
+function hideWithDelay() {
+  hideAndroidNavigationBar();
+
+  const first = setTimeout(() => hideAndroidNavigationBar(), 250);
+  const second = setTimeout(() => hideAndroidNavigationBar(), 800);
+
+  return () => {
+    clearTimeout(first);
+    clearTimeout(second);
+  };
+}
+
 export function useHideAndroidNavigationBar() {
   useEffect(() => {
-    hideAndroidNavigationBar();
+    const clearDelays = hideWithDelay();
+
+    const interval = setInterval(() => {
+      hideAndroidNavigationBar();
+    }, 2000);
 
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        hideAndroidNavigationBar();
+        hideWithDelay();
       }
     });
 
-    return () => subscription.remove();
+    return () => {
+      clearDelays();
+      clearInterval(interval);
+      subscription.remove();
+    };
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      hideAndroidNavigationBar();
+      const clearDelays = hideWithDelay();
 
-      const timeout = setTimeout(() => {
-        hideAndroidNavigationBar();
-      }, 300);
-
-      return () => clearTimeout(timeout);
+      return () => clearDelays();
     }, [])
   );
 }
