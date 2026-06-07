@@ -222,24 +222,39 @@ export default function ResultScreen() {
           <Text style={styles.detailSectionTitle}>세부 분석</Text>
         </View>
 
-        {detailScores.map((item) => (
-          <View key={item.key} style={styles.analysisCard}>
-            <View style={styles.analysisHeaderRow}>
-              <View>
-                <Text style={styles.analysisTitle}>{item.title}</Text>
-                <Text style={styles.analysisLabel}>{getScoreLabel(item.score)}</Text>
+        <View style={styles.analysisPanel}>
+          {detailScores.map((item, index) => (
+            <View key={item.key}>
+              <View style={styles.analysisRow}>
+                <View style={styles.analysisIconCircle}>
+                  <Text style={styles.analysisIconText}>{index + 1}</Text>
+                </View>
+
+                <View style={styles.analysisContent}>
+                  <View style={styles.analysisTopRow}>
+                    <View style={styles.analysisTitleRow}>
+                      <Text style={styles.analysisTitle}>{item.title}</Text>
+                      <Text style={styles.analysisLabel}>{getScoreLabel(item.score)}</Text>
+                    </View>
+
+                    <View style={styles.analysisScoreRow}>
+                      <Text style={styles.analysisScore}>{item.score}</Text>
+                      <Text style={styles.analysisScoreUnit}>/100</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.progressBg}>
+                    <View style={[styles.progressFill, { width: `${item.score}%` }]} />
+                  </View>
+
+                  <Text style={styles.analysisComment}>{item.comment}</Text>
+                </View>
               </View>
 
-              <Text style={styles.analysisScore}>{item.score}점</Text>
+              {index !== detailScores.length - 1 && <View style={styles.analysisDivider} />}
             </View>
-
-            <View style={styles.progressBg}>
-              <View style={[styles.progressFill, { width: `${item.score}%` }]} />
-            </View>
-
-            <Text style={styles.analysisComment}>{item.comment}</Text>
-          </View>
-        ))}
+          ))}
+        </View>
 
         <View style={styles.detailCard}>
           <View style={styles.detailHeaderRow}>
@@ -332,14 +347,125 @@ const styles = StyleSheet.create({
   detailSectionHeader: { marginBottom: 10, marginTop: 2 },
   detailSectionTitle: { color: "#111", fontSize: 24, fontWeight: "900" },
 
-  analysisCard: { backgroundColor: "#fff", borderRadius: 24, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: "#f0eee9" },
-  analysisHeaderRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 },
-  analysisTitle: { color: "#111", fontSize: 19, fontWeight: "900" },
-  analysisLabel: { color: "#9b7a4b", fontSize: 12, fontWeight: "900", marginTop: 4 },
-  analysisScore: { color: "#111", fontSize: 20, fontWeight: "900" },
-  progressBg: { height: 9, backgroundColor: "#eee7dd", borderRadius: 999, overflow: "hidden", marginBottom: 12 },
-  progressFill: { height: "100%", backgroundColor: "#111", borderRadius: 999 },
-  analysisComment: { color: "#514a43", fontSize: 15, fontWeight: "600", lineHeight: 24 },
+  analysisPanel: {
+    backgroundColor: "#fff",
+    borderRadius: 26,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#f0eee9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+
+  analysisRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    gap: 12,
+  },
+
+  analysisIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 999,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  analysisIconText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  analysisContent: {
+    flex: 1,
+  },
+
+  analysisTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 8,
+  },
+
+  analysisTitleRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+
+  analysisTitle: {
+    color: "#111",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  analysisLabel: {
+    color: "#5f7f22",
+    fontSize: 10,
+    fontWeight: "900",
+    backgroundColor: "#e9f2d9",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+
+  analysisScoreRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+
+  analysisScore: {
+    color: "#111",
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
+
+  analysisScoreUnit: {
+    color: "#8a8178",
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+
+  progressBg: {
+    height: 7,
+    backgroundColor: "#eee7dd",
+    borderRadius: 999,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#7caf3a",
+    borderRadius: 999,
+  },
+
+  analysisComment: {
+    color: "#514a43",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+
+  analysisDivider: {
+    height: 1,
+    backgroundColor: "#f0eee9",
+    marginLeft: 58,
+  },
 
   detailCard: { backgroundColor: "#fff", borderRadius: 24, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: "#f0eee9" },
   detailHeaderRow: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 3 },

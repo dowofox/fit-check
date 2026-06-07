@@ -338,23 +338,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee7dd",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.035,
+    shadowRadius: 6,
+    elevation: 1,
   },
 
   recentPhotoArea: {
-    padding: 8,
-    paddingBottom: 0,
     backgroundColor: "#fff",
   },
 
   recentImage: {
     width: "100%",
-    height: 120,
-    borderTopLeftRadius: 13,
-    borderTopRightRadius: 13,
+    height: 128,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     backgroundColor: "#ddd",
   },
 
