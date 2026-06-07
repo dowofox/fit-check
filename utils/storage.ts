@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "analysis_history";
 const PROFILE_KEY = "naes_profile";
+const CLOSET_KEY = "naes_closet";
 
 export type UserProfile = {
   gender?: string;
@@ -9,6 +10,18 @@ export type UserProfile = {
   height?: string;
   weight?: string;
   bodyType?: string;
+};
+
+export type ClosetItem = {
+  id: string;
+  imageUri: string;
+  category: string;
+  subCategory?: string;
+  color?: string;
+  style?: string;
+  season?: string;
+  fit?: string;
+  createdAt: string;
 };
 
 export async function saveAnalysis(result: any) {
@@ -74,5 +87,46 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   } catch (error) {
     console.log("프로필 불러오기 실패:", error);
     return null;
+  }
+}
+
+export async function saveClosetItem(item: ClosetItem) {
+  try {
+    const existing = await AsyncStorage.getItem(CLOSET_KEY);
+    const closet = existing ? JSON.parse(existing) : [];
+
+    closet.unshift(item);
+
+    await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(closet));
+
+    return closet;
+  } catch (error) {
+    console.log("옷장 저장 실패:", error);
+    return [];
+  }
+}
+
+export async function getClosetItems(): Promise<ClosetItem[]> {
+  try {
+    const data = await AsyncStorage.getItem(CLOSET_KEY);
+
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.log("옷장 불러오기 실패:", error);
+    return [];
+  }
+}
+
+export async function deleteClosetItem(id: string) {
+  try {
+    const closet = await getClosetItems();
+    const filteredCloset = closet.filter((item) => item.id !== id);
+
+    await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(filteredCloset));
+
+    return filteredCloset;
+  } catch (error) {
+    console.log("옷장 삭제 실패:", error);
+    return [];
   }
 }
