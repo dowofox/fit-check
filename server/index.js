@@ -23,7 +23,7 @@ function normalizeScore(score) {
 
   const clampedScore = Math.max(0, Math.min(100, numericScore));
 
-  return Math.round(clampedScore / 5) * 5;
+  return Math.round(clampedScore);
 }
 
 function getRiskLevel(score) {
@@ -209,6 +209,8 @@ ${profileText}
 - 90점 이상은 정말 잘 입은 코디에만 드물게 사용해주세요.
 - 50점대는 실패가 아니라 개선이 많이 필요한 코디로 자연스럽게 사용할 수 있습니다.
 - 0~20점은 이미지가 부정확하거나 옷을 거의 판단할 수 없을 때만 사용해주세요.
+- 점수는 반드시 5점 단위로 끊지 말고, 1점 단위로 세밀하게 평가해주세요.
+- 예를 들어 70, 75, 80처럼 딱 떨어지는 점수만 반복하지 말고 67, 73, 78, 82, 86처럼 실제 차이를 반영해주세요.
 
 점수 기준표:
 - 100점: 거의 완벽한 코디. 핏, 색 조합, 비율, 아이템 조화, 계절감, 디테일이 모두 뛰어나고 흠잡을 부분이 거의 없을 때만 사용

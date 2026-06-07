@@ -10,6 +10,7 @@ type DetailScore = {
   title: string;
   score: number;
   comment: string;
+  icon: keyof typeof Feather.glyphMap;
 };
 
 function getRiskStyle(riskLevel?: string) {
@@ -95,14 +96,14 @@ export default function ResultScreen() {
   const riskStyle = getRiskStyle(riskText);
 
   const detailScores: DetailScore[] = [
-    { key: "fit", title: "핏", score: toNumber(fitScore), comment: toText(fitComment, "핏 평가를 불러오지 못했어요.") },
-    { key: "color", title: "색조합", score: toNumber(colorScore), comment: toText(colorComment, "색조합 평가를 불러오지 못했어요.") },
-    { key: "balance", title: "비율", score: toNumber(balanceScore), comment: toText(balanceComment, "비율 평가를 불러오지 못했어요.") },
-    { key: "bodyFit", title: "체형 적합", score: toNumber(bodyFitScore), comment: toText(bodyFitComment, "체형 적합 평가를 불러오지 못했어요.") },
-    { key: "item", title: "아이템 조화", score: toNumber(itemScore), comment: toText(itemComment, "아이템 조화 평가를 불러오지 못했어요.") },
-    { key: "season", title: "계절감", score: toNumber(seasonScore), comment: toText(seasonComment, "계절감 평가를 불러오지 못했어요.") },
-    { key: "trend", title: "트렌드", score: toNumber(trendScore), comment: toText(trendComment, "트렌드 평가를 불러오지 못했어요.") },
-    { key: "finish", title: "완성도", score: toNumber(finishScore), comment: toText(finishComment, "완성도 평가를 불러오지 못했어요.") },
+    { key: "fit", title: "핏", icon: "move", score: toNumber(fitScore), comment: toText(fitComment, "핏 평가를 불러오지 못했어요.") },
+    { key: "color", title: "색조합", icon: "droplet", score: toNumber(colorScore), comment: toText(colorComment, "색조합 평가를 불러오지 못했어요.") },
+    { key: "balance", title: "비율", icon: "bar-chart-2", score: toNumber(balanceScore), comment: toText(balanceComment, "비율 평가를 불러오지 못했어요.") },
+    { key: "bodyFit", title: "체형 적합", icon: "user", score: toNumber(bodyFitScore), comment: toText(bodyFitComment, "체형 적합 평가를 불러오지 못했어요.") },
+    { key: "item", title: "아이템 조화", icon: "shopping-bag", score: toNumber(itemScore), comment: toText(itemComment, "아이템 조화 평가를 불러오지 못했어요.") },
+    { key: "season", title: "계절감", icon: "sun", score: toNumber(seasonScore), comment: toText(seasonComment, "계절감 평가를 불러오지 못했어요.") },
+    { key: "trend", title: "트렌드", icon: "trending-up", score: toNumber(trendScore), comment: toText(trendComment, "트렌드 평가를 불러오지 못했어요.") },
+    { key: "finish", title: "완성도", icon: "star", score: toNumber(finishScore), comment: toText(finishComment, "완성도 평가를 불러오지 못했어요.") },
   ];
 
   const sortedByHighScore = [...detailScores].sort((a, b) => b.score - a.score);
@@ -227,7 +228,7 @@ export default function ResultScreen() {
             <View key={item.key}>
               <View style={styles.analysisRow}>
                 <View style={styles.analysisIconCircle}>
-                  <Text style={styles.analysisIconText}>{index + 1}</Text>
+                  <Feather name={item.icon} size={20} color="#fff" />
                 </View>
 
                 <View style={styles.analysisContent}>
@@ -251,7 +252,6 @@ export default function ResultScreen() {
                 </View>
               </View>
 
-              {index !== detailScores.length - 1 && <View style={styles.analysisDivider} />}
             </View>
           ))}
         </View>
@@ -348,40 +348,34 @@ const styles = StyleSheet.create({
   detailSectionTitle: { color: "#111", fontSize: 24, fontWeight: "900" },
 
   analysisPanel: {
-    backgroundColor: "#fff",
-    borderRadius: 26,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    gap: 10,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#f0eee9",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    elevation: 2,
   },
 
   analysisRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 15,
+    paddingHorizontal: 14,
     gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#f0eee9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.035,
+    shadowRadius: 10,
+    elevation: 1,
   },
 
   analysisIconCircle: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     backgroundColor: "#111",
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  analysisIconText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "900",
   },
 
   analysisContent: {
@@ -459,12 +453,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 20,
-  },
-
-  analysisDivider: {
-    height: 1,
-    backgroundColor: "#f0eee9",
-    marginLeft: 58,
   },
 
   detailCard: { backgroundColor: "#fff", borderRadius: 24, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: "#f0eee9" },
