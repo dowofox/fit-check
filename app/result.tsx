@@ -57,6 +57,7 @@ function getScoreLabel(score: number) {
 
 export default function ResultScreen() {
   const params = useLocalSearchParams();
+
   const {
     imageUri,
     score,
@@ -84,6 +85,7 @@ export default function ResultScreen() {
   } = params;
 
   const scoreText = toText(score, "-");
+  const imageUriText = toText(imageUri, "");
   const riskText = toText(riskLevel, "-");
   const summaryText = toText(summary, "분석 결과를 불러오지 못했어요.");
   const pointText = toText(point, "코디 포인트를 불러오지 못했어요.");
@@ -102,8 +104,21 @@ export default function ResultScreen() {
     { key: "finish", title: "완성도", score: toNumber(finishScore), comment: toText(finishComment, "완성도 평가를 불러오지 못했어요.") },
   ];
 
-  const strengths = [...detailScores].sort((a, b) => b.score - a.score).slice(0, 3);
-  const weaknesses = [...detailScores].sort((a, b) => a.score - b.score).slice(0, 3);
+  const sortedByHighScore = [...detailScores].sort((a, b) => b.score - a.score);
+  const sortedByLowScore = [...detailScores].sort((a, b) => a.score - b.score);
+
+  const strengths = sortedByHighScore
+    .filter((item) => item.score >= 80)
+    .slice(0, 3);
+
+  const strengthKeys = new Set(strengths.map((item) => item.key));
+
+  const weaknesses = sortedByLowScore
+    .filter((item) => item.score < 75 && !strengthKeys.has(item.key))
+    .slice(0, 3);
+
+  const hasStrengths = strengths.length > 0;
+  const hasWeaknesses = weaknesses.length > 0;
 
   const handleShare = async () => {
     await Share.share({
@@ -118,10 +133,12 @@ export default function ResultScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Feather name="chevron-left" size={22} color="#111" />
           </Pressable>
+
           <View>
             <Text style={styles.headerEyebrow}>ANALYSIS COMPLETE</Text>
             <Text style={styles.headerTitle}>분석 결과</Text>
           </View>
+
           <Pressable style={styles.shareIconButton} onPress={handleShare}>
             <Feather name="share-2" size={18} color="#111" />
           </Pressable>
@@ -137,8 +154,10 @@ export default function ResultScreen() {
               </View>
               <Text style={styles.stars}>{getStars(score)}</Text>
             </View>
-            {imageUri && <Image source={{ uri: imageUri as string }} style={styles.image} />}
+
+            {imageUriText !== "" && <Image source={{ uri: imageUriText }} style={styles.image} />}
           </View>
+
           <View style={styles.scoreDivider} />
           <Text style={styles.scoreMessage}>{getScoreMessage(score)}</Text>
         </View>
@@ -148,6 +167,7 @@ export default function ResultScreen() {
             <Text style={styles.sectionEyebrow}>RISK CHECK</Text>
             <Text style={styles.riskTitle}>실패 위험</Text>
           </View>
+
           <View style={[styles.riskPill, { backgroundColor: riskStyle.backgroundColor }]}>
             <View style={[styles.riskDot, { backgroundColor: riskStyle.dotColor }]} />
             <Text style={[styles.riskText, { color: riskStyle.textColor }]}>{riskText}</Text>
@@ -160,33 +180,41 @@ export default function ResultScreen() {
           <Text style={styles.summaryText}>{summaryText}</Text>
         </View>
 
-        <View style={styles.quickInsightRow}>
-          <View style={styles.quickInsightCard}>
-            <View style={styles.quickInsightHeader}>
-              <Text style={styles.quickInsightEmoji}>🏆</Text>
-              <Text style={styles.quickInsightTitle}>강점</Text>
-            </View>
-            {strengths.map((item) => (
-              <View key={`strength-${item.key}`} style={styles.quickScoreRow}>
-                <Text style={styles.quickScoreTitle}>{item.title}</Text>
-                <Text style={styles.quickScoreValue}>{item.score}점</Text>
-              </View>
-            ))}
-          </View>
+        {(hasStrengths || hasWeaknesses) && (
+          <View style={styles.quickInsightRow}>
+            {hasStrengths && (
+              <View style={styles.quickInsightCard}>
+                <View style={styles.quickInsightHeader}>
+                  <Text style={styles.quickInsightEmoji}>🏆</Text>
+                  <Text style={styles.quickInsightTitle}>강점</Text>
+                </View>
 
-          <View style={styles.quickInsightCard}>
-            <View style={styles.quickInsightHeader}>
-              <Text style={styles.quickInsightEmoji}>⚠</Text>
-              <Text style={styles.quickInsightTitle}>개선 필요</Text>
-            </View>
-            {weaknesses.map((item) => (
-              <View key={`weakness-${item.key}`} style={styles.quickScoreRow}>
-                <Text style={styles.quickScoreTitle}>{item.title}</Text>
-                <Text style={styles.quickScoreValue}>{item.score}점</Text>
+                {strengths.map((item) => (
+                  <View key={`strength-${item.key}`} style={styles.quickScoreRow}>
+                    <Text style={styles.quickScoreTitle}>{item.title}</Text>
+                    <Text style={styles.quickScoreValue}>{item.score}점</Text>
+                  </View>
+                ))}
               </View>
-            ))}
+            )}
+
+            {hasWeaknesses && (
+              <View style={styles.quickInsightCard}>
+                <View style={styles.quickInsightHeader}>
+                  <Text style={styles.quickInsightEmoji}>⚠</Text>
+                  <Text style={styles.quickInsightTitle}>개선 필요</Text>
+                </View>
+
+                {weaknesses.map((item) => (
+                  <View key={`weakness-${item.key}`} style={styles.quickScoreRow}>
+                    <Text style={styles.quickScoreTitle}>{item.title}</Text>
+                    <Text style={styles.quickScoreValue}>{item.score}점</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-        </View>
+        )}
 
         <View style={styles.detailSectionHeader}>
           <Text style={styles.sectionEyebrow}>DETAIL ANALYSIS</Text>
@@ -200,32 +228,43 @@ export default function ResultScreen() {
                 <Text style={styles.analysisTitle}>{item.title}</Text>
                 <Text style={styles.analysisLabel}>{getScoreLabel(item.score)}</Text>
               </View>
+
               <Text style={styles.analysisScore}>{item.score}점</Text>
             </View>
+
             <View style={styles.progressBg}>
               <View style={[styles.progressFill, { width: `${item.score}%` }]} />
             </View>
+
             <Text style={styles.analysisComment}>{item.comment}</Text>
           </View>
         ))}
 
         <View style={styles.detailCard}>
           <View style={styles.detailHeaderRow}>
-            <View style={styles.detailIconCircle}><Feather name="check" size={17} color="#111" /></View>
+            <View style={styles.detailIconCircle}>
+              <Feather name="check" size={17} color="#111" />
+            </View>
             <Text style={styles.cardTitle}>코디 포인트</Text>
           </View>
           <Text style={styles.cardText}>{pointText}</Text>
         </View>
+
         <View style={styles.detailCard}>
           <View style={styles.detailHeaderRow}>
-            <View style={styles.detailIconCircle}><Feather name="alert-circle" size={17} color="#111" /></View>
+            <View style={styles.detailIconCircle}>
+              <Feather name="alert-circle" size={17} color="#111" />
+            </View>
             <Text style={styles.cardTitle}>아쉬운 점</Text>
           </View>
           <Text style={styles.cardText}>{problemsText}</Text>
         </View>
+
         <View style={styles.detailCard}>
           <View style={styles.detailHeaderRow}>
-            <View style={styles.detailIconCircle}><Feather name="trending-up" size={17} color="#111" /></View>
+            <View style={styles.detailIconCircle}>
+              <Feather name="trending-up" size={17} color="#111" />
+            </View>
             <Text style={styles.cardTitle}>개선 팁</Text>
           </View>
           <Text style={styles.cardText}>{improvementText}</Text>
@@ -236,11 +275,13 @@ export default function ResultScreen() {
             <Feather name="share-2" size={18} color="#fff" />
             <Text style={styles.primaryButtonText}>공유하기</Text>
           </Pressable>
+
           <Pressable style={styles.secondaryButton} onPress={() => router.replace("/")}>
             <Text style={styles.secondaryButtonText}>다시 분석</Text>
           </Pressable>
         </View>
       </ScrollView>
+
       <BottomNav activeTab="analyze" />
     </View>
   );
@@ -249,11 +290,13 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f2ee" },
   container: { backgroundColor: "#f5f2ee", paddingTop: 30, paddingHorizontal: 20, paddingBottom: 112 },
+
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   backButton: { width: 40, height: 40, borderRadius: 999, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#eee7dd" },
   shareIconButton: { width: 40, height: 40, borderRadius: 999, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#eee7dd" },
   headerEyebrow: { color: "#9b7a4b", fontSize: 11, fontWeight: "900", letterSpacing: 1.4, textAlign: "center" },
   headerTitle: { color: "#111", fontSize: 24, fontWeight: "900", marginTop: 2, textAlign: "center" },
+
   scoreCard: { backgroundColor: "#111", borderRadius: 30, padding: 22, marginBottom: 14, overflow: "hidden" },
   scoreCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
   scoreLabel: { color: "#caa46a", fontSize: 12, fontWeight: "900", letterSpacing: 1.6, marginBottom: 8 },
@@ -264,15 +307,18 @@ const styles = StyleSheet.create({
   image: { width: 112, height: 148, borderRadius: 22, backgroundColor: "#333", borderWidth: 1, borderColor: "#2d2d2d" },
   scoreDivider: { height: 1, backgroundColor: "#2f2f32", marginVertical: 18 },
   scoreMessage: { color: "#efe9df", fontSize: 16, fontWeight: "800", lineHeight: 24 },
+
   riskCard: { backgroundColor: "#faf8f5", borderRadius: 24, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: "#f0eee9", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionEyebrow: { color: "#9b7a4b", fontSize: 11, fontWeight: "900", letterSpacing: 1.2, marginBottom: 6 },
   riskTitle: { color: "#111", fontSize: 20, fontWeight: "900" },
   riskPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999 },
   riskDot: { width: 8, height: 8, borderRadius: 999, marginRight: 7 },
   riskText: { fontSize: 14, fontWeight: "900" },
+
   summaryCard: { backgroundColor: "#faf8f5", borderRadius: 26, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: "#f0eee9" },
   cardTitle: { color: "#111", fontSize: 19, fontWeight: "900", marginBottom: 9 },
   summaryText: { color: "#47413a", fontSize: 15, fontWeight: "700", lineHeight: 24 },
+
   quickInsightRow: { flexDirection: "row", gap: 10, marginBottom: 18 },
   quickInsightCard: { flex: 1, backgroundColor: "#fff", borderRadius: 24, padding: 16, borderWidth: 1, borderColor: "#f0eee9" },
   quickInsightHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
@@ -281,8 +327,10 @@ const styles = StyleSheet.create({
   quickScoreRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8, gap: 8 },
   quickScoreTitle: { flex: 1, color: "#5f5a55", fontSize: 13, fontWeight: "800" },
   quickScoreValue: { color: "#111", fontSize: 13, fontWeight: "900" },
+
   detailSectionHeader: { marginBottom: 10, marginTop: 2 },
   detailSectionTitle: { color: "#111", fontSize: 24, fontWeight: "900" },
+
   analysisCard: { backgroundColor: "#fff", borderRadius: 24, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: "#f0eee9" },
   analysisHeaderRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   analysisTitle: { color: "#111", fontSize: 19, fontWeight: "900" },
@@ -290,11 +338,13 @@ const styles = StyleSheet.create({
   analysisScore: { color: "#111", fontSize: 20, fontWeight: "900" },
   progressBg: { height: 9, backgroundColor: "#eee7dd", borderRadius: 999, overflow: "hidden", marginBottom: 12 },
   progressFill: { height: "100%", backgroundColor: "#111", borderRadius: 999 },
-  analysisComment: { color: "#514a43", fontSize: 15, fontWeight: "650", lineHeight: 24 },
+  analysisComment: { color: "#514a43", fontSize: 15, fontWeight: "600", lineHeight: 24 },
+
   detailCard: { backgroundColor: "#fff", borderRadius: 24, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: "#f0eee9" },
   detailHeaderRow: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 3 },
   detailIconCircle: { width: 30, height: 30, borderRadius: 999, backgroundColor: "#f0e7dc", alignItems: "center", justifyContent: "center" },
-  cardText: { color: "#514a43", fontSize: 15, fontWeight: "650", lineHeight: 24 },
+  cardText: { color: "#514a43", fontSize: 15, fontWeight: "600", lineHeight: 24 },
+
   buttonRow: { flexDirection: "row", gap: 10, marginTop: 6 },
   primaryButton: { flex: 1, backgroundColor: "#111", borderRadius: 18, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   primaryButtonText: { color: "#fff", fontSize: 16, fontWeight: "900" },
