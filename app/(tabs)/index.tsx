@@ -27,6 +27,25 @@ function getResultLabel(score?: number | string) {
   return "❌ 많이 아쉬움";
 }
 
+function getTopDetailLabel(item: any) {
+  const detailScores = [
+    { title: "핏", score: Number(item.fitScore ?? 0) },
+    { title: "색조합", score: Number(item.colorScore ?? 0) },
+    { title: "비율", score: Number(item.balanceScore ?? 0) },
+    { title: "체형 적합", score: Number(item.bodyFitScore ?? 0) },
+    { title: "아이템", score: Number(item.itemScore ?? 0) },
+    { title: "계절감", score: Number(item.seasonScore ?? 0) },
+    { title: "트렌드", score: Number(item.trendScore ?? 0) },
+    { title: "완성도", score: Number(item.finishScore ?? 0) },
+  ];
+
+  const topDetail = detailScores.sort((a, b) => b.score - a.score)[0];
+
+  if (!topDetail || topDetail.score < 75) return null;
+
+  return `🏆 ${topDetail.title}`;
+}
+
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [recentResults, setRecentResults] = useState<any[]>([]);
@@ -188,6 +207,7 @@ export default function HomeScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentList}>
               {recentResults.map((item) => {
                 const resultLabel = getResultLabel(item.score);
+                const topDetailLabel = getTopDetailLabel(item);
 
                 return (
                   <Pressable
@@ -197,11 +217,30 @@ export default function HomeScreen() {
                   >
                     <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
                     <Text style={styles.recentScore}>{item.score}점</Text>
+                    <View style={styles.recentProgressBg}>
+                      <View
+                        style={[
+                          styles.recentProgressFill,
+                          { width: `${Number(item.score)}%` },
+                        ]}
+                      />
+                    </View>
                     <View style={styles.recentResultPill}>
+                      {topDetailLabel && (
+                        <Text style={styles.recentTopDetail}>
+                          {topDetailLabel}
+                        </Text>
+                      )}
                       <Text style={styles.recentResultText}>
                         {resultLabel}
                       </Text>
                     </View>
+                    <Text style={styles.recentDate}>
+                      {new Date(item.createdAt).toLocaleDateString("ko-KR", {
+                        month: "2-digit",
+                        day: "2-digit",
+                      })}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -265,20 +304,72 @@ const styles = StyleSheet.create({
   recentTitle: { fontSize: 24, fontWeight: "900", color: "#111" },
   seeAllText: { fontSize: 15, fontWeight: "900", color: "#8c6f47" },
   recentList: { gap: 12 },
-  recentImageCard: { width: 108, backgroundColor: "#fff", borderRadius: 22, padding: 8, alignItems: "center", borderWidth: 1, borderColor: "#f0eee9" },
-  recentImage: { width: 92, height: 116, borderRadius: 16, backgroundColor: "#ddd", marginBottom: 8 },
-  recentScore: { fontSize: 20, fontWeight: "900", color: "#111" },
+  recentImageCard: {
+    width: 132,
+    backgroundColor: "#fff",
+    borderRadius: 28,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#f0eee9",
+
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+
+  recentImage: {
+    width: "100%",
+    height: 150,
+    borderRadius: 20,
+    backgroundColor: "#ddd",
+    marginBottom: 12,
+  },
+  recentScore: {
+    fontSize: 23,
+    fontWeight: "900",
+    color: "#111",
+    letterSpacing: -0.5,
+  },
+  recentProgressBg: {
+    width: "100%",
+    height: 5,
+    backgroundColor: "#ece7df",
+    borderRadius: 999,
+    marginTop: 8,
+  },
+
+  recentProgressFill: {
+    height: "100%",
+    backgroundColor: "#111",
+    borderRadius: 999,
+  },
+
   recentResultPill: {
-    marginTop: 6,
+    alignSelf: "flex-start",
+    marginTop: 7,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 999,
     backgroundColor: "#f4efe8",
   },
 
   recentResultText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "900",
     color: "#5b3d1e",
+  },
+  recentDate: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#8a8178",
+    fontWeight: "700",
+  },
+  recentTopDetail: {
+    marginTop: 7,
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#111",
   },
 });
