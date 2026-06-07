@@ -207,22 +207,26 @@ export default function HomeScreen() {
                       style={styles.recentImageCard}
                       onPress={() => router.push({ pathname: "/result", params: item })}
                     >
-                      <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
+                      <View style={styles.recentPhotoArea}>
+                        <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
+                      </View>
 
                       <View style={[styles.recentScoreBand, { backgroundColor: scoreBandColor }]}>
-                        <Text style={styles.recentScore}>{item.score}점</Text>
+                        <Text style={styles.recentScore}>{item.score}<Text style={styles.recentScoreUnit}>점</Text></Text>
                       </View>
 
-                      <View style={styles.recentResultPill}>
-                        <Text style={styles.recentResultText}>{resultLabel}</Text>
-                      </View>
+                      <View style={styles.recentInfoArea}>
+                        <View style={styles.recentResultPill}>
+                          <Text style={styles.recentResultText}>{resultLabel}</Text>
+                        </View>
 
-                      <Text style={styles.recentDate}>
-                        {new Date(item.createdAt).toLocaleDateString("ko-KR", {
-                          month: "2-digit",
-                          day: "2-digit",
-                        })}
-                      </Text>
+                        <Text style={styles.recentDate}>
+                          {new Date(item.createdAt).toLocaleDateString("ko-KR", {
+                            month: "2-digit",
+                            day: "2-digit",
+                          })}
+                        </Text>
+                      </View>
                     </Pressable>
                   );
                 })}
@@ -285,17 +289,18 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 16,
   },
+
   recentPanel: {
-    backgroundColor: "#faf8f5",
-    borderRadius: 28,
+    backgroundColor: "#fff",
+    borderRadius: 26,
     paddingTop: 14,
-    paddingBottom: 16,
+    paddingBottom: 14,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#f0eee9",
+    borderColor: "#eee7dd",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.045,
     shadowRadius: 18,
     elevation: 2,
   },
@@ -305,68 +310,97 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
+    paddingHorizontal: 2,
   },
-  recentTitle: { fontSize: 24, fontWeight: "900", color: "#111" },
-  seeAllText: { fontSize: 15, fontWeight: "900", color: "#8c6f47" },
+
+  recentTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#111",
+  },
+
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#111",
+  },
+
   recentList: {
-    gap: 10,
-    paddingRight: 4,
+    gap: 12,
+    paddingRight: 2,
   },
+
   recentImageCard: {
-    width: 106,
+    width: 116,
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: "#f0eee9",
+    borderRadius: 18,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.055,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 2,
+    elevation: 3,
+  },
+
+  recentPhotoArea: {
+    padding: 8,
+    paddingBottom: 0,
+    backgroundColor: "#fff",
   },
 
   recentImage: {
     width: "100%",
-    height: 112,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    height: 120,
+    borderTopLeftRadius: 13,
+    borderTopRightRadius: 13,
     backgroundColor: "#ddd",
   },
 
   recentScoreBand: {
     width: "100%",
-    paddingVertical: 5,
+    height: 38,
     alignItems: "center",
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    marginBottom: 8,
+    justifyContent: "center",
   },
 
   recentScore: {
-    fontSize: 19,
+    fontSize: 22,
     fontWeight: "900",
     color: "#111",
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
+  },
+
+  recentScoreUnit: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#333",
+  },
+
+  recentInfoArea: {
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 9,
+    backgroundColor: "#fff",
   },
 
   recentResultPill: {
-    alignSelf: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 999,
     backgroundColor: "#f8f1e8",
-    marginBottom: 5,
+    marginBottom: 8,
   },
 
   recentResultText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "900",
     color: "#5b3d1e",
   },
+
   recentDate: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#9a9188",
     fontWeight: "800",
     textAlign: "center",
