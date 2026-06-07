@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { hideAndroidNavigationBar, useHideAndroidNavigationBar } from "@/utils/navigationBar";
 
-export type BottomNavTab = "home" | "analyze" | "history" | "profile";
+export type BottomNavTab = "home" | "analyze" | "closet" | "history" | "profile";
 
 function NavItem({
   active,
@@ -43,6 +43,8 @@ export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
         <NavItem active={activeTab === "home"} icon="home" label="홈" onPress={() => router.replace("/")} />
         <View style={styles.divider} />
         <NavItem active={activeTab === "analyze"} icon="search" label="분석" onPress={() => router.replace("/")} />
+        <View style={styles.divider} />
+        <NavItem active={activeTab === "closet"} icon="shopping-bag" label="옷장" onPress={() => router.push("/closet")} />
         <View style={styles.divider} />
         <NavItem active={activeTab === "history"} icon="archive" label="기록" onPress={() => router.push("/history")} />
         <View style={styles.divider} />

@@ -57,6 +57,22 @@ function getScoreLabel(score: number) {
   return "많이 아쉬움";
 }
 
+function getScoreColor(score: number) {
+  if (score >= 90) {
+    return { main: "#5f9f2f", bg: "#edf6df", text: "#3f6212" };
+  }
+  if (score >= 80) {
+    return { main: "#7caf3a", bg: "#eef7dc", text: "#4d7c0f" };
+  }
+  if (score >= 70) {
+    return { main: "#d6a737", bg: "#fff3d6", text: "#92400e" };
+  }
+  if (score >= 60) {
+    return { main: "#e98b3a", bg: "#ffedd5", text: "#9a3412" };
+  }
+  return { main: "#d95f5f", bg: "#fee2e2", text: "#991b1b" };
+}
+
 export default function ResultScreen() {
   const params = useLocalSearchParams();
 
@@ -224,36 +240,55 @@ export default function ResultScreen() {
         </View>
 
         <View style={styles.analysisPanel}>
-          {detailScores.map((item, index) => (
-            <View key={item.key}>
-              <View style={styles.analysisRow}>
-                <View style={styles.analysisIconCircle}>
-                  <Feather name={item.icon} size={20} color="#fff" />
-                </View>
+          {detailScores.map((item) => {
+            const scoreColor = getScoreColor(item.score);
 
-                <View style={styles.analysisContent}>
-                  <View style={styles.analysisTopRow}>
-                    <View style={styles.analysisTitleRow}>
-                      <Text style={styles.analysisTitle}>{item.title}</Text>
-                      <Text style={styles.analysisLabel}>{getScoreLabel(item.score)}</Text>
-                    </View>
-
-                    <View style={styles.analysisScoreRow}>
-                      <Text style={styles.analysisScore}>{item.score}</Text>
-                      <Text style={styles.analysisScoreUnit}>/100</Text>
-                    </View>
+            return (
+              <View key={item.key}>
+                <View style={styles.analysisRow}>
+                  <View style={[styles.analysisIconCircle, { backgroundColor: scoreColor.main }]}>
+                    <Feather name={item.icon} size={20} color="#fff" />
                   </View>
 
-                  <View style={styles.progressBg}>
-                    <View style={[styles.progressFill, { width: `${item.score}%` }]} />
-                  </View>
+                  <View style={styles.analysisContent}>
+                    <View style={styles.analysisTopRow}>
+                      <View style={styles.analysisTitleRow}>
+                        <Text style={styles.analysisTitle}>{item.title}</Text>
+                        <Text
+                          style={[
+                            styles.analysisLabel,
+                            { backgroundColor: scoreColor.bg, color: scoreColor.text },
+                          ]}
+                        >
+                          {getScoreLabel(item.score)}
+                        </Text>
+                      </View>
 
-                  <Text style={styles.analysisComment}>{item.comment}</Text>
+                      <View style={styles.analysisScoreRow}>
+                        <Text style={styles.analysisScore}>{item.score}</Text>
+                        <Text style={styles.analysisScoreUnit}>/100</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.progressBg}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${item.score}%`,
+                            backgroundColor: scoreColor.main,
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    <Text style={styles.analysisComment}>{item.comment}</Text>
+                  </View>
                 </View>
+
               </View>
-
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={styles.detailCard}>
