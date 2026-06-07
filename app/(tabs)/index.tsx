@@ -187,48 +187,47 @@ export default function HomeScreen() {
 
         {recentResults.length > 0 && (
           <View style={styles.recentSection}>
-            <View style={styles.recentHeader}>
-              <Text style={styles.recentTitle}>최근 분석</Text>
+            <View style={styles.recentPanel}>
+              <View style={styles.recentHeader}>
+                <Text style={styles.recentTitle}>최근 분석</Text>
 
-              <Pressable onPress={() => router.push("/history")}>
-                <Text style={styles.seeAllText}>전체보기 →</Text>
-              </Pressable>
-            </View>
+                <Pressable onPress={() => router.push("/history")}>
+                  <Text style={styles.seeAllText}>전체보기 →</Text>
+                </Pressable>
+              </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentList}>
-              {recentResults.map((item) => {
-                const resultLabel = getResultLabel(item.score);
-                const scoreBandColor = getScoreBandColor(item.score);
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentList}>
+                {recentResults.map((item) => {
+                  const resultLabel = getResultLabel(item.score);
+                  const scoreBandColor = getScoreBandColor(item.score);
 
-                return (
-                  <Pressable
-                    key={item.id}
-                    style={styles.recentImageCard}
-                    onPress={() => router.push({ pathname: "/result", params: item })}
-                  >
-                    <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={styles.recentImageCard}
+                      onPress={() => router.push({ pathname: "/result", params: item })}
+                    >
+                      <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
 
-                    <View style={[styles.recentScoreBand, { backgroundColor: scoreBandColor }]}>
-                      <Text style={styles.recentScore}>{item.score}점</Text>
-                    </View>
+                      <View style={[styles.recentScoreBand, { backgroundColor: scoreBandColor }]}>
+                        <Text style={styles.recentScore}>{item.score}점</Text>
+                      </View>
 
-                    <View style={styles.recentResultPill}>
-                      <Text style={styles.recentResultText}>
-                        {resultLabel}
+                      <View style={styles.recentResultPill}>
+                        <Text style={styles.recentResultText}>{resultLabel}</Text>
+                      </View>
+
+                      <Text style={styles.recentDate}>
+                        {new Date(item.createdAt).toLocaleDateString("ko-KR", {
+                          month: "2-digit",
+                          day: "2-digit",
+                        })}
                       </Text>
-                    </View>
-
-                    <Text style={styles.recentDate}>
-                      {new Date(item.createdAt).toLocaleDateString("ko-KR", {
-                        month: "2-digit",
-                        day: "2-digit",
-                      })}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-
-            </ScrollView>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -282,35 +281,69 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#fff", fontSize: 16, fontWeight: "900" },
   secondaryButton: { width: 104, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e7e1d8", paddingVertical: 15, borderRadius: 18, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7 },
   secondaryButtonText: { color: "#111", fontSize: 16, fontWeight: "900" },
-  recentSection: { marginTop: 18, marginBottom: 16 },
-  recentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  recentSection: {
+    marginTop: 18,
+    marginBottom: 16,
+  },
+  recentPanel: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 26,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#f0eee9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.045,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+
+  recentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   recentTitle: { fontSize: 24, fontWeight: "900", color: "#111" },
   seeAllText: { fontSize: 15, fontWeight: "900", color: "#8c6f47" },
-  recentList: { gap: 12 },
+  recentList: {
+    gap: 10,
+    paddingRight: 4,
+  },
   recentImageCard: {
-    width: 124,
+    width: 112,
     backgroundColor: "#fff",
-    borderRadius: 24,
+    borderRadius: 22,
     padding: 7,
     borderWidth: 1,
     borderColor: "#f0eee9",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
 
   recentImage: {
     width: "100%",
-    height: 126,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    height: 118,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     backgroundColor: "#ddd",
   },
+
+  recentScoreBand: {
+    width: "100%",
+    paddingVertical: 6,
+    alignItems: "center",
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
+    marginBottom: 8,
+  },
+
   recentScore: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: "900",
     color: "#111",
     letterSpacing: -0.5,
@@ -335,13 +368,5 @@ const styles = StyleSheet.create({
     color: "#9a9188",
     fontWeight: "800",
     textAlign: "center",
-  },
-  recentScoreBand: {
-    width: "100%",
-    paddingVertical: 7,
-    alignItems: "center",
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    marginBottom: 8,
   },
 });
