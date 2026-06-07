@@ -27,23 +27,14 @@ function getResultLabel(score?: number | string) {
   return "❌ 많이 아쉬움";
 }
 
-function getTopDetailLabel(item: any) {
-  const detailScores = [
-    { title: "핏", score: Number(item.fitScore ?? 0) },
-    { title: "색조합", score: Number(item.colorScore ?? 0) },
-    { title: "비율", score: Number(item.balanceScore ?? 0) },
-    { title: "체형 적합", score: Number(item.bodyFitScore ?? 0) },
-    { title: "아이템", score: Number(item.itemScore ?? 0) },
-    { title: "계절감", score: Number(item.seasonScore ?? 0) },
-    { title: "트렌드", score: Number(item.trendScore ?? 0) },
-    { title: "완성도", score: Number(item.finishScore ?? 0) },
-  ];
+function getScoreBandColor(score?: number | string) {
+  const numericScore = Number(score ?? 0);
 
-  const topDetail = detailScores.sort((a, b) => b.score - a.score)[0];
-
-  if (!topDetail || topDetail.score < 75) return null;
-
-  return `🏆 ${topDetail.title}`;
+  if (numericScore >= 90) return "#f2b36d";
+  if (numericScore >= 80) return "#c9d889";
+  if (numericScore >= 70) return "#f0d27a";
+  if (numericScore >= 60) return "#e9a36f";
+  return "#d98276";
 }
 
 export default function HomeScreen() {
@@ -207,7 +198,7 @@ export default function HomeScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentList}>
               {recentResults.map((item) => {
                 const resultLabel = getResultLabel(item.score);
-                const topDetailLabel = getTopDetailLabel(item);
+                const scoreBandColor = getScoreBandColor(item.score);
 
                 return (
                   <Pressable
@@ -216,25 +207,17 @@ export default function HomeScreen() {
                     onPress={() => router.push({ pathname: "/result", params: item })}
                   >
                     <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
-                    <Text style={styles.recentScore}>{item.score}점</Text>
-                    <View style={styles.recentProgressBg}>
-                      <View
-                        style={[
-                          styles.recentProgressFill,
-                          { width: `${Number(item.score)}%` },
-                        ]}
-                      />
+
+                    <View style={[styles.recentScoreBand, { backgroundColor: scoreBandColor }]}>
+                      <Text style={styles.recentScore}>{item.score}점</Text>
                     </View>
+
                     <View style={styles.recentResultPill}>
-                      {topDetailLabel && (
-                        <Text style={styles.recentTopDetail}>
-                          {topDetailLabel}
-                        </Text>
-                      )}
                       <Text style={styles.recentResultText}>
                         {resultLabel}
                       </Text>
                     </View>
+
                     <Text style={styles.recentDate}>
                       {new Date(item.createdAt).toLocaleDateString("ko-KR", {
                         month: "2-digit",
@@ -308,10 +291,9 @@ const styles = StyleSheet.create({
     width: 132,
     backgroundColor: "#fff",
     borderRadius: 28,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
     borderColor: "#f0eee9",
-
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -321,29 +303,16 @@ const styles = StyleSheet.create({
 
   recentImage: {
     width: "100%",
-    height: 150,
-    borderRadius: 20,
+    height: 146,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     backgroundColor: "#ddd",
-    marginBottom: 12,
   },
   recentScore: {
-    fontSize: 23,
+    fontSize: 22,
     fontWeight: "900",
     color: "#111",
     letterSpacing: -0.5,
-  },
-  recentProgressBg: {
-    width: "100%",
-    height: 5,
-    backgroundColor: "#ece7df",
-    borderRadius: 999,
-    marginTop: 8,
-  },
-
-  recentProgressFill: {
-    height: "100%",
-    backgroundColor: "#111",
-    borderRadius: 999,
   },
 
   recentResultPill: {
@@ -366,10 +335,12 @@ const styles = StyleSheet.create({
     color: "#8a8178",
     fontWeight: "700",
   },
-  recentTopDetail: {
-    marginTop: 7,
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#111",
+  recentScoreBand: {
+    width: "100%",
+    paddingVertical: 8,
+    alignItems: "center",
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    marginBottom: 9,
   },
 });
