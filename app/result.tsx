@@ -108,13 +108,13 @@ export default function ResultScreen() {
   const sortedByLowScore = [...detailScores].sort((a, b) => a.score - b.score);
 
   const strengths = sortedByHighScore
-    .filter((item) => item.score >= 80)
+    .filter((item) => item.score >= 85)
     .slice(0, 3);
 
   const strengthKeys = new Set(strengths.map((item) => item.key));
 
   const weaknesses = sortedByLowScore
-    .filter((item) => item.score < 75 && !strengthKeys.has(item.key))
+    .filter((item) => item.score <= 65 && !strengthKeys.has(item.key))
     .slice(0, 3);
 
   const hasStrengths = strengths.length > 0;
