@@ -16,6 +16,17 @@ function getRiskStyle(riskLevel?: string) {
   return { backgroundColor: "#fff3d6", textColor: "#92400e" };
 }
 
+function getResultLabel(score?: number | string) {
+  const numericScore = Number(score ?? 0);
+
+  if (numericScore >= 90) return "🔥 매우 좋음";
+  if (numericScore >= 80) return "👍 좋음";
+  if (numericScore >= 70) return "👌 보통";
+  if (numericScore >= 60) return "⚠ 개선 필요";
+
+  return "❌ 많이 아쉬움";
+}
+
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [recentResults, setRecentResults] = useState<any[]>([]);
@@ -176,7 +187,7 @@ export default function HomeScreen() {
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentList}>
               {recentResults.map((item) => {
-                const riskStyle = getRiskStyle(item.riskLevel);
+                const resultLabel = getResultLabel(item.score);
 
                 return (
                   <Pressable
@@ -186,12 +197,15 @@ export default function HomeScreen() {
                   >
                     <Image source={{ uri: item.imageUri }} style={styles.recentImage} />
                     <Text style={styles.recentScore}>{item.score}점</Text>
-                    <View style={[styles.recentRiskPill, { backgroundColor: riskStyle.backgroundColor }]}> 
-                      <Text style={[styles.recentRisk, { color: riskStyle.textColor }]}>{item.riskLevel}</Text>
+                    <View style={styles.recentResultPill}>
+                      <Text style={styles.recentResultText}>
+                        {resultLabel}
+                      </Text>
                     </View>
                   </Pressable>
                 );
               })}
+
             </ScrollView>
           </View>
         )}
@@ -201,6 +215,7 @@ export default function HomeScreen() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f2ee" },
@@ -253,6 +268,17 @@ const styles = StyleSheet.create({
   recentImageCard: { width: 108, backgroundColor: "#fff", borderRadius: 22, padding: 8, alignItems: "center", borderWidth: 1, borderColor: "#f0eee9" },
   recentImage: { width: 92, height: 116, borderRadius: 16, backgroundColor: "#ddd", marginBottom: 8 },
   recentScore: { fontSize: 20, fontWeight: "900", color: "#111" },
-  recentRiskPill: { marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  recentRisk: { fontSize: 11, fontWeight: "900" },
+  recentResultPill: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#f4efe8",
+  },
+
+  recentResultText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#5b3d1e",
+  },
 });
