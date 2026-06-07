@@ -7,11 +7,7 @@ export async function hideAndroidNavigationBar() {
   if (Platform.OS !== "android") return;
 
   try {
-    await NavigationBar.setPositionAsync("absolute");
-    await NavigationBar.setBehaviorAsync("overlay-swipe");
     await NavigationBar.setVisibilityAsync("hidden");
-    await NavigationBar.setBackgroundColorAsync("#00000000");
-    await NavigationBar.setButtonStyleAsync("dark");
   } catch (error) {
     console.log("NavigationBar hide failed:", error);
   }
@@ -33,10 +29,6 @@ export function useHideAndroidNavigationBar() {
   useEffect(() => {
     const clearDelays = hideWithDelay();
 
-    const interval = setInterval(() => {
-      hideAndroidNavigationBar();
-    }, 2000);
-
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         hideWithDelay();
@@ -45,7 +37,6 @@ export function useHideAndroidNavigationBar() {
 
     return () => {
       clearDelays();
-      clearInterval(interval);
       subscription.remove();
     };
   }, []);
