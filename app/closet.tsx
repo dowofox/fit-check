@@ -1,5 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import {
     Image,
     Pressable,
@@ -34,7 +35,7 @@ export default function ClosetScreen() {
                         <Text style={styles.headerTitle}>내 옷장</Text>
                     </View>
 
-                    <Pressable style={styles.addButton}>
+                    <Pressable style={styles.addButton} onPress={() => router.push("/add-clothes")}>
                         <Feather name="plus" size={20} color="#111" />
                     </Pressable>
                 </View>
@@ -68,7 +69,7 @@ export default function ClosetScreen() {
                             옷장 기반 코디 추천을 만들 수 있어요.
                         </Text>
 
-                        <Pressable style={styles.primaryButton}>
+                        <Pressable style={styles.primaryButton} onPress={() => router.push("/add-clothes")}>
                             <Feather name="plus" size={18} color="#fff" />
                             <Text style={styles.primaryButtonText}>
                                 옷 추가하기
