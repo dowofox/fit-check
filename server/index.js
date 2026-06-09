@@ -275,10 +275,6 @@ ${profileText}
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`NAES server running on http://localhost:${PORT}`);
-});
-
 app.post("/analyze-clothes", async (req, res) => {
   try {
     const { image } = req.body;
@@ -374,4 +370,8 @@ app.post("/analyze-clothes", async (req, res) => {
       avoidTip: "분석 실패",
     });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`NAES server running on http://localhost:${PORT}`);
 });
