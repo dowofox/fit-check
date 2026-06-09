@@ -1,6 +1,5 @@
 import { saveClosetItem } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -38,8 +37,20 @@ export default function AddClothesScreen() {
     try {
       setIsSaving(true);
 
-      const base64Image = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
+      const imageResponse = await fetch(imageUri);
+      const imageBlob = await imageResponse.blob();
+
+      const base64Image = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64 = result.split(",")[1];
+          resolve(base64);
+        };
+
+        reader.onerror = reject;
+        reader.readAsDataURL(imageBlob);
       });
 
       const response = await fetch(ANALYZE_CLOTHES_URL, {
