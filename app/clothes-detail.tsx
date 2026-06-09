@@ -1,4 +1,5 @@
-import { ClosetItem, getClosetItems, updateClosetItem } from "@/utils/storage";
+import { getFitSuitability } from "@/utils/sizeMatch";
+import { ClosetItem, getClosetItems, getUserProfile, updateClosetItem, UserProfile } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -23,6 +24,7 @@ type EditableClosetFields = {
   season: string;
   fit: string;
   size: string;
+  intendedFit: string;
   description: string;
   matchTip: string;
   avoidTip: string;
@@ -37,6 +39,7 @@ const EMPTY_DRAFT: EditableClosetFields = {
   season: "",
   fit: "",
   size: "",
+  intendedFit: "상관없음",
   description: "",
   matchTip: "",
   avoidTip: "",
@@ -65,6 +68,8 @@ const STYLE_OPTIONS = [
   "기타",
 ];
 
+const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
+
 function getEditableValues(item: ClosetItem): EditableClosetFields {
   return {
     category: item.category || "",
@@ -75,6 +80,7 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     season: item.season || "",
     fit: item.fit || "",
     size: item.size || "",
+    intendedFit: item.intendedFit || "상관없음",
     description: item.description || "",
     matchTip: item.matchTip || "",
     avoidTip: item.avoidTip || "",
@@ -205,6 +211,7 @@ function TipEditCard({
 export default function ClothesDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [item, setItem] = useState<ClosetItem | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<EditableClosetFields>(EMPTY_DRAFT);
@@ -212,9 +219,13 @@ export default function ClothesDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       async function loadItem() {
-        const closetItems = await getClosetItems();
+        const [closetItems, userProfile] = await Promise.all([
+          getClosetItems(),
+          getUserProfile(),
+        ]);
         const selectedItem = closetItems.find((closetItem) => closetItem.id === id);
 
+        setProfile(userProfile);
         setItem(selectedItem || null);
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
@@ -265,6 +276,8 @@ export default function ClothesDetailScreen() {
       Alert.alert("수정 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
     }
   }
+
+  const fitSuitability = item ? getFitSuitability(item, profile) : null;
 
   if (isLoaded && !item) {
     return (
@@ -381,6 +394,12 @@ export default function ClothesDetailScreen() {
                     value={draft.size}
                     onChangeText={(value) => updateDraft("size", value)}
                   />
+                  <ChipGroup
+                    label="착용 의도"
+                    value={draft.intendedFit}
+                    options={INTENDED_FIT_OPTIONS}
+                    onSelect={(value) => updateDraft("intendedFit", value)}
+                  />
                 </>
               ) : (
                 <>
@@ -392,9 +411,23 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="계절" value={item.season} />
                   <DetailRow label="핏" value={item.fit} />
                   <DetailRow label="사이즈" value={item.size || "사이즈 미입력"} />
+                  <DetailRow label="착용 의도" value={item.intendedFit || "상관없음"} />
                 </>
               )}
             </View>
+
+            {!editMode && fitSuitability && (
+              <View style={styles.sizeMatchCard}>
+                <View style={styles.tipHeader}>
+                  <View style={styles.tipIconCircle}>
+                    <Feather name="check-square" size={16} color="#8c6f47" />
+                  </View>
+                  <Text style={styles.tipTitle}>내 사이즈 적합도</Text>
+                </View>
+                <Text style={styles.sizeMatchStatus}>{fitSuitability.status}</Text>
+                <Text style={styles.tipText}>{fitSuitability.description}</Text>
+              </View>
+            )}
 
             {editMode ? (
               <>
@@ -655,6 +688,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  sizeMatchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
   tipHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -675,6 +717,13 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 16,
     fontWeight: "900",
+  },
+
+  sizeMatchStatus: {
+    color: "#111",
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 8,
   },
 
   tipText: {
