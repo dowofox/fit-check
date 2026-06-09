@@ -31,6 +31,23 @@ export default function AddClothesScreen() {
     }
   }
 
+  async function takePhoto() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert("권한 필요", "카메라 권한이 필요해요");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  }
+
   async function saveItem() {
     if (!imageUri || isSaving) return;
 
@@ -122,6 +139,18 @@ export default function AddClothesScreen() {
             </>
           )}
         </Pressable>
+
+        <View style={styles.photoButtonRow}>
+          <Pressable style={styles.photoButton} onPress={pickImage}>
+            <Feather name="image" size={18} color="#111" />
+            <Text style={styles.photoButtonText}>앨범에서 선택</Text>
+          </Pressable>
+
+          <Pressable style={styles.photoButton} onPress={takePhoto}>
+            <Feather name="camera" size={18} color="#111" />
+            <Text style={styles.photoButtonText}>카메라로 촬영</Text>
+          </Pressable>
+        </View>
 
         <Pressable
           style={[styles.primaryButton, (!imageUri || isSaving) && styles.primaryButtonDisabled]}
@@ -235,6 +264,31 @@ const styles = StyleSheet.create({
     height: 360,
     borderRadius: 22,
     backgroundColor: "#ddd",
+  },
+
+  photoButtonRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+  },
+
+  photoButton: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  photoButtonText: {
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
   primaryButton: {
