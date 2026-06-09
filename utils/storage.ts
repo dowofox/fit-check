@@ -10,6 +10,9 @@ export type UserProfile = {
   height?: string;
   weight?: string;
   bodyType?: string;
+  topSize?: string;
+  bottomSize?: string;
+  shoeSize?: string;
 };
 
 export type ClosetItem = {

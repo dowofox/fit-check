@@ -14,6 +14,9 @@ export default function ProfileScreen() {
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [bodyType, setBodyType] = useState("보통");
+  const [topSize, setTopSize] = useState("");
+  const [bottomSize, setBottomSize] = useState("");
+  const [shoeSize, setShoeSize] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -26,6 +29,9 @@ export default function ProfileScreen() {
           setHeight(profile.height || "");
           setWeight(profile.weight || "");
           setBodyType(profile.bodyType || "보통");
+          setTopSize(profile.topSize || "");
+          setBottomSize(profile.bottomSize || "");
+          setShoeSize(profile.shoeSize || "");
         }
       };
 
@@ -40,6 +46,9 @@ export default function ProfileScreen() {
       height,
       weight,
       bodyType,
+      topSize,
+      bottomSize,
+      shoeSize,
     });
 
     Alert.alert("저장 완료", "내 프로필 정보가 저장됐어요.");
@@ -141,6 +150,54 @@ export default function ProfileScreen() {
                 </Text>
               </Pressable>
             ))}
+          </View>
+
+          <Text style={styles.sizeSectionTitle}>기본 사이즈</Text>
+
+          <View style={styles.inputRow}>
+            <View style={styles.inputBox}>
+              <Text style={styles.inputLabel}>상의 사이즈</Text>
+              <View style={styles.textInputWrap}>
+                <TextInput
+                  value={topSize}
+                  onChangeText={setTopSize}
+                  placeholder="L"
+                  autoCapitalize="characters"
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputBox}>
+              <Text style={styles.inputLabel}>하의 사이즈</Text>
+              <View style={styles.textInputWrap}>
+                <TextInput
+                  value={bottomSize}
+                  onChangeText={setBottomSize}
+                  placeholder="32"
+                  keyboardType="numeric"
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.inputRowLast}>
+            <View style={styles.inputBox}>
+              <Text style={styles.inputLabel}>신발 사이즈</Text>
+              <View style={styles.textInputWrap}>
+                <TextInput
+                  value={shoeSize}
+                  onChangeText={setShoeSize}
+                  placeholder="270"
+                  keyboardType="numeric"
+                  style={styles.textInput}
+                />
+                <Text style={styles.unitText}>mm</Text>
+              </View>
+            </View>
+
+            <View style={styles.inputBoxPlaceholder} />
           </View>
         </View>
 
@@ -266,6 +323,10 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 18,
   },
+  inputRowLast: {
+    flexDirection: "row",
+    gap: 12,
+  },
   inputBox: {
     flex: 1,
   },
@@ -318,6 +379,13 @@ const styles = StyleSheet.create({
   },
   activeBodyTypeText: {
     color: "#fff",
+  },
+  sizeSectionTitle: {
+    color: "#111",
+    fontSize: 17,
+    fontWeight: "900",
+    marginTop: 22,
+    marginBottom: 14,
   },
   infoCard: {
     backgroundColor: "#fff",
