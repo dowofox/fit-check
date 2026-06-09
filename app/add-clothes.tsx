@@ -69,19 +69,6 @@ export default function AddClothesScreen() {
           )}
         </Pressable>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>임시 저장 정보</Text>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>카테고리</Text>
-            <Text style={styles.infoValue}>상의</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>상태</Text>
-            <Text style={styles.infoValue}>AI 분석 전</Text>
-          </View>
-        </View>
 
         <Pressable
           style={[styles.primaryButton, !imageUri && styles.primaryButtonDisabled]}
@@ -189,40 +176,6 @@ const styles = StyleSheet.create({
     height: 360,
     borderRadius: 22,
     backgroundColor: "#ddd",
-  },
-
-  infoCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#f0eee9",
-    marginBottom: 14,
-  },
-
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#111",
-    marginBottom: 12,
-  },
-
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 7,
-  },
-
-  infoLabel: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#777",
-  },
-
-  infoValue: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111",
   },
 
   primaryButton: {

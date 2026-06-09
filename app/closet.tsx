@@ -12,6 +12,7 @@ import {
 
 import {
     ClosetItem,
+    deleteClosetItem,
     getClosetItems,
 } from "@/utils/storage";
 import { useEffect, useState } from "react";
@@ -26,6 +27,10 @@ export default function ClosetScreen() {
         const closetItems = await getClosetItems();
         setItems(closetItems);
     }
+    async function handleDeleteItem(id: string) {
+        const updatedItems = await deleteClosetItem(id);
+        setItems(updatedItems);
+    }
     return (
         <View style={styles.screen}>
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -38,20 +43,6 @@ export default function ClosetScreen() {
                     <Pressable style={styles.addButton} onPress={() => router.push("/add-clothes")}>
                         <Feather name="plus" size={20} color="#111" />
                     </Pressable>
-                </View>
-
-                <View style={styles.heroCard}>
-                    <View>
-                        <Text style={styles.heroBadge}>WARDROBE AI</Text>
-                        <Text style={styles.heroTitle}>가지고 있는 옷을{"\n"}기록해보세요</Text>
-                        <Text style={styles.heroText}>
-                            옷을 저장하면 나중에 AI가 어울리는 조합과 부족한 아이템을 추천해줄 수 있어요.
-                        </Text>
-                    </View>
-
-                    <View style={styles.heroIcon}>
-                        <Feather name="shopping-bag" size={34} color="#caa46a" />
-                    </View>
                 </View>
 
                 {items.length === 0 ? (
@@ -92,6 +83,12 @@ export default function ClosetScreen() {
                                         source={{ uri: item.imageUri }}
                                         style={styles.closetImage}
                                     />
+                                    <Pressable
+                                        style={styles.deleteButton}
+                                        onPress={() => handleDeleteItem(item.id)}
+                                    >
+                                        <Feather name="trash-2" size={15} color="#991b1b" />
+                                    </Pressable>
 
                                     <Text style={styles.closetCategory}>
                                         {item.category}
@@ -150,57 +147,6 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
         borderWidth: 1,
         borderColor: "#eee7dd",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-
-    heroCard: {
-        backgroundColor: "#111",
-        borderRadius: 28,
-        padding: 24,
-        minHeight: 210,
-        marginBottom: 18,
-        position: "relative",
-        overflow: "hidden",
-    },
-
-    heroBadge: {
-        color: "#caa46a",
-        fontSize: 12,
-        fontWeight: "900",
-        marginBottom: 12,
-        letterSpacing: 1.5,
-    },
-
-    heroTitle: {
-        color: "#fff",
-        fontSize: 31,
-        fontWeight: "900",
-        lineHeight: 40,
-        letterSpacing: -1.1,
-    },
-
-    heroText: {
-        marginTop: 16,
-        color: "#d8d2ca",
-        fontSize: 14,
-        lineHeight: 22,
-        fontWeight: "700",
-        width: "74%",
-    },
-
-    heroIcon: {
-        position: "absolute",
-        right: 26,
-        top: 58,
-        width: 86,
-        height: 106,
-        borderTopLeftRadius: 48,
-        borderTopRightRadius: 48,
-        borderBottomLeftRadius: 14,
-        borderBottomRightRadius: 14,
-        borderWidth: 1.4,
-        borderColor: "#caa46a",
         alignItems: "center",
         justifyContent: "center",
     },
@@ -303,5 +249,18 @@ const styles = StyleSheet.create({
         color: "#777",
         paddingHorizontal: 12,
         paddingBottom: 12,
+    },
+    deleteButton: {
+        position: "absolute",
+        top: 8,
+        right: 8,
+        width: 30,
+        height: 30,
+        borderRadius: 999,
+        backgroundColor: "#fee2e2",
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+        borderColor: "#fecaca",
     },
 });
