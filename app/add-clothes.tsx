@@ -1,10 +1,21 @@
 import { saveClosetItem } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
 
 export default function AddClothesScreen() {
   const [imageUri, setImageUri] = useState("");
@@ -31,7 +42,7 @@ export default function AddClothesScreen() {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      const response = await fetch("http://localhost:3001/analyze-clothes", {
+      const response = await fetch(ANALYZE_CLOTHES_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,118 +75,169 @@ export default function AddClothesScreen() {
     }
   }
 
-  const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: "#f5f2ee" },
-    container: {
-      flexGrow: 1,
-      paddingTop: 34,
-      paddingHorizontal: 20,
-      paddingBottom: 40,
-    },
+  return (
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Feather name="chevron-left" size={22} color="#111" />
+          </Pressable>
 
-    headerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 18,
-    },
+          <View>
+            <Text style={styles.headerEyebrow}>ADD CLOTHES</Text>
+            <Text style={styles.headerTitle}>옷 추가</Text>
+          </View>
 
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 999,
-      backgroundColor: "#fff",
-      borderWidth: 1,
-      borderColor: "#eee7dd",
-      alignItems: "center",
-      justifyContent: "center",
-    },
+          <View style={styles.headerSpacer} />
+        </View>
 
-    headerSpacer: {
-      width: 40,
-      height: 40,
-    },
+        <Pressable style={styles.uploadCard} onPress={pickImage}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.previewImage} />
+          ) : (
+            <>
+              <View style={styles.uploadIconCircle}>
+                <Feather name="image" size={28} color="#8c6f47" />
+              </View>
+              <Text style={styles.uploadTitle}>옷 사진 선택</Text>
+              <Text style={styles.uploadText}>
+                단일 옷 사진을 선택해주세요. AI가 종류, 색상, 스타일을 자동 분석해요.
+              </Text>
+            </>
+          )}
+        </Pressable>
 
-    headerEyebrow: {
-      color: "#9b7a4b",
-      fontSize: 11,
-      fontWeight: "900",
-      letterSpacing: 1.4,
-      textAlign: "center",
-    },
+        <Pressable
+          style={[styles.primaryButton, (!imageUri || isSaving) && styles.primaryButtonDisabled]}
+          onPress={saveItem}
+          disabled={!imageUri || isSaving}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Feather name="save" size={18} color="#fff" />
+              <Text style={styles.primaryButtonText}>AI 분석 후 저장</Text>
+            </>
+          )}
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
 
-    headerTitle: {
-      color: "#111",
-      fontSize: 24,
-      fontWeight: "900",
-      marginTop: 2,
-      textAlign: "center",
-    },
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: "#f5f2ee" },
+  container: {
+    flexGrow: 1,
+    paddingTop: 34,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
 
-    uploadCard: {
-      backgroundColor: "#faf8f5",
-      borderRadius: 28,
-      minHeight: 360,
-      padding: 22,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: "#f0eee9",
-      marginBottom: 16,
-      overflow: "hidden",
-    },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
 
-    uploadIconCircle: {
-      width: 68,
-      height: 68,
-      borderRadius: 999,
-      backgroundColor: "#f0e7dc",
-      borderWidth: 1,
-      borderColor: "#e6d9cb",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 14,
-    },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-    uploadTitle: {
-      fontSize: 21,
-      fontWeight: "900",
-      color: "#111",
-      marginBottom: 8,
-    },
+  headerSpacer: {
+    width: 40,
+    height: 40,
+  },
 
-    uploadText: {
-      fontSize: 14,
-      color: "#6b6258",
-      lineHeight: 22,
-      fontWeight: "700",
-      textAlign: "center",
-    },
+  headerEyebrow: {
+    color: "#9b7a4b",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.4,
+    textAlign: "center",
+  },
 
-    previewImage: {
-      width: "100%",
-      height: 360,
-      borderRadius: 22,
-      backgroundColor: "#ddd",
-    },
+  headerTitle: {
+    color: "#111",
+    fontSize: 24,
+    fontWeight: "900",
+    marginTop: 2,
+    textAlign: "center",
+  },
 
-    primaryButton: {
-      backgroundColor: "#111",
-      borderRadius: 18,
-      paddingVertical: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      gap: 8,
-    },
+  uploadCard: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 28,
+    minHeight: 360,
+    padding: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#f0eee9",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
 
-    primaryButtonDisabled: {
-      opacity: 0.35,
-    },
+  uploadIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 999,
+    backgroundColor: "#f0e7dc",
+    borderWidth: 1,
+    borderColor: "#e6d9cb",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
 
-    primaryButtonText: {
-      color: "#fff",
-      fontSize: 16,
-      fontWeight: "900",
-    },
-  });
+  uploadTitle: {
+    fontSize: 21,
+    fontWeight: "900",
+    color: "#111",
+    marginBottom: 8,
+  },
+
+  uploadText: {
+    fontSize: 14,
+    color: "#6b6258",
+    lineHeight: 22,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  previewImage: {
+    width: "100%",
+    height: 360,
+    borderRadius: 22,
+    backgroundColor: "#ddd",
+  },
+
+  primaryButton: {
+    backgroundColor: "#111",
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  primaryButtonDisabled: {
+    opacity: 0.35,
+  },
+
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+});
