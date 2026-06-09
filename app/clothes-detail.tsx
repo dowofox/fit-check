@@ -22,6 +22,7 @@ type EditableClosetFields = {
   style: string;
   season: string;
   fit: string;
+  size: string;
   description: string;
   matchTip: string;
   avoidTip: string;
@@ -35,10 +36,34 @@ const EMPTY_DRAFT: EditableClosetFields = {
   style: "",
   season: "",
   fit: "",
+  size: "",
   description: "",
   matchTip: "",
   avoidTip: "",
 };
+
+const STYLE_OPTIONS = [
+  "캐주얼",
+  "미니멀",
+  "스트릿",
+  "포멀",
+  "스포티",
+  "빈티지",
+  "아메카지",
+  "워크웨어",
+  "시티보이",
+  "고프코어",
+  "테크웨어",
+  "프레피",
+  "댄디",
+  "러블리",
+  "페미닌",
+  "모던",
+  "클래식",
+  "꾸안꾸",
+  "유니섹스",
+  "기타",
+];
 
 function getEditableValues(item: ClosetItem): EditableClosetFields {
   return {
@@ -49,10 +74,46 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     style: item.style || "",
     season: item.season || "",
     fit: item.fit || "",
+    size: item.size || "",
     description: item.description || "",
     matchTip: item.matchTip || "",
     avoidTip: item.avoidTip || "",
   };
+}
+
+function ChipGroup({
+  label,
+  value,
+  options,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <View style={styles.editRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <View style={styles.chipWrap}>
+        {options.map((option) => {
+          const isActive = value === option;
+
+          return (
+            <Pressable
+              key={option}
+              style={[styles.optionChip, isActive && styles.optionChipActive]}
+              onPress={() => onSelect(option)}
+            >
+              <Text style={[styles.optionChipText, isActive && styles.optionChipTextActive]}>
+                {option}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 function DetailRow({ label, value }: { label: string; value?: string }) {
@@ -299,10 +360,11 @@ export default function ClothesDetailScreen() {
                     value={draft.color}
                     onChangeText={(value) => updateDraft("color", value)}
                   />
-                  <EditRow
+                  <ChipGroup
                     label="스타일"
                     value={draft.style}
-                    onChangeText={(value) => updateDraft("style", value)}
+                    options={STYLE_OPTIONS}
+                    onSelect={(value) => updateDraft("style", value)}
                   />
                   <EditRow
                     label="계절"
@@ -314,6 +376,11 @@ export default function ClothesDetailScreen() {
                     value={draft.fit}
                     onChangeText={(value) => updateDraft("fit", value)}
                   />
+                  <EditRow
+                    label="사이즈"
+                    value={draft.size}
+                    onChangeText={(value) => updateDraft("size", value)}
+                  />
                 </>
               ) : (
                 <>
@@ -324,6 +391,7 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="스타일" value={item.style} />
                   <DetailRow label="계절" value={item.season} />
                   <DetailRow label="핏" value={item.fit} />
+                  <DetailRow label="사이즈" value={item.size || "사이즈 미입력"} />
                 </>
               )}
             </View>
@@ -545,6 +613,37 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 15,
     fontWeight: "800",
+  },
+
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
+
+  optionChip: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+  },
+
+  optionChipActive: {
+    backgroundColor: "#111",
+    borderColor: "#111",
+  },
+
+  optionChipText: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  optionChipTextActive: {
+    color: "#fff",
   },
 
   tipCard: {
