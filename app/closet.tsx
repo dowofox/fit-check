@@ -107,6 +107,14 @@ export default function ClosetScreen() {
                     </View>
                 ) : (
                     <View>
+                        <Pressable
+                            style={styles.recommendButton}
+                            onPress={() => router.push("/outfit-recommend")}
+                        >
+                            <Feather name="layers" size={18} color="#fff" />
+                            <Text style={styles.recommendButtonText}>코디 추천 받기</Text>
+                        </Pressable>
+
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -313,6 +321,21 @@ const styles = StyleSheet.create({
     },
 
     primaryButtonText: {
+        color: "#fff",
+        fontSize: 15,
+        fontWeight: "900",
+    },
+    recommendButton: {
+        backgroundColor: "#111",
+        borderRadius: 18,
+        paddingVertical: 15,
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "row",
+        gap: 8,
+        marginBottom: 16,
+    },
+    recommendButtonText: {
         color: "#fff",
         fontSize: 15,
         fontWeight: "900",
