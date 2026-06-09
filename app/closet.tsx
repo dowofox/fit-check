@@ -18,8 +18,11 @@ import {
     View,
 } from "react-native";
 
+const CLOSET_FILTERS = ["전체", "상의", "하의", "신발", "아우터", "액세서리"];
+
 export default function ClosetScreen() {
     const [items, setItems] = useState<ClosetItem[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState("전체");
     useFocusEffect(
         useCallback(() => {
             loadCloset();
@@ -29,6 +32,10 @@ export default function ClosetScreen() {
         const closetItems = await getClosetItems();
         setItems(closetItems);
     }
+    const filteredItems = selectedCategory === "전체"
+        ? items
+        : items.filter((item) => item.category === selectedCategory);
+
     function handleDeleteItem(id: string) {
         Alert.alert(
             "옷을 삭제할까요?",
@@ -84,12 +91,44 @@ export default function ClosetScreen() {
                     </View>
                 ) : (
                     <View>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.filterRow}
+                        >
+                            {CLOSET_FILTERS.map((category) => {
+                                const isActive = selectedCategory === category;
+
+                                return (
+                                    <Pressable
+                                        key={category}
+                                        style={[
+                                            styles.filterChip,
+                                            isActive && styles.filterChipActive,
+                                        ]}
+                                        onPress={() => setSelectedCategory(category)}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.filterText,
+                                                isActive && styles.filterTextActive,
+                                            ]}
+                                        >
+                                            {category}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </ScrollView>
+
                         <Text style={styles.countText}>
-                            총 {items.length}개 보유
+                            {selectedCategory === "전체"
+                                ? `총 ${items.length}개 보유`
+                                : `${selectedCategory} ${filteredItems.length}개`}
                         </Text>
 
                         <View style={styles.closetGrid}>
-                            {items.map((item) => (
+                            {filteredItems.map((item) => (
                                 <View
                                     key={item.id}
                                     style={styles.closetCard}
@@ -106,11 +145,11 @@ export default function ClosetScreen() {
                                     </Pressable>
 
                                     <Text style={styles.closetCategory}>
-                                        {item.category}
+                                        {item.subCategory || item.category}
                                     </Text>
 
                                     <Text style={styles.closetSubText}>
-                                        {item.color}
+                                        {item.category}{item.color ? ` · ${item.color}` : ""}
                                     </Text>
                                 </View>
                             ))}
@@ -222,6 +261,31 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontSize: 15,
         fontWeight: "900",
+    },
+    filterRow: {
+        gap: 8,
+        paddingRight: 2,
+        marginBottom: 14,
+    },
+    filterChip: {
+        backgroundColor: "#fff",
+        borderWidth: 1,
+        borderColor: "#eee7dd",
+        borderRadius: 999,
+        paddingVertical: 9,
+        paddingHorizontal: 15,
+    },
+    filterChipActive: {
+        backgroundColor: "#111",
+        borderColor: "#111",
+    },
+    filterText: {
+        color: "#111",
+        fontSize: 13,
+        fontWeight: "900",
+    },
+    filterTextActive: {
+        color: "#fff",
     },
     countText: {
         fontSize: 18,
