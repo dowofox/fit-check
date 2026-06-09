@@ -21,6 +21,9 @@ export type ClosetItem = {
   style?: string;
   season?: string;
   fit?: string;
+  description?: string;
+  matchTip?: string;
+  avoidTip?: string;
   createdAt: string;
 };
 

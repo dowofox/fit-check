@@ -129,9 +129,13 @@ export default function ClosetScreen() {
 
                         <View style={styles.closetGrid}>
                             {filteredItems.map((item) => (
-                                <View
+                                <Pressable
                                     key={item.id}
                                     style={styles.closetCard}
+                                    onPress={() => router.push({
+                                        pathname: "/clothes-detail",
+                                        params: { id: item.id },
+                                    })}
                                 >
                                     <Image
                                         source={{ uri: item.imageUri }}
@@ -151,7 +155,7 @@ export default function ClosetScreen() {
                                     <Text style={styles.closetSubText}>
                                         {item.category}{item.color ? ` · ${item.color}` : ""}
                                     </Text>
-                                </View>
+                                </Pressable>
                             ))}
                         </View>
                     </View>

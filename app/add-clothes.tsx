@@ -74,6 +74,9 @@ export default function AddClothesScreen() {
         style: analysis.style || "스타일 분석 전",
         season: analysis.season || "계절 분석 전",
         fit: analysis.fit || "핏 분석 전",
+        description: analysis.description || "옷 특징을 분석하지 못했어요.",
+        matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
+        avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",
         createdAt: new Date().toISOString(),
       });
 
