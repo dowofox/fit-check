@@ -278,3 +278,100 @@ ${profileText}
 app.listen(PORT, () => {
   console.log(`NAES server running on http://localhost:${PORT}`);
 });
+
+app.post("/analyze-clothes", async (req, res) => {
+  try {
+    const { image } = req.body;
+
+    if (!image) {
+      return res.status(400).json({
+        category: "분석 실패",
+        subCategory: "이미지 없음",
+        color: "분석 불가",
+        style: "분석 불가",
+        season: "분석 불가",
+        fit: "분석 불가",
+        description: "이미지가 없어 옷을 분석하지 못했습니다.",
+        matchTip: "사진을 다시 선택해주세요.",
+        avoidTip: "분석할 이미지가 필요합니다.",
+      });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `
+이 이미지는 전신 코디가 아니라 단일 옷 사진입니다.
+사진 속 옷 하나를 분석해서 옷장에 저장할 정보를 만들어주세요.
+
+반드시 아래 JSON 형식만 반환해주세요.
+
+{
+  "category": "상의 / 하의 / 신발 / 아우터 / 액세서리 / 기타 중 하나",
+  "subCategory": "후드티, 맨투맨, 셔츠, 데님팬츠, 슬랙스, 스니커즈 등 구체적인 옷 종류",
+  "color": "대표 색상",
+  "style": "캐주얼 / 미니멀 / 스트릿 / 포멀 / 스포티 / 빈티지 / 기타 중 하나",
+  "season": "봄 / 여름 / 가을 / 겨울 / 사계절 중 하나",
+  "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
+  "description": "옷의 특징을 한 문장으로 설명",
+  "matchTip": "이 옷과 잘 어울리는 조합 추천",
+  "avoidTip": "피하면 좋은 조합"
+}
+
+규칙:
+- JSON 외의 문장은 절대 출력하지 마세요.
+- 실제 사진에 보이는 옷만 기준으로 판단해주세요.
+- 브랜드명은 확실히 보이지 않으면 추정하지 마세요.
+- 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
+- 사진 품질이 낮아도 최대한 보이는 정보 기준으로 판단해주세요.
+- 모든 답변은 자연스러운 한국어로 작성해주세요.
+`
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${image}`,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const text = completion.choices[0].message.content;
+    const parsed = JSON.parse(text);
+
+    return res.json({
+      category: parsed.category || "기타",
+      subCategory: parsed.subCategory || "분석 전",
+      color: parsed.color || "색상 분석 전",
+      style: parsed.style || "스타일 분석 전",
+      season: parsed.season || "계절 분석 전",
+      fit: parsed.fit || "핏 분석 전",
+      description: parsed.description || "옷 특징을 분석하지 못했습니다.",
+      matchTip: parsed.matchTip || "어울리는 조합을 분석하지 못했습니다.",
+      avoidTip: parsed.avoidTip || "피해야 할 조합을 분석하지 못했습니다.",
+    });
+  } catch (error) {
+    console.error("옷 분석 에러:", error);
+
+    return res.json({
+      category: "분석 실패",
+      subCategory: "분석 실패",
+      color: "분석 실패",
+      style: "분석 실패",
+      season: "분석 실패",
+      fit: "분석 실패",
+      description: "옷 분석에 실패했습니다.",
+      matchTip: "다시 시도해주세요.",
+      avoidTip: "분석 실패",
+    });
+  }
+});
