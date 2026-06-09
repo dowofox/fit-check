@@ -134,3 +134,19 @@ export async function deleteClosetItem(id: string) {
     return [];
   }
 }
+
+export async function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
+  try {
+    const closet = await getClosetItems();
+    const updatedCloset = closet.map((item) =>
+      item.id === id ? { ...item, ...updatedItem } : item
+    );
+
+    await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(updatedCloset));
+
+    return updatedCloset;
+  } catch (error) {
+    console.log("옷장 수정 실패:", error);
+    return [];
+  }
+}

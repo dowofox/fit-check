@@ -1,22 +1,88 @@
-import { ClosetItem, getClosetItems } from "@/utils/storage";
+import { ClosetItem, getClosetItems, updateClosetItem } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+
+type EditableClosetFields = {
+  category: string;
+  subCategory: string;
+  detailCategory: string;
+  color: string;
+  style: string;
+  season: string;
+  fit: string;
+  description: string;
+  matchTip: string;
+  avoidTip: string;
+};
+
+const EMPTY_DRAFT: EditableClosetFields = {
+  category: "",
+  subCategory: "",
+  detailCategory: "",
+  color: "",
+  style: "",
+  season: "",
+  fit: "",
+  description: "",
+  matchTip: "",
+  avoidTip: "",
+};
+
+function getEditableValues(item: ClosetItem): EditableClosetFields {
+  return {
+    category: item.category || "",
+    subCategory: item.subCategory || "",
+    detailCategory: item.detailCategory || "",
+    color: item.color || "",
+    style: item.style || "",
+    season: item.season || "",
+    fit: item.fit || "",
+    description: item.description || "",
+    matchTip: item.matchTip || "",
+    avoidTip: item.avoidTip || "",
+  };
+}
 
 function DetailRow({ label, value }: { label: string; value?: string }) {
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value || "분석 전"}</Text>
+    </View>
+  );
+}
+
+function EditRow({
+  label,
+  value,
+  onChangeText,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+}) {
+  return (
+    <View style={styles.editRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <TextInput
+        style={styles.textInput}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder="입력해주세요"
+        placeholderTextColor="#b2aaa1"
+      />
     </View>
   );
 }
@@ -43,10 +109,44 @@ function TipCard({
   );
 }
 
+function TipEditCard({
+  icon,
+  title,
+  value,
+  onChangeText,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  title: string;
+  value: string;
+  onChangeText: (value: string) => void;
+}) {
+  return (
+    <View style={styles.tipCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name={icon} size={16} color="#8c6f47" />
+        </View>
+        <Text style={styles.tipTitle}>{title}</Text>
+      </View>
+      <TextInput
+        style={styles.tipInput}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder="입력해주세요"
+        placeholderTextColor="#b2aaa1"
+        multiline
+        textAlignVertical="top"
+      />
+    </View>
+  );
+}
+
 export default function ClothesDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [draft, setDraft] = useState<EditableClosetFields>(EMPTY_DRAFT);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,12 +155,55 @@ export default function ClothesDetailScreen() {
         const selectedItem = closetItems.find((closetItem) => closetItem.id === id);
 
         setItem(selectedItem || null);
+        if (selectedItem) {
+          setDraft(getEditableValues(selectedItem));
+        }
         setIsLoaded(true);
       }
 
       loadItem();
     }, [id])
   );
+
+  function updateDraft(field: keyof EditableClosetFields, value: string) {
+    setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+  }
+
+  function handleEdit() {
+    if (!item) return;
+
+    setDraft(getEditableValues(item));
+    setEditMode(true);
+  }
+
+  function handleCancel() {
+    if (item) {
+      setDraft(getEditableValues(item));
+    }
+
+    setEditMode(false);
+  }
+
+  async function handleSave() {
+    if (!item) return;
+
+    try {
+      const updatedCloset = await updateClosetItem(item.id, draft);
+      const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
+
+      if (!updatedItem) {
+        Alert.alert("수정 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      setItem(updatedItem);
+      setDraft(getEditableValues(updatedItem));
+      setEditMode(false);
+    } catch (error) {
+      console.log("옷 정보 수정 실패:", error);
+      Alert.alert("수정 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
+    }
+  }
 
   if (isLoaded && !item) {
     return (
@@ -104,7 +247,20 @@ export default function ClothesDetailScreen() {
             <Text style={styles.headerTitle}>옷 상세</Text>
           </View>
 
-          <View style={styles.headerSpacer} />
+          {editMode ? (
+            <View style={styles.editActionRow}>
+              <Pressable style={styles.cancelButton} onPress={handleCancel}>
+                <Text style={styles.cancelButtonText}>취소</Text>
+              </Pressable>
+              <Pressable style={styles.saveButton} onPress={handleSave}>
+                <Text style={styles.saveButtonText}>저장</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.editButton} onPress={handleEdit}>
+              <Text style={styles.editButtonText}>수정</Text>
+            </Pressable>
+          )}
         </View>
 
         {item && (
@@ -121,29 +277,97 @@ export default function ClothesDetailScreen() {
             </View>
 
             <View style={styles.infoCard}>
-              <DetailRow label="종류" value={item.category} />
-              <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
-              <DetailRow label="색상" value={item.color} />
-              <DetailRow label="스타일" value={item.style} />
-              <DetailRow label="계절" value={item.season} />
-              <DetailRow label="핏" value={item.fit} />
+              {editMode ? (
+                <>
+                  <EditRow
+                    label="종류"
+                    value={draft.category}
+                    onChangeText={(value) => updateDraft("category", value)}
+                  />
+                  <EditRow
+                    label="기본 종류"
+                    value={draft.subCategory}
+                    onChangeText={(value) => updateDraft("subCategory", value)}
+                  />
+                  <EditRow
+                    label="상세 종류"
+                    value={draft.detailCategory}
+                    onChangeText={(value) => updateDraft("detailCategory", value)}
+                  />
+                  <EditRow
+                    label="색상"
+                    value={draft.color}
+                    onChangeText={(value) => updateDraft("color", value)}
+                  />
+                  <EditRow
+                    label="스타일"
+                    value={draft.style}
+                    onChangeText={(value) => updateDraft("style", value)}
+                  />
+                  <EditRow
+                    label="계절"
+                    value={draft.season}
+                    onChangeText={(value) => updateDraft("season", value)}
+                  />
+                  <EditRow
+                    label="핏"
+                    value={draft.fit}
+                    onChangeText={(value) => updateDraft("fit", value)}
+                  />
+                </>
+              ) : (
+                <>
+                  <DetailRow label="종류" value={item.category} />
+                  <DetailRow label="기본 종류" value={item.subCategory} />
+                  <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
+                  <DetailRow label="색상" value={item.color} />
+                  <DetailRow label="스타일" value={item.style} />
+                  <DetailRow label="계절" value={item.season} />
+                  <DetailRow label="핏" value={item.fit} />
+                </>
+              )}
             </View>
 
-            <TipCard
-              icon="file-text"
-              title="특징"
-              text={item.description}
-            />
-            <TipCard
-              icon="check-circle"
-              title="매치 팁"
-              text={item.matchTip}
-            />
-            <TipCard
-              icon="x-circle"
-              title="피하면 좋은 조합"
-              text={item.avoidTip}
-            />
+            {editMode ? (
+              <>
+                <TipEditCard
+                  icon="file-text"
+                  title="특징"
+                  value={draft.description}
+                  onChangeText={(value) => updateDraft("description", value)}
+                />
+                <TipEditCard
+                  icon="check-circle"
+                  title="매치 팁"
+                  value={draft.matchTip}
+                  onChangeText={(value) => updateDraft("matchTip", value)}
+                />
+                <TipEditCard
+                  icon="x-circle"
+                  title="피하면 좋은 조합"
+                  value={draft.avoidTip}
+                  onChangeText={(value) => updateDraft("avoidTip", value)}
+                />
+              </>
+            ) : (
+              <>
+                <TipCard
+                  icon="file-text"
+                  title="특징"
+                  text={item.description}
+                />
+                <TipCard
+                  icon="check-circle"
+                  title="매치 팁"
+                  text={item.matchTip}
+                />
+                <TipCard
+                  icon="x-circle"
+                  title="피하면 좋은 조합"
+                  text={item.avoidTip}
+                />
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -181,6 +405,52 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
     height: 40,
+  },
+
+  editButton: {
+    backgroundColor: "#111",
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+
+  editButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  editActionRow: {
+    flexDirection: "row",
+    gap: 7,
+  },
+
+  cancelButton: {
+    backgroundColor: "#fff",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+  },
+
+  cancelButtonText: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  saveButton: {
+    backgroundColor: "#111",
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+  },
+
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   headerEyebrow: {
@@ -258,6 +528,25 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
+  editRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee7dd",
+  },
+
+  textInput: {
+    marginTop: 8,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    color: "#111",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
   tipCard: {
     backgroundColor: "#fff",
     borderRadius: 24,
@@ -293,6 +582,20 @@ const styles = StyleSheet.create({
     color: "#625a51",
     fontSize: 14,
     lineHeight: 22,
+    fontWeight: "700",
+  },
+
+  tipInput: {
+    minHeight: 96,
+    backgroundColor: "#faf8f5",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    color: "#111",
+    fontSize: 14,
+    lineHeight: 21,
     fontWeight: "700",
   },
 
