@@ -17,6 +17,7 @@ export type ClosetItem = {
   imageUri: string;
   category: string;
   subCategory?: string;
+  detailCategory?: string;
   color?: string;
   style?: string;
   season?: string;

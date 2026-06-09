@@ -283,6 +283,7 @@ app.post("/analyze-clothes", async (req, res) => {
       return res.status(400).json({
         category: "분석 실패",
         subCategory: "이미지 없음",
+        detailCategory: "이미지 없음",
         color: "분석 불가",
         style: "분석 불가",
         season: "분석 불가",
@@ -311,7 +312,8 @@ app.post("/analyze-clothes", async (req, res) => {
 
 {
   "category": "상의 / 하의 / 신발 / 아우터 / 액세서리 / 기타 중 하나",
-  "subCategory": "후드티, 맨투맨, 셔츠, 데님팬츠, 슬랙스, 스니커즈 등 구체적인 옷 종류",
+  "subCategory": "티셔츠, 셔츠, 후드티, 데님팬츠, 슬랙스, 스니커즈 등 기본 종류",
+  "detailCategory": "반팔 티셔츠, 긴팔 티셔츠, 오버핏 후드티, 와이드 데님팬츠 등 더 구체적인 종류",
   "color": "대표 색상",
   "style": "캐주얼 / 미니멀 / 스트릿 / 포멀 / 스포티 / 빈티지 / 기타 중 하나",
   "season": "봄 / 여름 / 가을 / 겨울 / 사계절 중 하나",
@@ -347,6 +349,7 @@ app.post("/analyze-clothes", async (req, res) => {
     return res.json({
       category: parsed.category || "기타",
       subCategory: parsed.subCategory || "분석 전",
+      detailCategory: parsed.detailCategory || parsed.subCategory || "상세 분류 전",
       color: parsed.color || "색상 분석 전",
       style: parsed.style || "스타일 분석 전",
       season: parsed.season || "계절 분석 전",
@@ -361,6 +364,7 @@ app.post("/analyze-clothes", async (req, res) => {
     return res.json({
       category: "분석 실패",
       subCategory: "분석 실패",
+      detailCategory: "분석 실패",
       color: "분석 실패",
       style: "분석 실패",
       season: "분석 실패",

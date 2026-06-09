@@ -149,7 +149,7 @@ export default function ClosetScreen() {
                                     </Pressable>
 
                                     <Text style={styles.closetCategory}>
-                                        {item.subCategory || item.category}
+                                        {item.detailCategory || item.subCategory || item.category}
                                     </Text>
 
                                     <Text style={styles.closetSubText}>

@@ -70,6 +70,7 @@ export default function AddClothesScreen() {
         imageUri,
         category: analysis.category || "기타",
         subCategory: analysis.subCategory || "분석 전",
+        detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
         color: analysis.color || "색상 분석 전",
         style: analysis.style || "스타일 분석 전",
         season: analysis.season || "계절 분석 전",

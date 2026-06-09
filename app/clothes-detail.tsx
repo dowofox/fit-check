@@ -112,7 +112,9 @@ export default function ClothesDetailScreen() {
             <Image source={{ uri: item.imageUri }} style={styles.heroImage} />
 
             <View style={styles.summaryCard}>
-              <Text style={styles.itemTitle}>{item.subCategory || item.category}</Text>
+              <Text style={styles.itemTitle}>
+                {item.detailCategory || item.subCategory || item.category}
+              </Text>
               <Text style={styles.itemSubtitle}>
                 {item.category}{item.color ? ` · ${item.color}` : ""}
               </Text>
@@ -120,6 +122,7 @@ export default function ClothesDetailScreen() {
 
             <View style={styles.infoCard}>
               <DetailRow label="종류" value={item.category} />
+              <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
               <DetailRow label="색상" value={item.color} />
               <DetailRow label="스타일" value={item.style} />
               <DetailRow label="계절" value={item.season} />
