@@ -31,6 +31,15 @@ const OVERSIZED_BAD_ITEMS = [
 ];
 
 const LETTER_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+const TOP_LETTER_SIZE_VALUE: Record<string, number> = {
+  XS: 85,
+  S: 90,
+  M: 95,
+  L: 100,
+  XL: 105,
+  XXL: 110,
+  XXXL: 115,
+};
 
 function normalizeSize(size?: string) {
   const upperSize = String(size || "").trim().toUpperCase();
@@ -50,9 +59,32 @@ function getProfileSize(item: ClosetItem, profile?: UserProfile | null) {
   return profile.topSize || "";
 }
 
-function compareSize(profileSize?: string, itemSize?: string) {
+function isTopSizeCategory(category?: string) {
+  return category === "상의" || category === "아우터";
+}
+
+function getTopSizeValue(size?: string) {
+  const normalizedSize = normalizeSize(size);
+  const numericSize = Number(normalizedSize);
+
+  if (Number.isFinite(numericSize)) return numericSize;
+
+  return TOP_LETTER_SIZE_VALUE[normalizedSize] ?? null;
+}
+
+function compareSize(profileSize?: string, itemSize?: string, category?: string) {
   const normalizedProfileSize = normalizeSize(profileSize);
   const normalizedItemSize = normalizeSize(itemSize);
+
+  if (isTopSizeCategory(category)) {
+    const profileTopSize = getTopSizeValue(normalizedProfileSize);
+    const itemTopSize = getTopSizeValue(normalizedItemSize);
+
+    if (profileTopSize !== null && itemTopSize !== null) {
+      return Math.sign(itemTopSize - profileTopSize);
+    }
+  }
+
   const profileNumber = Number(normalizedProfileSize);
   const itemNumber = Number(normalizedItemSize);
 
@@ -87,7 +119,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
   const profileSize = getProfileSize(item, profile);
   const itemSize = item.size || "";
   const itemName = getItemName(item);
-  const sizeDiff = compareSize(profileSize, itemSize);
+  const sizeDiff = compareSize(profileSize, itemSize, item.category);
 
   if (!profileSize || !itemSize || itemSize === "사이즈 미입력") {
     return {
