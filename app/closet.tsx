@@ -1,7 +1,15 @@
 import BottomNav from "@/components/BottomNav";
-import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
 import {
+    ClosetItem,
+    deleteClosetItem,
+    getClosetItems,
+} from "@/utils/storage";
+import { Feather } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+    Alert,
     Image,
     Pressable,
     ScrollView,
@@ -10,26 +18,33 @@ import {
     View,
 } from "react-native";
 
-import {
-    ClosetItem,
-    deleteClosetItem,
-    getClosetItems,
-} from "@/utils/storage";
-import { useEffect, useState } from "react";
-
 export default function ClosetScreen() {
     const [items, setItems] = useState<ClosetItem[]>([]);
-    useEffect(() => {
-        loadCloset();
-    }, []);
-
+    useFocusEffect(
+        useCallback(() => {
+            loadCloset();
+        }, [])
+    );
     async function loadCloset() {
         const closetItems = await getClosetItems();
         setItems(closetItems);
     }
-    async function handleDeleteItem(id: string) {
-        const updatedItems = await deleteClosetItem(id);
-        setItems(updatedItems);
+    function handleDeleteItem(id: string) {
+        Alert.alert(
+            "옷을 삭제할까요?",
+            "삭제하면 옷장에서 바로 사라져요.",
+            [
+                { text: "취소", style: "cancel" },
+                {
+                    text: "삭제",
+                    style: "destructive",
+                    onPress: async () => {
+                        const updatedItems = await deleteClosetItem(id);
+                        setItems(updatedItems);
+                    },
+                },
+            ]
+        );
     }
     return (
         <View style={styles.screen}>
