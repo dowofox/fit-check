@@ -11,7 +11,6 @@ export type OutfitRecommendation = {
   breakdown: {
     category: number;
     style: number;
-    season: number;
     color: number;
     fit: number;
   };
@@ -28,6 +27,7 @@ const BASIC_COLORS = ["블랙", "화이트", "아이보리", "베이지", "그�
 const WIDE_FITS = ["와이드", "와이드핏", "스트레이트", "레귤러", "레귤러핏"];
 const SLIM_FITS = ["슬림", "슬림핏", "타이트"];
 const OVERSIZED_FITS = ["오버핏", "루즈", "루즈핏"];
+const UNIVERSAL_SEASONS = ["사계절", "전체"];
 
 function getItemLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category || "아이템";
@@ -58,8 +58,8 @@ function getCategoryScore(items: ClosetItem[]) {
   const hasBottom = items.some((item) => item.category === "하의");
   const hasShoes = items.some((item) => item.category === "신발");
 
-  if (hasTop && hasBottom && hasShoes) return 20;
-  if (hasTop && hasBottom) return 12;
+  if (hasTop && hasBottom && hasShoes) return 25;
+  if (hasTop && hasBottom) return 15;
   return 0;
 }
 
@@ -73,12 +73,12 @@ function getStyleScore(items: ClosetItem[], reasons: string[]) {
 
   if (maxSameStyleCount >= 3) {
     reasons.push("같은 스타일 아이템이 3개 이상이라 전체 무드가 안정적이에요.");
-    return 25;
+    return 30;
   }
 
   if (maxSameStyleCount === 2) {
     reasons.push("같은 스타일 아이템이 2개라 조합의 방향성이 보여요.");
-    return 18;
+    return 22;
   }
 
   const knownGroups = styles.map(getStyleGroup).filter((group): group is string[] => Boolean(group));
@@ -87,29 +87,30 @@ function getStyleScore(items: ClosetItem[], reasons: string[]) {
 
   if (hasSimilarStyleGroup) {
     reasons.push("완전히 같진 않지만 비슷한 스타일 계열끼리 묶여 있어요.");
-    return 10;
+    return 12;
   }
 
   return 0;
 }
 
-function getSeasonScore(items: ClosetItem[], reasons: string[]) {
-  const seasons = items.map((item) => item.season).filter((season): season is string => Boolean(season));
-  const seasonalItems = seasons.filter((season) => season !== "사계절");
-  const counts = seasonalItems.reduce<Record<string, number>>((acc, season) => {
-    acc[season] = (acc[season] || 0) + 1;
-    return acc;
-  }, {});
-  const maxSameSeasonCount = Math.max(0, ...Object.values(counts));
+function getCurrentSeason(date = new Date()) {
+  const month = date.getMonth() + 1;
 
-  if (seasonalItems.length === 0 || maxSameSeasonCount === seasonalItems.length) {
-    reasons.push("계절감이 크게 충돌하지 않아요.");
-    return 20;
+  if (month >= 3 && month <= 5) return "봄";
+  if (month >= 6 && month <= 8) return "여름";
+  if (month >= 9 && month <= 11) return "가을";
+  return "겨울";
+}
+
+function isSeasonAllowed(item: ClosetItem, currentSeason: string, warnings: string[]) {
+  const season = item.season?.trim();
+
+  if (!season) {
+    warnings.push(`${getItemLabel(item)}: 계절 정보가 부족해요.`);
+    return true;
   }
 
-  if (maxSameSeasonCount >= items.length - 1) return 14;
-  if (maxSameSeasonCount >= 2) return 7;
-  return 0;
+  return UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason);
 }
 
 function getColorScore(items: ClosetItem[], reasons: string[], warnings: string[]) {
@@ -119,18 +120,18 @@ function getColorScore(items: ClosetItem[], reasons: string[], warnings: string[
 
   if (colors.length === 0 || accentColorCount === 0) {
     reasons.push("무채색이나 베이직 컬러 중심이라 색 조합이 안정적이에요.");
-    return 20;
+    return 25;
   }
 
   if (accentColorCount === 1) {
     reasons.push("포인트 컬러가 하나라 부담 없이 포인트를 줄 수 있어요.");
-    return 16;
+    return 20;
   }
 
-  if (colors.length <= 4) return 10;
+  if (colors.length <= 4) return 12;
 
   warnings.push("색상이 많아 실제 착용 시 산만해 보일 수 있어요.");
-  return 3;
+  return 4;
 }
 
 function includesAny(value: string | undefined, keywords: string[]) {
@@ -148,21 +149,21 @@ function getFitScore(top: ClosetItem, bottom: ClosetItem, reasons: string[], war
 
   if (topIsOversized && bottomIsOversized) {
     warnings.push("상하의가 모두 크게 잡히면 실루엣이 과해 보일 수 있어요.");
-    return 7;
+    return 9;
   }
 
   if (topIsOversized && bottomIsWide) {
     reasons.push("상의 오버핏과 하의 와이드/스트레이트 실루엣이 잘 맞아요.");
-    return 15;
+    return 20;
   }
 
-  if (!topIsOversized && bottomIsWide) return 12;
+  if (!topIsOversized && bottomIsWide) return 16;
   if (topIsSlim && bottomIsSlim) {
     warnings.push("상하의가 모두 타이트하면 답답해 보일 수 있어요.");
-    return 3;
+    return 4;
   }
 
-  return 12;
+  return 16;
 }
 
 function getSizeWarnings(items: ClosetItem[], profile?: UserProfile | null) {
@@ -178,7 +179,7 @@ function getSizeWarnings(items: ClosetItem[], profile?: UserProfile | null) {
     .filter(Boolean);
 }
 
-function buildRecommendation(items: ClosetItem[], profile?: UserProfile | null): OutfitRecommendation | null {
+function buildRecommendation(items: ClosetItem[], currentSeason: string, profile?: UserProfile | null): OutfitRecommendation | null {
   const top = items.find((item) => item.category === "상의");
   const bottom = items.find((item) => item.category === "하의");
 
@@ -186,12 +187,15 @@ function buildRecommendation(items: ClosetItem[], profile?: UserProfile | null):
 
   const reasons: string[] = [];
   const warnings = getSizeWarnings(items, profile);
+  const isSeasonMatched = items.every((item) => isSeasonAllowed(item, currentSeason, warnings));
+
+  if (!isSeasonMatched) return null;
+
   const category = getCategoryScore(items);
   const style = getStyleScore(items, reasons);
-  const season = getSeasonScore(items, reasons);
   const color = getColorScore(items, reasons, warnings);
   const fit = getFitScore(top, bottom, reasons, warnings);
-  const score = category + style + season + color + fit;
+  const score = category + style + color + fit;
 
   return {
     id: items.map((item) => item.id).join("-"),
@@ -203,14 +207,13 @@ function buildRecommendation(items: ClosetItem[], profile?: UserProfile | null):
     breakdown: {
       category,
       style,
-      season,
       color,
       fit,
     },
   };
 }
 
-export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProfile | null): OutfitRecommendation[] {
+export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProfile | null, currentSeason = getCurrentSeason()): OutfitRecommendation[] {
   const tops = byCategory(items, "상의");
   const bottoms = byCategory(items, "하의");
   const shoes = byCategory(items, "신발");
@@ -234,7 +237,7 @@ export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProf
               ...(outer ? [outer] : []),
               ...(accessory ? [accessory] : []),
             ];
-            const recommendation = buildRecommendation(outfitItems, profile);
+            const recommendation = buildRecommendation(outfitItems, currentSeason, profile);
 
             if (recommendation) recommendations.push(recommendation);
           }
