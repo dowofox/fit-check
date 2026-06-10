@@ -99,7 +99,10 @@ function RecommendationCard({
 
       <View style={styles.breakdownBox}>
         <Text style={styles.breakdownText}>
-          스타일 {recommendation.breakdown.style} · 색상 {recommendation.breakdown.color} · 핏 {recommendation.breakdown.fit} · 선택 {recommendation.breakdown.optional}
+          스타일 {recommendation.breakdown.style} · 색상 {recommendation.breakdown.color} · 핏 {recommendation.breakdown.fit} · 완성도 {recommendation.breakdown.optional}
+        </Text>
+        <Text style={styles.breakdownDescription}>
+          완성도 = 아우터, 액세서리 등 코디 마무리 요소 평가
         </Text>
         {recommendation.penalty ? (
           <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
@@ -486,6 +489,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
     lineHeight: 17,
+  },
+  breakdownDescription: {
+    color: "#8c857d",
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 15,
+    marginTop: 3,
   },
   penaltyText: {
     color: "#991b1b",
