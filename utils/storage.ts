@@ -36,6 +36,8 @@ export type ClosetItem = {
 
 export type SavedOutfit = {
   id: string;
+  name?: string;
+  memo?: string;
   itemIds: string[];
   score: number;
   grade: string;
@@ -202,6 +204,22 @@ export async function deleteSavedOutfit(id: string) {
     return filteredOutfits;
   } catch (error) {
     console.log("저장된 코디 삭제 실패:", error);
+    return [];
+  }
+}
+
+export async function updateSavedOutfit(id: string, updatedOutfit: Partial<SavedOutfit>) {
+  try {
+    const savedOutfits = await getSavedOutfits();
+    const updatedOutfits = savedOutfits.map((outfit) =>
+      outfit.id === id ? { ...outfit, ...updatedOutfit } : outfit
+    );
+
+    await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits));
+
+    return updatedOutfits;
+  } catch (error) {
+    console.log("저장된 코디 수정 실패:", error);
     return [];
   }
 }

@@ -4,6 +4,7 @@ import {
   getClosetItems,
   getSavedOutfits,
   SavedOutfit,
+  updateSavedOutfit,
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -16,6 +17,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -25,6 +27,20 @@ type SavedOutfitWithItems = SavedOutfit & {
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
+}
+
+function getDefaultOutfitName(createdAt: string) {
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "저장한 코디";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `코디 ${year}.${month}.${day}`;
 }
 
 function matchSavedOutfits(savedOutfits: SavedOutfit[], closetItems: ClosetItem[]) {
@@ -39,16 +55,39 @@ function matchSavedOutfits(savedOutfits: SavedOutfit[], closetItems: ClosetItem[
 function SavedOutfitCard({
   outfit,
   onDelete,
+  onUpdate,
 }: {
   outfit: SavedOutfitWithItems;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, name: string, memo: string) => void;
 }) {
+  const outfitName = outfit.name || getDefaultOutfitName(outfit.createdAt);
+  const outfitMemo = outfit.memo || "";
+  const [isEditing, setIsEditing] = useState(false);
+  const [nameInput, setNameInput] = useState(outfitName);
+  const [memoInput, setMemoInput] = useState(outfitMemo);
+
+  function handleCancelEdit() {
+    setNameInput(outfitName);
+    setMemoInput(outfitMemo);
+    setIsEditing(false);
+  }
+
+  function handleSaveEdit() {
+    const nextName = nameInput.trim() || outfitName;
+    const nextMemo = memoInput.trim();
+
+    onUpdate(outfit.id, nextName, nextMemo);
+    setIsEditing(false);
+  }
+
   return (
     <View style={styles.outfitCard}>
       <View style={styles.cardHeader}>
         <View>
           <Text style={styles.cardEyebrow}>SAVED OUTFIT</Text>
-          <Text style={styles.cardTitle}>{outfit.grade} 등급</Text>
+          <Text style={styles.cardTitle}>{outfitName}</Text>
+          <Text style={styles.cardSubTitle}>{outfit.grade} 등급</Text>
         </View>
 
         <View style={styles.scoreBadge}>
@@ -56,6 +95,43 @@ function SavedOutfitCard({
           <Text style={styles.scoreUnit}>점</Text>
         </View>
       </View>
+
+      {isEditing ? (
+        <View style={styles.editBox}>
+          <Text style={styles.inputLabel}>이름</Text>
+          <TextInput
+            value={nameInput}
+            onChangeText={setNameInput}
+            placeholder="코디 이름"
+            placeholderTextColor="#aaa"
+            style={styles.textInput}
+          />
+
+          <Text style={styles.inputLabel}>메모</Text>
+          <TextInput
+            value={memoInput}
+            onChangeText={setMemoInput}
+            placeholder="메모를 입력해보세요"
+            placeholderTextColor="#aaa"
+            style={[styles.textInput, styles.memoInput]}
+            multiline
+          />
+
+          <View style={styles.editButtonRow}>
+            <Pressable style={styles.cancelEditButton} onPress={handleCancelEdit}>
+              <Text style={styles.cancelEditButtonText}>취소</Text>
+            </Pressable>
+            <Pressable style={styles.saveEditButton} onPress={handleSaveEdit}>
+              <Text style={styles.saveEditButtonText}>저장</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.memoBox}>
+          <Text style={styles.memoLabel}>메모</Text>
+          <Text style={styles.memoText}>{outfitMemo || "메모가 없어요"}</Text>
+        </View>
+      )}
 
       <ScrollView
         horizontal
@@ -113,6 +189,16 @@ function SavedOutfitCard({
         </View>
       )}
 
+      {!isEditing && (
+        <Pressable
+          style={styles.editButton}
+          onPress={() => setIsEditing(true)}
+        >
+          <Feather name="edit-3" size={17} color="#111" />
+          <Text style={styles.editButtonText}>이름/메모 수정</Text>
+        </Pressable>
+      )}
+
       <Pressable
         style={styles.deleteButton}
         onPress={() => onDelete(outfit.id)}
@@ -151,6 +237,12 @@ export default function SavedOutfitsScreen() {
         },
       },
     ]);
+  }
+
+  async function handleUpdateOutfit(id: string, name: string, memo: string) {
+    const updatedOutfits = await updateSavedOutfit(id, { name, memo });
+    const closetItems = await getClosetItems();
+    setSavedOutfits(matchSavedOutfits(updatedOutfits, closetItems));
   }
 
   useFocusEffect(
@@ -200,6 +292,7 @@ export default function SavedOutfitsScreen() {
                 key={outfit.id}
                 outfit={outfit}
                 onDelete={handleDeleteOutfit}
+                onUpdate={handleUpdateOutfit}
               />
             ))}
           </View>
@@ -279,6 +372,12 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: "900",
   },
+  cardSubTitle: {
+    color: "#6b6258",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 4,
+  },
   scoreBadge: {
     minWidth: 64,
     height: 64,
@@ -323,6 +422,82 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 3,
   },
+  memoBox: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 18,
+    padding: 13,
+    marginBottom: 10,
+  },
+  memoLabel: {
+    color: "#9b7a4b",
+    fontSize: 11,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+  memoText: {
+    color: "#625a51",
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  editBox: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 18,
+    padding: 13,
+    marginBottom: 10,
+  },
+  inputLabel: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+    marginBottom: 7,
+  },
+  textInput: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 12,
+  },
+  memoInput: {
+    minHeight: 82,
+    textAlignVertical: "top",
+  },
+  editButtonRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  cancelEditButton: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  cancelEditButtonText: {
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  saveEditButton: {
+    flex: 1,
+    backgroundColor: "#111",
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  saveEditButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
   noteBox: {
     backgroundColor: "#faf8f5",
     borderRadius: 18,
@@ -362,6 +537,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
+  },
+  editButton: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  editButtonText: {
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "900",
   },
   deleteButtonText: {
     color: "#991b1b",

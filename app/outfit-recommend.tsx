@@ -38,6 +38,14 @@ function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) 
   );
 }
 
+function getDefaultOutfitName(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `코디 ${year}.${month}.${day}`;
+}
+
 function getCategorySummary(items: ClosetItem[]) {
   const order = ["상의", "하의", "신발", "아우터", "액세서리"];
 
@@ -152,14 +160,18 @@ export default function OutfitRecommendScreen() {
       return;
     }
 
+    const savedAt = new Date();
+
     await saveOutfit({
       id: Date.now().toString(),
+      name: getDefaultOutfitName(savedAt),
+      memo: "",
       itemIds,
       score: recommendation.score,
       grade: recommendation.grade,
       reasons: recommendation.reasons,
       warnings: recommendation.warnings,
-      createdAt: new Date().toISOString(),
+      createdAt: savedAt.toISOString(),
     });
 
     Alert.alert("저장 완료", "추천 코디를 저장했어요.");
