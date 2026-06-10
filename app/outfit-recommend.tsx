@@ -159,6 +159,32 @@ export default function OutfitRecommendScreen() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
 
+  const loadRecommendations = useCallback(async () => {
+    setIsLoaded(false);
+
+    const [items, profile, savedOutfits] = await Promise.all([
+      getClosetItems(),
+      getUserProfile(),
+      getSavedOutfits(),
+    ]);
+    const savedOutfitItemIds = savedOutfits.map((outfit) => outfit.itemIds);
+    const allRecommendations = getOutfitRecommendations(items, profile);
+    const newRecommendations = getOutfitRecommendations(
+      items,
+      profile,
+      undefined,
+      savedOutfitItemIds
+    );
+
+    setRecommendations(newRecommendations);
+    setEmptyMessage(
+      allRecommendations.length > 0 && newRecommendations.length === 0
+        ? SAVED_ONLY_EMPTY_MESSAGE
+        : DEFAULT_EMPTY_MESSAGE
+    );
+    setIsLoaded(true);
+  }, []);
+
   async function handleSaveOutfit(recommendation: OutfitRecommendation) {
     const itemIds = getSortedItemIds(recommendation.items);
     const savedOutfits = await getSavedOutfits();
@@ -185,45 +211,15 @@ export default function OutfitRecommendScreen() {
       createdAt: savedAt.toISOString(),
     });
 
-    setRecommendations((currentRecommendations) =>
-      currentRecommendations.filter(
-        (currentRecommendation) =>
-          !isSameItemCombination(getSortedItemIds(currentRecommendation.items), itemIds)
-      )
-    );
-    setEmptyMessage(SAVED_ONLY_EMPTY_MESSAGE);
+    await loadRecommendations();
 
     Alert.alert("저장 완료", "추천 코디를 저장했어요.");
   }
 
   useFocusEffect(
     useCallback(() => {
-      async function loadRecommendations() {
-        const [items, profile, savedOutfits] = await Promise.all([
-          getClosetItems(),
-          getUserProfile(),
-          getSavedOutfits(),
-        ]);
-        const nextRecommendations = getOutfitRecommendations(items, profile);
-        const newRecommendations = nextRecommendations.filter((recommendation) => {
-          const itemIds = getSortedItemIds(recommendation.items);
-
-          return !savedOutfits.some((outfit) =>
-            isSameItemCombination(outfit.itemIds, itemIds)
-          );
-        });
-
-        setRecommendations(newRecommendations);
-        setEmptyMessage(
-          nextRecommendations.length > 0 && newRecommendations.length === 0
-            ? SAVED_ONLY_EMPTY_MESSAGE
-            : DEFAULT_EMPTY_MESSAGE
-        );
-        setIsLoaded(true);
-      }
-
       loadRecommendations();
-    }, [])
+    }, [loadRecommendations])
   );
 
   return (

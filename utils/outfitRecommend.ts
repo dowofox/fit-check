@@ -346,7 +346,38 @@ function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation
   return Array.from(recommendationMap.values());
 }
 
-export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProfile | null, currentSeason = getCurrentSeason()): OutfitRecommendation[] {
+function getSortedItemIds(items: ClosetItem[]) {
+  return items.map((item) => item.id).sort();
+}
+
+function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) {
+  const firstSortedIds = [...firstItemIds].sort();
+  const secondSortedIds = [...secondItemIds].sort();
+
+  return (
+    firstSortedIds.length === secondSortedIds.length &&
+    firstSortedIds.every((id, index) => id === secondSortedIds[index])
+  );
+}
+
+function excludeSavedCombinations(recommendations: OutfitRecommendation[], savedOutfitItemIds: string[][]) {
+  if (savedOutfitItemIds.length === 0) return recommendations;
+
+  return recommendations.filter((recommendation) => {
+    const itemIds = getSortedItemIds(recommendation.items);
+
+    return !savedOutfitItemIds.some((savedItemIds) =>
+      isSameItemCombination(savedItemIds, itemIds)
+    );
+  });
+}
+
+export function getOutfitRecommendations(
+  items: ClosetItem[],
+  profile?: UserProfile | null,
+  currentSeason = getCurrentSeason(),
+  savedOutfitItemIds: string[][] = []
+): OutfitRecommendation[] {
   const tops = byCategory(items, "상의");
   const bottoms = byCategory(items, "하의");
   const shoes = byCategory(items, "신발");
@@ -386,7 +417,9 @@ export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProf
     }
   }
 
-  return getBestRecommendationByCoreOutfit(recommendations)
+  return getBestRecommendationByCoreOutfit(
+    excludeSavedCombinations(recommendations, savedOutfitItemIds)
+  )
     .sort(compareRecommendations)
     .slice(0, 3);
 }
