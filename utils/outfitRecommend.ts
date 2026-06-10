@@ -6,6 +6,7 @@ export type OutfitRecommendation = {
   items: ClosetItem[];
   score: number;
   grade: "S" | "A" | "B" | "C" | "D";
+  alternativeCount?: number;
   reasons: string[];
   warnings: string[];
   breakdown: {
@@ -332,18 +333,23 @@ function getCoreOutfitKey(recommendation: OutfitRecommendation) {
 }
 
 function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation[]) {
-  const recommendationMap = new Map<string, OutfitRecommendation>();
+  const recommendationMap = new Map<string, OutfitRecommendation[]>();
 
   recommendations.forEach((recommendation) => {
     const coreKey = getCoreOutfitKey(recommendation);
-    const currentRecommendation = recommendationMap.get(coreKey);
+    const currentRecommendations = recommendationMap.get(coreKey) || [];
 
-    if (!currentRecommendation || compareRecommendations(recommendation, currentRecommendation) < 0) {
-      recommendationMap.set(coreKey, recommendation);
-    }
+    recommendationMap.set(coreKey, [...currentRecommendations, recommendation]);
   });
 
-  return Array.from(recommendationMap.values());
+  return Array.from(recommendationMap.values()).map((coreRecommendations) => {
+    const [bestRecommendation] = [...coreRecommendations].sort(compareRecommendations);
+
+    return {
+      ...bestRecommendation,
+      alternativeCount: Math.max(coreRecommendations.length - 1, 0),
+    };
+  });
 }
 
 function getSortedItemIds(items: ClosetItem[]) {

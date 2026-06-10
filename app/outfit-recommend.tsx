@@ -119,6 +119,15 @@ function RecommendationCard({
         ))}
       </ScrollView>
 
+      {recommendation.alternativeCount ? (
+        <View style={styles.alternativeBox}>
+          <Feather name="shuffle" size={15} color="#8c6f47" />
+          <Text style={styles.alternativeText}>
+            이 코디의 다른 버전 {recommendation.alternativeCount}개가 있어요
+          </Text>
+        </View>
+      ) : null}
+
       {recommendation.reasons.length > 0 && (
         <View style={styles.noteBox}>
           <View style={styles.noteHeader}>
@@ -410,6 +419,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     marginTop: 3,
+  },
+  alternativeBox: {
+    backgroundColor: "#f8f1e8",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eadcc9",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 10,
+  },
+  alternativeText: {
+    color: "#6b6258",
+    fontSize: 13,
+    fontWeight: "900",
   },
   noteBox: {
     backgroundColor: "#faf8f5",
