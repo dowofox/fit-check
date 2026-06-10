@@ -1,10 +1,9 @@
-import { getOutfitRecommendations, OutfitRecommendation } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
+  deleteSavedOutfit,
   getClosetItems,
   getSavedOutfits,
-  getUserProfile,
-  saveOutfit,
+  SavedOutfit,
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -20,58 +19,40 @@ import {
   View,
 } from "react-native";
 
+type SavedOutfitWithItems = SavedOutfit & {
+  items: ClosetItem[];
+};
+
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
 
-function getSortedItemIds(items: ClosetItem[]) {
-  return items.map((item) => item.id).sort();
+function matchSavedOutfits(savedOutfits: SavedOutfit[], closetItems: ClosetItem[]) {
+  return savedOutfits.map((outfit) => ({
+    ...outfit,
+    items: outfit.itemIds
+      .map((itemId) => closetItems.find((item) => item.id === itemId))
+      .filter((item): item is ClosetItem => Boolean(item)),
+  }));
 }
 
-function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) {
-  const firstSortedIds = [...firstItemIds].sort();
-  const secondSortedIds = [...secondItemIds].sort();
-
-  return (
-    firstSortedIds.length === secondSortedIds.length &&
-    firstSortedIds.every((id, index) => id === secondSortedIds[index])
-  );
-}
-
-function getCategorySummary(items: ClosetItem[]) {
-  const order = ["상의", "하의", "신발", "아우터", "액세서리"];
-
-  return order
-    .map((category) => {
-      const count = items.filter((item) => item.category === category).length;
-      return count > 0 ? `${category} ${count}` : "";
-    })
-    .filter(Boolean)
-    .join(" · ");
-}
-
-function RecommendationCard({
-  recommendation,
-  index,
-  onSave,
+function SavedOutfitCard({
+  outfit,
+  onDelete,
 }: {
-  recommendation: OutfitRecommendation;
-  index: number;
-  onSave: (recommendation: OutfitRecommendation) => void;
+  outfit: SavedOutfitWithItems;
+  onDelete: (id: string) => void;
 }) {
   return (
-    <View style={styles.recommendCard}>
+    <View style={styles.outfitCard}>
       <View style={styles.cardHeader}>
         <View>
-          <Text style={styles.cardEyebrow}>OUTFIT {index + 1}</Text>
-          <Text style={styles.cardTitle}>{recommendation.grade} 등급</Text>
-          <Text style={styles.categorySummary}>
-            {getCategorySummary(recommendation.items)}
-          </Text>
+          <Text style={styles.cardEyebrow}>SAVED OUTFIT</Text>
+          <Text style={styles.cardTitle}>{outfit.grade} 등급</Text>
         </View>
 
         <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>{recommendation.score}</Text>
+          <Text style={styles.scoreText}>{outfit.score}</Text>
           <Text style={styles.scoreUnit}>점</Text>
         </View>
       </View>
@@ -81,103 +62,100 @@ function RecommendationCard({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.itemList}
       >
-        {recommendation.items.map((item) => (
+        {outfit.items.map((item) => (
           <Pressable
             key={item.id}
             style={styles.itemCard}
-            onPress={() => router.push({
-              pathname: "/clothes-detail",
-              params: { id: item.id },
-            })}
+            onPress={() =>
+              router.push({
+                pathname: "/clothes-detail",
+                params: { id: item.id },
+              })
+            }
           >
             <Image source={{ uri: item.imageUri }} style={styles.itemImage} />
             <Text style={styles.itemName} numberOfLines={1}>
               {getItemName(item)}
             </Text>
             <Text style={styles.itemMeta} numberOfLines={1}>
-              {item.category}{item.color ? ` · ${item.color}` : ""}
+              {item.category}
+              {item.color ? ` · ${item.color}` : ""}
             </Text>
           </Pressable>
         ))}
       </ScrollView>
 
-      {recommendation.reasons.length > 0 && (
+      {outfit.reasons.length > 0 && (
         <View style={styles.noteBox}>
           <View style={styles.noteHeader}>
             <Feather name="check-circle" size={16} color="#111" />
             <Text style={styles.noteTitle}>추천 이유</Text>
           </View>
-          {recommendation.reasons.map((reason) => (
-            <Text key={reason} style={styles.noteText}>- {reason}</Text>
+          {outfit.reasons.map((reason) => (
+            <Text key={reason} style={styles.noteText}>
+              - {reason}
+            </Text>
           ))}
         </View>
       )}
 
-      {recommendation.warnings.length > 0 && (
+      {outfit.warnings.length > 0 && (
         <View style={styles.warningBox}>
           <View style={styles.noteHeader}>
             <Feather name="alert-circle" size={16} color="#8c6f47" />
             <Text style={styles.noteTitle}>주의사항</Text>
           </View>
-          {recommendation.warnings.map((warning) => (
-            <Text key={warning} style={styles.noteText}>- {warning}</Text>
+          {outfit.warnings.map((warning) => (
+            <Text key={warning} style={styles.noteText}>
+              - {warning}
+            </Text>
           ))}
         </View>
       )}
 
       <Pressable
-        style={styles.saveOutfitButton}
-        onPress={() => onSave(recommendation)}
+        style={styles.deleteButton}
+        onPress={() => onDelete(outfit.id)}
       >
-        <Feather name="bookmark" size={17} color="#fff" />
-        <Text style={styles.saveOutfitButtonText}>코디 저장</Text>
+        <Feather name="trash-2" size={17} color="#991b1b" />
+        <Text style={styles.deleteButtonText}>삭제</Text>
       </Pressable>
     </View>
   );
 }
 
-export default function OutfitRecommendScreen() {
-  const [recommendations, setRecommendations] = useState<OutfitRecommendation[]>([]);
+export default function SavedOutfitsScreen() {
+  const [savedOutfits, setSavedOutfits] = useState<SavedOutfitWithItems[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  async function handleSaveOutfit(recommendation: OutfitRecommendation) {
-    const itemIds = getSortedItemIds(recommendation.items);
-    const savedOutfits = await getSavedOutfits();
-    const isDuplicate = savedOutfits.some((outfit) =>
-      isSameItemCombination(outfit.itemIds, itemIds)
-    );
+  async function loadSavedOutfits() {
+    const [outfits, closetItems] = await Promise.all([
+      getSavedOutfits(),
+      getClosetItems(),
+    ]);
 
-    if (isDuplicate) {
-      Alert.alert("이미 저장된 코디예요", "같은 아이템 조합이 이미 저장되어 있어요.");
-      return;
-    }
+    setSavedOutfits(matchSavedOutfits(outfits, closetItems));
+    setIsLoaded(true);
+  }
 
-    await saveOutfit({
-      id: Date.now().toString(),
-      itemIds,
-      score: recommendation.score,
-      grade: recommendation.grade,
-      reasons: recommendation.reasons,
-      warnings: recommendation.warnings,
-      createdAt: new Date().toISOString(),
-    });
-
-    Alert.alert("저장 완료", "추천 코디를 저장했어요.");
+  function handleDeleteOutfit(id: string) {
+    Alert.alert("저장한 코디를 삭제할까요?", "삭제하면 저장 목록에서 사라져요.", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          const updatedOutfits = await deleteSavedOutfit(id);
+          const closetItems = await getClosetItems();
+          setSavedOutfits(matchSavedOutfits(updatedOutfits, closetItems));
+        },
+      },
+    ]);
   }
 
   useFocusEffect(
     useCallback(() => {
-      async function loadRecommendations() {
-        const [items, profile] = await Promise.all([
-          getClosetItems(),
-          getUserProfile(),
-        ]);
-
-        setRecommendations(getOutfitRecommendations(items, profile));
-        setIsLoaded(true);
-      }
-
-      loadRecommendations();
+      loadSavedOutfits();
     }, [])
   );
 
@@ -191,39 +169,37 @@ export default function OutfitRecommendScreen() {
           </Pressable>
 
           <View>
-            <Text style={styles.headerEyebrow}>AI CLOSET</Text>
-            <Text style={styles.headerTitle}>코디 추천</Text>
+            <Text style={styles.headerEyebrow}>SAVED</Text>
+            <Text style={styles.headerTitle}>저장한 코디</Text>
           </View>
 
           <View style={styles.headerSpacer} />
         </View>
 
-        <Pressable
-          style={styles.savedOutfitsButton}
-          onPress={() => router.push("/saved-outfits")}
-        >
-          <Feather name="bookmark" size={18} color="#111" />
-          <Text style={styles.savedOutfitsButtonText}>저장한 코디 보기</Text>
-        </Pressable>
-
-        {isLoaded && recommendations.length === 0 ? (
+        {isLoaded && savedOutfits.length === 0 ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIconCircle}>
-              <Feather name="layers" size={26} color="#8c6f47" />
+              <Feather name="bookmark" size={26} color="#8c6f47" />
             </View>
-            <Text style={styles.emptyTitle}>추천 가능한 조합이 부족해요</Text>
+            <Text style={styles.emptyTitle}>저장한 코디가 없어요</Text>
             <Text style={styles.emptyText}>
-              상의, 하의, 신발을 저장했는지 확인해주세요. 현재 계절과 맞지 않는 옷은 추천 후보에서 제외됩니다.
+              코디 추천 화면에서 마음에 드는 조합을 저장하면 여기에 모아볼 수 있어요.
             </Text>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => router.push("/outfit-recommend")}
+            >
+              <Feather name="layers" size={18} color="#fff" />
+              <Text style={styles.primaryButtonText}>코디 추천 받기</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.listArea}>
-            {recommendations.map((recommendation, index) => (
-              <RecommendationCard
-                key={recommendation.id}
-                recommendation={recommendation}
-                index={index}
-                onSave={handleSaveOutfit}
+            {savedOutfits.map((outfit) => (
+              <SavedOutfitCard
+                key={outfit.id}
+                outfit={outfit}
+                onDelete={handleDeleteOutfit}
               />
             ))}
           </View>
@@ -278,24 +254,7 @@ const styles = StyleSheet.create({
   listArea: {
     gap: 14,
   },
-  savedOutfitsButton: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#eee7dd",
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
-  },
-  savedOutfitsButtonText: {
-    color: "#111",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  recommendCard: {
+  outfitCard: {
     backgroundColor: "#fff",
     borderRadius: 24,
     borderWidth: 1,
@@ -319,12 +278,6 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 21,
     fontWeight: "900",
-  },
-  categorySummary: {
-    color: "#6b6258",
-    fontSize: 12,
-    fontWeight: "900",
-    marginTop: 5,
   },
   scoreBadge: {
     minWidth: 64,
@@ -380,21 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f1e8",
     borderRadius: 18,
     padding: 13,
-  },
-  saveOutfitButton: {
-    backgroundColor: "#111",
-    borderRadius: 18,
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 4,
-  },
-  saveOutfitButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "900",
+    marginBottom: 10,
   },
   noteHeader: {
     flexDirection: "row",
@@ -412,6 +351,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     fontWeight: "700",
+  },
+  deleteButton: {
+    backgroundColor: "#fee2e2",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  deleteButtonText: {
+    color: "#991b1b",
+    fontSize: 14,
+    fontWeight: "900",
   },
   emptyCard: {
     backgroundColor: "#faf8f5",
@@ -445,5 +400,21 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: "700",
     textAlign: "center",
+    marginBottom: 18,
+  },
+  primaryButton: {
+    backgroundColor: "#111",
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });
