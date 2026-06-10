@@ -7,6 +7,7 @@ export type OutfitRecommendation = {
   score: number;
   grade: "S" | "A" | "B" | "C" | "D";
   alternativeCount?: number;
+  alternatives?: OutfitRecommendation[];
   reasons: string[];
   warnings: string[];
   breakdown: {
@@ -343,11 +344,16 @@ function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation
   });
 
   return Array.from(recommendationMap.values()).map((coreRecommendations) => {
-    const [bestRecommendation] = [...coreRecommendations].sort(compareRecommendations);
+    const [bestRecommendation, ...alternatives] = [...coreRecommendations].sort(compareRecommendations);
 
     return {
       ...bestRecommendation,
       alternativeCount: Math.max(coreRecommendations.length - 1, 0),
+      alternatives: alternatives.slice(0, 3).map((alternative) => ({
+        ...alternative,
+        alternativeCount: 0,
+        alternatives: [],
+      })),
     };
   });
 }

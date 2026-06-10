@@ -77,6 +77,9 @@ function RecommendationCard({
   index: number;
   onSave: (recommendation: OutfitRecommendation) => void;
 }) {
+  const [isAlternativeOpen, setIsAlternativeOpen] = useState(false);
+  const alternatives = recommendation.alternatives || [];
+
   return (
     <View style={styles.recommendCard}>
       <View style={styles.cardHeader}>
@@ -120,13 +123,82 @@ function RecommendationCard({
       </ScrollView>
 
       {recommendation.alternativeCount ? (
-        <View style={styles.alternativeBox}>
+        <Pressable
+          style={styles.alternativeBox}
+          onPress={() => setIsAlternativeOpen((current) => !current)}
+        >
           <Feather name="shuffle" size={15} color="#8c6f47" />
           <Text style={styles.alternativeText}>
             이 코디의 다른 버전 {recommendation.alternativeCount}개가 있어요
           </Text>
-        </View>
+          <Feather
+            name={isAlternativeOpen ? "chevron-up" : "chevron-down"}
+            size={16}
+            color="#8c6f47"
+          />
+        </Pressable>
       ) : null}
+
+      {isAlternativeOpen && alternatives.length > 0 && (
+        <View style={styles.alternativeList}>
+          {alternatives.map((alternative, alternativeIndex) => (
+            <View key={alternative.id} style={styles.alternativeCard}>
+              <View style={styles.alternativeHeader}>
+                <View>
+                  <Text style={styles.alternativeEyebrow}>
+                    VERSION {alternativeIndex + 1}
+                  </Text>
+                  <Text style={styles.alternativeTitle}>
+                    {alternative.grade} 등급 · {alternative.score}점
+                  </Text>
+                  <Text style={styles.alternativeSummary}>
+                    {getCategorySummary(alternative.items)}
+                  </Text>
+                </View>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.alternativeItemList}
+              >
+                {alternative.items.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.alternativeItemCard}
+                    onPress={() => router.push({
+                      pathname: "/clothes-detail",
+                      params: { id: item.id },
+                    })}
+                  >
+                    <Image
+                      source={{ uri: item.imageUri }}
+                      style={styles.alternativeItemImage}
+                    />
+                    <Text style={styles.alternativeItemName} numberOfLines={1}>
+                      {getItemName(item)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {alternative.reasons[0] && (
+                <Text style={styles.alternativeReason} numberOfLines={2}>
+                  {alternative.reasons[0]}
+                </Text>
+              )}
+
+              <Pressable
+                style={styles.alternativeSaveButton}
+                onPress={() => onSave(alternative)}
+              >
+                <Feather name="bookmark" size={15} color="#fff" />
+                <Text style={styles.alternativeSaveButtonText}>이 버전 저장</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
 
       {recommendation.reasons.length > 0 && (
         <View style={styles.noteBox}>
@@ -433,7 +505,81 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   alternativeText: {
+    flex: 1,
     color: "#6b6258",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  alternativeList: {
+    gap: 10,
+    marginBottom: 10,
+  },
+  alternativeCard: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    padding: 12,
+  },
+  alternativeHeader: {
+    marginBottom: 10,
+  },
+  alternativeEyebrow: {
+    color: "#9b7a4b",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+    marginBottom: 3,
+  },
+  alternativeTitle: {
+    color: "#111",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  alternativeSummary: {
+    color: "#6b6258",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  alternativeItemList: {
+    gap: 8,
+    paddingRight: 2,
+    marginBottom: 10,
+  },
+  alternativeItemCard: {
+    width: 72,
+  },
+  alternativeItemImage: {
+    width: 72,
+    height: 88,
+    borderRadius: 14,
+    backgroundColor: "#ddd",
+    marginBottom: 6,
+  },
+  alternativeItemName: {
+    color: "#111",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  alternativeReason: {
+    color: "#625a51",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  alternativeSaveButton: {
+    backgroundColor: "#111",
+    borderRadius: 14,
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
+  },
+  alternativeSaveButtonText: {
+    color: "#fff",
     fontSize: 13,
     fontWeight: "900",
   },
