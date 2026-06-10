@@ -20,6 +20,16 @@ import {
   View,
 } from "react-native";
 
+const DEFAULT_EMPTY_MESSAGE = {
+  title: "추천 가능한 조합이 부족해요",
+  text: "상의, 하의, 신발을 저장했는지 확인해주세요. 현재 계절과 맞지 않는 옷은 추천 후보에서 제외됩니다.",
+};
+
+const SAVED_ONLY_EMPTY_MESSAGE = {
+  title: "새로운 추천 조합이 없어요",
+  text: "저장한 코디와 겹치지 않는 조합을 만들려면 옷을 더 추가해보세요.",
+};
+
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
@@ -147,6 +157,7 @@ function RecommendationCard({
 export default function OutfitRecommendScreen() {
   const [recommendations, setRecommendations] = useState<OutfitRecommendation[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
 
   async function handleSaveOutfit(recommendation: OutfitRecommendation) {
     const itemIds = getSortedItemIds(recommendation.items);
@@ -174,18 +185,40 @@ export default function OutfitRecommendScreen() {
       createdAt: savedAt.toISOString(),
     });
 
+    setRecommendations((currentRecommendations) =>
+      currentRecommendations.filter(
+        (currentRecommendation) =>
+          !isSameItemCombination(getSortedItemIds(currentRecommendation.items), itemIds)
+      )
+    );
+    setEmptyMessage(SAVED_ONLY_EMPTY_MESSAGE);
+
     Alert.alert("저장 완료", "추천 코디를 저장했어요.");
   }
 
   useFocusEffect(
     useCallback(() => {
       async function loadRecommendations() {
-        const [items, profile] = await Promise.all([
+        const [items, profile, savedOutfits] = await Promise.all([
           getClosetItems(),
           getUserProfile(),
+          getSavedOutfits(),
         ]);
+        const nextRecommendations = getOutfitRecommendations(items, profile);
+        const newRecommendations = nextRecommendations.filter((recommendation) => {
+          const itemIds = getSortedItemIds(recommendation.items);
 
-        setRecommendations(getOutfitRecommendations(items, profile));
+          return !savedOutfits.some((outfit) =>
+            isSameItemCombination(outfit.itemIds, itemIds)
+          );
+        });
+
+        setRecommendations(newRecommendations);
+        setEmptyMessage(
+          nextRecommendations.length > 0 && newRecommendations.length === 0
+            ? SAVED_ONLY_EMPTY_MESSAGE
+            : DEFAULT_EMPTY_MESSAGE
+        );
         setIsLoaded(true);
       }
 
@@ -223,9 +256,9 @@ export default function OutfitRecommendScreen() {
             <View style={styles.emptyIconCircle}>
               <Feather name="layers" size={26} color="#8c6f47" />
             </View>
-            <Text style={styles.emptyTitle}>추천 가능한 조합이 부족해요</Text>
+            <Text style={styles.emptyTitle}>{emptyMessage.title}</Text>
             <Text style={styles.emptyText}>
-              상의, 하의, 신발을 저장했는지 확인해주세요. 현재 계절과 맞지 않는 옷은 추천 후보에서 제외됩니다.
+              {emptyMessage.text}
             </Text>
           </View>
         ) : (
