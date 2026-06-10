@@ -13,6 +13,7 @@ export type OutfitRecommendation = {
     style: number;
     color: number;
     fit: number;
+    optional: number;
   };
 };
 
@@ -138,6 +139,75 @@ function includesAny(value: string | undefined, keywords: string[]) {
   return keywords.some((keyword) => String(value || "").includes(keyword));
 }
 
+function isBasicColor(color?: string) {
+  return BASIC_COLORS.includes(color || "");
+}
+
+function hasMatchingStyle(item: ClosetItem, baseItems: ClosetItem[]) {
+  if (!item.style) return false;
+
+  const itemStyleGroup = getStyleGroup(item.style);
+
+  return baseItems.some((baseItem) => {
+    if (!baseItem.style) return false;
+    if (baseItem.style === item.style) return true;
+
+    const baseStyleGroup = getStyleGroup(baseItem.style);
+    return Boolean(itemStyleGroup && baseStyleGroup && itemStyleGroup === baseStyleGroup);
+  });
+}
+
+function getOptionalScore(items: ClosetItem[], reasons: string[], warnings: string[]) {
+  const baseItems = items.filter((item) => ["상의", "하의", "신발"].includes(item.category));
+  const outer = items.find((item) => item.category === "아우터");
+  const accessories = items.filter((item) => item.category === "액세서리");
+  let score = 0;
+
+  if (outer) {
+    const hasStyle = Boolean(outer.style);
+    const hasColor = Boolean(outer.color);
+    const isNaturalOuter = hasMatchingStyle(outer, baseItems) || isBasicColor(outer.color);
+
+    if (isNaturalOuter && hasStyle && hasColor) {
+      score += 4;
+      reasons.push("아우터가 전체 코디의 색상이나 스타일 흐름에 자연스럽게 맞아요.");
+    } else if (hasStyle || hasColor) {
+      score += 2;
+      warnings.push("아우터 정보가 일부 부족해서 실제 조화는 한 번 더 확인해보세요.");
+    } else {
+      score += 1;
+      warnings.push("아우터 색상/스타일 정보가 부족해요.");
+    }
+  }
+
+  if (accessories.length === 0) {
+    return Math.min(score, 8);
+  }
+
+  const accessoryColors = accessories.map((item) => item.color).filter((color): color is string => Boolean(color));
+  const missingColorCount = accessories.length - accessoryColors.length;
+  const accentColorCount = accessoryColors.filter((color) => !isBasicColor(color)).length;
+
+  if (accessories.length >= 3) {
+    score += 2;
+    warnings.push("액세서리가 3개 이상이면 코디가 다소 복잡해 보일 수 있어요.");
+  } else if (missingColorCount > 0) {
+    score += 1;
+    warnings.push("액세서리 색상 정보가 부족해요.");
+  } else if (accentColorCount >= 2) {
+    score += accessories.length === 2 ? 3 : 2;
+    warnings.push("액세서리 색상이 강하면 포인트가 과해 보일 수 있어요.");
+  } else if (accessories.length === 2) {
+    score += 5;
+    reasons.push("액세서리 2개가 과하지 않게 포인트를 더해줘요.");
+  } else {
+    score += 3;
+    reasons.push("액세서리 1개가 코디에 자연스러운 포인트를 줘요.");
+  }
+
+  return Math.min(score, 8);
+}
+
 function getFitScore(top: ClosetItem, bottom: ClosetItem, reasons: string[], warnings: string[]) {
   const topFit = top.fit || "";
   const bottomFit = `${bottom.fit || ""} ${bottom.detailCategory || ""} ${bottom.subCategory || ""}`;
@@ -195,7 +265,8 @@ function buildRecommendation(items: ClosetItem[], currentSeason: string, profile
   const style = getStyleScore(items, reasons);
   const color = getColorScore(items, reasons, warnings);
   const fit = getFitScore(top, bottom, reasons, warnings);
-  const score = category + style + color + fit;
+  const optional = getOptionalScore(items, reasons, warnings);
+  const score = category + style + color + fit + optional;
 
   return {
     id: items.map((item) => item.id).join("-"),
@@ -209,6 +280,7 @@ function buildRecommendation(items: ClosetItem[], currentSeason: string, profile
       style,
       color,
       fit,
+      optional,
     },
   };
 }
@@ -230,6 +302,50 @@ function compareRecommendations(a: OutfitRecommendation, b: OutfitRecommendation
   return a.warnings.length - b.warnings.length;
 }
 
+function getAccessoryCombinations(accessories: ClosetItem[]) {
+  const combinations: ClosetItem[][] = [[]];
+
+  for (let size = 1; size <= 3; size += 1) {
+    function pick(startIndex: number, selectedItems: ClosetItem[]) {
+      if (selectedItems.length === size) {
+        combinations.push(selectedItems);
+        return;
+      }
+
+      for (let index = startIndex; index < accessories.length; index += 1) {
+        pick(index + 1, [...selectedItems, accessories[index]]);
+      }
+    }
+
+    pick(0, []);
+  }
+
+  return combinations;
+}
+
+function getCoreOutfitKey(recommendation: OutfitRecommendation) {
+  const topId = recommendation.items.find((item) => item.category === "상의")?.id || "no-top";
+  const bottomId = recommendation.items.find((item) => item.category === "하의")?.id || "no-bottom";
+  const shoeId = recommendation.items.find((item) => item.category === "신발")?.id || "no-shoes";
+
+  return [topId, bottomId, shoeId].join("-");
+}
+
+function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation[]) {
+  const recommendationMap = new Map<string, OutfitRecommendation>();
+
+  recommendations.forEach((recommendation) => {
+    const coreKey = getCoreOutfitKey(recommendation);
+    const currentRecommendation = recommendationMap.get(coreKey);
+
+    if (!currentRecommendation || compareRecommendations(recommendation, currentRecommendation) < 0) {
+      recommendationMap.set(coreKey, recommendation);
+    }
+  });
+
+  return Array.from(recommendationMap.values());
+}
+
 export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProfile | null, currentSeason = getCurrentSeason()): OutfitRecommendation[] {
   const tops = byCategory(items, "상의");
   const bottoms = byCategory(items, "하의");
@@ -244,16 +360,16 @@ export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProf
       const baseItems = [top, bottom];
       const shoeOptions = shoes.length > 0 ? [null, ...shoes] : [null];
       const outerOptions = outers.length > 0 ? [null, ...outers] : [null];
-      const accessoryOptions = accessories.length > 0 ? [null, ...accessories] : [null];
+      const accessoryOptions = getAccessoryCombinations(accessories);
 
       for (const shoe of shoeOptions) {
         for (const outer of outerOptions) {
-          for (const accessory of accessoryOptions) {
+          for (const accessoryItems of accessoryOptions) {
             const outfitItems = [
               ...baseItems,
               ...(shoe ? [shoe] : []),
               ...(outer ? [outer] : []),
-              ...(accessory ? [accessory] : []),
+              ...accessoryItems,
             ];
             const recommendation = buildRecommendation(outfitItems, currentSeason, profile);
 
@@ -270,7 +386,7 @@ export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProf
     }
   }
 
-  return recommendations
+  return getBestRecommendationByCoreOutfit(recommendations)
     .sort(compareRecommendations)
     .slice(0, 3);
 }
