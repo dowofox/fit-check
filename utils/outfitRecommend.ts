@@ -213,6 +213,23 @@ function buildRecommendation(items: ClosetItem[], currentSeason: string, profile
   };
 }
 
+function hasCategory(recommendation: OutfitRecommendation, category: string) {
+  return recommendation.items.some((item) => item.category === category);
+}
+
+function compareRecommendations(a: OutfitRecommendation, b: OutfitRecommendation) {
+  const scoreDiff = b.score - a.score;
+  if (scoreDiff !== 0) return scoreDiff;
+
+  const shoeDiff = Number(hasCategory(b, "신발")) - Number(hasCategory(a, "신발"));
+  if (shoeDiff !== 0) return shoeDiff;
+
+  const outerDiff = Number(hasCategory(b, "아우터")) - Number(hasCategory(a, "아우터"));
+  if (outerDiff !== 0) return outerDiff;
+
+  return a.warnings.length - b.warnings.length;
+}
+
 export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProfile | null, currentSeason = getCurrentSeason()): OutfitRecommendation[] {
   const tops = byCategory(items, "상의");
   const bottoms = byCategory(items, "하의");
@@ -220,11 +237,12 @@ export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProf
   const outers = byCategory(items, "아우터");
   const accessories = byCategory(items, "액세서리");
   const recommendations: OutfitRecommendation[] = [];
+  const hasShoesInCloset = shoes.length > 0;
 
   for (const top of tops) {
     for (const bottom of bottoms) {
       const baseItems = [top, bottom];
-      const shoeOptions = shoes.length > 0 ? shoes : [null];
+      const shoeOptions = shoes.length > 0 ? [null, ...shoes] : [null];
       const outerOptions = outers.length > 0 ? [null, ...outers] : [null];
       const accessoryOptions = accessories.length > 0 ? [null, ...accessories] : [null];
 
@@ -239,7 +257,13 @@ export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProf
             ];
             const recommendation = buildRecommendation(outfitItems, currentSeason, profile);
 
-            if (recommendation) recommendations.push(recommendation);
+            if (recommendation) {
+              if (!hasShoesInCloset) {
+                recommendation.warnings.push("신발이 없어 완성 코디로는 부족할 수 있어요.");
+              }
+
+              recommendations.push(recommendation);
+            }
           }
         }
       }
@@ -247,6 +271,6 @@ export function getOutfitRecommendations(items: ClosetItem[], profile?: UserProf
   }
 
   return recommendations
-    .sort((a, b) => b.score - a.score)
+    .sort(compareRecommendations)
     .slice(0, 3);
 }

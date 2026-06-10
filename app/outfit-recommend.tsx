@@ -17,6 +17,18 @@ function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
 
+function getCategorySummary(items: ClosetItem[]) {
+  const order = ["상의", "하의", "신발", "아우터", "액세서리"];
+
+  return order
+    .map((category) => {
+      const count = items.filter((item) => item.category === category).length;
+      return count > 0 ? `${category} ${count}` : "";
+    })
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function RecommendationCard({
   recommendation,
   index,
@@ -30,6 +42,9 @@ function RecommendationCard({
         <View>
           <Text style={styles.cardEyebrow}>OUTFIT {index + 1}</Text>
           <Text style={styles.cardTitle}>{recommendation.grade} 등급</Text>
+          <Text style={styles.categorySummary}>
+            {getCategorySummary(recommendation.items)}
+          </Text>
         </View>
 
         <View style={styles.scoreBadge}>
@@ -44,7 +59,14 @@ function RecommendationCard({
         contentContainerStyle={styles.itemList}
       >
         {recommendation.items.map((item) => (
-          <View key={item.id} style={styles.itemCard}>
+          <Pressable
+            key={item.id}
+            style={styles.itemCard}
+            onPress={() => router.push({
+              pathname: "/clothes-detail",
+              params: { id: item.id },
+            })}
+          >
             <Image source={{ uri: item.imageUri }} style={styles.itemImage} />
             <Text style={styles.itemName} numberOfLines={1}>
               {getItemName(item)}
@@ -52,7 +74,7 @@ function RecommendationCard({
             <Text style={styles.itemMeta} numberOfLines={1}>
               {item.category}{item.color ? ` · ${item.color}` : ""}
             </Text>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
 
@@ -215,6 +237,12 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 21,
     fontWeight: "900",
+  },
+  categorySummary: {
+    color: "#6b6258",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: 5,
   },
   scoreBadge: {
     minWidth: 64,
