@@ -1,10 +1,17 @@
 import { getOutfitRecommendations, OutfitRecommendation } from "@/utils/outfitRecommend";
-import { ClosetItem, getClosetItems, getUserProfile } from "@/utils/storage";
+import {
+  ClosetItem,
+  getClosetItems,
+  getSavedOutfits,
+  getUserProfile,
+  saveOutfit,
+} from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -15,6 +22,20 @@ import {
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
+}
+
+function getSortedItemIds(items: ClosetItem[]) {
+  return items.map((item) => item.id).sort();
+}
+
+function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) {
+  const firstSortedIds = [...firstItemIds].sort();
+  const secondSortedIds = [...secondItemIds].sort();
+
+  return (
+    firstSortedIds.length === secondSortedIds.length &&
+    firstSortedIds.every((id, index) => id === secondSortedIds[index])
+  );
 }
 
 function getCategorySummary(items: ClosetItem[]) {
@@ -32,9 +53,11 @@ function getCategorySummary(items: ClosetItem[]) {
 function RecommendationCard({
   recommendation,
   index,
+  onSave,
 }: {
   recommendation: OutfitRecommendation;
   index: number;
+  onSave: (recommendation: OutfitRecommendation) => void;
 }) {
   return (
     <View style={styles.recommendCard}>
@@ -101,6 +124,14 @@ function RecommendationCard({
           ))}
         </View>
       )}
+
+      <Pressable
+        style={styles.saveOutfitButton}
+        onPress={() => onSave(recommendation)}
+      >
+        <Feather name="bookmark" size={17} color="#fff" />
+        <Text style={styles.saveOutfitButtonText}>코디 저장</Text>
+      </Pressable>
     </View>
   );
 }
@@ -108,6 +139,31 @@ function RecommendationCard({
 export default function OutfitRecommendScreen() {
   const [recommendations, setRecommendations] = useState<OutfitRecommendation[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  async function handleSaveOutfit(recommendation: OutfitRecommendation) {
+    const itemIds = getSortedItemIds(recommendation.items);
+    const savedOutfits = await getSavedOutfits();
+    const isDuplicate = savedOutfits.some((outfit) =>
+      isSameItemCombination(outfit.itemIds, itemIds)
+    );
+
+    if (isDuplicate) {
+      Alert.alert("이미 저장된 코디예요", "같은 아이템 조합이 이미 저장되어 있어요.");
+      return;
+    }
+
+    await saveOutfit({
+      id: Date.now().toString(),
+      itemIds,
+      score: recommendation.score,
+      grade: recommendation.grade,
+      reasons: recommendation.reasons,
+      warnings: recommendation.warnings,
+      createdAt: new Date().toISOString(),
+    });
+
+    Alert.alert("저장 완료", "추천 코디를 저장했어요.");
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -159,6 +215,7 @@ export default function OutfitRecommendScreen() {
                 key={recommendation.id}
                 recommendation={recommendation}
                 index={index}
+                onSave={handleSaveOutfit}
               />
             ))}
           </View>
@@ -298,6 +355,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f1e8",
     borderRadius: 18,
     padding: 13,
+  },
+  saveOutfitButton: {
+    backgroundColor: "#111",
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  saveOutfitButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
   },
   noteHeader: {
     flexDirection: "row",

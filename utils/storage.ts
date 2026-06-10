@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STORAGE_KEY = "analysis_history";
 const PROFILE_KEY = "naes_profile";
 const CLOSET_KEY = "naes_closet";
+const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 
 export type UserProfile = {
   gender?: string;
@@ -30,6 +31,16 @@ export type ClosetItem = {
   description?: string;
   matchTip?: string;
   avoidTip?: string;
+  createdAt: string;
+};
+
+export type SavedOutfit = {
+  id: string;
+  itemIds: string[];
+  score: number;
+  grade: string;
+  reasons: string[];
+  warnings: string[];
   createdAt: string;
 };
 
@@ -152,6 +163,45 @@ export async function updateClosetItem(id: string, updatedItem: Partial<ClosetIt
     return updatedCloset;
   } catch (error) {
     console.log("옷장 수정 실패:", error);
+    return [];
+  }
+}
+
+export async function saveOutfit(outfit: SavedOutfit) {
+  try {
+    const savedOutfits = await getSavedOutfits();
+    const updatedOutfits = [outfit, ...savedOutfits];
+
+    await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits));
+
+    return updatedOutfits;
+  } catch (error) {
+    console.log("코디 저장 실패:", error);
+    return [];
+  }
+}
+
+export async function getSavedOutfits(): Promise<SavedOutfit[]> {
+  try {
+    const data = await AsyncStorage.getItem(SAVED_OUTFITS_KEY);
+
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.log("저장된 코디 불러오기 실패:", error);
+    return [];
+  }
+}
+
+export async function deleteSavedOutfit(id: string) {
+  try {
+    const savedOutfits = await getSavedOutfits();
+    const filteredOutfits = savedOutfits.filter((outfit) => outfit.id !== id);
+
+    await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(filteredOutfits));
+
+    return filteredOutfits;
+  } catch (error) {
+    console.log("저장된 코디 삭제 실패:", error);
     return [];
   }
 }
