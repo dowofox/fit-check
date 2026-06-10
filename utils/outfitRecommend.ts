@@ -8,6 +8,7 @@ export type OutfitRecommendation = {
   grade: "S" | "A" | "B" | "C" | "D";
   alternativeCount?: number;
   alternatives?: OutfitRecommendation[];
+  penalty?: number;
   reasons: string[];
   warnings: string[];
   breakdown: {
@@ -376,6 +377,7 @@ function buildRecommendation(
     items,
     score,
     grade: getGrade(score),
+    penalty: warningPenalty,
     reasons,
     warnings,
     breakdown: {

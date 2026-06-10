@@ -97,6 +97,15 @@ function RecommendationCard({
         </View>
       </View>
 
+      <View style={styles.breakdownBox}>
+        <Text style={styles.breakdownText}>
+          스타일 {recommendation.breakdown.style} · 색상 {recommendation.breakdown.color} · 핏 {recommendation.breakdown.fit} · 선택 {recommendation.breakdown.optional}
+        </Text>
+        {recommendation.penalty ? (
+          <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
+        ) : null}
+      </View>
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -464,6 +473,25 @@ const styles = StyleSheet.create({
     color: "#d8d2ca",
     fontSize: 10,
     fontWeight: "900",
+  },
+  breakdownBox: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    marginBottom: 12,
+  },
+  breakdownText: {
+    color: "#6b6258",
+    fontSize: 11,
+    fontWeight: "900",
+    lineHeight: 17,
+  },
+  penaltyText: {
+    color: "#991b1b",
+    fontSize: 11,
+    fontWeight: "900",
+    marginTop: 3,
   },
   itemList: {
     gap: 10,
