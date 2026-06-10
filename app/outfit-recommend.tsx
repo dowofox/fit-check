@@ -1,4 +1,4 @@
-import { getOutfitRecommendations, OutfitRecommendation } from "@/utils/outfitRecommend";
+import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
   getClosetItems,
@@ -249,17 +249,16 @@ export default function OutfitRecommendScreen() {
       getSavedOutfits(),
     ]);
     const savedOutfitItemIds = savedOutfits.map((outfit) => outfit.itemIds);
-    const allRecommendations = getOutfitRecommendations(items, profile);
-    const newRecommendations = getOutfitRecommendations(
+    const recommendationResult = getOutfitRecommendationResult(
       items,
       profile,
       undefined,
       savedOutfitItemIds
     );
 
-    setRecommendations(newRecommendations);
+    setRecommendations(recommendationResult.recommendations);
     setEmptyMessage(
-      allRecommendations.length > 0 && newRecommendations.length === 0
+      recommendationResult.hasAnyRecommendation && recommendationResult.recommendations.length === 0
         ? SAVED_ONLY_EMPTY_MESSAGE
         : DEFAULT_EMPTY_MESSAGE
     );
