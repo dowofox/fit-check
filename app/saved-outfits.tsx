@@ -1,3 +1,4 @@
+import { getShoeRecommendationsForOutfit } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
   deleteSavedOutfit,
@@ -56,13 +57,16 @@ function SavedOutfitCard({
   outfit,
   onDelete,
   onUpdate,
+  allClosetItems,
 }: {
   outfit: SavedOutfitWithItems;
   onDelete: (id: string) => void;
   onUpdate: (id: string, name: string, memo: string) => void;
+  allClosetItems: ClosetItem[];
 }) {
   const outfitName = outfit.name || getDefaultOutfitName(outfit.createdAt);
   const outfitMemo = outfit.memo || "";
+  const shoeRecommendations = getShoeRecommendationsForOutfit(outfit.items, allClosetItems);
   const [isEditing, setIsEditing] = useState(false);
   const [nameInput, setNameInput] = useState(outfitName);
   const [memoInput, setMemoInput] = useState(outfitMemo);
@@ -161,6 +165,77 @@ function SavedOutfitCard({
         ))}
       </ScrollView>
 
+      {(shoeRecommendations.currentShoes.length > 0 || shoeRecommendations.recommendations.length > 0) && (
+        <View style={styles.shoeSection}>
+          <View style={styles.shoeSectionHeader}>
+            <Feather name="shopping-bag" size={16} color="#111" />
+            <Text style={styles.shoeSectionTitle}>어울리는 신발</Text>
+          </View>
+
+          {shoeRecommendations.currentShoes.length > 0 && (
+            <View style={styles.currentShoeBox}>
+              <Text style={styles.currentShoeLabel}>현재 신발</Text>
+              {shoeRecommendations.currentShoes.map((recommendation) => (
+                <Pressable
+                  key={recommendation.shoe.id}
+                  style={styles.shoeRow}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/clothes-detail",
+                      params: { id: recommendation.shoe.id },
+                    })
+                  }
+                >
+                  <Image
+                    source={{ uri: recommendation.shoe.imageUri }}
+                    style={styles.shoeImage}
+                  />
+                  <View style={styles.shoeInfo}>
+                    <Text style={styles.shoeName} numberOfLines={1}>
+                      {getItemName(recommendation.shoe)}
+                    </Text>
+                    <Text style={styles.shoeReason} numberOfLines={2}>
+                      {recommendation.reason}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {shoeRecommendations.recommendations.length > 0 && (
+            <View style={styles.shoeList}>
+              <Text style={styles.recommendedShoeLabel}>추천 신발</Text>
+              {shoeRecommendations.recommendations.map((recommendation) => (
+                <Pressable
+                  key={recommendation.shoe.id}
+                  style={styles.shoeRow}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/clothes-detail",
+                      params: { id: recommendation.shoe.id },
+                    })
+                  }
+                >
+                  <Image
+                    source={{ uri: recommendation.shoe.imageUri }}
+                    style={styles.shoeImage}
+                  />
+                  <View style={styles.shoeInfo}>
+                    <Text style={styles.shoeName} numberOfLines={1}>
+                      {getItemName(recommendation.shoe)}
+                    </Text>
+                    <Text style={styles.shoeReason} numberOfLines={2}>
+                      {recommendation.reason}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
       {outfit.reasons.length > 0 && (
         <View style={styles.noteBox}>
           <View style={styles.noteHeader}>
@@ -212,6 +287,7 @@ function SavedOutfitCard({
 
 export default function SavedOutfitsScreen() {
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfitWithItems[]>([]);
+  const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   async function loadSavedOutfits() {
@@ -220,6 +296,7 @@ export default function SavedOutfitsScreen() {
       getClosetItems(),
     ]);
 
+    setClosetItems(closetItems);
     setSavedOutfits(matchSavedOutfits(outfits, closetItems));
     setIsLoaded(true);
   }
@@ -233,6 +310,7 @@ export default function SavedOutfitsScreen() {
         onPress: async () => {
           const updatedOutfits = await deleteSavedOutfit(id);
           const closetItems = await getClosetItems();
+          setClosetItems(closetItems);
           setSavedOutfits(matchSavedOutfits(updatedOutfits, closetItems));
         },
       },
@@ -242,6 +320,7 @@ export default function SavedOutfitsScreen() {
   async function handleUpdateOutfit(id: string, name: string, memo: string) {
     const updatedOutfits = await updateSavedOutfit(id, { name, memo });
     const closetItems = await getClosetItems();
+    setClosetItems(closetItems);
     setSavedOutfits(matchSavedOutfits(updatedOutfits, closetItems));
   }
 
@@ -293,6 +372,7 @@ export default function SavedOutfitsScreen() {
                 outfit={outfit}
                 onDelete={handleDeleteOutfit}
                 onUpdate={handleUpdateOutfit}
+                allClosetItems={closetItems}
               />
             ))}
           </View>
@@ -467,6 +547,71 @@ const styles = StyleSheet.create({
   memoInput: {
     minHeight: 82,
     textAlignVertical: "top",
+  },
+  shoeSection: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 18,
+    padding: 13,
+    marginBottom: 10,
+  },
+  shoeSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 10,
+  },
+  shoeSectionTitle: {
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  currentShoeBox: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    padding: 10,
+    marginBottom: 9,
+  },
+  currentShoeLabel: {
+    color: "#9b7a4b",
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+  shoeList: {
+    gap: 8,
+  },
+  recommendedShoeLabel: {
+    color: "#9b7a4b",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  shoeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  shoeImage: {
+    width: 58,
+    height: 70,
+    borderRadius: 14,
+    backgroundColor: "#ddd",
+  },
+  shoeInfo: {
+    flex: 1,
+  },
+  shoeName: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  shoeReason: {
+    color: "#625a51",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
   },
   editButtonRow: {
     flexDirection: "row",

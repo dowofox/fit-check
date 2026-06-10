@@ -25,6 +25,13 @@ export type OutfitRecommendationResult = {
   hasAnyRecommendation: boolean;
 };
 
+export type ShoeRecommendation = {
+  shoe: ClosetItem;
+  score: number;
+  reason: string;
+  isCurrent: boolean;
+};
+
 const STYLE_GROUPS = [
   ["캐주얼", "꾸안꾸", "시티보이", "아메카지"],
   ["스트릿", "고프코어", "테크웨어", "워크웨어"],
@@ -510,6 +517,87 @@ function excludeSavedCombinations(recommendations: OutfitRecommendation[], saved
       isSameItemCombination(savedItemIds, itemIds)
     );
   });
+}
+
+function getOutfitColorsWithoutShoes(outfitItems: ClosetItem[]) {
+  return uniqueValues(
+    outfitItems
+      .filter((item) => item.category !== "신발")
+      .map((item) => item.color)
+  );
+}
+
+function getShoeRecommendationScore(
+  shoe: ClosetItem,
+  outfitItems: ClosetItem[],
+  currentSeason: string,
+  isCurrent: boolean
+): ShoeRecommendation | null {
+  if (!isSeasonCandidate(shoe, currentSeason)) return null;
+
+  const baseItems = outfitItems.filter((item) => !["신발"].includes(item.category));
+  const outfitColors = getOutfitColorsWithoutShoes(outfitItems);
+  const shoeColor = shoe.color;
+  const reasons: string[] = [];
+  let score = isCurrent ? 2 : 0;
+
+  if (hasMatchingStyle(shoe, baseItems)) {
+    score += 5;
+    reasons.push("코디 스타일 흐름과 잘 맞아요.");
+  } else if (shoe.style) {
+    score += 2;
+    reasons.push("스타일 정보는 있지만 코디와 완전히 같은 계열은 아니에요.");
+  }
+
+  if (isBasicColor(shoeColor)) {
+    score += 4;
+    reasons.push("기본색이라 코디에 안정적으로 붙어요.");
+  } else if (shoeColor && outfitColors.includes(shoeColor)) {
+    score += 3;
+    reasons.push("코디 안의 색상과 연결감이 있어요.");
+  } else if (shoeColor) {
+    score += 1;
+    reasons.push("색상이 포인트가 될 수 있어요.");
+  }
+
+  if (!shoeColor) {
+    reasons.push("색상 정보가 부족해 실제 조화는 확인이 필요해요.");
+  }
+
+  return {
+    shoe,
+    score,
+    reason: reasons[0] || "무난하게 함께 신어볼 수 있어요.",
+    isCurrent,
+  };
+}
+
+export function getShoeRecommendationsForOutfit(
+  outfitItems: ClosetItem[],
+  allClosetItems: ClosetItem[],
+  currentSeason = getCurrentSeason()
+) {
+  const currentShoeIds = new Set(
+    outfitItems
+      .filter((item) => item.category === "신발")
+      .map((item) => item.id)
+  );
+  const shoes = byCategory(allClosetItems, "신발");
+  const currentShoes = shoes
+    .filter((shoe) => currentShoeIds.has(shoe.id))
+    .map((shoe) => getShoeRecommendationScore(shoe, outfitItems, currentSeason, true))
+    .filter((recommendation): recommendation is ShoeRecommendation => Boolean(recommendation));
+  const recommendations = shoes
+    .filter((shoe) => !currentShoeIds.has(shoe.id))
+    .map((shoe) => getShoeRecommendationScore(shoe, outfitItems, currentSeason, false))
+    .filter((recommendation): recommendation is ShoeRecommendation => Boolean(recommendation))
+    .sort((first, second) => second.score - first.score)
+    .slice(0, 3);
+
+  return {
+    currentShoes,
+    recommendations,
+  };
 }
 
 function buildRecommendationCandidates(
