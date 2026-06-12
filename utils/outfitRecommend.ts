@@ -57,48 +57,54 @@ function getRecommendationDisplay(items: ClosetItem[]) {
   const itemNames = items
     .map((item) => `${item.detailCategory || ""} ${item.subCategory || ""} ${item.category || ""}`)
     .join(" ");
+
   const styles = items.map((item) => item.style).filter(Boolean);
-  const hasMinimalStyle = styles.some((style) => ["미니멀", "모던", "클래식"].includes(style || ""));
+  const seasons = items.map((item) => item.season).filter(Boolean);
+  const colors = items.map((item) => item.color).filter(Boolean);
+
+  const hasDenim = ["청바지", "데님"].some((keyword) => itemNames.includes(keyword));
+  const hasHoodOrSweatshirt = ["후드", "맨투맨"].some((keyword) => itemNames.includes(keyword));
   const hasShirt = itemNames.includes("셔츠");
   const hasSlacks = itemNames.includes("슬랙스");
-  const hasHoodOrSweatshirt = ["후드", "맨투맨"].some((keyword) => itemNames.includes(keyword));
-  const hasDenim = ["청바지", "데님"].some((keyword) => itemNames.includes(keyword))
-    || items.some((item) => item.color === "데님");
   const hasOuter = ["자켓", "재킷", "코트", "아우터", "블레이저", "가디건"].some((keyword) =>
     itemNames.includes(keyword)
-  ) || items.some((item) => item.category === "아우터");
+  );
 
-  if ((hasShirt && hasSlacks) || hasMinimalStyle) {
-    return {
-      title: "미니멀 데일리 룩",
-      tags: ["미니멀", "데일리"],
-    };
-  }
+  const seasonWord =
+    seasons.some((season) => season?.includes("봄")) ? "봄날" :
+      seasons.some((season) => season?.includes("여름")) ? "여름" :
+        seasons.some((season) => season?.includes("가을")) ? "가을" :
+          seasons.some((season) => season?.includes("겨울")) ? "겨울" :
+            "오늘의";
 
-  if (hasHoodOrSweatshirt) {
-    return {
-      title: "캐주얼 편안한 룩",
-      tags: ["편안함", "캐주얼"],
-    };
-  }
+  const moodWord =
+    hasShirt && hasSlacks ? "깔끔한" :
+      hasHoodOrSweatshirt ? "편안한" :
+        hasDenim ? "가벼운" :
+          hasOuter ? "분위기 있는" :
+            "데일리";
 
-  if (hasDenim) {
-    return {
-      title: "캐주얼 데님 룩",
-      tags: ["데님", "캐주얼"],
-    };
-  }
+  const sceneWord =
+    hasShirt && hasSlacks ? "데이트" :
+      hasHoodOrSweatshirt ? "주말" :
+        hasDenim ? "산책" :
+          hasOuter ? "남친룩" :
+            "외출";
 
-  if (hasOuter) {
-    return {
-      title: "깔끔한 아우터 룩",
-      tags: ["아우터", "깔끔함"],
-    };
-  }
+  const title = `${seasonWord} ${sceneWord} 코디`;
+
+  const tags = [
+    hasDenim ? "데님" : null,
+    hasHoodOrSweatshirt ? "편안함" : null,
+    hasShirt || hasSlacks ? "깔끔함" : null,
+    hasOuter ? "아우터" : null,
+    colors.some((color) => ["블랙", "화이트", "아이보리", "베이지", "그레이"].includes(color || "")) ? "베이직" : null,
+    styles[0] || null,
+  ].filter((tag): tag is string => Boolean(tag)).slice(0, 2);
 
   return {
-    title: "데일리 추천 룩",
-    tags: ["데일리", "추천"],
+    title,
+    tags: tags.length > 0 ? tags : ["데일리", "추천"],
   };
 }
 
