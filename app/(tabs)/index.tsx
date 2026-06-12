@@ -26,6 +26,75 @@ function getCategoryCount(items: ClosetItem[], category: string) {
   return items.filter((item) => item.category === category).length;
 }
 
+function getCoreItems(recommendation: OutfitRecommendation) {
+  const priority = ["아우터", "상의", "하의", "신발"];
+
+  return priority
+    .map((category) => recommendation.items.find((item) => item.category === category))
+    .filter((item): item is ClosetItem => Boolean(item))
+    .slice(0, 3);
+}
+
+function getItemShortLabel(item: ClosetItem) {
+  return item.detailCategory || item.subCategory || item.category;
+}
+
+function RecommendationLookbookCard({ recommendation }: { recommendation: OutfitRecommendation }) {
+  const coreItems = getCoreItems(recommendation);
+  const top = recommendation.items.find((item) => item.category === "상의");
+  const bottom = recommendation.items.find((item) => item.category === "하의");
+  const shoes = recommendation.items.find((item) => item.category === "신발");
+
+  return (
+    <Pressable
+      style={styles.recommendCard}
+      onPress={() => router.push("/outfit-recommend")}
+    >
+      <View style={styles.lookbookImage}>
+        <View style={styles.lookbookModelWrap}>
+          <View style={styles.lookbookHead} />
+          <View style={styles.lookbookBody} />
+          <View style={styles.lookbookLegs} />
+        </View>
+
+        <View style={styles.itemPreviewRow}>
+          {coreItems.map((item) => (
+            <Image
+              key={item.id}
+              source={{ uri: item.imageUri }}
+              style={styles.itemPreviewImage}
+            />
+          ))}
+        </View>
+
+        <View style={styles.aiBadge}>
+          <Feather name="sparkles" size={10} color={colors.point} />
+          <Text style={styles.aiBadgeText}>AI 룩북</Text>
+        </View>
+      </View>
+
+      <Text style={styles.recommendTitle} numberOfLines={1}>
+        {recommendation.title}
+      </Text>
+
+      <Text style={styles.recommendItems} numberOfLines={1}>
+        {[top, bottom, shoes]
+          .filter((item): item is ClosetItem => Boolean(item))
+          .map(getItemShortLabel)
+          .join(" + ")}
+      </Text>
+
+      <View style={styles.recommendTagRow}>
+        {recommendation.tags.slice(0, 2).map((tag) => (
+          <Text key={tag} style={styles.recommendTag}>
+            #{tag}
+          </Text>
+        ))}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
@@ -68,11 +137,7 @@ export default function HomeScreen() {
           <View style={styles.headerSide} />
           <Text style={styles.logoText}>NAES</Text>
           <Pressable style={styles.bellButton}>
-            <Feather
-              name="bell"
-              size={18}
-              color={colors.text}
-            />
+            <Feather name="bell" size={18} color={colors.text} />
           </Pressable>
         </View>
 
@@ -89,29 +154,12 @@ export default function HomeScreen() {
           />
 
           <View style={styles.heroOverlay}>
-            <Text style={styles.heroTitle}>
-              나만의 AI 스타일리스트
-            </Text>
+            <Text style={styles.heroTitle}>나만의 AI 스타일리스트</Text>
+            <Text style={styles.heroText}>오늘의 코디를 분석하고{"\n"}새로운 스타일을 제안받아보세요.</Text>
 
-            <Text style={styles.heroText}>
-              오늘의 코디를 분석하고
-              {"\n"}
-              새로운 스타일을 제안받아보세요.
-            </Text>
-
-            <Pressable
-              style={styles.heroButton}
-              onPress={startAnalysis}
-            >
-              <Text style={styles.heroButtonText}>
-                코디 분석하기
-              </Text>
-
-              <Feather
-                name="arrow-right"
-                size={13}
-                color={colors.card}
-              />
+            <Pressable style={styles.heroButton} onPress={startAnalysis}>
+              <Text style={styles.heroButtonText}>코디 분석하기</Text>
+              <Feather name="arrow-right" size={13} color={colors.card} />
             </Pressable>
           </View>
         </View>
@@ -123,11 +171,7 @@ export default function HomeScreen() {
             <Pressable onPress={() => router.push("/closet")}>
               <View style={styles.moreWrap}>
                 <Text style={styles.moreText}>전체 보기</Text>
-                <Feather
-                  name="chevron-right"
-                  size={14}
-                  color={colors.point}
-                />
+                <Feather name="chevron-right" size={14} color={colors.point} />
               </View>
             </Pressable>
           </View>
@@ -140,26 +184,11 @@ export default function HomeScreen() {
                 <Pressable
                   key={category.label}
                   style={styles.countTile}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/closet",
-                      params: {
-                        category: category.label,
-                      },
-                    })
-                  }
+                  onPress={() => router.push({ pathname: "/closet", params: { category: category.label } })}
                 >
-                  <Icon
-                    width={24}
-                    height={24}
-                    color={colors.point}
-                  />
-
+                  <Icon width={24} height={24} color={colors.point} />
                   <Text style={styles.countLabel}>{category.label}</Text>
-
-                  <Text style={styles.countValue}>
-                    {getCategoryCount(closetItems, category.label)}
-                  </Text>
+                  <Text style={styles.countValue}>{getCategoryCount(closetItems, category.label)}</Text>
                 </Pressable>
               );
             })}
@@ -169,19 +198,9 @@ export default function HomeScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>오늘의 추천 코디</Text>
-            <Pressable
-              style={styles.moreWrap}
-              onPress={() => router.push("/outfit-recommend")}
-            >
-              <Text style={styles.moreText}>
-                추천 더보기
-              </Text>
-
-              <Feather
-                name="chevron-right"
-                size={14}
-                color={colors.point}
-              />
+            <Pressable style={styles.moreWrap} onPress={() => router.push("/outfit-recommend")}>
+              <Text style={styles.moreText}>추천 더보기</Text>
+              <Feather name="chevron-right" size={14} color={colors.point} />
             </Pressable>
           </View>
 
@@ -192,28 +211,7 @@ export default function HomeScreen() {
               contentContainerStyle={styles.recommendCarousel}
             >
               {todayRecommendations.map((recommendation) => (
-                <Pressable
-                  key={recommendation.id}
-                  style={styles.recommendCard}
-                  onPress={() => router.push("/outfit-recommend")}
-                >
-                  <Image
-                    source={{ uri: recommendation.items[0]?.imageUri }}
-                    style={styles.recommendImage}
-                  />
-
-                  <Text style={styles.recommendTitle} numberOfLines={1}>
-                    {recommendation.title}
-                  </Text>
-
-                  <View style={styles.recommendTagRow}>
-                    {recommendation.tags.slice(0, 2).map((tag) => (
-                      <Text key={tag} style={styles.recommendTag}>
-                        #{tag}
-                      </Text>
-                    ))}
-                  </View>
-                </Pressable>
+                <RecommendationLookbookCard key={recommendation.id} recommendation={recommendation} />
               ))}
             </ScrollView>
           ) : (
@@ -292,6 +290,52 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 2,
   },
+  heroCard: {
+    height: 148,
+    borderRadius: 22,
+    overflow: "hidden",
+    marginBottom: 14,
+    position: "relative",
+  },
+  heroBackground: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  heroOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+  heroTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 6,
+    lineHeight: 21,
+  },
+  heroText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.subText,
+  },
+  heroButton: {
+    marginTop: 12,
+    backgroundColor: colors.text,
+    height: 32,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+  },
+  heroButtonText: {
+    color: colors.card,
+    fontSize: 12,
+    fontWeight: "700",
+  },
   sectionCard: {
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -304,18 +348,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-
-  linkText: {
-    color: colors.point,
-    fontSize: 13,
-    fontWeight: "700",
-  },
   sectionTitle: {
     ...typography.cardTitle,
     color: colors.text,
   },
-  sectionMeta: {
-    color: colors.subText,
+  moreWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  moreText: {
+    color: colors.point,
     fontSize: 12,
     fontWeight: "600",
   },
@@ -323,7 +366,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-
   countTile: {
     flex: 1,
     height: 96,
@@ -334,9 +376,127 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  countLabel: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  countValue: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+  },
   emptyText: {
     ...typography.body,
     color: colors.subText,
+  },
+  recommendCarousel: {
+    gap: 12,
+    paddingRight: 20,
+  },
+  recommendCard: {
+    width: 132,
+  },
+  lookbookImage: {
+    width: 132,
+    height: 158,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    marginBottom: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  lookbookModelWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  lookbookHead: {
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    backgroundColor: colors.inactiveTab,
+    marginBottom: 5,
+  },
+  lookbookBody: {
+    width: 44,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: colors.point,
+    opacity: 0.22,
+  },
+  lookbookLegs: {
+    width: 34,
+    height: 38,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    backgroundColor: colors.text,
+    opacity: 0.12,
+    marginTop: 3,
+  },
+  itemPreviewRow: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    bottom: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 5,
+  },
+  itemPreviewImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.softCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  aiBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: colors.softCard,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  aiBadgeText: {
+    color: colors.point,
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  recommendTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  recommendItems: {
+    color: colors.subText,
+    fontSize: 10,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  recommendTagRow: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  recommendTag: {
+    backgroundColor: colors.softCard,
+    color: colors.point,
+    fontSize: 9,
+    fontWeight: "700",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
   savedCard: {
     backgroundColor: colors.card,
@@ -392,208 +552,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  heroCard: {
-    height: 148,
-    borderRadius: 22,
-    overflow: "hidden",
-    marginBottom: 14,
-    position: "relative",
-  },
-
-  heroBackground: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-  },
-
-  heroOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 22,
-  },
-
-  heroTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.text,
-    marginBottom: 6,
-    lineHeight: 21,
-  },
-
-  heroText: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.subText,
-  },
-
-  heroButton: {
-    marginTop: 12,
-    backgroundColor: colors.text,
-    height: 32,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-  },
-
-  heroButtonText: {
-    color: colors.card,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  moreWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-
-  moreText: {
-    color: colors.point,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  countIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 999,
-    backgroundColor: colors.softCard,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  countLabel: {
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-
-
-  countValue: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900",
-  },
-  todayCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: "row",
-    alignItems: "center",
-    height: 120,
-    padding: 10,
-    gap: 12,
-  },
-
-  todayImageWrap: {
-    width: "43%",
-    height: "100%",
-    backgroundColor: colors.softCard,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-
-  todayMainImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-    borderRadius: 14,
-    backgroundColor: colors.inactiveTab,
-  },
-
-  todayInfo: {
-    flex: 1,
-    justifyContent: "center",
-  },
-
-  todayTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-
-  todayScore: {
-    color: colors.subText,
-    fontSize: 11,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-
-  tagRow: {
-    flexDirection: "row",
-    gap: 5,
-    marginBottom: 8,
-  },
-
-  tagText: {
-    backgroundColor: colors.softCard,
-    color: colors.point,
-    fontSize: 10,
-    fontWeight: "700",
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-
-  todayButton: {
-    backgroundColor: colors.text,
-    height: 28,
-    borderRadius: 9,
-    paddingHorizontal: 13,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-  },
-  todayButtonText: {
-    color: colors.card,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  recommendCarousel: {
-    gap: 10,
-    paddingRight: 20,
-  },
-
-  recommendCard: {
-    width: 104,
-  },
-
-  recommendImage: {
-    width: 104,
-    height: 104,
-    borderRadius: 14,
-    backgroundColor: colors.softCard,
-    marginBottom: 7,
-  },
-
-  recommendTitle: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "800",
-    marginBottom: 5,
-  },
-
-  recommendTagRow: {
-    flexDirection: "row",
-    gap: 4,
-  },
-
-  recommendTag: {
-    backgroundColor: colors.softCard,
-    color: colors.point,
-    fontSize: 9,
-    fontWeight: "700",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-
 });
