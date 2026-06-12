@@ -144,17 +144,21 @@ function getImageFileInfo(imageMimeType) {
 
 function getRembgCommand(inputPath, outputPath) {
   const rembgCommand = process.env.REMBG_COMMAND;
+  const rembgModel = process.env.REMBG_MODEL || "u2net_cloth_seg";
+  const rembgArgs = ["i", "-m", rembgModel, inputPath, outputPath];
 
   if (rembgCommand) {
     return {
       command: rembgCommand,
-      args: ["i", inputPath, outputPath],
+      args: rembgArgs,
+      model: rembgModel,
     };
   }
 
   return {
     command: process.env.REMBG_PYTHON || "python",
-    args: ["-m", "rembg", "i", inputPath, outputPath],
+    args: ["-m", "rembg", ...rembgArgs],
+    model: rembgModel,
   };
 }
 
@@ -180,6 +184,7 @@ async function removeClothesBackground(imageBase64, imageMimeType) {
     console.log("[background-remove] start", {
       provider: "rembg",
       command: rembg.command,
+      model: rembg.model,
       mimeType: fileInfo.mimeType,
       base64Length: imageBase64?.length || 0,
       byteLength: imageBuffer.length,
@@ -192,6 +197,15 @@ async function removeClothesBackground(imageBase64, imageMimeType) {
     });
 
     const resultBuffer = await fs.readFile(outputPath);
+
+    if (resultBuffer.length < 10 * 1024) {
+      console.error("[background-remove] result too small, fallback to original image", {
+        byteLength: resultBuffer.length,
+        minByteLength: 10 * 1024,
+      });
+      return null;
+    }
+
     const cleanImageBase64 = resultBuffer.toString("base64");
     console.log("[background-remove] result", {
       hasBase64: Boolean(cleanImageBase64),
