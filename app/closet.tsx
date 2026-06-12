@@ -6,7 +6,7 @@ import {
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
     Alert,
@@ -21,13 +21,19 @@ import {
 const CLOSET_FILTERS = ["전체", "상의", "하의", "신발", "아우터", "액세서리"];
 
 export default function ClosetScreen() {
+    const { category } = useLocalSearchParams<{ category?: string }>();
     const [items, setItems] = useState<ClosetItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("전체");
     const [selectedDetailCategory, setSelectedDetailCategory] = useState("전체");
     useFocusEffect(
         useCallback(() => {
             loadCloset();
-        }, [])
+
+            if (typeof category === "string") {
+                setSelectedCategory(category);
+                setSelectedDetailCategory("전체");
+            }
+        }, [category])
     );
     async function loadCloset() {
         const closetItems = await getClosetItems();

@@ -65,9 +65,9 @@ export default function HomeScreen() {
           <Text style={styles.logoText}>NAES</Text>
           <Pressable style={styles.bellButton}>
             <Feather
-              name="camera"
-              size={13}
-              color="#fff"
+              name="bell"
+              size={18}
+              color="#111"
             />
           </Pressable>
         </View>
@@ -165,7 +165,8 @@ export default function HomeScreen() {
                   size={18}
                   color="#A48763"
                 />
-              </View>
+              </Pressable>
+
             ))}
           </View>
         </View>
@@ -173,8 +174,19 @@ export default function HomeScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>오늘의 추천 코디</Text>
-            <Pressable onPress={() => router.push("/outfit-recommend")}>
-              <Text style={styles.linkText}>추천 보기</Text>
+            <Pressable
+              style={styles.moreWrap}
+              onPress={() => router.push("/outfit-recommend")}
+            >
+              <Text style={styles.moreText}>
+                추천 더보기
+              </Text>
+
+              <Feather
+                name="chevron-right"
+                size={14}
+                color={colors.point}
+              />
             </Pressable>
           </View>
 
@@ -571,4 +583,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  
 });
