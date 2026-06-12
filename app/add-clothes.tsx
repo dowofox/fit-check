@@ -1,5 +1,6 @@
 import { saveClosetItem } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -50,6 +51,7 @@ type ClothesAnalysis = {
   description?: string;
   matchTip?: string;
   avoidTip?: string;
+  cleanImageBase64?: string | null;
 };
 
 function normalizeSeasons(seasonValue?: string | string[]) {
@@ -98,6 +100,23 @@ function toggleStyleTag(currentTags: string[], tag: string) {
   if (currentTags.length >= 3) return currentTags;
 
   return [...currentTags, tag];
+}
+
+async function saveCleanImageToFile(base64?: string | null) {
+  if (!base64) return undefined;
+
+  try {
+    const fileUri = `${FileSystem.documentDirectory}clean-clothes-${Date.now()}.png`;
+
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return fileUri;
+  } catch (error) {
+    console.log("배경제거 이미지 저장 실패:", error);
+    return undefined;
+  }
 }
 
 export default function AddClothesScreen() {
@@ -191,10 +210,12 @@ export default function AddClothesScreen() {
 
     try {
       setIsSaving(true);
+      const cleanImageUri = await saveCleanImageToFile(analysis.cleanImageBase64);
 
       await saveClosetItem({
         id: Date.now().toString(),
         imageUri,
+        cleanImageUri,
         category: analysis.category || "기타",
         subCategory: analysis.subCategory || "분석 전",
         detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
@@ -309,6 +330,10 @@ export default function AddClothesScreen() {
                 );
               })}
             </View>
+
+            {analysis.cleanImageBase64 && (
+              <Text style={styles.analysisHint}>배경제거 이미지도 함께 저장돼요.</Text>
+            )}
           </View>
         )}
 
@@ -338,206 +363,174 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingTop: 34,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 18,
+    paddingBottom: 26,
   },
-
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 18,
   },
-
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+  },
+  headerSpacer: { width: 38 },
+  headerEyebrow: {
+    textAlign: "center",
+    color: "#8c6f47",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  headerTitle: {
+    textAlign: "center",
+    color: "#111",
+    fontSize: 22,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  uploadCard: {
+    height: 280,
+    borderRadius: 24,
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: "#e8ded2",
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  headerSpacer: {
-    width: 40,
-    height: 40,
-  },
-
-  headerEyebrow: {
-    color: "#9b7a4b",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    textAlign: "center",
-  },
-
-  headerTitle: {
-    color: "#111",
-    fontSize: 24,
-    fontWeight: "900",
-    marginTop: 2,
-    textAlign: "center",
-  },
-
-  uploadCard: {
-    backgroundColor: "#faf8f5",
-    borderRadius: 28,
-    minHeight: 360,
-    padding: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#f0eee9",
-    marginBottom: 16,
     overflow: "hidden",
   },
-
+  previewImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
   uploadIconCircle: {
     width: 68,
     height: 68,
-    borderRadius: 999,
-    backgroundColor: "#f0e7dc",
-    borderWidth: 1,
-    borderColor: "#e6d9cb",
+    borderRadius: 34,
+    backgroundColor: "#f4eee7",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14,
   },
-
   uploadTitle: {
-    fontSize: 21,
-    fontWeight: "900",
     color: "#111",
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: "800",
   },
-
   uploadText: {
-    fontSize: 14,
-    color: "#6b6258",
-    lineHeight: 22,
-    fontWeight: "700",
+    color: "#777064",
+    fontSize: 13,
+    lineHeight: 20,
     textAlign: "center",
+    marginTop: 8,
+    paddingHorizontal: 42,
   },
-
-  previewImage: {
-    width: "100%",
-    height: 360,
-    borderRadius: 22,
-    backgroundColor: "#ddd",
-  },
-
   photoButtonRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 16,
+    marginTop: 12,
   },
-
   photoButton: {
     flex: 1,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    borderRadius: 18,
-    paddingVertical: 14,
+    borderColor: "#e8ded2",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
     gap: 8,
   },
-
   photoButtonText: {
     color: "#111",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-
-  analysisCard: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#eee7dd",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-  },
-
-  analysisTitle: {
-    color: "#111",
-    fontSize: 16,
-    fontWeight: "900",
-    marginBottom: 6,
-  },
-
-  analysisText: {
-    color: "#6b6258",
     fontSize: 13,
     fontWeight: "700",
-    marginBottom: 14,
   },
-
-  analysisHint: {
-    color: "#6b6258",
+  analysisCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 16,
+    marginTop: 14,
+  },
+  analysisTitle: {
+    color: "#8c6f47",
     fontSize: 11,
-    fontWeight: "700",
-    marginTop: 8,
-    marginBottom: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 6,
   },
-
+  analysisText: {
+    color: "#111",
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 16,
+  },
   seasonLabel: {
     color: "#111",
     fontSize: 13,
-    fontWeight: "900",
-    marginBottom: 10,
+    fontWeight: "800",
+    marginBottom: 8,
+    marginTop: 6,
   },
-
   seasonChipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
-
   seasonChip: {
-    backgroundColor: "#faf8f5",
-    borderWidth: 1,
-    borderColor: "#eee7dd",
     borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "#f4eee7",
+    borderWidth: 1,
+    borderColor: "#e8ded2",
   },
-
   seasonChipActive: {
     backgroundColor: "#111",
     borderColor: "#111",
   },
-
   seasonChipText: {
     color: "#111",
-    fontSize: 13,
-    fontWeight: "900",
+    fontSize: 12,
+    fontWeight: "700",
   },
-
   seasonChipTextActive: {
     color: "#fff",
   },
-
+  analysisHint: {
+    color: "#777064",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 8,
+  },
   primaryButton: {
-    backgroundColor: "#111",
+    height: 54,
     borderRadius: 18,
-    paddingVertical: 16,
+    backgroundColor: "#111",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
     gap: 8,
+    marginTop: 16,
   },
-
   primaryButtonDisabled: {
-    opacity: 0.35,
+    opacity: 0.45,
   },
-
   primaryButtonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "900",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });
