@@ -197,7 +197,7 @@ export default function HistoryScreen() {
           )}
         </View>
       </ScrollView>
-      <BottomNav activeTab="history" />
+      <BottomNav activeTab="home" />
     </View>
   );
 }

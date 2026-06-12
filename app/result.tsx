@@ -333,7 +333,7 @@ export default function ResultScreen() {
         </View>
       </ScrollView>
 
-      <BottomNav activeTab="analyze" />
+      <BottomNav activeTab="home" />
     </View>
   );
 }
