@@ -61,14 +61,16 @@ export default function HomeScreen() {
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>안녕하세요, 도현님</Text>
-            <Text style={styles.greetingSub}>오늘도 멋진 하루 되세요!</Text>
-          </View>
-
-          <Pressable style={styles.profileBadge} onPress={() => router.push("/profile")}>
-            <Feather name="user" size={16} color={colors.text} />
+          <View style={styles.headerSide} />
+          <Text style={styles.logoText}>NAES</Text>
+          <Pressable style={styles.bellButton}>
+            <Feather name="bell" size={18} color={colors.text} />
           </Pressable>
+        </View>
+
+        <View style={styles.greetingArea}>
+          <Text style={styles.greeting}>안녕하세요, 도현님</Text>
+          <Text style={styles.greetingSub}>오늘도 멋진 하루 되세요!</Text>
         </View>
 
         <View style={styles.heroCard}>
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 28,
+    paddingTop: 42,
     paddingHorizontal: 20,
     paddingBottom: 78,
   },
@@ -203,7 +205,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 24,
+  },
+  headerSide: {
+    width: 32,
+  },
+  logoText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  bellButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  greetingArea: {
+    marginBottom: 24,
   },
   greeting: {
     color: colors.text,
@@ -215,16 +234,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     marginTop: 3,
-  },
-  profileBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.round,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
   },
   heroCard: {
     backgroundColor: colors.card,
