@@ -1,7 +1,7 @@
 import BottomNav from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit, UserProfile } from "@/utils/storage";
-import { colors, radius, shadow, spacing, typography } from "@/utils/theme";
+import { colors, radius, spacing, typography } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -88,23 +88,10 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.heroVisual}>
-              <View style={styles.closetIllustration}>
-                <View style={styles.closetRod} />
-                <View style={styles.hangerRow}>
-                  {[0, 1, 2, 3, 4].map((index) => (
-                    <View key={index} style={styles.hangerSet}>
-                      <View style={styles.hangerHook} />
-                      <View
-                        style={[
-                          styles.garmentShape,
-                          index % 2 === 0 && styles.garmentShapeLight,
-                        ]}
-                      />
-                    </View>
-                  ))}
-                </View>
-                <View style={styles.floorAccent} />
-              </View>
+              <Image
+                source={require("@/assets/images/hero-fashion.png")}
+                style={styles.heroImage}
+              />
             </View>
           </View>
         </View>
@@ -233,67 +220,68 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   heroCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    minHeight: 196,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 14,
+    backgroundColor: "#EFE6DA",
+    borderRadius: 18,
+    minHeight: 128,
+    paddingLeft: 16,
+    paddingVertical: 16,
+    paddingRight: 0,
+    borderWidth: 0,
+    marginBottom: 18,
     overflow: "hidden",
-    ...shadow.subtle,
   },
+
   heroContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+
   heroTextArea: {
     flex: 1,
-    justifyContent: "center",
+    paddingRight: 8,
     zIndex: 2,
-    paddingRight: 14,
   },
+
   heroEyebrow: {
-    ...typography.eyebrow,
-    color: colors.point,
-    marginBottom: 7,
+    display: "none",
   },
+
   heroTitle: {
     color: colors.text,
-    fontSize: 21,
+    fontSize: 18,
     fontWeight: "800",
-    lineHeight: 28,
+    lineHeight: 24,
   },
+
   heroText: {
-    ...typography.body,
     color: colors.subText,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 7,
+    fontSize: 11,
+    lineHeight: 17,
+    marginTop: 8,
   },
+
   heroButton: {
     alignSelf: "flex-start",
     backgroundColor: colors.text,
-    height: 40,
-    borderRadius: 15,
-    paddingHorizontal: 15,
+    height: 32,
+    borderRadius: 9,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    marginTop: 12,
+    gap: 5,
+    marginTop: 14,
   },
+
   heroButtonText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
   },
+
   heroVisual: {
-    width: 128,
+    width: 126,
     height: 128,
-    alignItems: "center",
-    justifyContent: "center",
   },
   closetIllustration: {
     width: "100%",
@@ -354,12 +342,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(140, 111, 71, 0.14)",
   },
   sectionCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 14,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+    marginBottom: 18,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -483,5 +469,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "700",
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
   },
 });
