@@ -24,7 +24,6 @@ export default function HomeScreen() {
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [todayRecommendation, setTodayRecommendation] = useState<OutfitRecommendation | null>(null);
-  const heroItems = closetItems.slice(0, 3);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,25 +88,23 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.heroVisual}>
-              {heroItems.length > 0 ? (
-                heroItems.map((item, index) => (
-                  <Image
-                    key={item.id}
-                    source={{ uri: item.imageUri }}
-                    style={[
-                      styles.heroThumb,
-                      index === 0 && styles.heroThumbPrimary,
-                      index === 1 && styles.heroThumbSecond,
-                      index === 2 && styles.heroThumbThird,
-                    ]}
-                  />
-                ))
-              ) : (
-                <View style={styles.heroPlaceholder}>
-                  <View style={styles.placeholderHook} />
-                  <View style={styles.placeholderCard} />
+              <View style={styles.closetIllustration}>
+                <View style={styles.closetRod} />
+                <View style={styles.hangerRow}>
+                  {[0, 1, 2, 3, 4].map((index) => (
+                    <View key={index} style={styles.hangerSet}>
+                      <View style={styles.hangerHook} />
+                      <View
+                        style={[
+                          styles.garmentShape,
+                          index % 2 === 0 && styles.garmentShapeLight,
+                        ]}
+                      />
+                    </View>
+                  ))}
                 </View>
-              )}
+                <View style={styles.floorAccent} />
+              </View>
             </View>
           </View>
         </View>
@@ -238,19 +235,24 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: 16,
+    height: 158,
+    paddingLeft: 16,
+    paddingVertical: 15,
+    paddingRight: 0,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 14,
+    overflow: "hidden",
     ...shadow.subtle,
   },
   heroContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    height: "100%",
   },
   heroTextArea: {
-    flex: 1,
+    width: "58%",
+    paddingRight: 10,
   },
   heroEyebrow: {
     ...typography.eyebrow,
@@ -259,24 +261,27 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "800",
+    lineHeight: 28,
   },
   heroText: {
     ...typography.body,
     color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
     marginTop: 7,
-    marginBottom: 13,
+    marginBottom: 12,
   },
   heroButton: {
     alignSelf: "flex-start",
     backgroundColor: colors.text,
-    borderRadius: radius.md,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
+    height: 36,
+    borderRadius: 15,
+    paddingHorizontal: 15,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 7,
   },
   heroButtonText: {
     color: "#fff",
@@ -284,65 +289,68 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   heroVisual: {
-    width: 86,
-    height: 94,
+    width: "42%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
-  heroThumb: {
+  closetIllustration: {
+    width: "100%",
+    height: "100%",
+    borderTopLeftRadius: 22,
+    borderBottomLeftRadius: 22,
+    backgroundColor: "#EDE4D8",
+    overflow: "hidden",
+    paddingTop: 28,
+    paddingLeft: 14,
+  },
+  closetRod: {
     position: "absolute",
-    width: 48,
-    height: 66,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.card,
-    backgroundColor: colors.inactiveTab,
-  },
-  heroThumbPrimary: {
-    right: 7,
-    top: 8,
-    zIndex: 3,
-  },
-  heroThumbSecond: {
-    left: 4,
-    top: 19,
-    transform: [{ rotate: "-8deg" }],
-    zIndex: 2,
-  },
-  heroThumbThird: {
+    top: 28,
+    left: 16,
     right: 0,
-    bottom: 6,
-    transform: [{ rotate: "7deg" }],
-    opacity: 0.9,
-    zIndex: 1,
+    height: 2,
+    backgroundColor: "#B99F7E",
   },
-  heroPlaceholder: {
-    width: 70,
-    height: 82,
-    borderRadius: 22,
-    backgroundColor: colors.softCard,
-    borderWidth: 1,
-    borderColor: colors.border,
+  hangerRow: {
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "flex-start",
+  },
+  hangerSet: {
+    width: 15,
     alignItems: "center",
-    justifyContent: "center",
   },
-  placeholderHook: {
-    width: 22,
-    height: 12,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: colors.point,
-    borderTopLeftRadius: 12,
+  hangerHook: {
+    width: 8,
+    height: 10,
+    borderTopWidth: 1.4,
+    borderLeftWidth: 1.4,
+    borderColor: "#8C6F47",
+    borderTopLeftRadius: 8,
     transform: [{ rotate: "35deg" }],
-    marginBottom: 7,
+    marginBottom: 1,
   },
-  placeholderCard: {
-    width: 42,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+  garmentShape: {
+    width: 13,
+    height: 58,
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    backgroundColor: "#C8B395",
+  },
+  garmentShapeLight: {
+    backgroundColor: "#F7F2EB",
+  },
+  floorAccent: {
+    position: "absolute",
+    right: 14,
+    bottom: 14,
+    width: 46,
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: "rgba(140, 111, 71, 0.14)",
   },
   sectionCard: {
     backgroundColor: colors.card,
