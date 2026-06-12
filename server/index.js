@@ -3,7 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const OpenAI = require("openai");
-const { toFile } = require("openai/uploads");
+const { toFile } = require("openai");
 
 const app = express();
 const PORT = 3001;
@@ -17,14 +17,8 @@ const openai = new OpenAI({
 
 function normalizeScore(score) {
   const numericScore = Number(score);
-
-  if (!Number.isFinite(numericScore)) {
-    return 0;
-  }
-
-  const clampedScore = Math.max(0, Math.min(100, numericScore));
-
-  return Math.round(clampedScore);
+  if (!Number.isFinite(numericScore)) return 0;
+  return Math.round(Math.max(0, Math.min(100, numericScore)));
 }
 
 function getRiskLevel(score) {
@@ -34,10 +28,7 @@ function getRiskLevel(score) {
 }
 
 function normalizeComment(comment, fallback) {
-  if (typeof comment === "string" && comment.trim().length > 0) {
-    return comment.trim();
-  }
-
+  if (typeof comment === "string" && comment.trim().length > 0) return comment.trim();
   return fallback;
 }
 
@@ -48,16 +39,12 @@ function normalizeClothesSeasons(seasonValue) {
     const matchedSeasons = allowedSeasons.filter((option) =>
       seasonValue.some((season) => typeof season === "string" && season.includes(option))
     );
-
     return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
   }
 
-  if (typeof seasonValue !== "string" || seasonValue.trim().length === 0) {
-    return ["사계절"];
-  }
+  if (typeof seasonValue !== "string" || seasonValue.trim().length === 0) return ["사계절"];
 
   const matchedSeasons = allowedSeasons.filter((option) => seasonValue.includes(option));
-
   return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
 }
 
@@ -139,21 +126,25 @@ function normalizeAnalysisResult(result) {
 async function removeClothesBackground(imageBase64) {
   try {
     const imageBuffer = Buffer.from(imageBase64, "base64");
-    const imageFile = await toFile(imageBuffer, "clothes.png", { type: "image/png" });
+    const imageFile = await toFile(imageBuffer, "clothes.jpg", { type: "image/jpeg" });
 
     const result = await openai.images.edit({
       model: "gpt-image-1",
       image: imageFile,
       prompt:
-        "Remove the background from the clothing item. Keep only the clothing item, preserve its real shape, color, texture, wrinkles, and edges. Output a clean product cutout on a transparent background. Do not add a model, hanger, mannequin, text, logo, shadow, or extra objects.",
+        "Remove the background from the clothing product photo. Keep only the single clothing item. Preserve the original color, shape, fabric texture, wrinkles, and edges. Return a clean product cutout with transparent background. Do not add a person, mannequin, hanger, text, logo, extra objects, or new background.",
       size: "1024x1024",
       background: "transparent",
       output_format: "png",
+      quality: "low",
     });
 
-    return result.data?.[0]?.b64_json || null;
+    const cleanImageBase64 = result.data?.[0]?.b64_json || null;
+    console.log("배경제거 결과:", cleanImageBase64 ? "성공" : "결과 없음");
+
+    return cleanImageBase64;
   } catch (error) {
-    console.error("배경제거 에러:", error);
+    console.error("배경제거 에러:", error?.response?.data || error);
     return null;
   }
 }
