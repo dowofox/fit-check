@@ -15,6 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
 const AUTO_APPLY_BACKGROUND_REMOVAL = false;
@@ -258,6 +259,7 @@ async function saveAnalyzedClosetItem(
 }
 
 export default function AddClothesScreen() {
+  const insets = useSafeAreaInsets();
   const [imageUri, setImageUri] = useState("");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -324,20 +326,7 @@ export default function AddClothesScreen() {
     try {
       setIsSaving(true);
 
-      const imageResponse = await fetch(imageUri);
-      const imageBlob = await imageResponse.blob();
-
-      const encodedImage = await new Promise<EncodedImage>((resolve, reject) => {
-        const reader = new FileReader();
-
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          resolve(getImageDataFromDataUrl(result));
-        };
-
-        reader.onerror = reject;
-        reader.readAsDataURL(imageBlob);
-      });
+      const encodedImage = await encodeImageUri(imageUri);
 
       console.log("[add-clothes] analyze request", {
         mimeType: encodedImage.mimeType,
@@ -458,7 +447,10 @@ export default function AddClothesScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.container, { paddingBottom: Math.max(insets.bottom + 56, 96) }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.headerRow}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Feather name="chevron-left" size={22} color="#111" />
@@ -625,7 +617,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 34,
     paddingHorizontal: 18,
-    paddingBottom: 26,
   },
   headerRow: {
     flexDirection: "row",
