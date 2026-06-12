@@ -184,7 +184,9 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.todayInfo}>
-                <Text style={styles.todayTitle}>캐주얼 미니멀 룩</Text>
+                <Text style={styles.todayTitle} numberOfLines={1}>
+                  캐주얼 미니멀 룩
+                </Text>
 
                 <Text style={styles.todayScore}>
                   추천도 {todayRecommendation.score}점
@@ -466,33 +468,34 @@ const styles = StyleSheet.create({
   },
 
   todayImages: {
-    width: "44%",
+    width: 135,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    padding: 10,
+    paddingLeft: 10,
   },
 
   todayImage: {
-    width: 48,
-    height: 84,
+    width: 42,
+    height: 82,
     borderRadius: 12,
     backgroundColor: colors.inactiveTab,
+    marginRight: -6,
   },
 
   todayInfo: {
     flex: 1,
     paddingVertical: 16,
     paddingRight: 14,
+    paddingLeft: 10,
     justifyContent: "center",
   },
 
   todayTitle: {
     color: "#111",
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "800",
-    marginBottom: 7,
+    marginBottom: 8,
   },
 
   todayScore: {
@@ -520,9 +523,9 @@ const styles = StyleSheet.create({
 
   todayButton: {
     backgroundColor: "#111",
-    height: 34,
+    height: 32,
     borderRadius: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
