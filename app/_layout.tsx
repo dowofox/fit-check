@@ -17,9 +17,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS === "android") {
-      NavigationBar.setBehaviorAsync("overlay-swipe");
-      NavigationBar.setVisibilityAsync("hidden");
-      NavigationBar.setBackgroundColorAsync("#00000000");
+      NavigationBar.setVisibilityAsync("visible");
     }
   }, []);
 
