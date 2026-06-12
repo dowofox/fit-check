@@ -152,6 +152,10 @@ export default function ClosetScreen() {
                                 <Pressable
                                     key={item.id}
                                     style={styles.closetCard}
+                                    onPress={() => router.push({
+                                        pathname: "/clothes-detail",
+                                        params: { id: item.id },
+                                    })}
                                     onLongPress={() => handleDeleteItem(item.id)}
                                 >
                                     <View style={styles.imageBox}>
