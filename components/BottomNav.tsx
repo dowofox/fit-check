@@ -3,7 +3,10 @@ import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { hideAndroidNavigationBar, useHideAndroidNavigationBar } from "@/utils/navigationBar";
-import { colors, radius, shadow } from "@/utils/theme";
+import { radius, shadow } from "@/utils/theme";
+
+const ACTIVE_COLOR = "#7D6445";
+const INACTIVE_COLOR = "#A39A8F";
 
 export type BottomNavTab = "home" | "closet" | "outfit" | "profile";
 
@@ -27,7 +30,7 @@ function NavItem({
       }}
     >
       <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
-        <Feather name={icon} size={17} color={active ? "#7D6445" : "#A39A8F"} />
+        <Feather name={icon} size={17} color={active ? ACTIVE_COLOR : INACTIVE_COLOR} />
       </View>
       <Text style={active ? styles.navTextActive : styles.navText}>{label}</Text>
     </Pressable>
@@ -110,16 +113,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   activeIconWrap: {
-    backgroundColor: colors.inactiveTab,
-    opacity: 0,
+    backgroundColor: "transparent",
   },
   navTextActive: {
-    color: "#7D6445",
+    color: ACTIVE_COLOR,
     fontSize: 10,
     fontWeight: "600",
   },
   navText: {
-    color: "#A39A8F",
+    color: INACTIVE_COLOR,
     fontSize: 10,
     fontWeight: "500",
   },
