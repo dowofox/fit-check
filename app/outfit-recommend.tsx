@@ -1,3 +1,4 @@
+import BottomNav from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
@@ -362,17 +363,18 @@ export default function OutfitRecommendScreen() {
           </View>
         )}
       </ScrollView>
+      <BottomNav activeTab="outfit" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f5f2ee" },
+  screen: { flex: 1, backgroundColor: "#F7F2EB" },
   container: {
     flexGrow: 1,
     paddingTop: 34,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 92,
   },
   headerRow: {
     flexDirection: "row",

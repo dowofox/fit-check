@@ -27,7 +27,7 @@ function NavItem({
       }}
     >
       <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
-        <Feather name={icon} size={15} color={active ? colors.text : colors.subText} />
+        <Feather name={icon} size={18} color={active ? colors.point : colors.subText} />
       </View>
       <Text style={active ? styles.navTextActive : styles.navText}>{label}</Text>
     </Pressable>
@@ -41,8 +41,8 @@ export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
     <View style={styles.bottomNavWrap}>
       <View style={styles.bottomNav}>
         <NavItem active={activeTab === "home"} icon="home" label="홈" onPress={() => router.replace("/")} />
-        <NavItem active={activeTab === "closet"} icon="shopping-bag" label="옷장" onPress={() => router.push("/closet")} />
-        <NavItem active={activeTab === "outfit"} icon="layers" label="코디" onPress={() => router.push("/outfit")} />
+        <NavItem active={activeTab === "closet"} icon="book-open" label="옷장" onPress={() => router.push("/closet")} />
+        <NavItem active={activeTab === "outfit"} icon="star" label="코디" onPress={() => router.push("/outfit")} />
         <NavItem active={activeTab === "profile"} icon="user" label="프로필" onPress={() => router.push("/profile")} />
       </View>
     </View>
@@ -63,39 +63,40 @@ const styles = StyleSheet.create({
     ...shadow.subtle,
   },
   bottomNav: {
-    height: 50,
+    height: 70,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 3,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   navItem: {
     flex: 1,
-    height: 42,
+    height: 54,
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
+    gap: 5,
     position: "relative",
   },
   iconWrap: {
     width: 26,
-    height: 21,
+    height: 24,
     borderRadius: radius.round,
     alignItems: "center",
     justifyContent: "center",
   },
   activeIconWrap: {
     backgroundColor: colors.inactiveTab,
+    opacity: 0,
   },
   navTextActive: {
-    color: colors.text,
-    fontSize: 8,
-    fontWeight: "700",
+    color: colors.point,
+    fontSize: 11,
+    fontWeight: "600",
   },
   navText: {
     color: colors.subText,
-    fontSize: 8,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "500",
   },
 });

@@ -73,14 +73,18 @@ export default function ClosetScreen() {
         <View style={styles.screen}>
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerRow}>
-                    <View>
-                        <Text style={styles.headerEyebrow}>MY CLOSET</Text>
-                        <Text style={styles.headerTitle}>내 옷장</Text>
-                    </View>
+                    <View style={styles.headerSide} />
 
-                    <Pressable style={styles.addButton} onPress={() => router.push("/add-clothes")}>
-                        <Feather name="plus" size={17} color="#111" />
-                    </Pressable>
+                    <Text style={styles.headerTitle}>옷장</Text>
+
+                    <View style={styles.headerActions}>
+                        <Pressable style={styles.iconButton}>
+                            <Feather name="search" size={19} color="#111" />
+                        </Pressable>
+                        <Pressable style={styles.iconButton} onPress={() => router.push("/add-clothes")}>
+                            <Feather name="plus" size={21} color="#111" />
+                        </Pressable>
+                    </View>
                 </View>
 
                 {items.length === 0 ? (
@@ -107,22 +111,6 @@ export default function ClosetScreen() {
                     </View>
                 ) : (
                     <View>
-                        <Pressable
-                            style={styles.recommendButton}
-                            onPress={() => router.push("/outfit-recommend")}
-                        >
-                            <Feather name="layers" size={15} color="#fff" />
-                            <Text style={styles.recommendButtonText}>코디 추천 받기</Text>
-                        </Pressable>
-
-                        <Pressable
-                            style={styles.savedOutfitsButton}
-                            onPress={() => router.push("/saved-outfits")}
-                        >
-                            <Feather name="bookmark" size={15} color="#111" />
-                            <Text style={styles.savedOutfitsButtonText}>저장한 코디</Text>
-                        </Pressable>
-
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -238,8 +226,8 @@ const styles = StyleSheet.create({
     screen: { flex: 1, backgroundColor: "#F7F2EB" },
     container: {
         flexGrow: 1,
-        paddingTop: 28,
-        paddingHorizontal: 20,
+        paddingTop: 42,
+        paddingHorizontal: 18,
         paddingBottom: 78,
     },
 
@@ -247,30 +235,27 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: 14,
+        marginBottom: 22,
     },
-
-    headerEyebrow: {
-        color: "#9b7a4b",
-        fontSize: 11,
-        fontWeight: "800",
-        letterSpacing: 1.4,
-        marginBottom: 3,
+    headerSide: {
+        width: 58,
     },
-
     headerTitle: {
         color: "#111",
-        fontSize: 22,
-        fontWeight: "800",
+        fontSize: 20,
+        fontWeight: "700",
+        textAlign: "center",
     },
-
-    addButton: {
-        width: 34,
-        height: 34,
-        borderRadius: 999,
-        backgroundColor: "#fff",
-        borderWidth: 1,
-        borderColor: "#eee7dd",
+    headerActions: {
+        width: 58,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        gap: 14,
+    },
+    iconButton: {
+        width: 22,
+        height: 22,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -332,42 +317,10 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: "700",
     },
-    recommendButton: {
-        backgroundColor: "#111",
-        borderRadius: 18,
-        paddingVertical: 10,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "row",
-        gap: 8,
-        marginBottom: 10,
-    },
-    recommendButtonText: {
-        color: "#fff",
-        fontSize: 12,
-        fontWeight: "700",
-    },
-    savedOutfitsButton: {
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: "#eee7dd",
-        paddingVertical: 10,
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "row",
-        gap: 8,
-        marginBottom: 12,
-    },
-    savedOutfitsButtonText: {
-        color: "#111",
-        fontSize: 12,
-        fontWeight: "700",
-    },
     filterRow: {
-        gap: 6,
+        gap: 9,
         paddingRight: 2,
-        marginBottom: 10,
+        marginBottom: 18,
     },
     detailFilterRow: {
         gap: 6,
@@ -379,8 +332,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#eee7dd",
         borderRadius: 999,
-        paddingVertical: 5,
-        paddingHorizontal: 10,
+        paddingVertical: 9,
+        paddingHorizontal: 15,
     },
     filterChipActive: {
         backgroundColor: "#111",
@@ -388,53 +341,51 @@ const styles = StyleSheet.create({
     },
     filterText: {
         color: "#111",
-        fontSize: 11,
-        fontWeight: "700",
+        fontSize: 13,
+        fontWeight: "600",
     },
     filterTextActive: {
         color: "#fff",
     },
     countText: {
-        fontSize: 14,
+        fontSize: 18,
         fontWeight: "700",
         color: "#111",
-        marginBottom: 10,
+        marginBottom: 14,
     },
 
     closetGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 8,
+        columnGap: 10,
+        rowGap: 18,
     },
 
     closetCard: {
-        width: "47%",
-        backgroundColor: "#fff",
-        borderRadius: 16,
+        width: "31.4%",
+        backgroundColor: "transparent",
+        borderRadius: 0,
         overflow: "hidden",
-        borderWidth: 1,
-        borderColor: "#f0eee9",
     },
 
     closetImage: {
         width: "100%",
-        height: 122,
-        backgroundColor: "#ddd",
+        height: 112,
+        borderRadius: 14,
+        backgroundColor: "#EFE8DE",
     },
 
     closetCategory: {
         fontSize: 13,
         fontWeight: "700",
         color: "#111",
-        paddingHorizontal: 10,
-        paddingTop: 7,
+        paddingTop: 8,
     },
 
     closetSubText: {
         fontSize: 11,
         color: "#777064",
-        paddingHorizontal: 10,
-        paddingBottom: 8,
+        paddingTop: 2,
     },
     deleteButton: {
         position: "absolute",

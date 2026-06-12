@@ -1,3 +1,4 @@
+import BottomNav from "@/components/BottomNav";
 import { getShoeRecommendationsForOutfit } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
@@ -334,17 +335,25 @@ export default function SavedOutfitsScreen() {
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={22} color="#111" />
+        <Text style={styles.headerTitle}>코디</Text>
+
+        <View style={styles.topActionRow}>
+          <Pressable style={styles.recommendTab} onPress={() => router.push("/outfit-recommend")}>
+            <Feather name="star" size={15} color="#fff" />
+            <Text style={styles.recommendTabText}>코디 추천</Text>
           </Pressable>
 
-          <View>
-            <Text style={styles.headerEyebrow}>SAVED</Text>
-            <Text style={styles.headerTitle}>저장한 코디</Text>
+          <View style={styles.savedTab}>
+            <Feather name="bookmark" size={15} color="#8C6F47" />
+            <Text style={styles.savedTabText}>저장한 코디</Text>
           </View>
+        </View>
 
-          <View style={styles.headerSpacer} />
+        <View style={styles.savedTitleRow}>
+          <Text style={styles.savedTitle}>저장한 코디</Text>
+          <View style={styles.countPill}>
+            <Text style={styles.countPillText}>{savedOutfits.length}</Text>
+          </View>
         </View>
 
         {isLoaded && savedOutfits.length === 0 ? (
@@ -378,51 +387,85 @@ export default function SavedOutfitsScreen() {
           </View>
         )}
       </ScrollView>
+      <BottomNav activeTab="outfit" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f5f2ee" },
+  screen: { flex: 1, backgroundColor: "#F7F2EB" },
   container: {
     flexGrow: 1,
-    paddingTop: 34,
+    paddingTop: 42,
     paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 18,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#eee7dd",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerSpacer: {
-    width: 40,
-    height: 40,
-  },
-  headerEyebrow: {
-    color: "#9b7a4b",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    textAlign: "center",
+    paddingBottom: 92,
   },
   headerTitle: {
     color: "#111",
-    fontSize: 24,
-    fontWeight: "900",
-    marginTop: 2,
+    fontSize: 20,
+    fontWeight: "700",
     textAlign: "center",
+    marginBottom: 28,
+  },
+  topActionRow: {
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 30,
+  },
+  recommendTab: {
+    flex: 1,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  recommendTabText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  savedTab: {
+    flex: 1,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#F4EEE7",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  savedTabText: {
+    color: "#8C6F47",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  savedTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  savedTitle: {
+    color: "#111",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  countPill: {
+    minWidth: 26,
+    height: 22,
+    paddingHorizontal: 7,
+    borderRadius: 999,
+    backgroundColor: "#EFE8DE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countPillText: {
+    color: "#8C6F47",
+    fontSize: 12,
+    fontWeight: "700",
   },
   listArea: {
     gap: 14,
