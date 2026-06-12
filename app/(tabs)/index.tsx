@@ -1,7 +1,7 @@
 import BottomNav from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
-import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit, UserProfile } from "@/utils/storage";
-import { colors, radius, typography } from "@/utils/theme";
+import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
+import { colors, typography } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -23,7 +23,6 @@ function getCategoryCount(items: ClosetItem[], category: string) {
 export default function HomeScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [todayRecommendation, setTodayRecommendation] = useState<OutfitRecommendation | null>(null);
 
   useFocusEffect(
@@ -38,7 +37,6 @@ export default function HomeScreen() {
 
         setClosetItems(nextClosetItems);
         setSavedOutfits(nextSavedOutfits);
-        setProfile(nextProfile);
         setTodayRecommendation(recommendationResult.recommendations[0] || null);
       }
 
@@ -237,17 +235,20 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.savedCard}>
-          <View>
-            <Text style={styles.sectionTitle}>저장한 코디</Text>
-            <Text style={styles.savedCount}>{savedOutfits.length}개 저장됨</Text>
-            {profile?.topSize ? (
-              <Text style={styles.profileHint}>프로필 상의 {profile.topSize} 기준으로 추천에 활용 중</Text>
-            ) : null}
+          <View style={styles.savedTextArea}>
+            <Text style={styles.savedTitle}>저장한 코디가 {savedOutfits.length}개 있어요</Text>
+            <Text style={styles.savedDescription}>나의 다양한 스타일을 확인해보세요.</Text>
           </View>
 
-          <Pressable style={styles.savedButton} onPress={() => router.push("/saved-outfits")}>
-            <Text style={styles.savedButtonText}>바로가기</Text>
-            <Feather name="bell" size={18} color={colors.text} />
+          <Pressable style={styles.savedActionArea} onPress={() => router.push("/saved-outfits")}>
+            <View style={styles.savedIconBox}>
+              <Feather name="bookmark" size={17} color="#A48763" />
+            </View>
+
+            <View style={styles.savedLink}>
+              <Text style={styles.savedLinkText}>바로가기</Text>
+              <Feather name="chevron-right" size={14} color="#A48763" />
+            </View>
           </Pressable>
         </View>
       </ScrollView>
@@ -355,38 +356,56 @@ const styles = StyleSheet.create({
     color: colors.subText,
   },
   savedCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    padding: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "#EFE7DD",
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
+    justifyContent: "space-between",
+    marginBottom: 18,
+    minHeight: 94,
+  },
+  savedTextArea: {
+    flex: 1,
+    paddingRight: 12,
+    justifyContent: "center",
+  },
+  savedTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  savedDescription: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  savedActionArea: {
+    minWidth: 74,
+    alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  savedCount: {
-    color: colors.subText,
-    fontSize: 13,
-    fontWeight: "600",
-    marginTop: 4,
+  savedIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: "#FBF8F3",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#EFE7DD",
   },
-  profileHint: {
-    color: colors.point,
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 5,
-  },
-  savedButton: {
-    backgroundColor: colors.text,
-    borderRadius: radius.md,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+  savedLink: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 2,
   },
-  savedButtonText: {
-    color: "#fff",
+  savedLinkText: {
+    color: "#A48763",
     fontSize: 12,
     fontWeight: "700",
   },
