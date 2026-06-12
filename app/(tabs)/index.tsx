@@ -2,7 +2,7 @@ import BagIcon from "@/assets/icons/bag.svg";
 import JacketIcon from "@/assets/icons/jacket.svg";
 import PantsIcon from "@/assets/icons/pants.svg";
 import ShirtIcon from "@/assets/icons/shirt.svg";
-import ShoeIcon from "@/assets/icons/shoe.svg";
+import ShoeIcon from "@/assets/icons/sneakers.svg";
 import BottomNav from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
