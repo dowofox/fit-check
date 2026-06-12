@@ -59,6 +59,10 @@ type EncodedImage = {
   mimeType: string;
 };
 
+type SelectedImage = {
+  uri: string;
+};
+
 function getImageDataFromDataUrl(dataUrl: string): EncodedImage {
   const [header, base64] = dataUrl.split(",");
   const mimeType = header.match(/^data:(.*?);base64$/)?.[1] || "image/jpeg";
@@ -67,6 +71,56 @@ function getImageDataFromDataUrl(dataUrl: string): EncodedImage {
     base64,
     mimeType,
   };
+}
+
+async function encodeImageUri(uri: string) {
+  const imageResponse = await fetch(uri);
+  const imageBlob = await imageResponse.blob();
+
+  return new Promise<EncodedImage>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(getImageDataFromDataUrl(result));
+    };
+
+    reader.onerror = reject;
+    reader.readAsDataURL(imageBlob);
+  });
+}
+
+async function requestClothesAnalysis(uri: string) {
+  const encodedImage = await encodeImageUri(uri);
+
+  console.log("[add-clothes] analyze request", {
+    mimeType: encodedImage.mimeType,
+    base64Length: encodedImage.base64.length,
+  });
+
+  const response = await fetch(ANALYZE_CLOTHES_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      image: encodedImage.base64,
+      imageMimeType: encodedImage.mimeType,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Analyze clothes failed: ${response.status}`);
+  }
+
+  const analysis = await response.json();
+
+  console.log("[add-clothes] analyze response", {
+    hasCleanImage: Boolean(analysis.cleanImageBase64),
+    cleanImageLength: analysis.cleanImageBase64?.length || 0,
+  });
+
+  return analysis as ClothesAnalysis;
 }
 
 function normalizeSeasons(seasonValue?: string | string[]) {
@@ -142,9 +196,40 @@ async function saveCleanImageToFile(base64?: string | null) {
   }
 }
 
+async function saveAnalyzedClosetItem(
+  imageUri: string,
+  analysis: ClothesAnalysis,
+  seasons = normalizeSeasons(analysis.seasons || analysis.season),
+  styleTags = normalizeStyleTags(analysis.styleTags, analysis.style)
+) {
+  const cleanImageUri = await saveCleanImageToFile(analysis.cleanImageBase64);
+
+  await saveClosetItem({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    imageUri,
+    cleanImageUri,
+    category: analysis.category || "기타",
+    subCategory: analysis.subCategory || "분석 전",
+    detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
+    color: analysis.color || "색상 미분석",
+    style: styleTags[0] || analysis.style || "스타일 미분석",
+    styleTags,
+    season: seasons.join(", "),
+    seasons,
+    fit: analysis.fit || "핏 미분석",
+    size: analysis.size || "사이즈 미입력",
+    description: analysis.description || "옷 특징을 분석하지 못했어요.",
+    matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
+    avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",
+    createdAt: new Date().toISOString(),
+  });
+}
+
 export default function AddClothesScreen() {
   const [imageUri, setImageUri] = useState("");
+  const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [progressText, setProgressText] = useState("");
   const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["데일리"]);
@@ -152,12 +237,18 @@ export default function AddClothesScreen() {
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: 0,
       quality: 0.8,
     });
 
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const images = result.assets.map((asset) => ({ uri: asset.uri }));
+
+      setSelectedImages(images);
+      setImageUri(images[0]?.uri || "");
       setAnalysis(null);
+      setProgressText("");
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
     }
@@ -176,8 +267,12 @@ export default function AddClothesScreen() {
     });
 
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      const nextImage = { uri: result.assets[0].uri };
+
+      setSelectedImages([nextImage]);
+      setImageUri(nextImage.uri);
       setAnalysis(null);
+      setProgressText("");
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
     }
@@ -185,6 +280,11 @@ export default function AddClothesScreen() {
 
   async function analyzeItem() {
     if (!imageUri || isSaving) return;
+
+    if (selectedImages.length > 1) {
+      await analyzeAndSaveBatch();
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -233,6 +333,50 @@ export default function AddClothesScreen() {
     } catch (error) {
       console.log("옷 분석 실패:", error);
       Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function analyzeAndSaveBatch() {
+    if (selectedImages.length === 0 || isSaving) return;
+
+    let savedCount = 0;
+    let failedCount = 0;
+
+    try {
+      setIsSaving(true);
+      setAnalysis(null);
+
+      for (const [index, selectedImage] of selectedImages.entries()) {
+        setProgressText(`${index + 1}/${selectedImages.length} 분석 중`);
+
+        try {
+          const analysis = await requestClothesAnalysis(selectedImage.uri);
+          await saveAnalyzedClosetItem(selectedImage.uri, analysis);
+          savedCount += 1;
+        } catch (error) {
+          failedCount += 1;
+          console.log("[add-clothes] batch item failed", {
+            index: index + 1,
+            uri: selectedImage.uri,
+            error,
+          });
+        }
+      }
+
+      setProgressText(`완료: ${savedCount}/${selectedImages.length} 저장`);
+
+      if (savedCount > 0) {
+        if (failedCount > 0) {
+          Alert.alert("일괄 저장 완료", `${savedCount}개 저장, ${failedCount}개 실패했어요.`);
+        }
+
+        router.replace("/closet");
+        return;
+      }
+
+      Alert.alert("저장 실패", "선택한 사진을 저장하지 못했어요. 서버 로그를 확인해주세요.");
     } finally {
       setIsSaving(false);
     }
@@ -318,6 +462,24 @@ export default function AddClothesScreen() {
           </Pressable>
         </View>
 
+        {selectedImages.length > 1 && (
+          <View style={styles.selectedListCard}>
+            <Text style={styles.selectedListTitle}>{selectedImages.length}장 선택됨</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.thumbnailRow}>
+                {selectedImages.map((selectedImage, index) => (
+                  <View key={`${selectedImage.uri}-${index}`} style={styles.thumbnailWrap}>
+                    <Image source={{ uri: selectedImage.uri }} style={styles.thumbnailImage} />
+                    <View style={styles.thumbnailBadge}>
+                      <Text style={styles.thumbnailBadgeText}>{index + 1}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
         {analysis && (
           <View style={styles.analysisCard}>
             <Text style={styles.analysisTitle}>AI 분석 결과</Text>
@@ -370,6 +532,8 @@ export default function AddClothesScreen() {
           </View>
         )}
 
+        {progressText ? <Text style={styles.progressText}>{progressText}</Text> : null}
+
         <Pressable
           style={[styles.primaryButton, (!imageUri || isSaving) && styles.primaryButtonDisabled]}
           onPress={analysis ? saveItem : analyzeItem}
@@ -381,7 +545,7 @@ export default function AddClothesScreen() {
             <>
               <Feather name="save" size={18} color="#fff" />
               <Text style={styles.primaryButtonText}>
-                {analysis ? "선택한 계절로 저장" : "AI 분석하기"}
+                {analysis ? "선택한 정보로 저장" : selectedImages.length > 1 ? "선택한 사진 AI 분석하기" : "AI 분석하기"}
               </Text>
             </>
           )}
@@ -489,6 +653,53 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
+  selectedListCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 12,
+    marginTop: 12,
+  },
+  selectedListTitle: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  thumbnailRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  thumbnailWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#f4eee7",
+  },
+  thumbnailImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  thumbnailBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  thumbnailBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+  },
   analysisCard: {
     backgroundColor: "#fff",
     borderRadius: 22,
@@ -547,6 +758,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     marginTop: 8,
+  },
+  progressText: {
+    color: "#8c6f47",
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: 14,
   },
   primaryButton: {
     height: 54,

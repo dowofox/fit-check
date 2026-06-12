@@ -68,7 +68,7 @@ function RecommendationLookbookCard({ recommendation }: { recommendation: Outfit
         </View>
 
         <View style={styles.aiBadge}>
-          <Feather name="sparkles" size={10} color={colors.point} />
+          <Feather name="star" size={10} color={colors.point} />
           <Text style={styles.aiBadgeText}>AI 룩북</Text>
         </View>
       </View>
