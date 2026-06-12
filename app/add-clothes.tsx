@@ -24,6 +24,7 @@ type ClothesAnalysis = {
   color?: string;
   style?: string;
   season?: string;
+  seasons?: string[];
   fit?: string;
   size?: string;
   description?: string;
@@ -31,19 +32,37 @@ type ClothesAnalysis = {
   avoidTip?: string;
 };
 
-function normalizeSeason(season?: string) {
-  if (!season) return "사계절";
+function normalizeSeasons(seasonValue?: string | string[]) {
+  if (Array.isArray(seasonValue)) {
+    const matchedSeasons = SEASON_OPTIONS.filter((option) =>
+      seasonValue.some((season) => season.includes(option))
+    );
 
-  const matchedSeason = SEASON_OPTIONS.find((option) => season.includes(option));
+    return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
+  }
 
-  return matchedSeason || "사계절";
+  if (!seasonValue) return ["사계절"];
+
+  const matchedSeasons = SEASON_OPTIONS.filter((option) => seasonValue.includes(option));
+
+  return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
+}
+
+function toggleSeason(currentSeasons: string[], season: string) {
+  if (season === "사계절") return ["사계절"];
+
+  const nextSeasons = currentSeasons.includes(season)
+    ? currentSeasons.filter((currentSeason) => currentSeason !== season)
+    : [...currentSeasons.filter((currentSeason) => currentSeason !== "사계절"), season];
+
+  return nextSeasons.length > 0 ? nextSeasons : ["사계절"];
 }
 
 export default function AddClothesScreen() {
   const [imageUri, setImageUri] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
-  const [selectedSeason, setSelectedSeason] = useState("사계절");
+  const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -54,7 +73,7 @@ export default function AddClothesScreen() {
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
       setAnalysis(null);
-      setSelectedSeason("사계절");
+      setSelectedSeasons(["사계절"]);
     }
   }
 
@@ -73,7 +92,7 @@ export default function AddClothesScreen() {
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
       setAnalysis(null);
-      setSelectedSeason("사계절");
+      setSelectedSeasons(["사계절"]);
     }
   }
 
@@ -112,7 +131,7 @@ export default function AddClothesScreen() {
       const analysis = await response.json();
 
       setAnalysis(analysis);
-      setSelectedSeason(normalizeSeason(analysis.season));
+      setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
     } catch (error) {
       console.log("옷 분석 실패:", error);
       Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
@@ -135,7 +154,8 @@ export default function AddClothesScreen() {
         detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
         color: analysis.color || "색상 분석 전",
         style: analysis.style || "스타일 분석 전",
-        season: selectedSeason || normalizeSeason(analysis.season),
+        season: selectedSeasons.join(", "),
+        seasons: selectedSeasons,
         fit: analysis.fit || "핏 분석 전",
         size: analysis.size || "사이즈 미입력",
         description: analysis.description || "옷 특징을 분석하지 못했어요.",
@@ -207,13 +227,13 @@ export default function AddClothesScreen() {
             <Text style={styles.seasonLabel}>계절</Text>
             <View style={styles.seasonChipRow}>
               {SEASON_OPTIONS.map((season) => {
-                const isActive = selectedSeason === season;
+                const isActive = selectedSeasons.includes(season);
 
                 return (
                   <Pressable
                     key={season}
                     style={[styles.seasonChip, isActive && styles.seasonChipActive]}
-                    onPress={() => setSelectedSeason(season)}
+                    onPress={() => setSelectedSeasons((currentSeasons) => toggleSeason(currentSeasons, season))}
                   >
                     <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
                       {season}

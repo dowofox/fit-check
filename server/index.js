@@ -40,15 +40,24 @@ function normalizeComment(comment, fallback) {
   return fallback;
 }
 
-function normalizeClothesSeason(season) {
-  if (typeof season !== "string" || season.trim().length === 0) {
-    return "사계절";
+function normalizeClothesSeasons(seasonValue) {
+  const allowedSeasons = ["봄", "여름", "가을", "겨울", "사계절"];
+
+  if (Array.isArray(seasonValue)) {
+    const matchedSeasons = allowedSeasons.filter((option) =>
+      seasonValue.some((season) => typeof season === "string" && season.includes(option))
+    );
+
+    return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
   }
 
-  const allowedSeasons = ["봄", "여름", "가을", "겨울", "사계절"];
-  const matchedSeason = allowedSeasons.find((option) => season.includes(option));
+  if (typeof seasonValue !== "string" || seasonValue.trim().length === 0) {
+    return ["사계절"];
+  }
 
-  return matchedSeason || "사계절";
+  const matchedSeasons = allowedSeasons.filter((option) => seasonValue.includes(option));
+
+  return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
 }
 
 function getProfileText(profile = {}) {
@@ -297,7 +306,8 @@ app.post("/analyze-clothes", async (req, res) => {
         detailCategory: "이미지 없음",
         color: "분석 불가",
         style: "분석 불가",
-        season: "분석 불가",
+        season: "사계절",
+        seasons: ["사계절"],
         fit: "분석 불가",
         description: "이미지가 없어 옷을 분석하지 못했습니다.",
         matchTip: "사진을 다시 선택해주세요.",
@@ -327,7 +337,7 @@ app.post("/analyze-clothes", async (req, res) => {
   "detailCategory": "반팔 티셔츠, 긴팔 티셔츠, 오버핏 후드티, 와이드 데님팬츠 등 더 구체적인 종류",
   "color": "대표 색상",
   "style": "캐주얼 / 미니멀 / 스트릿 / 포멀 / 스포티 / 빈티지 / 기타 중 하나",
-  "season": "봄 / 여름 / 가을 / 겨울 / 사계절 중 하나",
+  "seasons": ["봄", "가을"],
   "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
   "description": "옷의 특징을 한 문장으로 설명",
   "matchTip": "이 옷과 잘 어울리는 조합 추천",
@@ -339,11 +349,11 @@ app.post("/analyze-clothes", async (req, res) => {
 - 실제 사진에 보이는 옷만 기준으로 판단해주세요.
 - 브랜드명은 확실히 보이지 않으면 추정하지 마세요.
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
-- season은 반드시 "봄", "여름", "가을", "겨울", "사계절" 중 하나만 사용하세요.
-- 반팔, 민소매, 린넨, 얇은 셔츠처럼 얇고 통기성이 좋아 보이는 옷은 "여름"으로 판단하세요.
-- 니트, 패딩, 코트, 두꺼운 후드, 울, 플리스, 부츠는 "겨울"로 판단하세요.
-- 가디건, 자켓, 셔츠, 맨투맨처럼 간절기에 자연스러운 옷은 이미지 두께감에 따라 "봄" 또는 "가을"로 판단하세요.
-- 기본 티셔츠, 청바지, 운동화처럼 계절 제한이 약한 아이템은 "사계절"로 판단하세요.
+- seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
+- 반팔, 민소매, 린넨, 얇은 셔츠처럼 얇고 통기성이 좋아 보이는 옷은 ["여름"]으로 판단하세요.
+- 니트, 패딩, 코트, 두꺼운 후드, 울, 플리스, 부츠는 ["겨울"]로 판단하세요.
+- 셔츠, 맨투맨, 가디건, 자켓처럼 간절기에 자연스러운 옷은 ["봄", "가을"]로 판단하세요.
+- 청바지, 운동화, 기본 티셔츠처럼 계절 제한이 약한 아이템은 ["사계절"]로 판단하세요.
 - 사진 품질이 낮아도 최대한 보이는 정보 기준으로 판단해주세요.
 - 모든 답변은 자연스러운 한국어로 작성해주세요.
 `
@@ -361,6 +371,7 @@ app.post("/analyze-clothes", async (req, res) => {
 
     const text = completion.choices[0].message.content;
     const parsed = JSON.parse(text);
+    const seasons = normalizeClothesSeasons(parsed.seasons || parsed.season);
 
     return res.json({
       category: parsed.category || "기타",
@@ -368,7 +379,8 @@ app.post("/analyze-clothes", async (req, res) => {
       detailCategory: parsed.detailCategory || parsed.subCategory || "상세 분류 전",
       color: parsed.color || "색상 분석 전",
       style: parsed.style || "스타일 분석 전",
-      season: normalizeClothesSeason(parsed.season),
+      season: seasons.join(", "),
+      seasons,
       fit: parsed.fit || "핏 분석 전",
       description: parsed.description || "옷 특징을 분석하지 못했습니다.",
       matchTip: parsed.matchTip || "어울리는 조합을 분석하지 못했습니다.",
@@ -383,7 +395,8 @@ app.post("/analyze-clothes", async (req, res) => {
       detailCategory: "분석 실패",
       color: "분석 실패",
       style: "분석 실패",
-      season: "분석 실패",
+      season: "사계절",
+      seasons: ["사계절"],
       fit: "분석 실패",
       description: "옷 분석에 실패했습니다.",
       matchTip: "다시 시도해주세요.",

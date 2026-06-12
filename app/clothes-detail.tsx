@@ -21,7 +21,7 @@ type EditableClosetFields = {
   detailCategory: string;
   color: string;
   style: string;
-  season: string;
+  seasons: string[];
   fit: string;
   size: string;
   intendedFit: string;
@@ -36,7 +36,7 @@ const EMPTY_DRAFT: EditableClosetFields = {
   detailCategory: "",
   color: "",
   style: "",
-  season: "사계절",
+  seasons: ["사계절"],
   fit: "",
   size: "",
   intendedFit: "상관없음",
@@ -71,6 +71,27 @@ const STYLE_OPTIONS = [
 const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 
+function getItemSeasons(item: ClosetItem) {
+  if (item.seasons?.length) return item.seasons;
+  if (item.season) {
+    const seasons = SEASON_OPTIONS.filter((season) => item.season?.includes(season));
+
+    return seasons.length > 0 ? seasons : ["사계절"];
+  }
+
+  return ["사계절"];
+}
+
+function toggleSeason(currentSeasons: string[], season: string) {
+  if (season === "사계절") return ["사계절"];
+
+  const nextSeasons = currentSeasons.includes(season)
+    ? currentSeasons.filter((currentSeason) => currentSeason !== season)
+    : [...currentSeasons.filter((currentSeason) => currentSeason !== "사계절"), season];
+
+  return nextSeasons.length > 0 ? nextSeasons : ["사계절"];
+}
+
 function getEditableValues(item: ClosetItem): EditableClosetFields {
   return {
     category: item.category || "",
@@ -78,7 +99,7 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     detailCategory: item.detailCategory || "",
     color: item.color || "",
     style: item.style || "",
-    season: item.season || "사계절",
+    seasons: getItemSeasons(item),
     fit: item.fit || "",
     size: item.size || "",
     intendedFit: item.intendedFit || "상관없음",
@@ -105,6 +126,41 @@ function ChipGroup({
       <View style={styles.chipWrap}>
         {options.map((option) => {
           const isActive = value === option;
+
+          return (
+            <Pressable
+              key={option}
+              style={[styles.optionChip, isActive && styles.optionChipActive]}
+              onPress={() => onSelect(option)}
+            >
+              <Text style={[styles.optionChipText, isActive && styles.optionChipTextActive]}>
+                {option}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function MultiChipGroup({
+  label,
+  values,
+  options,
+  onSelect,
+}: {
+  label: string;
+  values: string[];
+  options: string[];
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <View style={styles.editRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <View style={styles.chipWrap}>
+        {options.map((option) => {
+          const isActive = values.includes(option);
 
           return (
             <Pressable
@@ -238,8 +294,15 @@ export default function ClothesDetailScreen() {
     }, [id])
   );
 
-  function updateDraft(field: keyof EditableClosetFields, value: string) {
+  function updateDraft<K extends keyof EditableClosetFields>(field: K, value: EditableClosetFields[K]) {
     setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+  }
+
+  function updateDraftSeasons(season: string) {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      seasons: toggleSeason(currentDraft.seasons, season),
+    }));
   }
 
   function handleEdit() {
@@ -261,7 +324,10 @@ export default function ClothesDetailScreen() {
     if (!item) return;
 
     try {
-      const updatedCloset = await updateClosetItem(item.id, draft);
+      const updatedCloset = await updateClosetItem(item.id, {
+        ...draft,
+        season: draft.seasons.join(", "),
+      });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
       if (!updatedItem) {
@@ -380,11 +446,11 @@ export default function ClothesDetailScreen() {
                     options={STYLE_OPTIONS}
                     onSelect={(value) => updateDraft("style", value)}
                   />
-                  <ChipGroup
+                  <MultiChipGroup
                     label="계절"
-                    value={draft.season}
+                    values={draft.seasons}
                     options={SEASON_OPTIONS}
-                    onSelect={(value) => updateDraft("season", value)}
+                    onSelect={updateDraftSeasons}
                   />
                   <EditRow
                     label="핏"
@@ -410,7 +476,7 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
                   <DetailRow label="색상" value={item.color} />
                   <DetailRow label="스타일" value={item.style} />
-                  <DetailRow label="계절" value={item.season || "사계절"} />
+                  <DetailRow label="계절" value={getItemSeasons(item).join(", ")} />
                   <DetailRow label="핏" value={item.fit} />
                   <DetailRow label="사이즈" value={item.size || "사이즈 미입력"} />
                   <DetailRow label="착용 의도" value={item.intendedFit || "상관없음"} />

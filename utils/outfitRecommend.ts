@@ -49,6 +49,18 @@ const UNIVERSAL_SEASONS = ["사계절", "전체"];
 const styleGroupCache = new Map<string, string[] | undefined>();
 const basicColorCache = new Map<string, boolean>();
 
+function getItemSeasons(item: ClosetItem) {
+  if (item.seasons?.length) return item.seasons;
+  if (item.season) {
+    const seasons = ["봄", "여름", "가을", "겨울", "사계절", "전체"]
+      .filter((season) => item.season?.includes(season));
+
+    return seasons.length > 0 ? seasons : ["사계절"];
+  }
+
+  return ["사계절"];
+}
+
 function getItemLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category || "아이템";
 }
@@ -201,22 +213,22 @@ function getCurrentSeason(date = new Date()) {
 }
 
 function isSeasonAllowed(item: ClosetItem, currentSeason: string, warnings: string[]) {
-  const season = item.season?.trim();
+  const seasons = getItemSeasons(item);
 
-  if (!season) {
+  if (seasons.length === 0) {
     warnings.push(`${getItemLabel(item)}: 계절 정보가 부족해요.`);
     return true;
   }
 
-  return UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason);
+  return seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason));
 }
 
 function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
-  const season = item.season?.trim();
+  const seasons = getItemSeasons(item);
 
-  if (!season) return true;
+  if (seasons.length === 0) return true;
 
-  return UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason);
+  return seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason));
 }
 
 function getSeasonMatchedItems(items: ClosetItem[], currentSeason: string) {
@@ -224,10 +236,10 @@ function getSeasonMatchedItems(items: ClosetItem[], currentSeason: string) {
 }
 
 function getSeasonPriority(item: ClosetItem, currentSeason: string) {
-  const season = item.season?.trim();
+  const seasons = getItemSeasons(item);
 
-  if (!season) return 1;
-  if (UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason)) return 2;
+  if (seasons.length === 0) return 1;
+  if (seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason))) return 2;
   return 0;
 }
 

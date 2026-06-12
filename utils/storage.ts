@@ -25,6 +25,7 @@ export type ClosetItem = {
   color?: string;
   style?: string;
   season?: string;
+  seasons?: string[];
   fit?: string;
   size?: string;
   intendedFit?: string;
