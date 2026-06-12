@@ -4,6 +4,8 @@ import { ClosetItem, UserProfile } from "@/utils/storage";
 export type OutfitRecommendation = {
   id: string;
   items: ClosetItem[];
+  title: string;
+  tags: string[];
   score: number;
   grade: "S" | "A" | "B" | "C" | "D";
   alternativeCount?: number;
@@ -49,6 +51,46 @@ const basicColorCache = new Map<string, boolean>();
 
 function getItemLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category || "아이템";
+}
+
+function getRecommendationDisplay(items: ClosetItem[]) {
+  const itemNames = items
+    .map((item) => `${item.detailCategory || ""} ${item.subCategory || ""} ${item.category || ""}`)
+    .join(" ");
+  const styles = items.map((item) => item.style).filter(Boolean);
+  const hasMinimalStyle = styles.some((style) => ["미니멀", "모던", "클래식"].includes(style || ""));
+  const hasShirt = itemNames.includes("셔츠");
+  const hasSlacks = itemNames.includes("슬랙스");
+  const hasHoodOrSweatshirt = ["후드", "맨투맨"].some((keyword) => itemNames.includes(keyword));
+  const hasOuter = ["자켓", "재킷", "코트", "아우터", "블레이저", "가디건"].some((keyword) =>
+    itemNames.includes(keyword)
+  ) || items.some((item) => item.category === "아우터");
+
+  if ((hasShirt && hasSlacks) || hasMinimalStyle) {
+    return {
+      title: "미니멀 데일리 룩",
+      tags: ["미니멀", "데일리"],
+    };
+  }
+
+  if (hasHoodOrSweatshirt) {
+    return {
+      title: "캐주얼 편안한 룩",
+      tags: ["편안함", "캐주얼"],
+    };
+  }
+
+  if (hasOuter) {
+    return {
+      title: "깔끔한 아우터 룩",
+      tags: ["아우터", "깔끔함"],
+    };
+  }
+
+  return {
+    title: "데일리 추천 룩",
+    tags: ["데일리", "추천"],
+  };
 }
 
 function getGrade(score: number): OutfitRecommendation["grade"] {
@@ -374,6 +416,7 @@ function buildRecommendation(
   const warningPenalty = getWarningPenalty(warnings);
   const rawScore = category + style + color + fit + optional;
   const score = Math.max(0, rawScore - warningPenalty);
+  const display = getRecommendationDisplay(items);
 
   if (score < 70 && reasons.length > 0) {
     reasons.push("전체적으로 무난할 수는 있지만 강한 추천 조합은 아니에요.");
@@ -382,6 +425,8 @@ function buildRecommendation(
   return {
     id: items.map((item) => item.id).join("-"),
     items,
+    title: display.title,
+    tags: display.tags,
     score,
     grade: getGrade(score),
     penalty: warningPenalty,

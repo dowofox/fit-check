@@ -16,10 +16,6 @@ const CLOSET_CATEGORIES = [
   { label: "아우터", emoji: "🧥" },
 ];
 
-function getItemName(item: ClosetItem) {
-  return item.detailCategory || item.subCategory || item.category;
-}
-
 function getCategoryCount(items: ClosetItem[], category: string) {
   return items.filter((item) => item.category === category).length;
 }
@@ -184,8 +180,8 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.todayInfo}>
-                <Text style={styles.todayTitle} numberOfLines={1}>
-                  캐주얼 미니멀 룩
+                <Text style={styles.todayTitle} numberOfLines={2}>
+                  {todayRecommendation.title}
                 </Text>
 
                 <Text style={styles.todayScore}>
@@ -193,8 +189,9 @@ export default function HomeScreen() {
                 </Text>
 
                 <View style={styles.tagRow}>
-                  <Text style={styles.tagText}>#편안함</Text>
-                  <Text style={styles.tagText}>#데일리</Text>
+                  {todayRecommendation.tags.slice(0, 2).map((tag) => (
+                    <Text key={tag} style={styles.tagText}>#{tag}</Text>
+                  ))}
                 </View>
 
                 <Pressable
@@ -459,33 +456,37 @@ const styles = StyleSheet.create({
   },
   todayCard: {
     backgroundColor: "#FBF8F3",
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#EFE7DD",
     flexDirection: "row",
     overflow: "hidden",
-    minHeight: 128,
+    minHeight: 132,
   },
 
   todayImages: {
-    width: 135,
-    flexDirection: "row",
+    width: 138,
+    position: "relative",
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 12,
     paddingLeft: 10,
   },
 
   todayImage: {
-    width: 42,
-    height: 82,
+    width: 52,
+    height: 88,
     borderRadius: 12,
     backgroundColor: colors.inactiveTab,
-    marginRight: -6,
+    marginLeft: -12,
+    borderWidth: 2,
+    borderColor: "#FBF8F3",
   },
 
   todayInfo: {
     flex: 1,
-    paddingVertical: 16,
+    minWidth: 0,
+    paddingVertical: 15,
     paddingRight: 14,
     paddingLeft: 10,
     justifyContent: "center",
@@ -493,9 +494,10 @@ const styles = StyleSheet.create({
 
   todayTitle: {
     color: "#111",
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "800",
-    marginBottom: 8,
+    lineHeight: 20,
+    marginBottom: 6,
   },
 
   todayScore: {
@@ -508,7 +510,8 @@ const styles = StyleSheet.create({
   tagRow: {
     flexDirection: "row",
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 11,
+    flexWrap: "wrap",
   },
 
   tagText: {
