@@ -19,6 +19,7 @@ export type UserProfile = {
 export type ClosetItem = {
   id: string;
   imageUri: string;
+  cleanImageUri?: string;
   category: string;
   subCategory?: string;
   detailCategory?: string;
