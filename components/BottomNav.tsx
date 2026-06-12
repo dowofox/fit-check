@@ -27,7 +27,7 @@ function NavItem({
       }}
     >
       <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
-        <Feather name={icon} size={18} color={active ? "#8A6F47" : "#7C776F"} />
+        <Feather name={icon} size={17} color={active ? "#7D6445" : "#A39A8F"} />
       </View>
       <Text style={active ? styles.navTextActive : styles.navText}>{label}</Text>
     </Pressable>
@@ -49,7 +49,7 @@ export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
             router.push("/add-clothes");
           }}
         >
-          <Feather name="plus" size={26} color="#fff" />
+          <Feather name="plus" size={21} color="#fff" />
         </Pressable>
         <NavItem active={activeTab === "outfit"} icon="star" label="코디" onPress={() => router.push("/outfit")} />
         <NavItem active={activeTab === "profile"} icon="user" label="마이" onPress={() => router.push("/profile")} />
@@ -68,43 +68,43 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: "#F1ECE4",
     ...shadow.subtle,
   },
   bottomNav: {
-    height: 78,
+    height: 74,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 18,
-    paddingTop: 9,
-    paddingBottom: 9,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   navItem: {
     flex: 1,
-    height: 54,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 4,
     position: "relative",
   },
   centerButton: {
-    width: 58,
-    height: 58,
+    width: 46,
+    height: 46,
     borderRadius: 999,
     backgroundColor: "#6F5A3E",
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: 5,
-    marginTop: -24,
+    marginHorizontal: 7,
+    marginTop: -8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 9,
+    elevation: 3,
   },
   iconWrap: {
-    width: 26,
-    height: 24,
+    width: 24,
+    height: 22,
     borderRadius: radius.round,
     alignItems: "center",
     justifyContent: "center",
@@ -114,13 +114,13 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   navTextActive: {
-    color: "#8A6F47",
-    fontSize: 11,
+    color: "#7D6445",
+    fontSize: 10,
     fontWeight: "600",
   },
   navText: {
-    color: "#7C776F",
-    fontSize: 11,
+    color: "#A39A8F",
+    fontSize: 10,
     fontWeight: "500",
   },
 });
