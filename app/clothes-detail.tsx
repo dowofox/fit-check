@@ -459,7 +459,7 @@ export default function ClothesDetailScreen() {
 
         {item && (
           <>
-            <Image source={{ uri: item.imageUri }} style={styles.heroImage} />
+            <Image source={{ uri: item.cleanImageUri || item.imageUri }} style={styles.heroImage} />
 
             <View style={styles.summaryCard}>
               <Text style={styles.itemTitle}>

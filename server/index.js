@@ -123,10 +123,61 @@ function normalizeAnalysisResult(result) {
   };
 }
 
-async function removeClothesBackground(imageBase64) {
+function getImageFileInfo(imageMimeType) {
+  const safeMimeType = typeof imageMimeType === "string" ? imageMimeType.toLowerCase() : "";
+
+  if (safeMimeType.includes("png")) {
+    return { fileName: "clothes.png", mimeType: "image/png" };
+  }
+
+  if (safeMimeType.includes("webp")) {
+    return { fileName: "clothes.webp", mimeType: "image/webp" };
+  }
+
+  return { fileName: "clothes.jpg", mimeType: "image/jpeg" };
+}
+
+function getImageEditErrorLog(error) {
+  return {
+    status: error?.status,
+    code: error?.code,
+    type: error?.type,
+    message: error?.message,
+    response: error?.response?.data,
+  };
+}
+
+async function getImageResultBase64(imageResult) {
+  if (imageResult?.b64_json) {
+    return imageResult.b64_json;
+  }
+
+  if (imageResult?.url) {
+    const imageResponse = await fetch(imageResult.url);
+
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to download edited image: ${imageResponse.status}`);
+    }
+
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    return Buffer.from(arrayBuffer).toString("base64");
+  }
+
+  return null;
+}
+
+async function removeClothesBackground(imageBase64, imageMimeType) {
   try {
+    const fileInfo = getImageFileInfo(imageMimeType);
     const imageBuffer = Buffer.from(imageBase64, "base64");
-    const imageFile = await toFile(imageBuffer, "clothes.jpg", { type: "image/jpeg" });
+
+    console.log("[background-remove] start", {
+      mimeType: fileInfo.mimeType,
+      base64Length: imageBase64?.length || 0,
+      byteLength: imageBuffer.length,
+    });
+
+    const imageFile = await toFile(imageBuffer, fileInfo.fileName, { type: fileInfo.mimeType });
 
     const result = await openai.images.edit({
       model: "gpt-image-1",
@@ -139,11 +190,18 @@ async function removeClothesBackground(imageBase64) {
       quality: "low",
     });
 
-    const cleanImageBase64 = result.data?.[0]?.b64_json || null;
+    const imageResult = result.data?.[0];
+    const cleanImageBase64 = await getImageResultBase64(imageResult);
+    console.log("[background-remove] result", {
+      hasBase64: Boolean(cleanImageBase64),
+      base64Length: cleanImageBase64?.length || 0,
+      resultKeys: imageResult ? Object.keys(imageResult) : [],
+    });
     console.log("배경제거 결과:", cleanImageBase64 ? "성공" : "결과 없음");
 
     return cleanImageBase64;
   } catch (error) {
+    console.error("[background-remove] error", getImageEditErrorLog(error));
     console.error("배경제거 에러:", error?.response?.data || error);
     return null;
   }
@@ -285,7 +343,7 @@ ${profileText}
 
 app.post("/analyze-clothes", async (req, res) => {
   try {
-    const { image } = req.body;
+    const { image, imageMimeType } = req.body;
 
     if (!image) {
       return res.status(400).json({
@@ -304,6 +362,13 @@ app.post("/analyze-clothes", async (req, res) => {
         cleanImageBase64: null,
       });
     }
+
+    const requestImageMimeType = getImageFileInfo(imageMimeType).mimeType;
+
+    console.log("[analyze-clothes] request", {
+      imageMimeType: requestImageMimeType,
+      imageLength: image?.length || 0,
+    });
 
     const [completion, cleanImageBase64] = await Promise.all([
       openai.chat.completions.create({
@@ -349,14 +414,14 @@ app.post("/analyze-clothes", async (req, res) => {
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/jpeg;base64,${image}`,
+                  url: `data:${requestImageMimeType};base64,${image}`,
                 },
               },
             ],
           },
         ],
       }),
-      removeClothesBackground(image),
+      removeClothesBackground(image, requestImageMimeType),
     ]);
 
     const text = completion.choices[0].message.content;

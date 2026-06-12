@@ -1,6 +1,6 @@
 import { saveClosetItem } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -54,6 +54,21 @@ type ClothesAnalysis = {
   cleanImageBase64?: string | null;
 };
 
+type EncodedImage = {
+  base64: string;
+  mimeType: string;
+};
+
+function getImageDataFromDataUrl(dataUrl: string): EncodedImage {
+  const [header, base64] = dataUrl.split(",");
+  const mimeType = header.match(/^data:(.*?);base64$/)?.[1] || "image/jpeg";
+
+  return {
+    base64,
+    mimeType,
+  };
+}
+
 function normalizeSeasons(seasonValue?: string | string[]) {
   if (Array.isArray(seasonValue)) {
     const matchedSeasons = SEASON_OPTIONS.filter((option) =>
@@ -103,13 +118,21 @@ function toggleStyleTag(currentTags: string[], tag: string) {
 }
 
 async function saveCleanImageToFile(base64?: string | null) {
-  if (!base64) return undefined;
+  if (!base64) {
+    console.log("[add-clothes] clean image missing, original image will be saved");
+    return undefined;
+  }
 
   try {
     const fileUri = `${FileSystem.documentDirectory}clean-clothes-${Date.now()}.png`;
 
     await FileSystem.writeAsStringAsync(fileUri, base64, {
       encoding: FileSystem.EncodingType.Base64,
+    });
+
+    console.log("[add-clothes] clean image saved", {
+      fileUri,
+      base64Length: base64.length,
     });
 
     return fileUri;
@@ -169,17 +192,21 @@ export default function AddClothesScreen() {
       const imageResponse = await fetch(imageUri);
       const imageBlob = await imageResponse.blob();
 
-      const base64Image = await new Promise<string>((resolve, reject) => {
+      const encodedImage = await new Promise<EncodedImage>((resolve, reject) => {
         const reader = new FileReader();
 
         reader.onloadend = () => {
           const result = reader.result as string;
-          const base64 = result.split(",")[1];
-          resolve(base64);
+          resolve(getImageDataFromDataUrl(result));
         };
 
         reader.onerror = reject;
         reader.readAsDataURL(imageBlob);
+      });
+
+      console.log("[add-clothes] analyze request", {
+        mimeType: encodedImage.mimeType,
+        base64Length: encodedImage.base64.length,
       });
 
       const response = await fetch(ANALYZE_CLOTHES_URL, {
@@ -188,11 +215,17 @@ export default function AddClothesScreen() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          image: base64Image,
+          image: encodedImage.base64,
+          imageMimeType: encodedImage.mimeType,
         }),
       });
 
       const analysis = await response.json();
+
+      console.log("[add-clothes] analyze response", {
+        hasCleanImage: Boolean(analysis.cleanImageBase64),
+        cleanImageLength: analysis.cleanImageBase64?.length || 0,
+      });
 
       setAnalysis(analysis);
       setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
