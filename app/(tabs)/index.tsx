@@ -63,7 +63,11 @@ export default function HomeScreen() {
           <View style={styles.headerSide} />
           <Text style={styles.logoText}>NAES</Text>
           <Pressable style={styles.bellButton}>
-            <Feather name="bell" size={18} color={colors.text} />
+            <Feather
+              name="camera"
+              size={13}
+              color="#fff"
+            />
           </Pressable>
         </View>
 
@@ -94,10 +98,15 @@ export default function HomeScreen() {
               style={styles.heroButton}
               onPress={startAnalysis}
             >
-              <Feather name="camera" size={15} color="#fff" />
               <Text style={styles.heroButtonText}>
                 코디 분석하기
               </Text>
+
+              <Feather
+                name="arrow-right"
+                size={13}
+                color="#fff"
+              />
             </Pressable>
           </View>
         </View>
@@ -355,8 +364,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   heroCard: {
-    height: 190,
-    borderRadius: 24,
+    height: 175,
+    borderRadius: 22,
     overflow: "hidden",
     marginBottom: 18,
     position: "relative",
@@ -375,32 +384,35 @@ const styles = StyleSheet.create({
   },
 
   heroTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "800",
     color: "#111",
-    marginBottom: 10,
+    marginBottom: 8,
+    lineHeight: 23,
   },
 
   heroText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#666",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#6D675F",
   },
 
   heroButton: {
-    marginTop: 18,
+    marginTop: 16,
     backgroundColor: "#111",
-    height: 40,
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    height: 34,
+    borderRadius: 10,
+    paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     alignSelf: "flex-start",
     gap: 6,
   },
+
   heroButtonText: {
     color: "#fff",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
 });
