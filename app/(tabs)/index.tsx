@@ -9,12 +9,7 @@ import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const CLOSET_CATEGORIES = [
-  { label: "상의", emoji: "👕" },
-  { label: "하의", emoji: "👖" },
-  { label: "신발", emoji: "👟" },
-  { label: "아우터", emoji: "🧥" },
-];
+const CLOSET_CATEGORIES = ["상의", "하의", "신발", "아우터"];
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
@@ -134,13 +129,11 @@ export default function HomeScreen() {
 
           <View style={styles.closetGrid}>
             {CLOSET_CATEGORIES.map((category) => (
-              <View key={category.label} style={styles.countTile}>
-                <Text style={styles.countValue}>
-                  {getCategoryCount(closetItems, category.label)}
-                </Text>
+              <View key={category} style={styles.countTile}>
+                <Text style={styles.countLabel}>{category}</Text>
 
-                <Text style={styles.countLabel}>
-                  {category.label}
+                <Text style={styles.countValue}>
+                  {getCategoryCount(closetItems, category)}
                 </Text>
               </View>
             ))}
@@ -199,7 +192,7 @@ export default function HomeScreen() {
 
           <Pressable style={styles.savedButton} onPress={() => router.push("/saved-outfits")}>
             <Text style={styles.savedButtonText}>바로가기</Text>
-            <Feather name="chevron-right" size={17} color="#fff" />
+            <Feather name="bell" size={18} color={colors.text} />
           </Pressable>
         </View>
       </ScrollView>
@@ -283,42 +276,31 @@ const styles = StyleSheet.create({
   },
   closetGrid: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
   },
+
   countTile: {
     flex: 1,
-
     backgroundColor: "#FBF8F3",
-
-    borderRadius: 20,
-
-    paddingVertical: 18,
-
+    borderRadius: 16,
+    height: 86,
     alignItems: "center",
-
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#EEE6DB",
-  },
-  categoryEmoji: {
-    fontSize: 22,
-    marginBottom: 8,
+    borderColor: "#EFE7DD",
   },
 
   countValue: {
     color: "#111",
-
-    fontSize: 28,
-
+    fontSize: 24,
     fontWeight: "800",
+    marginTop: 4,
   },
+
   countLabel: {
     color: "#6D675F",
-
-    fontSize: 14,
-
-    fontWeight: "600",
-
-    marginTop: 8,
+    fontSize: 12,
+    fontWeight: "700",
   },
   recommendHeader: {
     flexDirection: "row",
