@@ -3,7 +3,6 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const OpenAI = require("openai");
-const { toFile } = require("openai");
 
 const app = express();
 const PORT = 3001;
@@ -137,71 +136,63 @@ function getImageFileInfo(imageMimeType) {
   return { fileName: "clothes.jpg", mimeType: "image/jpeg" };
 }
 
-function getImageEditErrorLog(error) {
-  return {
-    status: error?.status,
-    code: error?.code,
-    type: error?.type,
-    message: error?.message,
-    response: error?.response?.data,
-  };
-}
-
-async function getImageResultBase64(imageResult) {
-  if (imageResult?.b64_json) {
-    return imageResult.b64_json;
-  }
-
-  if (imageResult?.url) {
-    const imageResponse = await fetch(imageResult.url);
-
-    if (!imageResponse.ok) {
-      throw new Error(`Failed to download edited image: ${imageResponse.status}`);
-    }
-
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    return Buffer.from(arrayBuffer).toString("base64");
-  }
-
-  return null;
-}
-
 async function removeClothesBackground(imageBase64, imageMimeType) {
+  const removeBgApiKey = process.env.REMOVE_BG_API_KEY;
+
+  if (!removeBgApiKey) {
+    console.log("[background-remove] skipped: REMOVE_BG_API_KEY is missing");
+    return null;
+  }
+
   try {
     const fileInfo = getImageFileInfo(imageMimeType);
     const imageBuffer = Buffer.from(imageBase64, "base64");
 
     console.log("[background-remove] start", {
+      provider: "remove.bg",
       mimeType: fileInfo.mimeType,
       base64Length: imageBase64?.length || 0,
       byteLength: imageBuffer.length,
     });
 
-    const imageFile = await toFile(imageBuffer, fileInfo.fileName, { type: fileInfo.mimeType });
+    const formData = new FormData();
+    formData.append("size", "auto");
+    formData.append("format", "png");
+    formData.append("image_file", new Blob([imageBuffer], { type: fileInfo.mimeType }), fileInfo.fileName);
 
-    const result = await openai.images.edit({
-      model: "gpt-image-1",
-      image: imageFile,
-      prompt:
-        "Remove the background from the clothing product photo. Keep only the single clothing item. Preserve the original color, shape, fabric texture, wrinkles, and edges. Return a clean product cutout with transparent background. Do not add a person, mannequin, hanger, text, logo, extra objects, or new background.",
-      size: "1024x1024",
-      background: "transparent",
-      output_format: "png",
-      quality: "low",
+    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
+      method: "POST",
+      headers: {
+        "X-Api-Key": removeBgApiKey,
+      },
+      body: formData,
     });
 
-    const imageResult = result.data?.[0];
-    const cleanImageBase64 = await getImageResultBase64(imageResult);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[background-remove] remove.bg error", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+      return null;
+    }
+
+    const resultBuffer = Buffer.from(await response.arrayBuffer());
+    const cleanImageBase64 = resultBuffer.toString("base64");
     console.log("[background-remove] result", {
       hasBase64: Boolean(cleanImageBase64),
       base64Length: cleanImageBase64?.length || 0,
-      resultKeys: imageResult ? Object.keys(imageResult) : [],
+      byteLength: resultBuffer.length,
     });
     console.log("배경제거 결과:", cleanImageBase64 ? "성공" : "결과 없음");
 
     return cleanImageBase64;
   } catch (error) {
-    console.error("[background-remove] error", getImageEditErrorLog(error));
+    console.error("[background-remove] error", {
+      message: error?.message,
+      stack: error?.stack,
+    });
     console.error("배경제거 에러:", error?.response?.data || error);
     return null;
   }
