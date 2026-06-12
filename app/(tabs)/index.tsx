@@ -170,11 +170,16 @@ export default function HomeScreen() {
           {todayRecommendation ? (
             <View style={styles.todayCard}>
               <View style={styles.todayImages}>
-                {todayRecommendation.items.slice(0, 3).map((item) => (
+                {todayRecommendation.items.slice(0, 3).map((item, index) => (
                   <Image
                     key={item.id}
                     source={{ uri: item.imageUri }}
-                    style={styles.todayImage}
+                    style={[
+                      styles.todayImage,
+                      index === 0 && styles.todayImageMain,
+                      index === 1 && styles.todayImageSecond,
+                      index === 2 && styles.todayImageThird,
+                    ]}
                   />
                 ))}
               </View>
@@ -456,74 +461,94 @@ const styles = StyleSheet.create({
   },
   todayCard: {
     backgroundColor: "#FBF8F3",
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#EFE7DD",
     flexDirection: "row",
     overflow: "hidden",
-    height: 170,
+    height: 132,
   },
 
   todayImages: {
-    width: "45%",
-    height: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingLeft: 12,
-    paddingRight: 4,
+    width: "43%",
+    backgroundColor: "#FFFFFF",
+    position: "relative",
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
   },
 
   todayImage: {
-    width: 54,
-    height: 110,
-    borderRadius: 14,
+    position: "absolute",
+    resizeMode: "cover",
     backgroundColor: colors.inactiveTab,
-    marginRight: -12,
+  },
+
+  todayImageMain: {
+    width: 78,
+    height: 96,
+    left: 12,
+    top: 18,
+    borderRadius: 14,
+  },
+
+  todayImageSecond: {
+    width: 56,
+    height: 92,
+    left: 74,
+    top: 20,
+    borderRadius: 13,
+  },
+
+  todayImageThird: {
+    width: 52,
+    height: 52,
+    left: 72,
+    top: 68,
+    borderRadius: 12,
   },
 
   todayInfo: {
     flex: 1,
-    paddingVertical: 22,
+    paddingVertical: 15,
     paddingHorizontal: 16,
     justifyContent: "center",
   },
 
   todayTitle: {
     color: "#111",
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "800",
-    marginBottom: 10,
+    marginBottom: 6,
   },
 
   todayScore: {
     color: "#6D675F",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   tagRow: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 16,
+    gap: 5,
+    marginBottom: 10,
   },
 
   tagText: {
     backgroundColor: "#F1E6D6",
     color: "#A48763",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
     borderRadius: 999,
   },
 
   todayButton: {
     backgroundColor: "#111",
-    height: 36,
-    borderRadius: 10,
-    paddingHorizontal: 15,
+    height: 30,
+    borderRadius: 9,
+    paddingHorizontal: 13,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
