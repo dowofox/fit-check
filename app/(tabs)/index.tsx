@@ -14,6 +14,7 @@ const CLOSET_CATEGORIES = [
   { label: "하의", emoji: "👖" },
   { label: "신발", emoji: "👟" },
   { label: "아우터", emoji: "🧥" },
+  { label: "액세서리", emoji: "👜" },
 ];
 
 function getCategoryCount(items: ClosetItem[], category: string) {
@@ -140,29 +141,15 @@ export default function HomeScreen() {
                   })
                 }
               >
-                <View style={styles.countLeft}>
-                  <View style={styles.countIconCircle}>
-                    <Text style={styles.countIcon}>
-                      {category.emoji}
-                    </Text>
-                  </View>
-
-                  <View>
-                    <Text style={styles.countLabel}>
-                      {category.label}
-                    </Text>
-
-                    <Text style={styles.countValue}>
-                      {getCategoryCount(closetItems, category.label)}개
-                    </Text>
-                  </View>
+                <View style={styles.countIconCircle}>
+                  <Text style={styles.countIcon}>{category.emoji}</Text>
                 </View>
 
-                <Feather
-                  name="chevron-right"
-                  size={18}
-                  color={colors.point}
-                />
+                <Text style={styles.countLabel}>{category.label}</Text>
+
+                <Text style={styles.countValue}>
+                  {getCategoryCount(closetItems, category.label)}
+                </Text>
               </Pressable>
 
             ))}
@@ -328,20 +315,16 @@ const styles = StyleSheet.create({
   },
   closetGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 10,
+    gap: 8,
   },
 
   countTile: {
-    width: "48%",
-    height: 58,
-    backgroundColor: colors.softCard,
+    flex: 1,
+    height: 96,
+    backgroundColor: colors.card,
     borderRadius: 16,
-    paddingHorizontal: 12,
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -466,36 +449,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  countLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
 
   countIconCircle: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
     borderRadius: 999,
     backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 7,
   },
 
   countIcon: {
-    fontSize: 17,
+    fontSize: 16,
   },
+
 
   countLabel: {
     color: colors.text,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
+    marginBottom: 4,
   },
+
 
   countValue: {
     color: colors.text,
-    fontSize: 21,
-    fontWeight: "800",
-    marginTop: 1,
+    fontSize: 22,
+    fontWeight: "900",
   },
   todayCard: {
     backgroundColor: colors.card,
