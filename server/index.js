@@ -3,9 +3,15 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const OpenAI = require("openai");
+const fs = require("fs/promises");
+const os = require("os");
+const path = require("path");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
 
 const app = express();
 const PORT = 3001;
+const execFileAsync = promisify(execFile);
 
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
@@ -136,49 +142,56 @@ function getImageFileInfo(imageMimeType) {
   return { fileName: "clothes.jpg", mimeType: "image/jpeg" };
 }
 
-async function removeClothesBackground(imageBase64, imageMimeType) {
-  const removeBgApiKey = process.env.REMOVE_BG_API_KEY;
+function getRembgCommand(inputPath, outputPath) {
+  const rembgCommand = process.env.REMBG_COMMAND;
 
-  if (!removeBgApiKey) {
-    console.log("[background-remove] skipped: REMOVE_BG_API_KEY is missing");
-    return null;
+  if (rembgCommand) {
+    return {
+      command: rembgCommand,
+      args: ["i", inputPath, outputPath],
+    };
   }
+
+  return {
+    command: process.env.REMBG_PYTHON || "python",
+    args: ["-m", "rembg", "i", inputPath, outputPath],
+  };
+}
+
+async function removeTempDirectory(tempDirectory) {
+  try {
+    await fs.rm(tempDirectory, { recursive: true, force: true });
+  } catch (error) {
+    console.error("[background-remove] temp cleanup error", error);
+  }
+}
+
+async function removeClothesBackground(imageBase64, imageMimeType) {
+  let tempDirectory;
 
   try {
     const fileInfo = getImageFileInfo(imageMimeType);
     const imageBuffer = Buffer.from(imageBase64, "base64");
+    tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "naes-rembg-"));
+    const inputPath = path.join(tempDirectory, fileInfo.fileName);
+    const outputPath = path.join(tempDirectory, "clean-clothes.png");
+    const rembg = getRembgCommand(inputPath, outputPath);
 
     console.log("[background-remove] start", {
-      provider: "remove.bg",
+      provider: "rembg",
+      command: rembg.command,
       mimeType: fileInfo.mimeType,
       base64Length: imageBase64?.length || 0,
       byteLength: imageBuffer.length,
     });
 
-    const formData = new FormData();
-    formData.append("size", "auto");
-    formData.append("format", "png");
-    formData.append("image_file", new Blob([imageBuffer], { type: fileInfo.mimeType }), fileInfo.fileName);
-
-    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
-      method: "POST",
-      headers: {
-        "X-Api-Key": removeBgApiKey,
-      },
-      body: formData,
+    await fs.writeFile(inputPath, imageBuffer);
+    await execFileAsync(rembg.command, rembg.args, {
+      timeout: 120000,
+      maxBuffer: 1024 * 1024 * 10,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[background-remove] remove.bg error", {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
-      return null;
-    }
-
-    const resultBuffer = Buffer.from(await response.arrayBuffer());
+    const resultBuffer = await fs.readFile(outputPath);
     const cleanImageBase64 = resultBuffer.toString("base64");
     console.log("[background-remove] result", {
       hasBase64: Boolean(cleanImageBase64),
@@ -191,10 +204,15 @@ async function removeClothesBackground(imageBase64, imageMimeType) {
   } catch (error) {
     console.error("[background-remove] error", {
       message: error?.message,
+      stderr: error?.stderr,
       stack: error?.stack,
     });
     console.error("배경제거 에러:", error?.response?.data || error);
     return null;
+  } finally {
+    if (tempDirectory) {
+      await removeTempDirectory(tempDirectory);
+    }
   }
 }
 
