@@ -456,62 +456,57 @@ const styles = StyleSheet.create({
   },
   todayCard: {
     backgroundColor: "#FBF8F3",
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "#EFE7DD",
     flexDirection: "row",
     overflow: "hidden",
-    minHeight: 132,
+    height: 170,
   },
 
   todayImages: {
-    width: 138,
-    position: "relative",
+    width: "45%",
+    height: "100%",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingLeft: 10,
+    paddingLeft: 12,
+    paddingRight: 4,
   },
 
   todayImage: {
-    width: 52,
-    height: 88,
-    borderRadius: 12,
+    width: 54,
+    height: 110,
+    borderRadius: 14,
     backgroundColor: colors.inactiveTab,
-    marginLeft: -12,
-    borderWidth: 2,
-    borderColor: "#FBF8F3",
+    marginRight: -12,
   },
 
   todayInfo: {
     flex: 1,
-    minWidth: 0,
-    paddingVertical: 15,
-    paddingRight: 14,
-    paddingLeft: 10,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
     justifyContent: "center",
   },
 
   todayTitle: {
     color: "#111",
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "800",
-    lineHeight: 20,
-    marginBottom: 6,
+    marginBottom: 10,
   },
 
   todayScore: {
     color: "#6D675F",
     fontSize: 13,
     fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: 10,
   },
 
   tagRow: {
     flexDirection: "row",
     gap: 6,
-    marginBottom: 11,
-    flexWrap: "wrap",
+    marginBottom: 16,
   },
 
   tagText: {
@@ -520,22 +515,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 999,
   },
 
   todayButton: {
     backgroundColor: "#111",
-    height: 32,
+    height: 36,
     borderRadius: 10,
-    paddingHorizontal: 13,
+    paddingHorizontal: 15,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "flex-start",
     gap: 6,
   },
-
   todayButtonText: {
     color: "#fff",
     fontSize: 12,
