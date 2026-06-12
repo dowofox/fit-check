@@ -17,6 +17,7 @@ export default function ProfileScreen() {
   const [topSize, setTopSize] = useState("");
   const [bottomSize, setBottomSize] = useState("");
   const [shoeSize, setShoeSize] = useState("");
+  const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,6 +66,22 @@ export default function ProfileScreen() {
           <Text style={styles.headerTitle}>마이페이지</Text>
 
           <View style={styles.headerBlank} />
+        </View>
+
+        <View style={styles.styleSummaryCard}>
+          <View>
+            <Text style={styles.summaryEyebrow}>MY STYLE STANDARD</Text>
+            <Text style={styles.summaryTitle}>내 스타일 기준</Text>
+            <Text style={styles.summaryText}>
+              {hasStyleSizes
+                ? `상의 ${topSize || "-"} · 하의 ${bottomSize || "-"} · 신발 ${shoeSize || "-"}`
+                : "프로필을 채우면 추천 정확도가 올라가요"}
+            </Text>
+          </View>
+
+          <View style={styles.summaryIconCircle}>
+            <Feather name="target" size={14} color="#111" />
+          </View>
         </View>
 
         <View style={styles.formCard}>
@@ -265,6 +282,45 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f0eee9",
     marginBottom: 10,
+  },
+  styleSummaryCard: {
+    backgroundColor: "#F4EEE7",
+    borderRadius: 24,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  summaryEyebrow: {
+    color: "#8C6F47",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 3,
+  },
+  summaryTitle: {
+    color: "#111",
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  summaryText: {
+    color: "#777064",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  summaryIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E8DED2",
   },
   sectionEyebrow: {
     color: "#9b7a4b",

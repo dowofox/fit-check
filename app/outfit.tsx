@@ -1,10 +1,32 @@
 import BottomNav from "@/components/BottomNav";
+import { getClosetItems, getSavedOutfits } from "@/utils/storage";
 import { colors, radius, shadow, typography } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function OutfitHubScreen() {
+  const [closetCount, setClosetCount] = useState(0);
+  const [savedOutfitCount, setSavedOutfitCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      async function loadOutfitSummary() {
+        const [closetItems, savedOutfits] = await Promise.all([
+          getClosetItems(),
+          getSavedOutfits(),
+        ]);
+
+        setClosetCount(closetItems.length);
+        setSavedOutfitCount(savedOutfits.length);
+      }
+
+      loadOutfitSummary();
+    }, [])
+  );
+
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -12,6 +34,16 @@ export default function OutfitHubScreen() {
         <Text style={styles.eyebrow}>OUTFIT</Text>
         <Text style={styles.title}>코디</Text>
         <Text style={styles.subtitle}>추천받고, 저장한 조합을 다시 확인해보세요.</Text>
+
+        <View style={styles.summaryCard}>
+          <View>
+            <Text style={styles.summaryLabel}>MY STYLE DATA</Text>
+            <Text style={styles.summaryText}>저장 코디 {savedOutfitCount}개 · 옷장 {closetCount}개</Text>
+          </View>
+          <View style={styles.summaryDot}>
+            <Feather name="bar-chart-2" size={14} color={colors.text} />
+          </View>
+        </View>
 
         <Pressable style={styles.primaryCard} onPress={() => router.push("/outfit-recommend")}>
           <View style={styles.iconBox}>
@@ -65,7 +97,38 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.subText,
     marginTop: 8,
-    marginBottom: 15,
+    marginBottom: 10,
+  },
+  summaryCard: {
+    backgroundColor: colors.softCard,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  summaryLabel: {
+    color: colors.point,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 3,
+  },
+  summaryText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  summaryDot: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.round,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
   },
   primaryCard: {
     backgroundColor: colors.card,

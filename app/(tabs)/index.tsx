@@ -24,6 +24,7 @@ export default function HomeScreen() {
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [todayRecommendation, setTodayRecommendation] = useState<OutfitRecommendation | null>(null);
+  const heroItems = closetItems.slice(0, 3);
 
   useFocusEffect(
     useCallback(() => {
@@ -71,16 +72,42 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>NAES AI STYLIST</Text>
-          <Text style={styles.heroTitle}>나만의 AI 스타일리스트</Text>
-          <Text style={styles.heroText}>
-            오늘의 코디를 분석하고 새로운 스타일을 제안받아보세요.
-          </Text>
+          <View style={styles.heroContent}>
+            <View style={styles.heroTextArea}>
+              <Text style={styles.heroEyebrow}>NAES AI STYLIST</Text>
+              <Text style={styles.heroTitle}>나만의 AI 스타일리스트</Text>
+              <Text style={styles.heroText}>
+                오늘의 코디를 분석하고 새로운 스타일을 제안받아보세요.
+              </Text>
 
-          <Pressable style={styles.heroButton} onPress={startAnalysis}>
-            <Feather name="camera" size={15} color="#fff" />
-            <Text style={styles.heroButtonText}>코디 분석하기</Text>
-          </Pressable>
+              <Pressable style={styles.heroButton} onPress={startAnalysis}>
+                <Feather name="camera" size={15} color="#fff" />
+                <Text style={styles.heroButtonText}>코디 분석하기</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.heroVisual}>
+              {heroItems.length > 0 ? (
+                heroItems.map((item, index) => (
+                  <Image
+                    key={item.id}
+                    source={{ uri: item.imageUri }}
+                    style={[
+                      styles.heroThumb,
+                      index === 0 && styles.heroThumbPrimary,
+                      index === 1 && styles.heroThumbSecond,
+                      index === 2 && styles.heroThumbThird,
+                    ]}
+                  />
+                ))
+              ) : (
+                <View style={styles.heroPlaceholder}>
+                  <View style={styles.placeholderHook} />
+                  <View style={styles.placeholderCard} />
+                </View>
+              )}
+            </View>
+          </View>
         </View>
 
         <View style={styles.sectionCard}>
@@ -208,6 +235,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     ...shadow.subtle,
   },
+  heroContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  heroTextArea: {
+    flex: 1,
+  },
   heroEyebrow: {
     ...typography.eyebrow,
     color: colors.point,
@@ -238,6 +273,67 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "700",
+  },
+  heroVisual: {
+    width: 86,
+    height: 94,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroThumb: {
+    position: "absolute",
+    width: 48,
+    height: 66,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.card,
+    backgroundColor: colors.inactiveTab,
+  },
+  heroThumbPrimary: {
+    right: 7,
+    top: 8,
+    zIndex: 3,
+  },
+  heroThumbSecond: {
+    left: 4,
+    top: 19,
+    transform: [{ rotate: "-8deg" }],
+    zIndex: 2,
+  },
+  heroThumbThird: {
+    right: 0,
+    bottom: 6,
+    transform: [{ rotate: "7deg" }],
+    opacity: 0.9,
+    zIndex: 1,
+  },
+  heroPlaceholder: {
+    width: 70,
+    height: 82,
+    borderRadius: 22,
+    backgroundColor: colors.softCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderHook: {
+    width: 22,
+    height: 12,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderColor: colors.point,
+    borderTopLeftRadius: 12,
+    transform: [{ rotate: "35deg" }],
+    marginBottom: 7,
+  },
+  placeholderCard: {
+    width: 42,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   sectionCard: {
     backgroundColor: colors.card,
