@@ -1,3 +1,8 @@
+import BagIcon from "@/assets/icons/bag.svg";
+import JacketIcon from "@/assets/icons/jacket.svg";
+import PantsIcon from "@/assets/icons/pants.svg";
+import ShirtIcon from "@/assets/icons/shirt.svg";
+import ShoeIcon from "@/assets/icons/shoe.svg";
 import BottomNav from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
@@ -10,11 +15,11 @@ import { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 const CLOSET_CATEGORIES = [
-  { label: "상의", emoji: "👕" },
-  { label: "하의", emoji: "👖" },
-  { label: "신발", emoji: "👟" },
-  { label: "아우터", emoji: "🧥" },
-  { label: "액세서리", emoji: "👜" },
+  { label: "상의", Icon: ShirtIcon },
+  { label: "하의", Icon: PantsIcon },
+  { label: "신발", Icon: ShoeIcon },
+  { label: "아우터", Icon: JacketIcon },
+  { label: "액세서리", Icon: BagIcon },
 ];
 
 function getCategoryCount(items: ClosetItem[], category: string) {
@@ -24,7 +29,7 @@ function getCategoryCount(items: ClosetItem[], category: string) {
 export default function HomeScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
-  const [todayRecommendation, setTodayRecommendation] = useState<OutfitRecommendation | null>(null);
+  const [todayRecommendations, setTodayRecommendations] = useState<OutfitRecommendation[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,7 +43,7 @@ export default function HomeScreen() {
 
         setClosetItems(nextClosetItems);
         setSavedOutfits(nextSavedOutfits);
-        setTodayRecommendation(recommendationResult.recommendations[0] || null);
+        setTodayRecommendations(recommendationResult.recommendations.slice(0, 5));
       }
 
       loadDashboard();
@@ -141,9 +146,13 @@ export default function HomeScreen() {
                   })
                 }
               >
-                <View style={styles.countIconCircle}>
-                  <Text style={styles.countIcon}>{category.emoji}</Text>
-                </View>
+                const Icon = category.Icon;
+
+                <Icon
+                  width={24}
+                  height={24}
+                  color={colors.point}
+                />
 
                 <Text style={styles.countLabel}>{category.label}</Text>
 
@@ -175,41 +184,37 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {todayRecommendation ? (
-            <View style={styles.todayCard}>
-              <View style={styles.todayImageWrap}>
-                {todayRecommendation.items[0] ? (
-                  <Image
-                    source={{ uri: todayRecommendation.items[0].imageUri }}
-                    style={styles.todayMainImage}
-                  />
-                ) : null}
-              </View>
-
-              <View style={styles.todayInfo}>
-                <Text style={styles.todayTitle} numberOfLines={1}>
-                  {todayRecommendation.title}
-                </Text>
-
-                <Text style={styles.todayScore}>
-                  추천도 {todayRecommendation.score}점
-                </Text>
-
-                <View style={styles.tagRow}>
-                  {todayRecommendation.tags.slice(0, 2).map((tag) => (
-                    <Text key={tag} style={styles.tagText}>#{tag}</Text>
-                  ))}
-                </View>
-
+          {todayRecommendations.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recommendCarousel}
+            >
+              {todayRecommendations.map((recommendation) => (
                 <Pressable
-                  style={styles.todayButton}
+                  key={recommendation.id}
+                  style={styles.recommendCard}
                   onPress={() => router.push("/outfit-recommend")}
                 >
-                  <Text style={styles.todayButtonText}>추천 보기</Text>
-                  <Feather name="arrow-right" size={14} color={colors.card} />
+                  <Image
+                    source={{ uri: recommendation.items[0]?.imageUri }}
+                    style={styles.recommendImage}
+                  />
+
+                  <Text style={styles.recommendTitle} numberOfLines={1}>
+                    {recommendation.title}
+                  </Text>
+
+                  <View style={styles.recommendTagRow}>
+                    {recommendation.tags.slice(0, 2).map((tag) => (
+                      <Text key={tag} style={styles.recommendTag}>
+                        #{tag}
+                      </Text>
+                    ))}
+                  </View>
                 </Pressable>
-              </View>
-            </View>
+              ))}
+            </ScrollView>
           ) : (
             <Text style={styles.emptyText}>옷을 더 추가하면 추천을 받을 수 있어요.</Text>
           )}
@@ -457,14 +462,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 7,
+    marginBottom: 10,
   },
-
-  countIcon: {
-    fontSize: 16,
-  },
-
-
   countLabel: {
     color: colors.text,
     fontSize: 10,
@@ -556,6 +555,44 @@ const styles = StyleSheet.create({
     color: colors.card,
     fontSize: 12,
     fontWeight: "700",
+  },
+  recommendCarousel: {
+    gap: 10,
+    paddingRight: 20,
+  },
+
+  recommendCard: {
+    width: 104,
+  },
+
+  recommendImage: {
+    width: 104,
+    height: 104,
+    borderRadius: 14,
+    backgroundColor: colors.softCard,
+    marginBottom: 7,
+  },
+
+  recommendTitle: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: 5,
+  },
+
+  recommendTagRow: {
+    flexDirection: "row",
+    gap: 4,
+  },
+
+  recommendTag: {
+    backgroundColor: colors.softCard,
+    color: colors.point,
+    fontSize: 9,
+    fontWeight: "700",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
 
 });
