@@ -86,9 +86,14 @@ function RecommendationCard({
       <View style={styles.cardHeader}>
         <View>
           <Text style={styles.cardEyebrow}>OUTFIT {index + 1}</Text>
-          <Text style={styles.cardTitle}>{recommendation.grade} 등급</Text>
+          <Text style={styles.cardTitle}>{recommendation.title}</Text>
+          <View style={styles.recommendationTagRow}>
+            {recommendation.tags.slice(0, 2).map((tag) => (
+              <Text key={tag} style={styles.recommendationTagText}>#{tag}</Text>
+            ))}
+          </View>
           <Text style={styles.categorySummary}>
-            {getCategorySummary(recommendation.items)}
+            {recommendation.grade} 등급 · {getCategorySummary(recommendation.items)}
           </Text>
         </View>
 
@@ -454,6 +459,21 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 21,
     fontWeight: "900",
+  },
+  recommendationTagRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 8,
+    flexWrap: "wrap",
+  },
+  recommendationTagText: {
+    backgroundColor: "#F1E6D6",
+    color: "#8C6F47",
+    fontSize: 11,
+    fontWeight: "800",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   categorySummary: {
     color: "#6b6258",

@@ -62,6 +62,8 @@ function getRecommendationDisplay(items: ClosetItem[]) {
   const hasShirt = itemNames.includes("셔츠");
   const hasSlacks = itemNames.includes("슬랙스");
   const hasHoodOrSweatshirt = ["후드", "맨투맨"].some((keyword) => itemNames.includes(keyword));
+  const hasDenim = ["청바지", "데님"].some((keyword) => itemNames.includes(keyword))
+    || items.some((item) => item.color === "데님");
   const hasOuter = ["자켓", "재킷", "코트", "아우터", "블레이저", "가디건"].some((keyword) =>
     itemNames.includes(keyword)
   ) || items.some((item) => item.category === "아우터");
@@ -77,6 +79,13 @@ function getRecommendationDisplay(items: ClosetItem[]) {
     return {
       title: "캐주얼 편안한 룩",
       tags: ["편안함", "캐주얼"],
+    };
+  }
+
+  if (hasDenim) {
+    return {
+      title: "캐주얼 데님 룩",
+      tags: ["데님", "캐주얼"],
     };
   }
 
