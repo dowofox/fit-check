@@ -66,7 +66,7 @@ export default function HomeScreen() {
           </View>
 
           <Pressable style={styles.profileBadge} onPress={() => router.push("/profile")}>
-            <Feather name="user" size={18} color={colors.text} />
+            <Feather name="user" size={16} color={colors.text} />
           </Pressable>
         </View>
 
@@ -78,7 +78,7 @@ export default function HomeScreen() {
           </Text>
 
           <Pressable style={styles.heroButton} onPress={startAnalysis}>
-            <Feather name="camera" size={18} color="#fff" />
+            <Feather name="camera" size={15} color="#fff" />
             <Text style={styles.heroButtonText}>코디 분석하기</Text>
           </Pressable>
         </View>
@@ -168,30 +168,30 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 34,
+    paddingTop: 28,
     paddingHorizontal: 20,
-    paddingBottom: 88,
+    paddingBottom: 78,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.lg,
+    marginBottom: 14,
   },
   greeting: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "800",
   },
   greetingSub: {
     color: colors.subText,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
-    marginTop: 4,
+    marginTop: 3,
   },
   profileBadge: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     borderRadius: radius.round,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -202,56 +202,56 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: 22,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.lg,
+    marginBottom: 14,
     ...shadow.subtle,
   },
   heroEyebrow: {
     ...typography.eyebrow,
     color: colors.point,
-    marginBottom: spacing.sm,
+    marginBottom: 7,
   },
   heroTitle: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
   },
   heroText: {
     ...typography.body,
     color: colors.subText,
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
+    marginTop: 7,
+    marginBottom: 13,
   },
   heroButton: {
     alignSelf: "flex-start",
     backgroundColor: colors.text,
     borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
   },
   heroButtonText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
   },
   sectionCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.lg,
+    marginBottom: 14,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.md,
+    marginBottom: 10,
   },
   sectionTitle: {
     ...typography.cardTitle,
@@ -270,19 +270,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.softCard,
     borderRadius: radius.md,
-    paddingVertical: 12,
+    paddingVertical: 9,
     alignItems: "center",
   },
   countValue: {
     color: colors.text,
-    fontSize: 21,
+    fontSize: 18,
     fontWeight: "800",
   },
   countLabel: {
     color: colors.subText,
     fontSize: 12,
     fontWeight: "600",
-    marginTop: 4,
+    marginTop: 2,
   },
   linkText: {
     color: colors.point,
@@ -293,13 +293,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    marginBottom: 10,
   },
   scorePill: {
     backgroundColor: colors.softCard,
     borderRadius: radius.round,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
   },
   scoreText: {
     color: colors.text,
@@ -316,14 +316,14 @@ const styles = StyleSheet.create({
     paddingRight: 2,
   },
   recommendItem: {
-    width: 74,
+    width: 62,
   },
   recommendImage: {
-    width: 74,
-    height: 88,
+    width: 62,
+    height: 74,
     borderRadius: radius.md,
     backgroundColor: colors.inactiveTab,
-    marginBottom: 7,
+    marginBottom: 5,
   },
   recommendItemName: {
     color: colors.text,
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   savedCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: "row",
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     color: colors.subText,
     fontSize: 13,
     fontWeight: "600",
-    marginTop: 6,
+    marginTop: 4,
   },
   profileHint: {
     color: colors.point,
@@ -359,15 +359,15 @@ const styles = StyleSheet.create({
   savedButton: {
     backgroundColor: colors.text,
     borderRadius: radius.md,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
   savedButtonText: {
     color: "#fff",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
 });

@@ -59,7 +59,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={22} color="#111" />
+            <Feather name="chevron-left" size={18} color="#111" />
           </Pressable>
 
           <Text style={styles.headerTitle}>마이페이지</Text>
@@ -203,7 +203,7 @@ export default function ProfileScreen() {
 
         <View style={styles.infoCard}>
           <View style={styles.infoIconCircle}>
-            <Feather name="lock" size={16} color="#111" />
+            <Feather name="lock" size={14} color="#111" />
           </View>
           <Text style={styles.infoText}>
             입력한 정보는 내 기기 안에 저장됩니다. AI 분석 요청 시 개인화 기준으로 함께 사용됩니다.
@@ -228,19 +228,19 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     backgroundColor: "#F7F2EB",
-    paddingTop: 34,
+    paddingTop: 28,
     paddingHorizontal: 20,
-    paddingBottom: 88,
+    paddingBottom: 78,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: 999,
     backgroundColor: "#fff",
     alignItems: "center",
@@ -249,59 +249,59 @@ const styles = StyleSheet.create({
     borderColor: "#eee7dd",
   },
   headerBlank: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
   },
   headerTitle: {
     color: "#111",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     textAlign: "center",
   },
   formCard: {
     backgroundColor: "#fff",
     borderRadius: 24,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: "#f0eee9",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   sectionEyebrow: {
     color: "#9b7a4b",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.2,
-    marginBottom: 5,
+    marginBottom: 4,
   },
   sectionTitle: {
     color: "#111",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    marginBottom: 6,
+    marginBottom: 5,
   },
   sectionDescription: {
     color: "#6b6258",
     fontSize: 13,
     fontWeight: "500",
     lineHeight: 19,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   inputLabel: {
     color: "#5d554d",
     fontSize: 12,
     fontWeight: "700",
-    marginBottom: 7,
+    marginBottom: 5,
   },
   optionRow: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
+    gap: 6,
+    marginBottom: 11,
   },
   optionButton: {
     flex: 1,
     backgroundColor: "#fff",
-    borderRadius: 16,
-    paddingVertical: 11,
+    borderRadius: 14,
+    paddingVertical: 8,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#eee7dd",
@@ -320,12 +320,12 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 11,
   },
   inputRowLast: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
   },
   inputBox: {
     flex: 1,
@@ -334,19 +334,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textInputWrap: {
-    height: 48,
+    height: 42,
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#eee7dd",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
   },
   textInput: {
     flex: 1,
     color: "#111",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
   unitText: {
@@ -357,13 +357,13 @@ const styles = StyleSheet.create({
   bodyTypeGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 6,
   },
   bodyTypeButton: {
-    width: "47.8%",
+    width: "48.4%",
     backgroundColor: "#fff",
-    borderRadius: 16,
-    paddingVertical: 11,
+    borderRadius: 14,
+    paddingVertical: 8,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#eee7dd",
@@ -384,22 +384,22 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 15,
     fontWeight: "700",
-    marginTop: 18,
-    marginBottom: 11,
+    marginTop: 14,
+    marginBottom: 8,
   },
   infoCard: {
     backgroundColor: "#fff",
     borderRadius: 22,
-    padding: 14,
+    padding: 12,
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     borderWidth: 1,
     borderColor: "#f0eee9",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   infoIconCircle: {
-    width: 30,
-    height: 30,
+    width: 26,
+    height: 26,
     borderRadius: 999,
     backgroundColor: "#f0e7dc",
     alignItems: "center",
@@ -410,17 +410,17 @@ const styles = StyleSheet.create({
     color: "#5d554d",
     fontSize: 13,
     fontWeight: "500",
-    lineHeight: 19,
+    lineHeight: 18,
   },
   saveButton: {
     backgroundColor: "#111",
     borderRadius: 18,
-    paddingVertical: 13,
+    paddingVertical: 10,
     alignItems: "center",
   },
   saveButtonText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
   },
 });

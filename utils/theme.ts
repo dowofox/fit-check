@@ -30,10 +30,10 @@ export const spacing = {
 export const shadow = {
   subtle: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
   },
 };
 
@@ -44,11 +44,11 @@ export const typography = {
     letterSpacing: 1.3,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "800" as const,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700" as const,
   },
   body: {

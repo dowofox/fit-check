@@ -79,14 +79,14 @@ export default function ClosetScreen() {
                     </View>
 
                     <Pressable style={styles.addButton} onPress={() => router.push("/add-clothes")}>
-                        <Feather name="plus" size={20} color="#111" />
+                        <Feather name="plus" size={17} color="#111" />
                     </Pressable>
                 </View>
 
                 {items.length === 0 ? (
                     <View style={styles.emptyCard}>
                         <View style={styles.emptyIconCircle}>
-                            <Feather name="archive" size={26} color="#8c6f47" />
+                            <Feather name="archive" size={22} color="#8c6f47" />
                         </View>
 
                         <Text style={styles.emptyTitle}>
@@ -99,7 +99,7 @@ export default function ClosetScreen() {
                         </Text>
 
                         <Pressable style={styles.primaryButton} onPress={() => router.push("/add-clothes")}>
-                            <Feather name="plus" size={18} color="#fff" />
+                            <Feather name="plus" size={15} color="#fff" />
                             <Text style={styles.primaryButtonText}>
                                 옷 추가하기
                             </Text>
@@ -111,7 +111,7 @@ export default function ClosetScreen() {
                             style={styles.recommendButton}
                             onPress={() => router.push("/outfit-recommend")}
                         >
-                            <Feather name="layers" size={18} color="#fff" />
+                            <Feather name="layers" size={15} color="#fff" />
                             <Text style={styles.recommendButtonText}>코디 추천 받기</Text>
                         </Pressable>
 
@@ -119,7 +119,7 @@ export default function ClosetScreen() {
                             style={styles.savedOutfitsButton}
                             onPress={() => router.push("/saved-outfits")}
                         >
-                            <Feather name="bookmark" size={18} color="#111" />
+                            <Feather name="bookmark" size={15} color="#111" />
                             <Text style={styles.savedOutfitsButtonText}>저장한 코디</Text>
                         </Pressable>
 
@@ -212,7 +212,7 @@ export default function ClosetScreen() {
                                         style={styles.deleteButton}
                                         onPress={() => handleDeleteItem(item.id)}
                                     >
-                                        <Feather name="trash-2" size={13} color="#B45309" />
+                                        <Feather name="trash-2" size={11} color="#B45309" />
                                     </Pressable>
 
                                     <Text style={styles.closetCategory}>
@@ -238,16 +238,16 @@ const styles = StyleSheet.create({
     screen: { flex: 1, backgroundColor: "#F7F2EB" },
     container: {
         flexGrow: 1,
-        paddingTop: 34,
+        paddingTop: 28,
         paddingHorizontal: 20,
-        paddingBottom: 88,
+        paddingBottom: 78,
     },
 
     headerRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: 18,
+        marginBottom: 14,
     },
 
     headerEyebrow: {
@@ -260,13 +260,13 @@ const styles = StyleSheet.create({
 
     headerTitle: {
         color: "#111",
-        fontSize: 25,
+        fontSize: 22,
         fontWeight: "800",
     },
 
     addButton: {
-        width: 38,
-        height: 38,
+        width: 34,
+        height: 34,
         borderRadius: 999,
         backgroundColor: "#fff",
         borderWidth: 1,
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     emptyCard: {
         backgroundColor: "#fff",
         borderRadius: 24,
-        padding: 20,
+        padding: 16,
         alignItems: "center",
         borderWidth: 1,
         borderColor: "#f0eee9",
@@ -290,8 +290,8 @@ const styles = StyleSheet.create({
     },
 
     emptyIconCircle: {
-        width: 54,
-        height: 54,
+        width: 46,
+        height: 46,
         borderRadius: 999,
         backgroundColor: "#f0e7dc",
         borderWidth: 1,
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     },
 
     emptyTitle: {
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: "700",
         color: "#111",
         marginBottom: 8,
@@ -314,14 +314,14 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         fontWeight: "500",
         textAlign: "center",
-        marginBottom: 20,
+        marginBottom: 15,
     },
 
     primaryButton: {
         backgroundColor: "#111",
         borderRadius: 999,
-        paddingVertical: 12,
-        paddingHorizontal: 18,
+        paddingVertical: 9,
+        paddingHorizontal: 14,
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
@@ -329,22 +329,22 @@ const styles = StyleSheet.create({
 
     primaryButtonText: {
         color: "#fff",
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: "700",
     },
     recommendButton: {
         backgroundColor: "#111",
         borderRadius: 18,
-        paddingVertical: 12,
+        paddingVertical: 10,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
         gap: 8,
-        marginBottom: 16,
+        marginBottom: 10,
     },
     recommendButtonText: {
         color: "#fff",
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: "700",
     },
     savedOutfitsButton: {
@@ -352,35 +352,35 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         borderWidth: 1,
         borderColor: "#eee7dd",
-        paddingVertical: 12,
+        paddingVertical: 10,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
         gap: 8,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     savedOutfitsButtonText: {
         color: "#111",
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: "700",
     },
     filterRow: {
-        gap: 8,
+        gap: 6,
         paddingRight: 2,
-        marginBottom: 14,
+        marginBottom: 10,
     },
     detailFilterRow: {
-        gap: 8,
+        gap: 6,
         paddingRight: 2,
-        marginBottom: 14,
+        marginBottom: 10,
     },
     filterChip: {
         backgroundColor: "#fff",
         borderWidth: 1,
         borderColor: "#eee7dd",
         borderRadius: 999,
-        paddingVertical: 7,
-        paddingHorizontal: 12,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
     },
     filterChipActive: {
         backgroundColor: "#111",
@@ -388,29 +388,29 @@ const styles = StyleSheet.create({
     },
     filterText: {
         color: "#111",
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: "700",
     },
     filterTextActive: {
         color: "#fff",
     },
     countText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: "700",
         color: "#111",
-        marginBottom: 14,
+        marginBottom: 10,
     },
 
     closetGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 10,
+        gap: 8,
     },
 
     closetCard: {
         width: "47%",
         backgroundColor: "#fff",
-        borderRadius: 18,
+        borderRadius: 16,
         overflow: "hidden",
         borderWidth: 1,
         borderColor: "#f0eee9",
@@ -418,30 +418,30 @@ const styles = StyleSheet.create({
 
     closetImage: {
         width: "100%",
-        height: 148,
+        height: 122,
         backgroundColor: "#ddd",
     },
 
     closetCategory: {
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: "700",
         color: "#111",
-        paddingHorizontal: 12,
-        paddingTop: 9,
+        paddingHorizontal: 10,
+        paddingTop: 7,
     },
 
     closetSubText: {
-        fontSize: 13,
+        fontSize: 11,
         color: "#777064",
-        paddingHorizontal: 12,
-        paddingBottom: 10,
+        paddingHorizontal: 10,
+        paddingBottom: 8,
     },
     deleteButton: {
         position: "absolute",
-        top: 7,
-        right: 7,
-        width: 26,
-        height: 26,
+        top: 6,
+        right: 6,
+        width: 20,
+        height: 20,
         borderRadius: 999,
         backgroundColor: "#F8EFE5",
         alignItems: "center",
