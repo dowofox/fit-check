@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 24,
+    paddingTop: 34,
     paddingHorizontal: 20,
     paddingBottom: 96,
   },
@@ -279,14 +279,16 @@ const styles = StyleSheet.create({
   },
   logoText: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
   bellButton: {
     width: 32,
     height: 32,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 2,
   },
   greetingArea: {
     marginBottom: 24,
@@ -583,5 +585,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  
+
 });
