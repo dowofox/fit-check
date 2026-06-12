@@ -194,9 +194,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 42,
+    paddingTop: 24,
     paddingHorizontal: 20,
-    paddingBottom: 78,
+    paddingBottom: 96,
   },
   header: {
     flexDirection: "row",
@@ -248,7 +248,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    height: "100%",
   },
   heroTextArea: {
     flex: 1,
