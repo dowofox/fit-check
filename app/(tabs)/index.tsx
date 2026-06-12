@@ -135,15 +135,8 @@ export default function HomeScreen() {
           <View style={styles.closetGrid}>
             {CLOSET_CATEGORIES.map((category) => (
               <View key={category.label} style={styles.countTile}>
-                <Text style={styles.categoryEmoji}>
-                  {category.emoji}
-                </Text>
-
                 <Text style={styles.countValue}>
-                  {getCategoryCount(
-                    closetItems,
-                    category.label
-                  )}
+                  {getCategoryCount(closetItems, category.label)}
                 </Text>
 
                 <Text style={styles.countLabel}>
@@ -271,7 +264,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 14,
+  },
+
+  linkText: {
+    color: "#A48763",
+    fontSize: 13,
+    fontWeight: "700",
   },
   sectionTitle: {
     ...typography.cardTitle,
@@ -284,27 +283,22 @@ const styles = StyleSheet.create({
   },
   closetGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
   },
   countTile: {
-    width: "48.5%",
+    flex: 1,
+
     backgroundColor: "#FBF8F3",
-    borderRadius: 22,
-    padding: 16,
+
+    borderRadius: 20,
+
+    paddingVertical: 18,
+
+    alignItems: "center",
+
     borderWidth: 1,
-    borderColor: "#EFE6DA",
-
-    shadowColor: "#000",
-    shadowOpacity: 0.035,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    elevation: 1,
+    borderColor: "#EEE6DB",
   },
-
   categoryEmoji: {
     fontSize: 22,
     marginBottom: 8,
@@ -312,21 +306,19 @@ const styles = StyleSheet.create({
 
   countValue: {
     color: "#111",
-    fontSize: 26,
-    fontWeight: "800",
-    marginTop: 12,
-  },
 
+    fontSize: 28,
+
+    fontWeight: "800",
+  },
   countLabel: {
     color: "#6D675F",
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  linkText: {
-    color: colors.point,
-    fontSize: 13,
-    fontWeight: "700",
+
+    fontSize: 14,
+
+    fontWeight: "600",
+
+    marginTop: 8,
   },
   recommendHeader: {
     flexDirection: "row",
