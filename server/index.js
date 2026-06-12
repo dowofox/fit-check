@@ -12,6 +12,16 @@ const { promisify } = require("util");
 const app = express();
 const PORT = 3001;
 const execFileAsync = promisify(execFile);
+const MIN_REMBG_FILE_SIZE_RATIO = 0.2;
+const MIN_NON_TRANSPARENT_PIXEL_RATIO = 0.03;
+
+let sharp = null;
+
+try {
+  sharp = require("sharp");
+} catch {
+  console.log("[background-remove] sharp is not installed, skipping alpha pixel ratio check");
+}
 
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
@@ -144,7 +154,7 @@ function getImageFileInfo(imageMimeType) {
 
 function getRembgCommand(inputPath, outputPath) {
   const rembgCommand = process.env.REMBG_COMMAND;
-  const rembgModel = process.env.REMBG_MODEL || "u2net_cloth_seg";
+  const rembgModel = process.env.REMBG_MODEL || "u2net";
   const rembgArgs = ["i", "-m", rembgModel, inputPath, outputPath];
 
   if (rembgCommand) {
@@ -168,6 +178,26 @@ async function removeTempDirectory(tempDirectory) {
   } catch (error) {
     console.error("[background-remove] temp cleanup error", error);
   }
+}
+
+async function getNonTransparentPixelRatio(imageBuffer) {
+  if (!sharp) return null;
+
+  const { data, info } = await sharp(imageBuffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const totalPixels = info.width * info.height;
+
+  if (totalPixels === 0) return 0;
+
+  let nonTransparentPixels = 0;
+
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] > 0) nonTransparentPixels += 1;
+  }
+
+  return nonTransparentPixels / totalPixels;
 }
 
 async function removeClothesBackground(imageBase64, imageMimeType) {
@@ -198,10 +228,29 @@ async function removeClothesBackground(imageBase64, imageMimeType) {
 
     const resultBuffer = await fs.readFile(outputPath);
 
-    if (resultBuffer.length < 10 * 1024) {
-      console.error("[background-remove] result too small, fallback to original image", {
+    const fileSizeRatio = resultBuffer.length / imageBuffer.length;
+
+    if (fileSizeRatio < MIN_REMBG_FILE_SIZE_RATIO) {
+      console.error("[background-remove] failed: file too small", {
+        reason: "file too small",
+        originalByteLength: imageBuffer.length,
         byteLength: resultBuffer.length,
-        minByteLength: 10 * 1024,
+        fileSizeRatio,
+        minFileSizeRatio: MIN_REMBG_FILE_SIZE_RATIO,
+      });
+      return null;
+    }
+
+    const nonTransparentPixelRatio = await getNonTransparentPixelRatio(resultBuffer);
+
+    if (
+      nonTransparentPixelRatio !== null &&
+      nonTransparentPixelRatio < MIN_NON_TRANSPARENT_PIXEL_RATIO
+    ) {
+      console.error("[background-remove] failed: transparent pixel ratio too low", {
+        reason: "transparent pixel ratio too low",
+        nonTransparentPixelRatio,
+        minNonTransparentPixelRatio: MIN_NON_TRANSPARENT_PIXEL_RATIO,
       });
       return null;
     }
@@ -211,6 +260,8 @@ async function removeClothesBackground(imageBase64, imageMimeType) {
       hasBase64: Boolean(cleanImageBase64),
       base64Length: cleanImageBase64?.length || 0,
       byteLength: resultBuffer.length,
+      fileSizeRatio,
+      nonTransparentPixelRatio,
     });
     console.log("배경제거 결과:", cleanImageBase64 ? "성공" : "결과 없음");
 
