@@ -9,7 +9,12 @@ import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const CLOSET_CATEGORIES = ["상의", "하의", "신발", "아우터"];
+const CLOSET_CATEGORIES = [
+  { label: "상의", emoji: "👕" },
+  { label: "하의", emoji: "👖" },
+  { label: "신발", emoji: "👟" },
+  { label: "아우터", emoji: "🧥" },
+];
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
@@ -129,12 +134,30 @@ export default function HomeScreen() {
 
           <View style={styles.closetGrid}>
             {CLOSET_CATEGORIES.map((category) => (
-              <View key={category} style={styles.countTile}>
-                <Text style={styles.countLabel}>{category}</Text>
+              <View key={category.label} style={styles.countTile}>
+                <View style={styles.countLeft}>
+                  <View style={styles.countIconCircle}>
+                    <Text style={styles.countIcon}>
+                      {category.emoji}
+                    </Text>
+                  </View>
 
-                <Text style={styles.countValue}>
-                  {getCategoryCount(closetItems, category)}
-                </Text>
+                  <View>
+                    <Text style={styles.countLabel}>
+                      {category.label}
+                    </Text>
+
+                    <Text style={styles.countValue}>
+                      {getCategoryCount(closetItems, category.label)}개
+                    </Text>
+                  </View>
+                </View>
+
+                <Feather
+                  name="chevron-right"
+                  size={18}
+                  color="#A48763"
+                />
               </View>
             ))}
           </View>
@@ -276,31 +299,22 @@ const styles = StyleSheet.create({
   },
   closetGrid: {
     flexDirection: "row",
-    gap: 8,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 10,
   },
 
   countTile: {
-    flex: 1,
+    width: "48%",
+    height: 72,
     backgroundColor: "#FBF8F3",
-    borderRadius: 16,
-    height: 86,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     borderWidth: 1,
     borderColor: "#EFE7DD",
-  },
-
-  countValue: {
-    color: "#111",
-    fontSize: 24,
-    fontWeight: "800",
-    marginTop: 4,
-  },
-
-  countLabel: {
-    color: "#6D675F",
-    fontSize: 12,
-    fontWeight: "700",
   },
   recommendHeader: {
     flexDirection: "row",
@@ -445,5 +459,36 @@ const styles = StyleSheet.create({
     color: colors.point,
     fontSize: 12,
     fontWeight: "600",
+  },
+  countLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  countIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    backgroundColor: "#F1E6D6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  countIcon: {
+    fontSize: 20,
+  },
+
+  countLabel: {
+    color: "#3A3128",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  countValue: {
+    color: "#111",
+    fontSize: 22,
+    fontWeight: "800",
+    marginTop: 2,
   },
 });
