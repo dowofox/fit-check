@@ -53,47 +53,57 @@ function getItemLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category || "아이템";
 }
 
-function getRecommendationDisplay(items: ClosetItem[]) {
+function getRecommendationDisplay(items: ClosetItem[], currentSeason: string) {
   const itemNames = items
     .map((item) => `${item.detailCategory || ""} ${item.subCategory || ""} ${item.category || ""}`)
     .join(" ");
 
   const styles = items.map((item) => item.style).filter(Boolean);
-  const seasons = items.map((item) => item.season).filter(Boolean);
   const colors = items.map((item) => item.color).filter(Boolean);
 
   const hasDenim = ["청바지", "데님"].some((keyword) => itemNames.includes(keyword));
   const hasHoodOrSweatshirt = ["후드", "맨투맨"].some((keyword) => itemNames.includes(keyword));
   const hasShirt = itemNames.includes("셔츠");
   const hasSlacks = itemNames.includes("슬랙스");
+  const hasMinimalStyle = styles.some((style) => ["미니멀", "모던", "클래식"].includes(style || ""));
   const hasOuter = ["자켓", "재킷", "코트", "아우터", "블레이저", "가디건"].some((keyword) =>
     itemNames.includes(keyword)
-  );
+  ) || items.some((item) => item.category === "아우터");
 
-  const seasonWord =
-    seasons.some((season) => season?.includes("봄")) ? "봄날" :
-      seasons.some((season) => season?.includes("여름")) ? "여름" :
-        seasons.some((season) => season?.includes("가을")) ? "가을" :
-          seasons.some((season) => season?.includes("겨울")) ? "겨울" :
-            "오늘의";
+  const seasonalTag =
+    currentSeason === "봄" ? "봄" :
+      currentSeason === "여름" ? "여름" :
+        currentSeason === "가을" ? "가을" :
+          "겨울";
+  const seasonalTitlePrefix =
+    currentSeason === "봄" ? "봄날" :
+      currentSeason === "여름" ? "여름" :
+        currentSeason === "가을" ? "가을" :
+          "겨울";
+  const seasonalMood =
+    currentSeason === "봄" ? "산책" :
+      currentSeason === "여름" ? "데일리" :
+        currentSeason === "가을" ? "카페" :
+          "데이트";
 
-  const moodWord =
-    hasShirt && hasSlacks ? "깔끔한" :
-      hasHoodOrSweatshirt ? "편안한" :
-        hasDenim ? "가벼운" :
-          hasOuter ? "분위기 있는" :
-            "데일리";
+  let title = `${seasonalTitlePrefix} ${seasonalMood} 코디`;
 
-  const sceneWord =
-    hasShirt && hasSlacks ? "데이트" :
-      hasHoodOrSweatshirt ? "주말" :
-        hasDenim ? "산책" :
-          hasOuter ? "남친룩" :
-            "외출";
-
-  const title = `${seasonWord} ${sceneWord} 코디`;
+  if ((hasShirt && hasSlacks) || hasMinimalStyle) {
+    title = `${seasonalTitlePrefix} 미니멀 데일리 룩`;
+  } else if (hasHoodOrSweatshirt) {
+    title = `${seasonalTitlePrefix} 캐주얼 편안한 룩`;
+  } else if (hasDenim) {
+    title = `${seasonalTitlePrefix} 캐주얼 데님 룩`;
+  } else if (hasOuter) {
+    title = currentSeason === "겨울"
+      ? "겨울 데이트 코디"
+      : `${seasonalTitlePrefix} 아우터 룩`;
+  }
 
   const tags = [
+    seasonalTag,
+    currentSeason === "여름" ? "가벼움" : null,
+    currentSeason === "겨울" ? "따뜻함" : null,
     hasDenim ? "데님" : null,
     hasHoodOrSweatshirt ? "편안함" : null,
     hasShirt || hasSlacks ? "깔끔함" : null,
@@ -209,6 +219,31 @@ function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
   return UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason);
 }
 
+function getSeasonMatchedItems(items: ClosetItem[], currentSeason: string) {
+  return items.filter((item) => isSeasonCandidate(item, currentSeason));
+}
+
+function getSeasonPriority(item: ClosetItem, currentSeason: string) {
+  const season = item.season?.trim();
+
+  if (!season) return 1;
+  if (UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason)) return 2;
+  return 0;
+}
+
+function sortBySeasonPriority(items: ClosetItem[], currentSeason: string) {
+  return [...items].sort((first, second) => {
+    const seasonDiff = getSeasonPriority(second, currentSeason) - getSeasonPriority(first, currentSeason);
+
+    if (seasonDiff !== 0) return seasonDiff;
+
+    const firstCreatedAt = new Date(first.createdAt).getTime();
+    const secondCreatedAt = new Date(second.createdAt).getTime();
+
+    return (Number.isNaN(secondCreatedAt) ? 0 : secondCreatedAt) - (Number.isNaN(firstCreatedAt) ? 0 : firstCreatedAt);
+  });
+}
+
 function getColorScore(items: ClosetItem[], reasons: string[], warnings: string[]) {
   const colors = uniqueValues(items.map((item) => item.color));
   const basicColorCount = colors.filter((color) => BASIC_COLORS.includes(color)).length;
@@ -260,11 +295,15 @@ function hasMatchingStyle(item: ClosetItem, baseItems: ClosetItem[]) {
   });
 }
 
-function getOptionalScore(items: ClosetItem[], reasons: string[], warnings: string[]) {
+function getOptionalScore(items: ClosetItem[], currentSeason: string, reasons: string[], warnings: string[]) {
   const baseItems = items.filter((item) => ["상의", "하의", "신발"].includes(item.category));
   const outer = items.find((item) => item.category === "아우터");
   const accessories = items.filter((item) => item.category === "액세서리");
   let score = 0;
+
+  if (currentSeason === "겨울" && !outer) {
+    warnings.push("겨울 코디인데 아우터가 없어 보온성과 완성도가 부족할 수 있어요.");
+  }
 
   if (outer) {
     const hasStyle = Boolean(outer.style);
@@ -280,6 +319,11 @@ function getOptionalScore(items: ClosetItem[], reasons: string[], warnings: stri
     } else {
       score += 0;
       warnings.push("아우터 색상/스타일 정보가 부족해요.");
+    }
+
+    if (currentSeason === "겨울") {
+      score += 2;
+      reasons.push("겨울에는 아우터가 포함되어 코디 완성도와 계절감이 좋아요.");
     }
   }
 
@@ -403,7 +447,7 @@ function buildRecommendation(
   const style = getStyleScore(items, reasons);
   const color = getColorScore(items, reasons, warnings);
   const fit = getFitScore(top, bottom, reasons, warnings);
-  const optional = getOptionalScore(items, reasons, warnings);
+  const optional = getOptionalScore(items, currentSeason, reasons, warnings);
   const hasSizeWarning = warnings.some((warning) =>
     ["작을 수 있어요", "사이즈를 직접 확인해보세요", "사이즈 정보가 더 필요해요"].some((keyword) =>
       warning.includes(keyword)
@@ -431,7 +475,7 @@ function buildRecommendation(
   const warningPenalty = getWarningPenalty(warnings);
   const rawScore = category + style + color + fit + optional;
   const score = Math.max(0, rawScore - warningPenalty);
-  const display = getRecommendationDisplay(items);
+  const display = getRecommendationDisplay(items, currentSeason);
 
   if (score < 70 && reasons.length > 0) {
     reasons.push("전체적으로 무난할 수는 있지만 강한 추천 조합은 아니에요.");
@@ -665,11 +709,11 @@ function buildRecommendationCandidates(
   profile?: UserProfile | null,
   currentSeason = getCurrentSeason()
 ) {
-  const seasonItems = items.filter((item) => isSeasonCandidate(item, currentSeason));
-  const tops = byCategory(seasonItems, "상의");
-  const bottoms = byCategory(seasonItems, "하의");
-  const shoes = byCategory(seasonItems, "신발");
-  const outers = byCategory(seasonItems, "아우터");
+  const seasonItems = getSeasonMatchedItems(items, currentSeason);
+  const tops = sortBySeasonPriority(byCategory(seasonItems, "상의"), currentSeason);
+  const bottoms = sortBySeasonPriority(byCategory(seasonItems, "하의"), currentSeason);
+  const shoes = sortBySeasonPriority(byCategory(seasonItems, "신발"), currentSeason);
+  const outers = sortBySeasonPriority(byCategory(seasonItems, "아우터"), currentSeason);
   const accessories = getAccessoryCandidates(byCategory(seasonItems, "액세서리"));
   const recommendations: OutfitRecommendation[] = [];
   const fitSuitabilityCache = new Map<string, ReturnType<typeof getFitSuitability>>();
