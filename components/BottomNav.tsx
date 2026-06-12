@@ -1,8 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { hideAndroidNavigationBar, useHideAndroidNavigationBar } from "@/utils/navigationBar";
 import { colors, radius, shadow } from "@/utils/theme";
 
 const ACTIVE_COLOR = colors.point;
@@ -22,13 +22,7 @@ function NavItem({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={styles.navItem}
-      onPress={async () => {
-        await hideAndroidNavigationBar();
-        onPress();
-      }}
-    >
+    <Pressable style={styles.navItem} onPress={onPress}>
       <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
         <Feather name={icon} size={17} color={active ? ACTIVE_COLOR : INACTIVE_COLOR} />
       </View>
@@ -38,20 +32,14 @@ function NavItem({
 }
 
 export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
-  useHideAndroidNavigationBar();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.bottomNavWrap}>
+    <View style={[styles.bottomNavWrap, { paddingBottom: Math.max(insets.bottom, 8) }]}> 
       <View style={styles.bottomNav}>
         <NavItem active={activeTab === "home"} icon="home" label="홈" onPress={() => router.replace("/")} />
         <NavItem active={activeTab === "closet"} icon="book-open" label="옷장" onPress={() => router.push("/closet")} />
-        <Pressable
-          style={styles.centerButton}
-          onPress={async () => {
-            await hideAndroidNavigationBar();
-            router.push("/add-clothes");
-          }}
-        >
+        <Pressable style={styles.centerButton} onPress={() => router.push("/add-clothes")}>
           <Feather name="plus" size={21} color={colors.card} />
         </Pressable>
         <NavItem active={activeTab === "outfit"} icon="star" label="코디" onPress={() => router.push("/outfit")} />
