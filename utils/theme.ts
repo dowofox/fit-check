@@ -30,9 +30,9 @@ export const spacing = {
 export const shadow = {
   subtle: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
     elevation: 2,
   },
 };
@@ -40,20 +40,20 @@ export const shadow = {
 export const typography = {
   eyebrow: {
     fontSize: 11,
-    fontWeight: "900" as const,
+    fontWeight: "800" as const,
     letterSpacing: 1.3,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "900" as const,
+    fontSize: 26,
+    fontWeight: "800" as const,
   },
   cardTitle: {
-    fontSize: 19,
-    fontWeight: "900" as const,
+    fontSize: 18,
+    fontWeight: "700" as const,
   },
   body: {
     fontSize: 14,
-    fontWeight: "700" as const,
-    lineHeight: 22,
+    fontWeight: "500" as const,
+    lineHeight: 21,
   },
 };

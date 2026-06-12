@@ -27,7 +27,7 @@ function NavItem({
       }}
     >
       <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
-        <Feather name={icon} size={19} color={active ? colors.text : colors.subText} />
+        <Feather name={icon} size={17} color={active ? colors.text : colors.subText} />
       </View>
       <Text style={active ? styles.navTextActive : styles.navText}>{label}</Text>
     </Pressable>
@@ -63,24 +63,24 @@ const styles = StyleSheet.create({
     ...shadow.subtle,
   },
   bottomNav: {
-    height: 64,
+    height: 56,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingTop: 7,
-    paddingBottom: 5,
+    paddingHorizontal: 12,
+    paddingTop: 5,
+    paddingBottom: 4,
   },
   navItem: {
     flex: 1,
-    height: 52,
+    height: 46,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
+    gap: 2,
     position: "relative",
   },
   iconWrap: {
-    width: 34,
-    height: 28,
+    width: 30,
+    height: 24,
     borderRadius: radius.round,
     alignItems: "center",
     justifyContent: "center",
@@ -90,12 +90,12 @@ const styles = StyleSheet.create({
   },
   navTextActive: {
     color: colors.text,
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 9,
+    fontWeight: "700",
   },
   navText: {
     color: colors.subText,
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 9,
+    fontWeight: "700",
   },
 });

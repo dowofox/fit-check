@@ -212,7 +212,7 @@ export default function ClosetScreen() {
                                         style={styles.deleteButton}
                                         onPress={() => handleDeleteItem(item.id)}
                                     >
-                                        <Feather name="trash-2" size={15} color="#991b1b" />
+                                        <Feather name="trash-2" size={13} color="#B45309" />
                                     </Pressable>
 
                                     <Text style={styles.closetCategory}>
@@ -235,12 +235,12 @@ export default function ClosetScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: "#f5f2ee" },
+    screen: { flex: 1, backgroundColor: "#F7F2EB" },
     container: {
         flexGrow: 1,
         paddingTop: 34,
         paddingHorizontal: 20,
-        paddingBottom: 104,
+        paddingBottom: 88,
     },
 
     headerRow: {
@@ -253,21 +253,20 @@ const styles = StyleSheet.create({
     headerEyebrow: {
         color: "#9b7a4b",
         fontSize: 11,
-        fontWeight: "900",
+        fontWeight: "800",
         letterSpacing: 1.4,
         marginBottom: 3,
     },
 
     headerTitle: {
         color: "#111",
-        fontSize: 29,
-        fontWeight: "900",
-        letterSpacing: -0.8,
+        fontSize: 25,
+        fontWeight: "800",
     },
 
     addButton: {
-        width: 42,
-        height: 42,
+        width: 38,
+        height: 38,
         borderRadius: 999,
         backgroundColor: "#fff",
         borderWidth: 1,
@@ -277,22 +276,22 @@ const styles = StyleSheet.create({
     },
 
     emptyCard: {
-        backgroundColor: "#faf8f5",
-        borderRadius: 28,
-        padding: 22,
+        backgroundColor: "#fff",
+        borderRadius: 24,
+        padding: 20,
         alignItems: "center",
         borderWidth: 1,
         borderColor: "#f0eee9",
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.045,
-        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
         elevation: 2,
     },
 
     emptyIconCircle: {
-        width: 62,
-        height: 62,
+        width: 54,
+        height: 54,
         borderRadius: 999,
         backgroundColor: "#f0e7dc",
         borderWidth: 1,
@@ -304,7 +303,7 @@ const styles = StyleSheet.create({
 
     emptyTitle: {
         fontSize: 20,
-        fontWeight: "900",
+        fontWeight: "700",
         color: "#111",
         marginBottom: 8,
     },
@@ -313,7 +312,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: "#6b6258",
         lineHeight: 22,
-        fontWeight: "700",
+        fontWeight: "500",
         textAlign: "center",
         marginBottom: 20,
     },
@@ -321,8 +320,8 @@ const styles = StyleSheet.create({
     primaryButton: {
         backgroundColor: "#111",
         borderRadius: 999,
-        paddingVertical: 14,
-        paddingHorizontal: 20,
+        paddingVertical: 12,
+        paddingHorizontal: 18,
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
@@ -330,13 +329,13 @@ const styles = StyleSheet.create({
 
     primaryButtonText: {
         color: "#fff",
-        fontSize: 15,
-        fontWeight: "900",
+        fontSize: 14,
+        fontWeight: "700",
     },
     recommendButton: {
         backgroundColor: "#111",
         borderRadius: 18,
-        paddingVertical: 15,
+        paddingVertical: 12,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
@@ -345,15 +344,15 @@ const styles = StyleSheet.create({
     },
     recommendButtonText: {
         color: "#fff",
-        fontSize: 15,
-        fontWeight: "900",
+        fontSize: 14,
+        fontWeight: "700",
     },
     savedOutfitsButton: {
         backgroundColor: "#fff",
         borderRadius: 18,
         borderWidth: 1,
         borderColor: "#eee7dd",
-        paddingVertical: 15,
+        paddingVertical: 12,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
@@ -362,8 +361,8 @@ const styles = StyleSheet.create({
     },
     savedOutfitsButtonText: {
         color: "#111",
-        fontSize: 15,
-        fontWeight: "900",
+        fontSize: 14,
+        fontWeight: "700",
     },
     filterRow: {
         gap: 8,
@@ -380,8 +379,8 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#eee7dd",
         borderRadius: 999,
-        paddingVertical: 9,
-        paddingHorizontal: 15,
+        paddingVertical: 7,
+        paddingHorizontal: 12,
     },
     filterChipActive: {
         backgroundColor: "#111",
@@ -389,15 +388,15 @@ const styles = StyleSheet.create({
     },
     filterText: {
         color: "#111",
-        fontSize: 13,
-        fontWeight: "900",
+        fontSize: 12,
+        fontWeight: "700",
     },
     filterTextActive: {
         color: "#fff",
     },
     countText: {
-        fontSize: 18,
-        fontWeight: "900",
+        fontSize: 16,
+        fontWeight: "700",
         color: "#111",
         marginBottom: 14,
     },
@@ -405,13 +404,13 @@ const styles = StyleSheet.create({
     closetGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 12,
+        gap: 10,
     },
 
     closetCard: {
         width: "47%",
         backgroundColor: "#fff",
-        borderRadius: 20,
+        borderRadius: 18,
         overflow: "hidden",
         borderWidth: 1,
         borderColor: "#f0eee9",
@@ -419,35 +418,35 @@ const styles = StyleSheet.create({
 
     closetImage: {
         width: "100%",
-        height: 180,
+        height: 148,
         backgroundColor: "#ddd",
     },
 
     closetCategory: {
         fontSize: 15,
-        fontWeight: "900",
+        fontWeight: "700",
         color: "#111",
         paddingHorizontal: 12,
-        paddingTop: 10,
+        paddingTop: 9,
     },
 
     closetSubText: {
         fontSize: 13,
-        color: "#777",
+        color: "#777064",
         paddingHorizontal: 12,
-        paddingBottom: 12,
+        paddingBottom: 10,
     },
     deleteButton: {
         position: "absolute",
-        top: 8,
-        right: 8,
-        width: 30,
-        height: 30,
+        top: 7,
+        right: 7,
+        width: 26,
+        height: 26,
         borderRadius: 999,
-        backgroundColor: "#fee2e2",
+        backgroundColor: "#F8EFE5",
         alignItems: "center",
         justifyContent: "center",
         borderWidth: 1,
-        borderColor: "#fecaca",
+        borderColor: "#F0D8C6",
     },
 });

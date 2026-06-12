@@ -168,9 +168,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 38,
+    paddingTop: 34,
     paddingHorizontal: 20,
-    paddingBottom: 104,
+    paddingBottom: 88,
   },
   header: {
     flexDirection: "row",
@@ -180,18 +180,18 @@ const styles = StyleSheet.create({
   },
   greeting: {
     color: colors.text,
-    fontSize: 25,
-    fontWeight: "900",
+    fontSize: 24,
+    fontWeight: "800",
   },
   greetingSub: {
     color: colors.subText,
-    fontSize: 14,
-    fontWeight: "800",
-    marginTop: 5,
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 4,
   },
   profileBadge: {
-    width: 42,
-    height: 42,
+    width: 38,
+    height: 38,
     borderRadius: radius.round,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: spacing.xl,
+    padding: 22,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.lg,
@@ -215,9 +215,8 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: colors.text,
-    fontSize: 30,
-    fontWeight: "900",
-    letterSpacing: -0.4,
+    fontSize: 28,
+    fontWeight: "800",
   },
   heroText: {
     ...typography.body,
@@ -229,21 +228,21 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     backgroundColor: colors.text,
     borderRadius: radius.md,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
   },
   heroButtonText: {
     color: "#fff",
-    fontSize: 15,
-    fontWeight: "900",
+    fontSize: 14,
+    fontWeight: "700",
   },
   sectionCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: spacing.lg,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.lg,
@@ -261,7 +260,7 @@ const styles = StyleSheet.create({
   sectionMeta: {
     color: colors.subText,
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   closetGrid: {
     flexDirection: "row",
@@ -271,24 +270,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.softCard,
     borderRadius: radius.md,
-    paddingVertical: 15,
+    paddingVertical: 12,
     alignItems: "center",
   },
   countValue: {
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
+    fontSize: 21,
+    fontWeight: "800",
   },
   countLabel: {
     color: colors.subText,
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "600",
     marginTop: 4,
   },
   linkText: {
     color: colors.point,
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   recommendHeader: {
     flexDirection: "row",
@@ -299,29 +298,29 @@ const styles = StyleSheet.create({
   scorePill: {
     backgroundColor: colors.softCard,
     borderRadius: radius.round,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
   scoreText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   recommendGrade: {
     color: colors.subText,
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   recommendItems: {
     gap: spacing.sm,
     paddingRight: 2,
   },
   recommendItem: {
-    width: 82,
+    width: 74,
   },
   recommendImage: {
-    width: 82,
-    height: 98,
+    width: 74,
+    height: 88,
     borderRadius: radius.md,
     backgroundColor: colors.inactiveTab,
     marginBottom: 7,
@@ -329,7 +328,7 @@ const styles = StyleSheet.create({
   recommendItemName: {
     color: colors.text,
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   emptyText: {
     ...typography.body,
@@ -338,7 +337,7 @@ const styles = StyleSheet.create({
   savedCard: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
-    padding: spacing.lg,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: "row",
@@ -348,20 +347,20 @@ const styles = StyleSheet.create({
   savedCount: {
     color: colors.subText,
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "600",
     marginTop: 6,
   },
   profileHint: {
     color: colors.point,
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: "600",
     marginTop: 5,
   },
   savedButton: {
     backgroundColor: colors.text,
     borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -369,6 +368,6 @@ const styles = StyleSheet.create({
   savedButtonText: {
     color: "#fff",
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "700",
   },
 });
