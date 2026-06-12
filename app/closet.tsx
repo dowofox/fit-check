@@ -168,7 +168,7 @@ export default function ClosetScreen() {
                                 >
                                     <View style={styles.imageBox}>
                                         <Image
-                                            source={{ uri: item.imageUri }}
+                                            source={{ uri: item.cleanImageUri || item.imageUri }}
                                             style={styles.closetImage}
                                         />
                                     </View>
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     closetImage: {
         width: "100%",
         height: "100%",
-        resizeMode: "cover",
+        resizeMode: "contain",
     },
     closetCategory: {
         fontSize: 12,
