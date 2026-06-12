@@ -73,26 +73,32 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.heroCard}>
-          <View style={styles.heroContent}>
-            <View style={styles.heroTextArea}>
-              <Text style={styles.heroEyebrow}>NAES AI STYLIST</Text>
-              <Text style={styles.heroTitle}>나만의 AI 스타일리스트</Text>
-              <Text style={styles.heroText}>
-                오늘의 코디를 분석하고 새로운 스타일을 제안받아보세요.
+          <Image
+            source={require("@/assets/images/hero-fashion-wide.png")}
+            style={styles.heroBackground}
+            resizeMode="cover"
+          />
+
+          <View style={styles.heroOverlay}>
+            <Text style={styles.heroTitle}>
+              나만의 AI 스타일리스트
+            </Text>
+
+            <Text style={styles.heroText}>
+              오늘의 코디를 분석하고
+              {"\n"}
+              새로운 스타일을 제안받아보세요.
+            </Text>
+
+            <Pressable
+              style={styles.heroButton}
+              onPress={startAnalysis}
+            >
+              <Feather name="camera" size={15} color="#fff" />
+              <Text style={styles.heroButtonText}>
+                코디 분석하기
               </Text>
-
-              <Pressable style={styles.heroButton} onPress={startAnalysis}>
-                <Feather name="camera" size={15} color="#fff" />
-                <Text style={styles.heroButtonText}>코디 분석하기</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.heroVisual}>
-              <Image
-                source={require("@/assets/images/hero-fashion.png")}
-                style={styles.heroImage}
-              />
-            </View>
+            </Pressable>
           </View>
         </View>
 
@@ -218,128 +224,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     marginTop: 3,
-  },
-  heroCard: {
-    backgroundColor: "#EFE6DA",
-    borderRadius: 18,
-    minHeight: 128,
-    paddingLeft: 16,
-    paddingVertical: 16,
-    paddingRight: 0,
-    borderWidth: 0,
-    marginBottom: 18,
-    overflow: "hidden",
-  },
-
-  heroContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  heroTextArea: {
-    flex: 1,
-    paddingRight: 8,
-    zIndex: 2,
-  },
-
-  heroEyebrow: {
-    display: "none",
-  },
-
-  heroTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "800",
-    lineHeight: 24,
-  },
-
-  heroText: {
-    color: colors.subText,
-    fontSize: 11,
-    lineHeight: 17,
-    marginTop: 8,
-  },
-
-  heroButton: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.text,
-    height: 32,
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginTop: 14,
-  },
-
-  heroButtonText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
-  heroVisual: {
-    width: 126,
-    height: 128,
-  },
-  closetIllustration: {
-    width: "100%",
-    height: "100%",
-    borderTopLeftRadius: 22,
-    borderBottomLeftRadius: 22,
-    backgroundColor: "#EDE4D8",
-    overflow: "hidden",
-    paddingTop: 25,
-    paddingLeft: 13,
-  },
-  closetRod: {
-    position: "absolute",
-    top: 25,
-    left: 15,
-    right: 0,
-    height: 2,
-    backgroundColor: "#B99F7E",
-  },
-  hangerRow: {
-    flexDirection: "row",
-    gap: 4,
-    alignItems: "flex-start",
-  },
-  hangerSet: {
-    width: 15,
-    alignItems: "center",
-  },
-  hangerHook: {
-    width: 8,
-    height: 10,
-    borderTopWidth: 1.4,
-    borderLeftWidth: 1.4,
-    borderColor: "#8C6F47",
-    borderTopLeftRadius: 8,
-    transform: [{ rotate: "35deg" }],
-    marginBottom: 1,
-  },
-  garmentShape: {
-    width: 13,
-    height: 54,
-    borderTopLeftRadius: 7,
-    borderTopRightRadius: 7,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-    backgroundColor: "#C8B395",
-  },
-  garmentShapeLight: {
-    backgroundColor: "#F7F2EB",
-  },
-  floorAccent: {
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    width: 42,
-    height: 23,
-    borderRadius: 999,
-    backgroundColor: "rgba(140, 111, 71, 0.14)",
   },
   sectionCard: {
     backgroundColor: "transparent",
@@ -470,10 +354,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  heroImage: {
+  heroCard: {
+    height: 190,
+    borderRadius: 24,
+    overflow: "hidden",
+    marginBottom: 18,
+    position: "relative",
+  },
+
+  heroBackground: {
+    position: "absolute",
     width: "100%",
     height: "100%",
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
+  },
+
+  heroOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#111",
+    marginBottom: 10,
+  },
+
+  heroText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#666",
+  },
+
+  heroButton: {
+    marginTop: 18,
+    backgroundColor: "#111",
+    height: 40,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+  },
+  heroButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });
