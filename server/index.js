@@ -60,6 +60,35 @@ function normalizeClothesSeasons(seasonValue) {
   return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
 }
 
+function normalizeStyleTags(styleTags, style) {
+  const allowedStyleTags = [
+    "미니멀",
+    "캐주얼",
+    "스트릿",
+    "댄디",
+    "포멀",
+    "스포티",
+    "아메카지",
+    "고프코어",
+    "빈티지",
+    "러블리",
+    "페미닌",
+    "모던",
+    "클래식",
+    "데일리",
+    "편안함",
+    "깔끔함",
+    "꾸안꾸",
+  ];
+
+  const sourceTags = Array.isArray(styleTags) ? styleTags : [style].filter(Boolean);
+  const matchedTags = allowedStyleTags.filter((tag) =>
+    sourceTags.some((sourceTag) => typeof sourceTag === "string" && sourceTag.includes(tag))
+  );
+
+  return (matchedTags.length > 0 ? matchedTags : ["데일리"]).slice(0, 3);
+}
+
 function getProfileText(profile = {}) {
   const gender = profile.gender || "미입력";
   const age = profile.age || "미입력";
@@ -306,6 +335,7 @@ app.post("/analyze-clothes", async (req, res) => {
         detailCategory: "이미지 없음",
         color: "분석 불가",
         style: "분석 불가",
+        styleTags: ["데일리"],
         season: "사계절",
         seasons: ["사계절"],
         fit: "분석 불가",
@@ -337,6 +367,7 @@ app.post("/analyze-clothes", async (req, res) => {
   "detailCategory": "반팔 티셔츠, 긴팔 티셔츠, 오버핏 후드티, 와이드 데님팬츠 등 더 구체적인 종류",
   "color": "대표 색상",
   "style": "캐주얼 / 미니멀 / 스트릿 / 포멀 / 스포티 / 빈티지 / 기타 중 하나",
+  "styleTags": ["캐주얼", "편안함", "데일리"],
   "seasons": ["봄", "가을"],
   "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
   "description": "옷의 특징을 한 문장으로 설명",
@@ -349,6 +380,14 @@ app.post("/analyze-clothes", async (req, res) => {
 - 실제 사진에 보이는 옷만 기준으로 판단해주세요.
 - 브랜드명은 확실히 보이지 않으면 추정하지 마세요.
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
+- styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
+- 후드티, 맨투맨, 조거팬츠는 ["캐주얼", "편안함", "데일리"]처럼 판단하세요.
+- 셔츠, 슬랙스, 블레이저는 ["미니멀", "댄디", "깔끔함"]처럼 판단하세요.
+- 와이드팬츠, 그래픽 티, 오버핏은 ["스트릿", "캐주얼"]처럼 판단하세요.
+- 트레이닝, 조거, 러닝화는 ["스포티", "편안함"]처럼 판단하세요.
+- 코트, 니트, 가디건은 ["클래식", "미니멀", "깔끔함"]처럼 판단하세요.
+- 워크자켓, 카고팬츠는 ["아메카지", "고프코어"]처럼 판단하세요.
+- 기본 티셔츠, 청바지, 운동화는 ["데일리", "캐주얼"]처럼 판단하세요.
 - seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
 - 반팔, 민소매, 린넨, 얇은 셔츠처럼 얇고 통기성이 좋아 보이는 옷은 ["여름"]으로 판단하세요.
 - 니트, 패딩, 코트, 두꺼운 후드, 울, 플리스, 부츠는 ["겨울"]로 판단하세요.
@@ -372,13 +411,15 @@ app.post("/analyze-clothes", async (req, res) => {
     const text = completion.choices[0].message.content;
     const parsed = JSON.parse(text);
     const seasons = normalizeClothesSeasons(parsed.seasons || parsed.season);
+    const styleTags = normalizeStyleTags(parsed.styleTags, parsed.style);
 
     return res.json({
       category: parsed.category || "기타",
       subCategory: parsed.subCategory || "분석 전",
       detailCategory: parsed.detailCategory || parsed.subCategory || "상세 분류 전",
       color: parsed.color || "색상 분석 전",
-      style: parsed.style || "스타일 분석 전",
+      style: styleTags[0] || parsed.style || "스타일 분석 전",
+      styleTags,
       season: seasons.join(", "),
       seasons,
       fit: parsed.fit || "핏 분석 전",
@@ -395,6 +436,7 @@ app.post("/analyze-clothes", async (req, res) => {
       detailCategory: "분석 실패",
       color: "분석 실패",
       style: "분석 실패",
+      styleTags: ["데일리"],
       season: "사계절",
       seasons: ["사계절"],
       fit: "분석 실패",

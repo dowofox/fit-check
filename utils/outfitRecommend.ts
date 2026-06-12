@@ -61,6 +61,16 @@ function getItemSeasons(item: ClosetItem) {
   return ["사계절"];
 }
 
+function getItemStyles(item: ClosetItem) {
+  if (item.styleTags?.length) return item.styleTags;
+  return item.style ? [item.style] : [];
+}
+
+function getPrimaryStyle(item?: ClosetItem) {
+  if (!item) return undefined;
+  return getItemStyles(item)[0];
+}
+
 function getItemLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category || "아이템";
 }
@@ -70,7 +80,7 @@ function getRecommendationDisplay(items: ClosetItem[], currentSeason: string) {
     .map((item) => `${item.detailCategory || ""} ${item.subCategory || ""} ${item.category || ""}`)
     .join(" ");
 
-  const styles = items.map((item) => item.style).filter(Boolean);
+  const styles = items.flatMap(getItemStyles).filter(Boolean);
   const colors = items.map((item) => item.color).filter(Boolean);
 
   const hasDenim = ["청바지", "데님"].some((keyword) => itemNames.includes(keyword));
@@ -166,7 +176,7 @@ function getCategoryScore(items: ClosetItem[]) {
 }
 
 function getStyleScore(items: ClosetItem[], reasons: string[]) {
-  const styles = items.map((item) => item.style).filter((style): style is string => Boolean(style));
+  const styles = items.flatMap(getItemStyles).filter((style): style is string => Boolean(style));
   const counts = styles.reduce<Record<string, number>>((acc, style) => {
     acc[style] = (acc[style] || 0) + 1;
     return acc;
@@ -174,11 +184,13 @@ function getStyleScore(items: ClosetItem[], reasons: string[]) {
   const maxSameStyleCount = Math.max(0, ...Object.values(counts));
   const top = items.find((item) => item.category === "상의");
   const bottom = items.find((item) => item.category === "하의");
-  const topStyleGroup = getStyleGroup(top?.style);
-  const bottomStyleGroup = getStyleGroup(bottom?.style);
+  const topStyle = getPrimaryStyle(top);
+  const bottomStyle = getPrimaryStyle(bottom);
+  const topStyleGroup = getStyleGroup(topStyle);
+  const bottomStyleGroup = getStyleGroup(bottomStyle);
 
   if (topStyleGroup && bottomStyleGroup && topStyleGroup === bottomStyleGroup) {
-    reasons.push(`상의와 하의가 모두 ${top?.style || "같은"} 계열이라 방향성은 맞아요.`);
+    reasons.push(`상의와 하의가 모두 ${topStyle || "같은"} 계열이라 방향성은 맞아요.`);
   }
 
   if (maxSameStyleCount >= 3) {
@@ -294,16 +306,22 @@ function isBasicColor(color?: string) {
 }
 
 function hasMatchingStyle(item: ClosetItem, baseItems: ClosetItem[]) {
-  if (!item.style) return false;
-
-  const itemStyleGroup = getStyleGroup(item.style);
+  const itemStyles = getItemStyles(item);
+  if (itemStyles.length === 0) return false;
 
   return baseItems.some((baseItem) => {
-    if (!baseItem.style) return false;
-    if (baseItem.style === item.style) return true;
+    const baseStyles = getItemStyles(baseItem);
+    if (baseStyles.length === 0) return false;
+    if (itemStyles.some((style) => baseStyles.includes(style))) return true;
 
-    const baseStyleGroup = getStyleGroup(baseItem.style);
-    return Boolean(itemStyleGroup && baseStyleGroup && itemStyleGroup === baseStyleGroup);
+    return itemStyles.some((style) => {
+      const itemStyleGroup = getStyleGroup(style);
+
+      return baseStyles.some((baseStyle) => {
+        const baseStyleGroup = getStyleGroup(baseStyle);
+        return Boolean(itemStyleGroup && baseStyleGroup && itemStyleGroup === baseStyleGroup);
+      });
+    });
   });
 }
 
@@ -318,7 +336,7 @@ function getOptionalScore(items: ClosetItem[], currentSeason: string, reasons: s
   }
 
   if (outer) {
-    const hasStyle = Boolean(outer.style);
+    const hasStyle = getItemStyles(outer).length > 0;
     const hasColor = Boolean(outer.color);
     const isNaturalOuter = hasMatchingStyle(outer, baseItems) || isBasicColor(outer.color);
 
@@ -552,7 +570,7 @@ function getAccessoryCombinations(accessories: ClosetItem[]) {
 }
 
 function getAccessoryPriorityScore(item: ClosetItem) {
-  const infoScore = Number(Boolean(item.color)) + Number(Boolean(item.style));
+  const infoScore = Number(Boolean(item.color)) + Number(getItemStyles(item).length > 0);
   const createdAtTime = new Date(item.createdAt).getTime();
   const safeCreatedAtTime = Number.isNaN(createdAtTime) ? 0 : createdAtTime;
 
@@ -660,7 +678,7 @@ function getShoeRecommendationScore(
   if (hasMatchingStyle(shoe, baseItems)) {
     score += 5;
     reasons.push("코디 스타일 흐름과 잘 맞아요.");
-  } else if (shoe.style) {
+  } else if (getItemStyles(shoe).length > 0) {
     score += 2;
     reasons.push("스타일 정보는 있지만 코디와 완전히 같은 계열은 아니에요.");
   }

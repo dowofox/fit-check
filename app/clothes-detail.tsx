@@ -21,6 +21,7 @@ type EditableClosetFields = {
   detailCategory: string;
   color: string;
   style: string;
+  styleTags: string[];
   seasons: string[];
   fit: string;
   size: string;
@@ -36,6 +37,7 @@ const EMPTY_DRAFT: EditableClosetFields = {
   detailCategory: "",
   color: "",
   style: "",
+  styleTags: ["데일리"],
   seasons: ["사계절"],
   fit: "",
   size: "",
@@ -70,6 +72,32 @@ const STYLE_OPTIONS = [
 
 const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
+const STYLE_TAG_OPTIONS = [
+  "미니멀",
+  "캐주얼",
+  "스트릿",
+  "댄디",
+  "포멀",
+  "스포티",
+  "아메카지",
+  "고프코어",
+  "빈티지",
+  "러블리",
+  "페미닌",
+  "모던",
+  "클래식",
+  "데일리",
+  "편안함",
+  "깔끔함",
+  "꾸안꾸",
+];
+
+function getItemStyleTags(item: ClosetItem) {
+  if (item.styleTags?.length) return item.styleTags;
+  if (item.style) return [item.style];
+
+  return ["데일리"];
+}
 
 function getItemSeasons(item: ClosetItem) {
   if (item.seasons?.length) return item.seasons;
@@ -92,6 +120,17 @@ function toggleSeason(currentSeasons: string[], season: string) {
   return nextSeasons.length > 0 ? nextSeasons : ["사계절"];
 }
 
+function toggleStyleTag(currentTags: string[], tag: string) {
+  if (currentTags.includes(tag)) {
+    const nextTags = currentTags.filter((currentTag) => currentTag !== tag);
+    return nextTags.length > 0 ? nextTags : ["데일리"];
+  }
+
+  if (currentTags.length >= 3) return currentTags;
+
+  return [...currentTags, tag];
+}
+
 function getEditableValues(item: ClosetItem): EditableClosetFields {
   return {
     category: item.category || "",
@@ -99,6 +138,7 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     detailCategory: item.detailCategory || "",
     color: item.color || "",
     style: item.style || "",
+    styleTags: getItemStyleTags(item),
     seasons: getItemSeasons(item),
     fit: item.fit || "",
     size: item.size || "",
@@ -305,6 +345,18 @@ export default function ClothesDetailScreen() {
     }));
   }
 
+  function updateDraftStyleTags(tag: string) {
+    setDraft((currentDraft) => {
+      const styleTags = toggleStyleTag(currentDraft.styleTags, tag);
+
+      return {
+        ...currentDraft,
+        styleTags,
+        style: styleTags[0] || currentDraft.style,
+      };
+    });
+  }
+
   function handleEdit() {
     if (!item) return;
 
@@ -326,6 +378,7 @@ export default function ClothesDetailScreen() {
     try {
       const updatedCloset = await updateClosetItem(item.id, {
         ...draft,
+        style: draft.styleTags[0] || draft.style,
         season: draft.seasons.join(", "),
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
@@ -447,6 +500,12 @@ export default function ClothesDetailScreen() {
                     onSelect={(value) => updateDraft("style", value)}
                   />
                   <MultiChipGroup
+                    label="스타일 태그"
+                    values={draft.styleTags}
+                    options={STYLE_TAG_OPTIONS}
+                    onSelect={updateDraftStyleTags}
+                  />
+                  <MultiChipGroup
                     label="계절"
                     values={draft.seasons}
                     options={SEASON_OPTIONS}
@@ -476,6 +535,7 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
                   <DetailRow label="색상" value={item.color} />
                   <DetailRow label="스타일" value={item.style} />
+                  <DetailRow label="스타일 태그" value={getItemStyleTags(item).map((tag) => `#${tag}`).join(" ")} />
                   <DetailRow label="계절" value={getItemSeasons(item).join(", ")} />
                   <DetailRow label="핏" value={item.fit} />
                   <DetailRow label="사이즈" value={item.size || "사이즈 미입력"} />

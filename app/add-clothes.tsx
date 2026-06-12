@@ -16,6 +16,25 @@ import {
 
 const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
+const STYLE_TAG_OPTIONS = [
+  "미니멀",
+  "캐주얼",
+  "스트릿",
+  "댄디",
+  "포멀",
+  "스포티",
+  "아메카지",
+  "고프코어",
+  "빈티지",
+  "러블리",
+  "페미닌",
+  "모던",
+  "클래식",
+  "데일리",
+  "편안함",
+  "깔끔함",
+  "꾸안꾸",
+];
 
 type ClothesAnalysis = {
   category?: string;
@@ -23,6 +42,7 @@ type ClothesAnalysis = {
   detailCategory?: string;
   color?: string;
   style?: string;
+  styleTags?: string[];
   season?: string;
   seasons?: string[];
   fit?: string;
@@ -58,11 +78,34 @@ function toggleSeason(currentSeasons: string[], season: string) {
   return nextSeasons.length > 0 ? nextSeasons : ["사계절"];
 }
 
+function normalizeStyleTags(styleTags?: string[], style?: string) {
+  const matchedTags = STYLE_TAG_OPTIONS.filter((option) =>
+    styleTags?.some((tag) => tag.includes(option)) || style?.includes(option)
+  );
+
+  if (matchedTags.length > 0) return matchedTags.slice(0, 3);
+  if (style) return [style].filter((tag) => STYLE_TAG_OPTIONS.includes(tag)).slice(0, 3);
+
+  return ["데일리"];
+}
+
+function toggleStyleTag(currentTags: string[], tag: string) {
+  if (currentTags.includes(tag)) {
+    const nextTags = currentTags.filter((currentTag) => currentTag !== tag);
+    return nextTags.length > 0 ? nextTags : ["데일리"];
+  }
+
+  if (currentTags.length >= 3) return currentTags;
+
+  return [...currentTags, tag];
+}
+
 export default function AddClothesScreen() {
   const [imageUri, setImageUri] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
+  const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["데일리"]);
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -74,6 +117,7 @@ export default function AddClothesScreen() {
       setImageUri(result.assets[0].uri);
       setAnalysis(null);
       setSelectedSeasons(["사계절"]);
+      setSelectedStyleTags(["데일리"]);
     }
   }
 
@@ -93,6 +137,7 @@ export default function AddClothesScreen() {
       setImageUri(result.assets[0].uri);
       setAnalysis(null);
       setSelectedSeasons(["사계절"]);
+      setSelectedStyleTags(["데일리"]);
     }
   }
 
@@ -132,6 +177,7 @@ export default function AddClothesScreen() {
 
       setAnalysis(analysis);
       setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
+      setSelectedStyleTags(normalizeStyleTags(analysis.styleTags, analysis.style));
     } catch (error) {
       console.log("옷 분석 실패:", error);
       Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
@@ -153,7 +199,8 @@ export default function AddClothesScreen() {
         subCategory: analysis.subCategory || "분석 전",
         detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
         color: analysis.color || "색상 분석 전",
-        style: analysis.style || "스타일 분석 전",
+        style: selectedStyleTags[0] || analysis.style || "스타일 분석 전",
+        styleTags: selectedStyleTags,
         season: selectedSeasons.join(", "),
         seasons: selectedSeasons,
         fit: analysis.fit || "핏 분석 전",
@@ -223,6 +270,26 @@ export default function AddClothesScreen() {
             <Text style={styles.analysisText}>
               {analysis.detailCategory || analysis.subCategory || analysis.category || "옷 종류 분석 전"}
             </Text>
+
+            <Text style={styles.seasonLabel}>스타일 태그</Text>
+            <View style={styles.seasonChipRow}>
+              {STYLE_TAG_OPTIONS.map((tag) => {
+                const isActive = selectedStyleTags.includes(tag);
+
+                return (
+                  <Pressable
+                    key={tag}
+                    style={[styles.seasonChip, isActive && styles.seasonChipActive]}
+                    onPress={() => setSelectedStyleTags((currentTags) => toggleStyleTag(currentTags, tag))}
+                  >
+                    <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
+                      {tag}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.analysisHint}>최대 3개까지 선택할 수 있어요.</Text>
 
             <Text style={styles.seasonLabel}>계절</Text>
             <View style={styles.seasonChipRow}>
@@ -406,6 +473,14 @@ const styles = StyleSheet.create({
     color: "#6b6258",
     fontSize: 13,
     fontWeight: "700",
+    marginBottom: 14,
+  },
+
+  analysisHint: {
+    color: "#6b6258",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 8,
     marginBottom: 14,
   },
 
