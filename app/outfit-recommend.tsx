@@ -7,6 +7,7 @@ import {
   getUserProfile,
   saveOutfit,
 } from "@/utils/storage";
+import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack } from "expo-router";
@@ -145,14 +146,14 @@ function RecommendationCard({
           style={styles.alternativeBox}
           onPress={() => setIsAlternativeOpen((current) => !current)}
         >
-          <Feather name="shuffle" size={15} color="#8c6f47" />
+          <Feather name="shuffle" size={15} color={colors.point} />
           <Text style={styles.alternativeText}>
             이 코디의 다른 버전 {recommendation.alternativeCount}개가 있어요
           </Text>
           <Feather
             name={isAlternativeOpen ? "chevron-up" : "chevron-down"}
             size={16}
-            color="#8c6f47"
+            color={colors.point}
           />
         </Pressable>
       ) : null}
@@ -210,7 +211,7 @@ function RecommendationCard({
                 style={styles.alternativeSaveButton}
                 onPress={() => onSave(alternative)}
               >
-                <Feather name="bookmark" size={15} color="#fff" />
+                <Feather name="bookmark" size={15} color={colors.card} />
                 <Text style={styles.alternativeSaveButtonText}>이 버전 저장</Text>
               </Pressable>
             </View>
@@ -221,7 +222,7 @@ function RecommendationCard({
       {recommendation.reasons.length > 0 && (
         <View style={styles.noteBox}>
           <View style={styles.noteHeader}>
-            <Feather name="check-circle" size={16} color="#111" />
+            <Feather name="check-circle" size={16} color={colors.text} />
             <Text style={styles.noteTitle}>추천 이유</Text>
           </View>
           {recommendation.reasons.map((reason) => (
@@ -233,7 +234,7 @@ function RecommendationCard({
       {recommendation.warnings.length > 0 && (
         <View style={styles.warningBox}>
           <View style={styles.noteHeader}>
-            <Feather name="alert-circle" size={16} color="#8c6f47" />
+            <Feather name="alert-circle" size={16} color={colors.point} />
             <Text style={styles.noteTitle}>주의사항</Text>
           </View>
           {recommendation.warnings.map((warning) => (
@@ -246,7 +247,7 @@ function RecommendationCard({
         style={styles.saveOutfitButton}
         onPress={() => onSave(recommendation)}
       >
-        <Feather name="bookmark" size={17} color="#fff" />
+        <Feather name="bookmark" size={17} color={colors.card} />
         <Text style={styles.saveOutfitButtonText}>코디 저장</Text>
       </Pressable>
     </View>
@@ -326,7 +327,7 @@ export default function OutfitRecommendScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={22} color="#111" />
+            <Feather name="chevron-left" size={22} color={colors.text} />
           </Pressable>
 
           <View>
@@ -341,14 +342,14 @@ export default function OutfitRecommendScreen() {
           style={styles.savedOutfitsButton}
           onPress={() => router.push("/saved-outfits")}
         >
-          <Feather name="bookmark" size={18} color="#111" />
+          <Feather name="bookmark" size={18} color={colors.text} />
           <Text style={styles.savedOutfitsButtonText}>저장한 코디 보기</Text>
         </Pressable>
 
         {isLoaded && recommendations.length === 0 ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIconCircle}>
-              <Feather name="layers" size={26} color="#8c6f47" />
+              <Feather name="layers" size={26} color={colors.point} />
             </View>
             <Text style={styles.emptyTitle}>{emptyMessage.title}</Text>
             <Text style={styles.emptyText}>
@@ -374,7 +375,7 @@ export default function OutfitRecommendScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F7F2EB" },
+  screen: { flex: 1, backgroundColor: colors.background },
   container: {
     flexGrow: 1,
     paddingTop: 34,
@@ -391,9 +392,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 999,
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -402,14 +403,14 @@ const styles = StyleSheet.create({
     height: 40,
   },
   headerEyebrow: {
-    color: "#9b7a4b",
+    color: colors.point,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 1.4,
     textAlign: "center",
   },
   headerTitle: {
-    color: "#111",
+    color: colors.text,
     fontSize: 24,
     fontWeight: "900",
     marginTop: 2,
@@ -419,10 +420,10 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   savedOutfitsButton: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.border,
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
@@ -431,15 +432,15 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   savedOutfitsButtonText: {
-    color: "#111",
+    color: colors.text,
     fontSize: 14,
     fontWeight: "900",
   },
   recommendCard: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.border,
     padding: 16,
   },
   cardHeader: {
@@ -449,14 +450,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   cardEyebrow: {
-    color: "#9b7a4b",
+    color: colors.point,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.2,
     marginBottom: 4,
   },
   cardTitle: {
-    color: "#111",
+    color: colors.text,
     fontSize: 21,
     fontWeight: "900",
   },
@@ -467,8 +468,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   recommendationTagText: {
-    backgroundColor: "#F1E6D6",
-    color: "#8C6F47",
+    backgroundColor: colors.softCard,
+    color: colors.point,
     fontSize: 11,
     fontWeight: "800",
     paddingHorizontal: 8,
@@ -476,7 +477,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   categorySummary: {
-    color: "#6b6258",
+    color: colors.subText,
     fontSize: 12,
     fontWeight: "900",
     marginTop: 5,
@@ -485,42 +486,42 @@ const styles = StyleSheet.create({
     minWidth: 64,
     height: 64,
     borderRadius: 999,
-    backgroundColor: "#111",
+    backgroundColor: colors.text,
     alignItems: "center",
     justifyContent: "center",
   },
   scoreText: {
-    color: "#fff",
+    color: colors.card,
     fontSize: 22,
     fontWeight: "900",
   },
   scoreUnit: {
-    color: "#d8d2ca",
+    color: colors.inactiveTab,
     fontSize: 10,
     fontWeight: "900",
   },
   breakdownBox: {
-    backgroundColor: "#faf8f5",
+    backgroundColor: colors.softCard,
     borderRadius: 14,
     paddingVertical: 9,
     paddingHorizontal: 11,
     marginBottom: 12,
   },
   breakdownText: {
-    color: "#6b6258",
+    color: colors.subText,
     fontSize: 11,
     fontWeight: "900",
     lineHeight: 17,
   },
   breakdownDescription: {
-    color: "#8c857d",
+    color: colors.subText,
     fontSize: 10,
     fontWeight: "700",
     lineHeight: 15,
     marginTop: 3,
   },
   penaltyText: {
-    color: "#991b1b",
+    color: colors.warning,
     fontSize: 11,
     fontWeight: "900",
     marginTop: 3,
@@ -537,25 +538,25 @@ const styles = StyleSheet.create({
     width: 104,
     height: 128,
     borderRadius: 18,
-    backgroundColor: "#ddd",
+    backgroundColor: colors.inactiveTab,
     marginBottom: 8,
   },
   itemName: {
-    color: "#111",
+    color: colors.text,
     fontSize: 13,
     fontWeight: "900",
   },
   itemMeta: {
-    color: "#777",
+    color: colors.subText,
     fontSize: 11,
     fontWeight: "800",
     marginTop: 3,
   },
   alternativeBox: {
-    backgroundColor: "#f8f1e8",
+    backgroundColor: colors.softCard,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#eadcc9",
+    borderColor: colors.border,
     paddingVertical: 10,
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -565,7 +566,7 @@ const styles = StyleSheet.create({
   },
   alternativeText: {
     flex: 1,
-    color: "#6b6258",
+    color: colors.subText,
     fontSize: 13,
     fontWeight: "900",
   },
@@ -574,29 +575,29 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   alternativeCard: {
-    backgroundColor: "#faf8f5",
+    backgroundColor: colors.softCard,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.border,
     padding: 12,
   },
   alternativeHeader: {
     marginBottom: 10,
   },
   alternativeEyebrow: {
-    color: "#9b7a4b",
+    color: colors.point,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.1,
     marginBottom: 3,
   },
   alternativeTitle: {
-    color: "#111",
+    color: colors.text,
     fontSize: 16,
     fontWeight: "900",
   },
   alternativeSummary: {
-    color: "#6b6258",
+    color: colors.subText,
     fontSize: 12,
     fontWeight: "900",
     marginTop: 4,
@@ -613,23 +614,23 @@ const styles = StyleSheet.create({
     width: 72,
     height: 88,
     borderRadius: 14,
-    backgroundColor: "#ddd",
+    backgroundColor: colors.inactiveTab,
     marginBottom: 6,
   },
   alternativeItemName: {
-    color: "#111",
+    color: colors.text,
     fontSize: 11,
     fontWeight: "900",
   },
   alternativeReason: {
-    color: "#625a51",
+    color: colors.subText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
     marginBottom: 10,
   },
   alternativeSaveButton: {
-    backgroundColor: "#111",
+    backgroundColor: colors.text,
     borderRadius: 14,
     paddingVertical: 11,
     alignItems: "center",
@@ -638,23 +639,23 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   alternativeSaveButtonText: {
-    color: "#fff",
+    color: colors.card,
     fontSize: 13,
     fontWeight: "900",
   },
   noteBox: {
-    backgroundColor: "#faf8f5",
+    backgroundColor: colors.softCard,
     borderRadius: 18,
     padding: 13,
     marginBottom: 10,
   },
   warningBox: {
-    backgroundColor: "#f8f1e8",
+    backgroundColor: colors.softCard,
     borderRadius: 18,
     padding: 13,
   },
   saveOutfitButton: {
-    backgroundColor: "#111",
+    backgroundColor: colors.text,
     borderRadius: 18,
     paddingVertical: 14,
     alignItems: "center",
@@ -664,7 +665,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveOutfitButtonText: {
-    color: "#fff",
+    color: colors.card,
     fontSize: 14,
     fontWeight: "900",
   },
@@ -675,44 +676,44 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   noteTitle: {
-    color: "#111",
+    color: colors.text,
     fontSize: 14,
     fontWeight: "900",
   },
   noteText: {
-    color: "#625a51",
+    color: colors.subText,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: "700",
   },
   emptyCard: {
-    backgroundColor: "#faf8f5",
+    backgroundColor: colors.softCard,
     borderRadius: 28,
     padding: 22,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#f0eee9",
+    borderColor: colors.border,
   },
   emptyIconCircle: {
     width: 62,
     height: 62,
     borderRadius: 999,
-    backgroundColor: "#f0e7dc",
+    backgroundColor: colors.softCard,
     borderWidth: 1,
-    borderColor: "#e6d9cb",
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
   },
   emptyTitle: {
-    color: "#111",
+    color: colors.text,
     fontSize: 20,
     fontWeight: "900",
     marginBottom: 8,
     textAlign: "center",
   },
   emptyText: {
-    color: "#6b6258",
+    color: colors.subText,
     fontSize: 14,
     lineHeight: 22,
     fontWeight: "700",

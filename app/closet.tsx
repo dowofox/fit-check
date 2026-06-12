@@ -4,6 +4,7 @@ import {
     deleteClosetItem,
     getClosetItems,
 } from "@/utils/storage";
+import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -85,10 +86,10 @@ export default function ClosetScreen() {
 
                     <View style={styles.headerActions}>
                         <Pressable style={styles.iconButton}>
-                            <Feather name="search" size={19} color="#111" />
+                            <Feather name="search" size={19} color={colors.text} />
                         </Pressable>
                         <Pressable style={styles.iconButton} onPress={() => router.push("/add-clothes")}>
-                            <Feather name="plus" size={21} color="#111" />
+                            <Feather name="plus" size={21} color={colors.text} />
                         </Pressable>
                     </View>
                 </View>
@@ -96,7 +97,7 @@ export default function ClosetScreen() {
                 {items.length === 0 ? (
                     <View style={styles.emptyCard}>
                         <View style={styles.emptyIconCircle}>
-                            <Feather name="archive" size={22} color="#8c6f47" />
+                            <Feather name="archive" size={22} color={colors.point} />
                         </View>
 
                         <Text style={styles.emptyTitle}>
@@ -109,7 +110,7 @@ export default function ClosetScreen() {
                         </Text>
 
                         <Pressable style={styles.primaryButton} onPress={() => router.push("/add-clothes")}>
-                            <Feather name="plus" size={15} color="#fff" />
+                            <Feather name="plus" size={15} color={colors.card} />
                             <Text style={styles.primaryButtonText}>
                                 옷 추가하기
                             </Text>
@@ -206,7 +207,7 @@ export default function ClosetScreen() {
                                         style={styles.deleteButton}
                                         onPress={() => handleDeleteItem(item.id)}
                                     >
-                                        <Feather name="trash-2" size={11} color="#B45309" />
+                                        <Feather name="trash-2" size={11} color={colors.warning} />
                                     </Pressable>
 
                                     <Text style={styles.closetCategory}>
@@ -229,7 +230,7 @@ export default function ClosetScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: "#F7F2EB" },
+    screen: { flex: 1, backgroundColor: colors.background },
     container: {
         flexGrow: 1,
         paddingTop: 42,
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
         width: 58,
     },
     headerTitle: {
-        color: "#111",
+        color: colors.text,
         fontSize: 20,
         fontWeight: "700",
         textAlign: "center",
@@ -267,12 +268,12 @@ const styles = StyleSheet.create({
     },
 
     emptyCard: {
-        backgroundColor: "#fff",
+        backgroundColor: colors.card,
         borderRadius: 24,
         padding: 16,
         alignItems: "center",
         borderWidth: 1,
-        borderColor: "#f0eee9",
+        borderColor: colors.border,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.03,
@@ -284,9 +285,9 @@ const styles = StyleSheet.create({
         width: 46,
         height: 46,
         borderRadius: 999,
-        backgroundColor: "#f0e7dc",
+        backgroundColor: colors.softCard,
         borderWidth: 1,
-        borderColor: "#e6d9cb",
+        borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 12,
@@ -295,13 +296,13 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: 17,
         fontWeight: "700",
-        color: "#111",
+        color: colors.text,
         marginBottom: 8,
     },
 
     emptyText: {
         fontSize: 14,
-        color: "#6b6258",
+        color: colors.subText,
         lineHeight: 22,
         fontWeight: "500",
         textAlign: "center",
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
     },
 
     primaryButton: {
-        backgroundColor: "#111",
+        backgroundColor: colors.text,
         borderRadius: 999,
         paddingVertical: 9,
         paddingHorizontal: 14,
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     },
 
     primaryButtonText: {
-        color: "#fff",
+        color: colors.card,
         fontSize: 12,
         fontWeight: "700",
     },
@@ -334,29 +335,29 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     filterChip: {
-        backgroundColor: "#fff",
+        backgroundColor: colors.card,
         borderWidth: 1,
-        borderColor: "#eee7dd",
+        borderColor: colors.border,
         borderRadius: 999,
         paddingVertical: 9,
         paddingHorizontal: 15,
     },
     filterChipActive: {
-        backgroundColor: "#111",
-        borderColor: "#111",
+        backgroundColor: colors.text,
+        borderColor: colors.text,
     },
     filterText: {
-        color: "#111",
+        color: colors.text,
         fontSize: 13,
         fontWeight: "600",
     },
     filterTextActive: {
-        color: "#fff",
+        color: colors.card,
     },
     countText: {
         fontSize: 18,
         fontWeight: "700",
-        color: "#111",
+        color: colors.text,
         marginBottom: 14,
     },
 
@@ -378,19 +379,19 @@ const styles = StyleSheet.create({
         width: "100%",
         height: 112,
         borderRadius: 14,
-        backgroundColor: "#EFE8DE",
+        backgroundColor: colors.inactiveTab,
     },
 
     closetCategory: {
         fontSize: 13,
         fontWeight: "700",
-        color: "#111",
+        color: colors.text,
         paddingTop: 8,
     },
 
     closetSubText: {
         fontSize: 11,
-        color: "#777064",
+        color: colors.subText,
         paddingTop: 2,
     },
     deleteButton: {
@@ -400,10 +401,10 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
         borderRadius: 999,
-        backgroundColor: "#F8EFE5",
+        backgroundColor: colors.softCard,
         alignItems: "center",
         justifyContent: "center",
         borderWidth: 1,
-        borderColor: "#F0D8C6",
+        borderColor: colors.border,
     },
 });

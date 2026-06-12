@@ -65,7 +65,7 @@ export default function HomeScreen() {
             <Feather
               name="bell"
               size={18}
-              color="#111"
+              color={colors.text}
             />
           </Pressable>
         </View>
@@ -104,7 +104,7 @@ export default function HomeScreen() {
               <Feather
                 name="arrow-right"
                 size={13}
-                color="#fff"
+                color={colors.card}
               />
             </Pressable>
           </View>
@@ -161,7 +161,7 @@ export default function HomeScreen() {
                 <Feather
                   name="chevron-right"
                   size={18}
-                  color="#A48763"
+                  color={colors.point}
                 />
               </Pressable>
 
@@ -225,7 +225,7 @@ export default function HomeScreen() {
                   onPress={() => router.push("/outfit-recommend")}
                 >
                   <Text style={styles.todayButtonText}>추천 보기</Text>
-                  <Feather name="arrow-right" size={14} color="#fff" />
+                  <Feather name="arrow-right" size={14} color={colors.card} />
                 </Pressable>
               </View>
             </View>
@@ -242,12 +242,12 @@ export default function HomeScreen() {
 
           <Pressable style={styles.savedActionArea} onPress={() => router.push("/saved-outfits")}>
             <View style={styles.savedIconBox}>
-              <Feather name="bookmark" size={17} color="#A48763" />
+              <Feather name="bookmark" size={17} color={colors.point} />
             </View>
 
             <View style={styles.savedLink}>
               <Text style={styles.savedLinkText}>바로가기</Text>
-              <Feather name="chevron-right" size={14} color="#A48763" />
+              <Feather name="chevron-right" size={14} color={colors.point} />
             </View>
           </Pressable>
         </View>
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   },
 
   linkText: {
-    color: "#A48763",
+    color: colors.point,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -342,25 +342,25 @@ const styles = StyleSheet.create({
   countTile: {
     width: "48%",
     height: 72,
-    backgroundColor: "#FBF8F3",
+    backgroundColor: colors.softCard,
     borderRadius: 18,
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#EFE7DD",
+    borderColor: colors.border,
   },
   emptyText: {
     ...typography.body,
     color: colors.subText,
   },
   savedCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: "#EFE7DD",
+    borderColor: colors.border,
     flexDirection: "row",
     alignItems: "stretch",
     justifyContent: "space-between",
@@ -393,11 +393,11 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 999,
-    backgroundColor: "#FBF8F3",
+    backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#EFE7DD",
+    borderColor: colors.border,
   },
   savedLink: {
     flexDirection: "row",
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   savedLinkText: {
-    color: "#A48763",
+    color: colors.point,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#111",
+    color: colors.text,
     marginBottom: 8,
     lineHeight: 23,
   },
@@ -440,12 +440,12 @@ const styles = StyleSheet.create({
   heroText: {
     fontSize: 12,
     lineHeight: 18,
-    color: "#6D675F",
+    color: colors.subText,
   },
 
   heroButton: {
     marginTop: 16,
-    backgroundColor: "#111",
+    backgroundColor: colors.text,
     height: 34,
     borderRadius: 10,
     paddingHorizontal: 14,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   },
 
   heroButtonText: {
-    color: "#fff",
+    color: colors.card,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 999,
-    backgroundColor: "#F1E6D6",
+    backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -492,22 +492,22 @@ const styles = StyleSheet.create({
   },
 
   countLabel: {
-    color: "#3A3128",
+    color: colors.text,
     fontSize: 13,
     fontWeight: "700",
   },
 
   countValue: {
-    color: "#111",
+    color: colors.text,
     fontSize: 22,
     fontWeight: "800",
     marginTop: 2,
   },
   todayCard: {
-    backgroundColor: "#FBF8F3",
+    backgroundColor: colors.softCard,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#EFE7DD",
+    borderColor: colors.border,
     flexDirection: "row",
     overflow: "hidden",
     height: 132,
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
 
   todayImages: {
     width: "43%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.card,
     position: "relative",
     borderTopLeftRadius: 20,
     borderBottomLeftRadius: 20,
@@ -559,14 +559,14 @@ const styles = StyleSheet.create({
   },
 
   todayTitle: {
-    color: "#111",
+    color: colors.text,
     fontSize: 15,
     fontWeight: "800",
     marginBottom: 6,
   },
 
   todayScore: {
-    color: "#6D675F",
+    color: colors.subText,
     fontSize: 12,
     fontWeight: "700",
     marginBottom: 8,
@@ -579,8 +579,8 @@ const styles = StyleSheet.create({
   },
 
   tagText: {
-    backgroundColor: "#F1E6D6",
-    color: "#A48763",
+    backgroundColor: colors.softCard,
+    color: colors.point,
     fontSize: 10,
     fontWeight: "700",
     paddingHorizontal: 7,
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   },
 
   todayButton: {
-    backgroundColor: "#111",
+    backgroundColor: colors.text,
     height: 30,
     borderRadius: 9,
     paddingHorizontal: 13,
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   todayButtonText: {
-    color: "#fff",
+    color: colors.card,
     fontSize: 12,
     fontWeight: "700",
   },

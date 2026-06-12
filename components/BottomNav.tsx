@@ -3,10 +3,10 @@ import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { hideAndroidNavigationBar, useHideAndroidNavigationBar } from "@/utils/navigationBar";
-import { radius, shadow } from "@/utils/theme";
+import { colors, radius, shadow } from "@/utils/theme";
 
-const ACTIVE_COLOR = "#7D6445";
-const INACTIVE_COLOR = "#A39A8F";
+const ACTIVE_COLOR = colors.point;
+const INACTIVE_COLOR = colors.subText;
 
 export type BottomNavTab = "home" | "closet" | "outfit" | "profile";
 
@@ -52,7 +52,7 @@ export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
             router.push("/add-clothes");
           }}
         >
-          <Feather name="plus" size={21} color="#fff" />
+          <Feather name="plus" size={21} color={colors.card} />
         </Pressable>
         <NavItem active={activeTab === "outfit"} icon="star" label="코디" onPress={() => router.push("/outfit")} />
         <NavItem active={activeTab === "profile"} icon="user" label="마이" onPress={() => router.push("/profile")} />
@@ -67,11 +67,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#FFFDF9",
+    backgroundColor: colors.card,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     borderTopWidth: 1,
-    borderColor: "#F1ECE4",
+    borderColor: colors.border,
     ...shadow.subtle,
   },
   bottomNav: {
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 999,
-    backgroundColor: "#6F5A3E",
+    backgroundColor: colors.point,
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: 7,
