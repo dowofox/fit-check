@@ -9,7 +9,12 @@ import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const CLOSET_CATEGORIES = ["상의", "하의", "신발", "아우터"];
+const CLOSET_CATEGORIES = [
+  { label: "상의", emoji: "👕" },
+  { label: "하의", emoji: "👖" },
+  { label: "신발", emoji: "👟" },
+  { label: "아우터", emoji: "🧥" },
+];
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
@@ -114,14 +119,36 @@ export default function HomeScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>내 옷장 현황</Text>
-            <Text style={styles.sectionMeta}>총 {closetItems.length}개</Text>
+
+            <Pressable onPress={() => router.push("/closet")}>
+              <View style={styles.moreWrap}>
+                <Text style={styles.moreText}>전체 보기</Text>
+                <Feather
+                  name="chevron-right"
+                  size={14}
+                  color={colors.point}
+                />
+              </View>
+            </Pressable>
           </View>
 
           <View style={styles.closetGrid}>
             {CLOSET_CATEGORIES.map((category) => (
-              <View key={category} style={styles.countTile}>
-                <Text style={styles.countValue}>{getCategoryCount(closetItems, category)}</Text>
-                <Text style={styles.countLabel}>{category}</Text>
+              <View key={category.label} style={styles.countTile}>
+                <Text style={styles.categoryEmoji}>
+                  {category.emoji}
+                </Text>
+
+                <Text style={styles.countValue}>
+                  {getCategoryCount(
+                    closetItems,
+                    category.label
+                  )}
+                </Text>
+
+                <Text style={styles.countLabel}>
+                  {category.label}
+                </Text>
               </View>
             ))}
           </View>
@@ -257,25 +284,44 @@ const styles = StyleSheet.create({
   },
   closetGrid: {
     flexDirection: "row",
-    gap: spacing.sm,
+    flexWrap: "wrap",
+    gap: 10,
   },
   countTile: {
-    flex: 1,
-    backgroundColor: colors.softCard,
-    borderRadius: radius.md,
-    paddingVertical: 9,
-    alignItems: "center",
+    width: "48.5%",
+    backgroundColor: "#FBF8F3",
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#EFE6DA",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.035,
+    shadowRadius: 10,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    elevation: 1,
   },
+
+  categoryEmoji: {
+    fontSize: 22,
+    marginBottom: 8,
+  },
+
   countValue: {
-    color: colors.text,
-    fontSize: 18,
+    color: "#111",
+    fontSize: 26,
     fontWeight: "800",
+    marginTop: 12,
   },
+
   countLabel: {
-    color: colors.subText,
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 2,
+    color: "#6D675F",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
   },
   linkText: {
     color: colors.point,
@@ -414,5 +460,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "700",
+  },
+  moreWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+
+  moreText: {
+    color: colors.point,
+    fontSize: 12,
+    fontWeight: "600",
   },
 });
