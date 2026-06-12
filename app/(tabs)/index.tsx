@@ -190,23 +190,17 @@ export default function HomeScreen() {
 
           {todayRecommendation ? (
             <View style={styles.todayCard}>
-              <View style={styles.todayImages}>
-                {todayRecommendation.items.slice(0, 3).map((item, index) => (
+              <View style={styles.todayImageWrap}>
+                {todayRecommendation.items[0] ? (
                   <Image
-                    key={item.id}
-                    source={{ uri: item.imageUri }}
-                    style={[
-                      styles.todayImage,
-                      index === 0 && styles.todayImageMain,
-                      index === 1 && styles.todayImageSecond,
-                      index === 2 && styles.todayImageThird,
-                    ]}
+                    source={{ uri: todayRecommendation.items[0].imageUri }}
+                    style={styles.todayMainImage}
                   />
-                ))}
+                ) : null}
               </View>
 
               <View style={styles.todayInfo}>
-                <Text style={styles.todayTitle} numberOfLines={2}>
+                <Text style={styles.todayTitle} numberOfLines={1}>
                   {todayRecommendation.title}
                 </Text>
 
@@ -265,7 +259,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 34,
+    paddingTop: 28,
     paddingHorizontal: 20,
     paddingBottom: 96,
   },
@@ -273,7 +267,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 14,
   },
   headerSide: {
     width: 32,
@@ -292,30 +286,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   greetingArea: {
-    marginBottom: 24,
+    marginBottom: 14,
   },
   greeting: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "800",
   },
   greetingSub: {
     color: colors.subText,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
-    marginTop: 3,
+    marginTop: 2,
   },
   sectionCard: {
     backgroundColor: "transparent",
     borderWidth: 0,
     padding: 0,
-    marginBottom: 18,
+    marginBottom: 14,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   linkText: {
@@ -341,10 +335,10 @@ const styles = StyleSheet.create({
 
   countTile: {
     width: "48%",
-    height: 72,
+    height: 58,
     backgroundColor: colors.softCard,
-    borderRadius: 18,
-    paddingHorizontal: 14,
+    borderRadius: 16,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -410,10 +404,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   heroCard: {
-    height: 175,
+    height: 148,
     borderRadius: 22,
     overflow: "hidden",
-    marginBottom: 18,
+    marginBottom: 14,
     position: "relative",
   },
 
@@ -426,27 +420,27 @@ const styles = StyleSheet.create({
   heroOverlay: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
   },
 
   heroTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "800",
     color: colors.text,
-    marginBottom: 8,
-    lineHeight: 23,
+    marginBottom: 6,
+    lineHeight: 21,
   },
 
   heroText: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 16,
     color: colors.subText,
   },
 
   heroButton: {
-    marginTop: 16,
+    marginTop: 12,
     backgroundColor: colors.text,
-    height: 34,
+    height: 32,
     borderRadius: 10,
     paddingHorizontal: 14,
     flexDirection: "row",
@@ -475,12 +469,12 @@ const styles = StyleSheet.create({
   countLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
 
   countIconCircle: {
-    width: 42,
-    height: 42,
+    width: 34,
+    height: 34,
     borderRadius: 999,
     backgroundColor: colors.softCard,
     alignItems: "center",
@@ -488,94 +482,72 @@ const styles = StyleSheet.create({
   },
 
   countIcon: {
-    fontSize: 20,
+    fontSize: 17,
   },
 
   countLabel: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "700",
   },
 
   countValue: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "800",
-    marginTop: 2,
+    marginTop: 1,
   },
   todayCard: {
-    backgroundColor: colors.softCard,
-    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: "row",
-    overflow: "hidden",
-    height: 132,
+    alignItems: "center",
+    height: 120,
+    padding: 10,
+    gap: 12,
   },
 
-  todayImages: {
+  todayImageWrap: {
     width: "43%",
-    backgroundColor: colors.card,
-    position: "relative",
-    borderTopLeftRadius: 20,
-    borderBottomLeftRadius: 20,
+    height: "100%",
+    backgroundColor: colors.softCard,
+    borderRadius: 16,
+    overflow: "hidden",
   },
 
-  todayImage: {
-    position: "absolute",
+  todayMainImage: {
+    width: "100%",
+    height: "100%",
     resizeMode: "cover",
-    backgroundColor: colors.inactiveTab,
-  },
-
-  todayImageMain: {
-    width: 78,
-    height: 96,
-    left: 12,
-    top: 18,
     borderRadius: 14,
-  },
-
-  todayImageSecond: {
-    width: 56,
-    height: 92,
-    left: 74,
-    top: 20,
-    borderRadius: 13,
-  },
-
-  todayImageThird: {
-    width: 52,
-    height: 52,
-    left: 72,
-    top: 68,
-    borderRadius: 12,
+    backgroundColor: colors.inactiveTab,
   },
 
   todayInfo: {
     flex: 1,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
     justifyContent: "center",
   },
 
   todayTitle: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
-    marginBottom: 6,
+    marginBottom: 4,
   },
 
   todayScore: {
     color: colors.subText,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   tagRow: {
     flexDirection: "row",
     gap: 5,
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   tagText: {
@@ -590,7 +562,7 @@ const styles = StyleSheet.create({
 
   todayButton: {
     backgroundColor: colors.text,
-    height: 30,
+    height: 28,
     borderRadius: 9,
     paddingHorizontal: 13,
     flexDirection: "row",
