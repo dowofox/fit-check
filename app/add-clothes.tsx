@@ -16,6 +16,7 @@ import {
 } from "react-native";
 
 const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
+const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const STYLE_TAG_OPTIONS = [
   "미니멀",
@@ -196,13 +197,25 @@ async function saveCleanImageToFile(base64?: string | null) {
   }
 }
 
+async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {
+  if (!AUTO_APPLY_BACKGROUND_REMOVAL) {
+    if (analysis.cleanImageBase64) {
+      console.log("[add-clothes] clean image received but auto apply is disabled");
+    }
+
+    return undefined;
+  }
+
+  return saveCleanImageToFile(analysis.cleanImageBase64);
+}
+
 async function saveAnalyzedClosetItem(
   imageUri: string,
   analysis: ClothesAnalysis,
   seasons = normalizeSeasons(analysis.seasons || analysis.season),
   styleTags = normalizeStyleTags(analysis.styleTags, analysis.style)
 ) {
-  const cleanImageUri = await saveCleanImageToFile(analysis.cleanImageBase64);
+  const cleanImageUri = await getOptionalCleanImageUri(analysis);
 
   await saveClosetItem({
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -387,7 +400,7 @@ export default function AddClothesScreen() {
 
     try {
       setIsSaving(true);
-      const cleanImageUri = await saveCleanImageToFile(analysis.cleanImageBase64);
+      const cleanImageUri = await getOptionalCleanImageUri(analysis);
 
       await saveClosetItem({
         id: Date.now().toString(),
@@ -527,7 +540,7 @@ export default function AddClothesScreen() {
             </View>
 
             {analysis.cleanImageBase64 && (
-              <Text style={styles.analysisHint}>배경제거 이미지도 함께 저장돼요.</Text>
+              <Text style={styles.analysisHint}>배경제거 결과가 있지만 현재는 원본 사진으로 저장돼요.</Text>
             )}
           </View>
         )}

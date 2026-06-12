@@ -417,7 +417,7 @@ ${profileText}
 
 app.post("/analyze-clothes", async (req, res) => {
   try {
-    const { image, imageMimeType } = req.body;
+    const { image, imageMimeType, applyBackgroundRemoval } = req.body;
 
     if (!image) {
       return res.status(400).json({
@@ -444,8 +444,15 @@ app.post("/analyze-clothes", async (req, res) => {
       imageLength: image?.length || 0,
     });
 
-    const [completion, cleanImageBase64] = await Promise.all([
-      openai.chat.completions.create({
+    const shouldRemoveBackground =
+      applyBackgroundRemoval === true || process.env.ENABLE_BACKGROUND_REMOVAL === "true";
+
+    console.log("[analyze-clothes] background removal", {
+      enabled: shouldRemoveBackground,
+      source: applyBackgroundRemoval === true ? "request" : "env",
+    });
+
+    const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         temperature: 0,
         response_format: { type: "json_object" },
@@ -494,9 +501,11 @@ app.post("/analyze-clothes", async (req, res) => {
             ],
           },
         ],
-      }),
-      removeClothesBackground(image, requestImageMimeType),
-    ]);
+      });
+
+    const cleanImageBase64 = shouldRemoveBackground
+      ? await removeClothesBackground(image, requestImageMimeType)
+      : null;
 
     const text = completion.choices[0].message.content;
     const parsed = JSON.parse(text);
