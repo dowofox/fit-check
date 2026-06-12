@@ -1,7 +1,7 @@
 import BottomNav from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit, UserProfile } from "@/utils/storage";
-import { colors, radius, spacing, typography } from "@/utils/theme";
+import { colors, radius, typography } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -172,32 +172,37 @@ export default function HomeScreen() {
           </View>
 
           {todayRecommendation ? (
-            <View>
-              <View style={styles.recommendHeader}>
-                <View style={styles.scorePill}>
-                  <Text style={styles.scoreText}>{todayRecommendation.score}점</Text>
-                </View>
-                <Text style={styles.recommendGrade}>{todayRecommendation.grade} 등급</Text>
+            <View style={styles.todayCard}>
+              <View style={styles.todayImages}>
+                {todayRecommendation.items.slice(0, 3).map((item) => (
+                  <Image
+                    key={item.id}
+                    source={{ uri: item.imageUri }}
+                    style={styles.todayImage}
+                  />
+                ))}
               </View>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.recommendItems}
-              >
-                {todayRecommendation.items.slice(0, 4).map((item) => (
-                  <Pressable
-                    key={item.id}
-                    style={styles.recommendItem}
-                    onPress={() => router.push({ pathname: "/clothes-detail", params: { id: item.id } })}
-                  >
-                    <Image source={{ uri: item.imageUri }} style={styles.recommendImage} />
-                    <Text style={styles.recommendItemName} numberOfLines={1}>
-                      {getItemName(item)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              <View style={styles.todayInfo}>
+                <Text style={styles.todayTitle}>캐주얼 미니멀 룩</Text>
+
+                <Text style={styles.todayScore}>
+                  추천도 {todayRecommendation.score}점
+                </Text>
+
+                <View style={styles.tagRow}>
+                  <Text style={styles.tagText}>#편안함</Text>
+                  <Text style={styles.tagText}>#데일리</Text>
+                </View>
+
+                <Pressable
+                  style={styles.todayButton}
+                  onPress={() => router.push("/outfit-recommend")}
+                >
+                  <Text style={styles.todayButtonText}>추천 보기</Text>
+                  <Feather name="arrow-right" size={14} color="#fff" />
+                </Pressable>
+              </View>
             </View>
           ) : (
             <Text style={styles.emptyText}>옷을 더 추가하면 추천을 받을 수 있어요.</Text>
@@ -315,47 +320,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     borderWidth: 1,
     borderColor: "#EFE7DD",
-  },
-  recommendHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: 10,
-  },
-  scorePill: {
-    backgroundColor: colors.softCard,
-    borderRadius: radius.round,
-    paddingVertical: 5,
-    paddingHorizontal: 9,
-  },
-  scoreText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  recommendGrade: {
-    color: colors.subText,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  recommendItems: {
-    gap: spacing.sm,
-    paddingRight: 2,
-  },
-  recommendItem: {
-    width: 62,
-  },
-  recommendImage: {
-    width: 62,
-    height: 74,
-    borderRadius: radius.md,
-    backgroundColor: colors.inactiveTab,
-    marginBottom: 5,
-  },
-  recommendItemName: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "600",
   },
   emptyText: {
     ...typography.body,
@@ -490,5 +454,85 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     marginTop: 2,
+  },
+  todayCard: {
+    backgroundColor: "#FBF8F3",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#EFE7DD",
+    flexDirection: "row",
+    overflow: "hidden",
+    minHeight: 128,
+  },
+
+  todayImages: {
+    width: "44%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    padding: 10,
+  },
+
+  todayImage: {
+    width: 48,
+    height: 84,
+    borderRadius: 12,
+    backgroundColor: colors.inactiveTab,
+  },
+
+  todayInfo: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingRight: 14,
+    justifyContent: "center",
+  },
+
+  todayTitle: {
+    color: "#111",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 7,
+  },
+
+  todayScore: {
+    color: "#6D675F",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  tagRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 12,
+  },
+
+  tagText: {
+    backgroundColor: "#F1E6D6",
+    color: "#A48763",
+    fontSize: 11,
+    fontWeight: "700",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+
+  todayButton: {
+    backgroundColor: "#111",
+    height: 34,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+  },
+
+  todayButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
