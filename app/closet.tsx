@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
     Alert,
+    Dimensions,
     Image,
     Pressable,
     ScrollView,
@@ -20,6 +21,13 @@ import {
 } from "react-native";
 
 const CLOSET_FILTERS = ["전체", "상의", "하의", "신발", "아우터", "액세서리"];
+const SCREEN_HORIZONTAL_PADDING = 18;
+const GRID_GAP = 12;
+const GRID_COLUMN_COUNT = 3;
+const CLOSET_CARD_WIDTH = Math.floor(
+    (Dimensions.get("window").width - SCREEN_HORIZONTAL_PADDING * 2 - GRID_GAP * (GRID_COLUMN_COUNT - 1))
+    / GRID_COLUMN_COUNT
+);
 
 function getItemTitle(item: ClosetItem) {
     return item.detailCategory || item.subCategory || item.category || "아이템";
@@ -192,7 +200,7 @@ const styles = StyleSheet.create({
     container: {
         flexGrow: 1,
         paddingTop: 42,
-        paddingHorizontal: 18,
+        paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
         paddingBottom: 132,
     },
     headerRow: {
@@ -309,15 +317,15 @@ const styles = StyleSheet.create({
     closetGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        columnGap: 12,
+        columnGap: GRID_GAP,
         rowGap: 18,
     },
     closetCard: {
-        width: "30.9%",
+        width: CLOSET_CARD_WIDTH,
     },
     imageBox: {
         width: "100%",
-        aspectRatio: 1,
+        height: CLOSET_CARD_WIDTH,
         borderRadius: 12,
         backgroundColor: colors.softCard,
         overflow: "hidden",
