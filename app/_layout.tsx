@@ -30,6 +30,7 @@ export default function RootLayout() {
         <Stack.Screen name="history" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ headerShown: false }} />
         <Stack.Screen name="closet" options={{ headerShown: false }} />
+        <Stack.Screen name="clothes-detail" options={{ headerShown: false }} />
         <Stack.Screen name="add-clothes" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
       </Stack>
