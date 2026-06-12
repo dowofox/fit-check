@@ -21,43 +21,47 @@ import {
 
 const CLOSET_FILTERS = ["전체", "상의", "하의", "신발", "아우터", "액세서리"];
 
+function getItemTitle(item: ClosetItem) {
+    return item.detailCategory || item.subCategory || item.category || "아이템";
+}
+
+function formatDate(value?: string) {
+    if (!value) return "날짜 없음";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return "날짜 없음";
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}.${month}.${day}`;
+}
+
 export default function ClosetScreen() {
     const { category } = useLocalSearchParams<{ category?: string }>();
     const [items, setItems] = useState<ClosetItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("전체");
-    const [selectedDetailCategory, setSelectedDetailCategory] = useState("전체");
+
     useFocusEffect(
         useCallback(() => {
             loadCloset();
 
             if (typeof category === "string") {
                 setSelectedCategory(category);
-                setSelectedDetailCategory("전체");
             }
         }, [category])
     );
+
     async function loadCloset() {
         const closetItems = await getClosetItems();
         setItems(closetItems);
     }
-    const categoryFilteredItems = selectedCategory === "전체"
+
+    const filteredItems = selectedCategory === "전체"
         ? items
         : items.filter((item) => item.category === selectedCategory);
-    const detailFilters = [
-        "전체",
-        ...Array.from(
-            new Set(
-                categoryFilteredItems
-                    .map((item) => item.detailCategory || item.subCategory)
-                    .filter((category): category is string => Boolean(category))
-            )
-        ),
-    ];
-    const filteredItems = selectedDetailCategory === "전체"
-        ? categoryFilteredItems
-        : categoryFilteredItems.filter(
-            (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
-        );
 
     function handleDeleteItem(id: string) {
         Alert.alert(
@@ -76,6 +80,7 @@ export default function ClosetScreen() {
             ]
         );
     }
+
     return (
         <View style={styles.screen}>
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -86,10 +91,10 @@ export default function ClosetScreen() {
 
                     <View style={styles.headerActions}>
                         <Pressable style={styles.iconButton}>
-                            <Feather name="search" size={19} color={colors.text} />
+                            <Feather name="search" size={22} color={colors.text} />
                         </Pressable>
                         <Pressable style={styles.iconButton} onPress={() => router.push("/add-clothes")}>
-                            <Feather name="plus" size={21} color={colors.text} />
+                            <Feather name="plus" size={24} color={colors.text} />
                         </Pressable>
                     </View>
                 </View>
@@ -100,9 +105,7 @@ export default function ClosetScreen() {
                             <Feather name="archive" size={22} color={colors.point} />
                         </View>
 
-                        <Text style={styles.emptyTitle}>
-                            아직 저장된 옷이 없어요
-                        </Text>
+                        <Text style={styles.emptyTitle}>아직 저장된 옷이 없어요</Text>
 
                         <Text style={styles.emptyText}>
                             상의, 하의, 신발, 아우터를 하나씩 저장하면
@@ -111,9 +114,7 @@ export default function ClosetScreen() {
 
                         <Pressable style={styles.primaryButton} onPress={() => router.push("/add-clothes")}>
                             <Feather name="plus" size={15} color={colors.card} />
-                            <Text style={styles.primaryButtonText}>
-                                옷 추가하기
-                            </Text>
+                            <Text style={styles.primaryButtonText}>옷 추가하기</Text>
                         </Pressable>
                     </View>
                 ) : (
@@ -123,69 +124,26 @@ export default function ClosetScreen() {
                             showsHorizontalScrollIndicator={false}
                             contentContainerStyle={styles.filterRow}
                         >
-                            {CLOSET_FILTERS.map((category) => {
-                                const isActive = selectedCategory === category;
+                            {CLOSET_FILTERS.map((filter) => {
+                                const isActive = selectedCategory === filter;
 
                                 return (
                                     <Pressable
-                                        key={category}
-                                        style={[
-                                            styles.filterChip,
-                                            isActive && styles.filterChipActive,
-                                        ]}
-                                        onPress={() => {
-                                            setSelectedCategory(category);
-                                            setSelectedDetailCategory("전체");
-                                        }}
+                                        key={filter}
+                                        style={[styles.filterChip, isActive && styles.filterChipActive]}
+                                        onPress={() => setSelectedCategory(filter)}
                                     >
-                                        <Text
-                                            style={[
-                                                styles.filterText,
-                                                isActive && styles.filterTextActive,
-                                            ]}
-                                        >
-                                            {category}
+                                        <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                                            {filter}
                                         </Text>
                                     </Pressable>
                                 );
                             })}
                         </ScrollView>
 
-                        {selectedCategory !== "전체" && detailFilters.length > 1 && (
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.detailFilterRow}
-                            >
-                                {detailFilters.map((category) => {
-                                    const isActive = selectedDetailCategory === category;
-
-                                    return (
-                                        <Pressable
-                                            key={category}
-                                            style={[
-                                                styles.filterChip,
-                                                isActive && styles.filterChipActive,
-                                            ]}
-                                            onPress={() => setSelectedDetailCategory(category)}
-                                        >
-                                            <Text
-                                                style={[
-                                                    styles.filterText,
-                                                    isActive && styles.filterTextActive,
-                                                ]}
-                                            >
-                                                {category}
-                                            </Text>
-                                        </Pressable>
-                                    );
-                                })}
-                            </ScrollView>
-                        )}
-
                         <Text style={styles.countText}>
                             {selectedCategory === "전체"
-                                ? `총 ${items.length}개 보유`
+                                ? `전체 ${items.length}개`
                                 : `${selectedCategory} ${filteredItems.length}개`}
                         </Text>
 
@@ -194,28 +152,21 @@ export default function ClosetScreen() {
                                 <Pressable
                                     key={item.id}
                                     style={styles.closetCard}
-                                    onPress={() => router.push({
-                                        pathname: "/clothes-detail",
-                                        params: { id: item.id },
-                                    })}
+                                    onLongPress={() => handleDeleteItem(item.id)}
                                 >
-                                    <Image
-                                        source={{ uri: item.imageUri }}
-                                        style={styles.closetImage}
-                                    />
-                                    <Pressable
-                                        style={styles.deleteButton}
-                                        onPress={() => handleDeleteItem(item.id)}
-                                    >
-                                        <Feather name="trash-2" size={11} color={colors.warning} />
-                                    </Pressable>
+                                    <View style={styles.imageBox}>
+                                        <Image
+                                            source={{ uri: item.imageUri }}
+                                            style={styles.closetImage}
+                                        />
+                                    </View>
 
-                                    <Text style={styles.closetCategory}>
-                                        {item.detailCategory || item.subCategory || item.category}
+                                    <Text style={styles.closetCategory} numberOfLines={1}>
+                                        {getItemTitle(item)}
                                     </Text>
 
-                                    <Text style={styles.closetSubText}>
-                                        {item.category}{item.color ? ` · ${item.color}` : ""}
+                                    <Text style={styles.closetSubText} numberOfLines={1}>
+                                        {formatDate(item.createdAt)}
                                     </Text>
                                 </Pressable>
                             ))}
@@ -230,43 +181,44 @@ export default function ClosetScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
+    screen: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
     container: {
         flexGrow: 1,
         paddingTop: 42,
         paddingHorizontal: 18,
-        paddingBottom: 78,
+        paddingBottom: 132,
     },
-
     headerRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: 22,
+        marginBottom: 24,
     },
     headerSide: {
-        width: 58,
+        width: 64,
     },
     headerTitle: {
         color: colors.text,
-        fontSize: 20,
-        fontWeight: "700",
+        fontSize: 24,
+        fontWeight: "800",
         textAlign: "center",
     },
     headerActions: {
-        width: 58,
+        width: 64,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "flex-end",
-        gap: 14,
+        gap: 18,
     },
     iconButton: {
-        width: 22,
-        height: 22,
+        width: 24,
+        height: 24,
         alignItems: "center",
         justifyContent: "center",
     },
-
     emptyCard: {
         backgroundColor: colors.card,
         borderRadius: 24,
@@ -280,7 +232,6 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 2,
     },
-
     emptyIconCircle: {
         width: 46,
         height: 46,
@@ -292,14 +243,12 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         marginBottom: 12,
     },
-
     emptyTitle: {
         fontSize: 17,
         fontWeight: "700",
         color: colors.text,
         marginBottom: 8,
     },
-
     emptyText: {
         fontSize: 14,
         color: colors.subText,
@@ -308,7 +257,6 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginBottom: 15,
     },
-
     primaryButton: {
         backgroundColor: colors.text,
         borderRadius: 999,
@@ -318,21 +266,15 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 8,
     },
-
     primaryButtonText: {
         color: colors.card,
         fontSize: 12,
         fontWeight: "700",
     },
     filterRow: {
-        gap: 9,
-        paddingRight: 2,
+        gap: 10,
+        paddingRight: 18,
         marginBottom: 18,
-    },
-    detailFilterRow: {
-        gap: 6,
-        paddingRight: 2,
-        marginBottom: 10,
     },
     filterChip: {
         backgroundColor: colors.card,
@@ -340,7 +282,7 @@ const styles = StyleSheet.create({
         borderColor: colors.border,
         borderRadius: 999,
         paddingVertical: 9,
-        paddingHorizontal: 15,
+        paddingHorizontal: 18,
     },
     filterChipActive: {
         backgroundColor: colors.text,
@@ -349,62 +291,50 @@ const styles = StyleSheet.create({
     filterText: {
         color: colors.text,
         fontSize: 13,
-        fontWeight: "600",
+        fontWeight: "700",
     },
     filterTextActive: {
         color: colors.card,
     },
     countText: {
         fontSize: 18,
-        fontWeight: "700",
+        fontWeight: "800",
         color: colors.text,
         marginBottom: 14,
     },
-
     closetGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        columnGap: 10,
+        columnGap: 12,
         rowGap: 18,
     },
-
     closetCard: {
-        width: "31.4%",
-        backgroundColor: "transparent",
-        borderRadius: 0,
-        overflow: "hidden",
+        width: "30.9%",
     },
-
+    imageBox: {
+        width: "100%",
+        aspectRatio: 1,
+        borderRadius: 12,
+        backgroundColor: colors.softCard,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
     closetImage: {
         width: "100%",
-        height: 112,
-        borderRadius: 14,
-        backgroundColor: colors.inactiveTab,
+        height: "100%",
+        resizeMode: "cover",
     },
-
     closetCategory: {
-        fontSize: 13,
-        fontWeight: "700",
+        fontSize: 12,
+        fontWeight: "800",
         color: colors.text,
         paddingTop: 8,
     },
-
     closetSubText: {
-        fontSize: 11,
+        fontSize: 10,
         color: colors.subText,
-        paddingTop: 2,
-    },
-    deleteButton: {
-        position: "absolute",
-        top: 6,
-        right: 6,
-        width: 20,
-        height: 20,
-        borderRadius: 999,
-        backgroundColor: colors.softCard,
-        alignItems: "center",
-        justifyContent: "center",
-        borderWidth: 1,
-        borderColor: colors.border,
+        fontWeight: "500",
+        paddingTop: 3,
     },
 });
