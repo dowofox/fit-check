@@ -12,12 +12,22 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
 const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
 const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
+const DEFAULT_SIZE = "사이즈 미입력";
+const TOP_SIZE_OPTIONS = ["S", "M", "L", "XL", "2XL", "3XL"];
+const BOTTOM_SIZE_OPTIONS = ["28", "29", "30", "31", "32", "33", "34", "36"];
+const SHOE_SIZE_OPTIONS = ["250", "255", "260", "265", "270", "275", "280", "285"];
+const COMMON_SIZE_OPTIONS = [
+  ...TOP_SIZE_OPTIONS,
+  ...BOTTOM_SIZE_OPTIONS,
+  ...SHOE_SIZE_OPTIONS,
+].filter((value, index, array) => array.indexOf(value) === index);
 const STYLE_TAG_OPTIONS = [
   "미니멀",
   "캐주얼",
@@ -172,6 +182,14 @@ function toggleStyleTag(currentTags: string[], tag: string) {
   return [...currentTags, tag];
 }
 
+function getSizeOptions(category?: string) {
+  if (category?.includes("상의") || category?.includes("아우터")) return TOP_SIZE_OPTIONS;
+  if (category?.includes("하의")) return BOTTOM_SIZE_OPTIONS;
+  if (category?.includes("신발")) return SHOE_SIZE_OPTIONS;
+
+  return COMMON_SIZE_OPTIONS;
+}
+
 async function saveCleanImageToFile(base64?: string | null) {
   if (!base64) {
     console.log("[add-clothes] clean image missing, original image will be saved");
@@ -213,7 +231,8 @@ async function saveAnalyzedClosetItem(
   imageUri: string,
   analysis: ClothesAnalysis,
   seasons = normalizeSeasons(analysis.seasons || analysis.season),
-  styleTags = normalizeStyleTags(analysis.styleTags, analysis.style)
+  styleTags = normalizeStyleTags(analysis.styleTags, analysis.style),
+  size = DEFAULT_SIZE
 ) {
   const cleanImageUri = await getOptionalCleanImageUri(analysis);
 
@@ -230,7 +249,7 @@ async function saveAnalyzedClosetItem(
     season: seasons.join(", "),
     seasons,
     fit: analysis.fit || "핏 미분석",
-    size: analysis.size || "사이즈 미입력",
+    size: size.trim() || DEFAULT_SIZE,
     description: analysis.description || "옷 특징을 분석하지 못했어요.",
     matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
     avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",
@@ -246,6 +265,7 @@ export default function AddClothesScreen() {
   const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["데일리"]);
+  const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -264,6 +284,7 @@ export default function AddClothesScreen() {
       setProgressText("");
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
+      setSelectedSize(DEFAULT_SIZE);
     }
   }
 
@@ -288,6 +309,7 @@ export default function AddClothesScreen() {
       setProgressText("");
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
+      setSelectedSize(DEFAULT_SIZE);
     }
   }
 
@@ -343,6 +365,7 @@ export default function AddClothesScreen() {
       setAnalysis(analysis);
       setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
       setSelectedStyleTags(normalizeStyleTags(analysis.styleTags, analysis.style));
+      setSelectedSize(DEFAULT_SIZE);
     } catch (error) {
       console.log("옷 분석 실패:", error);
       Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
@@ -415,7 +438,7 @@ export default function AddClothesScreen() {
         season: selectedSeasons.join(", "),
         seasons: selectedSeasons,
         fit: analysis.fit || "핏 분석 전",
-        size: analysis.size || "사이즈 미입력",
+        size: selectedSize.trim() || DEFAULT_SIZE,
         description: analysis.description || "옷 특징을 분석하지 못했어요.",
         matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
         avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",
@@ -430,6 +453,8 @@ export default function AddClothesScreen() {
       setIsSaving(false);
     }
   }
+
+  const sizeOptions = getSizeOptions(analysis?.category);
 
   return (
     <View style={styles.screen}>
@@ -538,6 +563,32 @@ export default function AddClothesScreen() {
                 );
               })}
             </View>
+
+            <Text style={styles.seasonLabel}>사이즈</Text>
+            <View style={styles.seasonChipRow}>
+              {sizeOptions.map((size) => {
+                const isActive = selectedSize === size;
+
+                return (
+                  <Pressable
+                    key={size}
+                    style={[styles.seasonChip, isActive && styles.seasonChipActive]}
+                    onPress={() => setSelectedSize(size)}
+                  >
+                    <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
+                      {size}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <TextInput
+              style={styles.sizeInput}
+              value={selectedSize === DEFAULT_SIZE ? "" : selectedSize}
+              onChangeText={(value) => setSelectedSize(value.trim() || DEFAULT_SIZE)}
+              placeholder={DEFAULT_SIZE}
+              placeholderTextColor="#777064"
+            />
 
             {analysis.cleanImageBase64 && (
               <Text style={styles.analysisHint}>배경제거 결과가 있지만 현재는 원본 사진으로 저장돼요.</Text>
@@ -765,6 +816,18 @@ const styles = StyleSheet.create({
   },
   seasonChipTextActive: {
     color: "#fff",
+  },
+  sizeInput: {
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    backgroundColor: "#f4eee7",
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "700",
+    paddingHorizontal: 14,
+    marginTop: 10,
   },
   analysisHint: {
     color: "#777064",
