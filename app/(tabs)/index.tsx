@@ -130,7 +130,18 @@ export default function HomeScreen() {
 
           <View style={styles.closetGrid}>
             {CLOSET_CATEGORIES.map((category) => (
-              <View key={category.label} style={styles.countTile}>
+              <Pressable
+                key={category.label}
+                style={styles.countTile}
+                onPress={() =>
+                  router.push({
+                    pathname: "/closet",
+                    params: {
+                      category: category.label,
+                    },
+                  })
+                }
+              >
                 <View style={styles.countLeft}>
                   <View style={styles.countIconCircle}>
                     <Text style={styles.countIcon}>
