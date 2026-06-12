@@ -15,10 +15,35 @@ import {
 } from "react-native";
 
 const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
+const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
+
+type ClothesAnalysis = {
+  category?: string;
+  subCategory?: string;
+  detailCategory?: string;
+  color?: string;
+  style?: string;
+  season?: string;
+  fit?: string;
+  size?: string;
+  description?: string;
+  matchTip?: string;
+  avoidTip?: string;
+};
+
+function normalizeSeason(season?: string) {
+  if (!season) return "사계절";
+
+  const matchedSeason = SEASON_OPTIONS.find((option) => season.includes(option));
+
+  return matchedSeason || "사계절";
+}
 
 export default function AddClothesScreen() {
   const [imageUri, setImageUri] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState("사계절");
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -28,6 +53,8 @@ export default function AddClothesScreen() {
 
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
+      setAnalysis(null);
+      setSelectedSeason("사계절");
     }
   }
 
@@ -45,10 +72,12 @@ export default function AddClothesScreen() {
 
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
+      setAnalysis(null);
+      setSelectedSeason("사계절");
     }
   }
 
-  async function saveItem() {
+  async function analyzeItem() {
     if (!imageUri || isSaving) return;
 
     try {
@@ -82,6 +111,22 @@ export default function AddClothesScreen() {
 
       const analysis = await response.json();
 
+      setAnalysis(analysis);
+      setSelectedSeason(normalizeSeason(analysis.season));
+    } catch (error) {
+      console.log("옷 분석 실패:", error);
+      Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function saveItem() {
+    if (!imageUri || !analysis || isSaving) return;
+
+    try {
+      setIsSaving(true);
+
       await saveClosetItem({
         id: Date.now().toString(),
         imageUri,
@@ -90,7 +135,7 @@ export default function AddClothesScreen() {
         detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
         color: analysis.color || "색상 분석 전",
         style: analysis.style || "스타일 분석 전",
-        season: analysis.season || "계절 분석 전",
+        season: selectedSeason || normalizeSeason(analysis.season),
         fit: analysis.fit || "핏 분석 전",
         size: analysis.size || "사이즈 미입력",
         description: analysis.description || "옷 특징을 분석하지 못했어요.",
@@ -101,8 +146,8 @@ export default function AddClothesScreen() {
 
       router.replace("/closet");
     } catch (error) {
-      console.log("옷 분석 저장 실패:", error);
-      Alert.alert("저장 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
+      console.log("옷 저장 실패:", error);
+      Alert.alert("저장 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
     } finally {
       setIsSaving(false);
     }
@@ -152,9 +197,37 @@ export default function AddClothesScreen() {
           </Pressable>
         </View>
 
+        {analysis && (
+          <View style={styles.analysisCard}>
+            <Text style={styles.analysisTitle}>AI 분석 결과</Text>
+            <Text style={styles.analysisText}>
+              {analysis.detailCategory || analysis.subCategory || analysis.category || "옷 종류 분석 전"}
+            </Text>
+
+            <Text style={styles.seasonLabel}>계절</Text>
+            <View style={styles.seasonChipRow}>
+              {SEASON_OPTIONS.map((season) => {
+                const isActive = selectedSeason === season;
+
+                return (
+                  <Pressable
+                    key={season}
+                    style={[styles.seasonChip, isActive && styles.seasonChipActive]}
+                    onPress={() => setSelectedSeason(season)}
+                  >
+                    <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
+                      {season}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         <Pressable
           style={[styles.primaryButton, (!imageUri || isSaving) && styles.primaryButtonDisabled]}
-          onPress={saveItem}
+          onPress={analysis ? saveItem : analyzeItem}
           disabled={!imageUri || isSaving}
         >
           {isSaving ? (
@@ -162,7 +235,9 @@ export default function AddClothesScreen() {
           ) : (
             <>
               <Feather name="save" size={18} color="#fff" />
-              <Text style={styles.primaryButtonText}>AI 분석 후 저장</Text>
+              <Text style={styles.primaryButtonText}>
+                {analysis ? "선택한 계절로 저장" : "AI 분석하기"}
+              </Text>
             </>
           )}
         </Pressable>
@@ -289,6 +364,66 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 14,
     fontWeight: "900",
+  },
+
+  analysisCard: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+  },
+
+  analysisTitle: {
+    color: "#111",
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  analysisText: {
+    color: "#6b6258",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 14,
+  },
+
+  seasonLabel: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+    marginBottom: 10,
+  },
+
+  seasonChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  seasonChip: {
+    backgroundColor: "#faf8f5",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+
+  seasonChipActive: {
+    backgroundColor: "#111",
+    borderColor: "#111",
+  },
+
+  seasonChipText: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  seasonChipTextActive: {
+    color: "#fff",
   },
 
   primaryButton: {

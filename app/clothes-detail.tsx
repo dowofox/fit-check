@@ -36,7 +36,7 @@ const EMPTY_DRAFT: EditableClosetFields = {
   detailCategory: "",
   color: "",
   style: "",
-  season: "",
+  season: "사계절",
   fit: "",
   size: "",
   intendedFit: "상관없음",
@@ -69,6 +69,7 @@ const STYLE_OPTIONS = [
 ];
 
 const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
+const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 
 function getEditableValues(item: ClosetItem): EditableClosetFields {
   return {
@@ -77,7 +78,7 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     detailCategory: item.detailCategory || "",
     color: item.color || "",
     style: item.style || "",
-    season: item.season || "",
+    season: item.season || "사계절",
     fit: item.fit || "",
     size: item.size || "",
     intendedFit: item.intendedFit || "상관없음",
@@ -379,10 +380,11 @@ export default function ClothesDetailScreen() {
                     options={STYLE_OPTIONS}
                     onSelect={(value) => updateDraft("style", value)}
                   />
-                  <EditRow
+                  <ChipGroup
                     label="계절"
                     value={draft.season}
-                    onChangeText={(value) => updateDraft("season", value)}
+                    options={SEASON_OPTIONS}
+                    onSelect={(value) => updateDraft("season", value)}
                   />
                   <EditRow
                     label="핏"
@@ -408,7 +410,7 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
                   <DetailRow label="색상" value={item.color} />
                   <DetailRow label="스타일" value={item.style} />
-                  <DetailRow label="계절" value={item.season} />
+                  <DetailRow label="계절" value={item.season || "사계절"} />
                   <DetailRow label="핏" value={item.fit} />
                   <DetailRow label="사이즈" value={item.size || "사이즈 미입력"} />
                   <DetailRow label="착용 의도" value={item.intendedFit || "상관없음"} />

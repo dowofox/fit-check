@@ -40,6 +40,17 @@ function normalizeComment(comment, fallback) {
   return fallback;
 }
 
+function normalizeClothesSeason(season) {
+  if (typeof season !== "string" || season.trim().length === 0) {
+    return "사계절";
+  }
+
+  const allowedSeasons = ["봄", "여름", "가을", "겨울", "사계절"];
+  const matchedSeason = allowedSeasons.find((option) => season.includes(option));
+
+  return matchedSeason || "사계절";
+}
+
 function getProfileText(profile = {}) {
   const gender = profile.gender || "미입력";
   const age = profile.age || "미입력";
@@ -328,6 +339,11 @@ app.post("/analyze-clothes", async (req, res) => {
 - 실제 사진에 보이는 옷만 기준으로 판단해주세요.
 - 브랜드명은 확실히 보이지 않으면 추정하지 마세요.
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
+- season은 반드시 "봄", "여름", "가을", "겨울", "사계절" 중 하나만 사용하세요.
+- 반팔, 민소매, 린넨, 얇은 셔츠처럼 얇고 통기성이 좋아 보이는 옷은 "여름"으로 판단하세요.
+- 니트, 패딩, 코트, 두꺼운 후드, 울, 플리스, 부츠는 "겨울"로 판단하세요.
+- 가디건, 자켓, 셔츠, 맨투맨처럼 간절기에 자연스러운 옷은 이미지 두께감에 따라 "봄" 또는 "가을"로 판단하세요.
+- 기본 티셔츠, 청바지, 운동화처럼 계절 제한이 약한 아이템은 "사계절"로 판단하세요.
 - 사진 품질이 낮아도 최대한 보이는 정보 기준으로 판단해주세요.
 - 모든 답변은 자연스러운 한국어로 작성해주세요.
 `
@@ -352,7 +368,7 @@ app.post("/analyze-clothes", async (req, res) => {
       detailCategory: parsed.detailCategory || parsed.subCategory || "상세 분류 전",
       color: parsed.color || "색상 분석 전",
       style: parsed.style || "스타일 분석 전",
-      season: parsed.season || "계절 분석 전",
+      season: normalizeClothesSeason(parsed.season),
       fit: parsed.fit || "핏 분석 전",
       description: parsed.description || "옷 특징을 분석하지 못했습니다.",
       matchTip: parsed.matchTip || "어울리는 조합을 분석하지 못했습니다.",
