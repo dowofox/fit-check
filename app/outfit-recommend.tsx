@@ -243,6 +243,25 @@ function RecommendationCard({
         </View>
       )}
 
+      {recommendation.recommendedShoes ? (
+        <View style={styles.recommendedShoeBox}>
+          <View style={styles.noteHeader}>
+            <Feather name="navigation" size={15} color={colors.point} />
+            <Text style={styles.noteTitle}>추천 신발</Text>
+          </View>
+
+          <Text style={styles.recommendedShoeName}>
+            {recommendation.recommendedShoes.type}
+          </Text>
+          <Text style={styles.recommendedShoeReason}>
+            {recommendation.recommendedShoes.reason}
+          </Text>
+          <Text style={styles.recommendedShoeHint}>
+            현재 옷장에 등록된 신발이 없어 추천 신발을 제안했어요.
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.sockBox}>
         <View style={styles.noteHeader}>
           <Feather name="circle" size={15} color={colors.point} />
@@ -674,6 +693,33 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 13,
     marginBottom: 10,
+  },
+  recommendedShoeBox: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 10,
+  },
+  recommendedShoeName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+  recommendedShoeReason: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+  recommendedShoeHint: {
+    color: colors.point,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
+    marginTop: 7,
   },
   sockBox: {
     backgroundColor: colors.card,

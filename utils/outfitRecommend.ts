@@ -6,6 +6,10 @@ export type OutfitRecommendation = {
   items: ClosetItem[];
   title: string;
   tags: string[];
+  recommendedShoes?: {
+    type: string;
+    reason: string;
+  };
   sockRecommendation: {
     required: boolean;
     type: string;
@@ -165,14 +169,56 @@ function getRecommendationDisplay(items: ClosetItem[], currentSeason: string) {
   };
 }
 
-function getSockRecommendation(items: ClosetItem[]): OutfitRecommendation["sockRecommendation"] {
+function getRecommendedShoes(items: ClosetItem[]): OutfitRecommendation["recommendedShoes"] {
+  const hasShoes = items.some((item) => item.category === "신발");
+
+  if (hasShoes) return undefined;
+
+  const styles = items.flatMap(getItemStyles).filter((style): style is string => Boolean(style));
+  const colors = items.map((item) => item.color).filter((color): color is string => Boolean(color));
+  const itemNames = items.map(getItemLabel).join(" ");
+  const isFormal = styles.some((style) => ["포멀", "댄디", "클래식", "프레피"].some((keyword) => style.includes(keyword)));
+  const isStreet = styles.some((style) => ["스트릿", "고프코어", "테크웨어", "워크웨어"].some((keyword) => style.includes(keyword)));
+  const hasDenim = itemNames.includes("데님") || itemNames.includes("청바지");
+
+  if (isFormal) {
+    return {
+      type: "블랙 로퍼",
+      reason: "포멀한 상하의 조합에는 블랙 로퍼가 가장 깔끔하게 어울립니다.",
+    };
+  }
+
+  if (isStreet) {
+    return {
+      type: "블랙 스니커즈",
+      reason: "스트릿 스타일에는 무게감 있는 블랙 스니커즈가 안정적으로 어울립니다.",
+    };
+  }
+
+  if (hasDenim || colors.some((color) => ["블랙", "네이비", "데님", "그레이"].includes(color))) {
+    return {
+      type: "화이트 스니커즈",
+      reason: "캐주얼 스타일과 가장 무난하게 어울립니다.",
+    };
+  }
+
+  return {
+    type: "아이보리 스니커즈",
+    reason: "밝은 기본색 신발이라 대부분의 데일리 코디에 자연스럽게 연결됩니다.",
+  };
+}
+
+function getSockRecommendation(
+  items: ClosetItem[],
+  recommendedShoes?: OutfitRecommendation["recommendedShoes"]
+): OutfitRecommendation["sockRecommendation"] {
   const styles = items.flatMap(getItemStyles).filter((style): style is string => Boolean(style));
   const shoe = items.find((item) => item.category === "신발");
   const bottom = items.find((item) => item.category === "하의");
-  const shoeText = shoe ? getItemSearchText(shoe) : "";
-  const shoeColor = shoe?.color || "";
+  const shoeText = shoe ? getItemSearchText(shoe) : recommendedShoes?.type || "";
+  const shoeColor = shoe?.color || recommendedShoes?.type || "";
   const bottomLabel = bottom ? getItemLabel(bottom) : "하의";
-  const shoeLabel = shoe ? `${shoeColor || ""} ${getItemLabel(shoe)}`.trim() : "신발";
+  const shoeLabel = shoe ? `${shoeColor || ""} ${getItemLabel(shoe)}`.trim() : recommendedShoes?.type || "신발";
   const noSockKeywords = ["슬리퍼", "샌들", "크록스", "쪼리", "플립플랍", "플립플롭"];
   const optionalSockKeywords = ["버켄스탁", "피셔맨 샌들", "피셔맨"];
   const sockRecommendedKeywords = ["운동화", "스니커즈", "러닝화", "로퍼", "더비슈즈", "더비", "부츠", "워커"];
@@ -230,14 +276,14 @@ function getSockRecommendation(items: ClosetItem[]): OutfitRecommendation["sockR
       : isMinimal
         ? "미니멀한 분위기를 해치지 않는 무지 양말이 좋아요."
         : "데일리 코디에 자연스럽게 연결됩니다.";
-  const shoeReason = shoe
+  const shoeReason = shoe || recommendedShoes
     ? isSockRecommendedShoe
       ? `${shoeLabel}와 자연스럽게 연결됩니다.`
       : `${shoeLabel}에 부담 없이 맞출 수 있어요.`
     : "";
-  const reason = shoe
+  const reason = shoe || recommendedShoes
     ? isOptionalSockShoe
-      ? `${getItemLabel(shoe)}는 양말 없이도 자연스럽고, 포인트를 주고 싶다면 ${color} ${type}도 좋아요.`
+      ? `${shoeLabel}는 양말 없이도 자연스럽고, 포인트를 주고 싶다면 ${color} ${type}도 좋아요.`
       : `${bottomLabel}와 ${shoeLabel} 조합에 ${color} ${type}가 가장 자연스럽게 어울려요. ${shoeReason} ${styleReason}`
     : `${bottomLabel} 중심의 코디라 ${color} ${type}를 신으면 전체 분위기를 깔끔하게 마무리할 수 있어요.`;
 
@@ -896,7 +942,8 @@ function buildRecommendation(
   const rawScore = category + style + color + fit + optional;
   const score = Math.min(100, Math.max(0, rawScore - warningPenalty));
   const display = getRecommendationDisplay(items, currentSeason);
-  const sockRecommendation = getSockRecommendation(items);
+  const recommendedShoes = getRecommendedShoes(items);
+  const sockRecommendation = getSockRecommendation(items, recommendedShoes);
 
   if (score < 70 && reasons.length > 0) {
     reasons.push("전체적으로 무난할 수는 있지만 강한 추천 조합은 아니에요.");
@@ -907,6 +954,7 @@ function buildRecommendation(
     items,
     title: display.title,
     tags: display.tags,
+    recommendedShoes,
     sockRecommendation,
     score,
     grade: getGrade(score),
