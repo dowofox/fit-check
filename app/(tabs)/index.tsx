@@ -4,13 +4,11 @@ import PantsIcon from "@/assets/icons/pants.svg";
 import ShirtIcon from "@/assets/icons/shirt.svg";
 import ShoeIcon from "@/assets/icons/sneakers.svg";
 import BottomNav from "@/components/BottomNav";
-import {
-  getOutfitRecommendationResult,
-  OutfitRecommendation,
-  OutfitRecommendationWeather,
-} from "@/utils/outfitRecommend";
+import { getOutfitRecommendationResult } from "@/utils/outfitRecommend";
+import type { OutfitRecommendation, OutfitRecommendationWeather } from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
 import { colors, typography } from "@/utils/theme";
+import { formatWeatherRecommendationLabel, getCurrentWeatherForRecommendation } from "@/utils/weather";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -45,24 +43,6 @@ function getItemShortLabel(item: ClosetItem) {
 
 function getItemImageUri(item: ClosetItem) {
   return item.cleanImageUri || item.imageUri;
-}
-
-async function getTodayWeatherForRecommendation(): Promise<OutfitRecommendationWeather | null> {
-  const month = new Date().getMonth() + 1;
-
-  if (month >= 3 && month <= 5) {
-    return { temperature: 17, condition: "맑음", rainChance: 20 };
-  }
-
-  if (month >= 6 && month <= 8) {
-    return { temperature: 27, condition: "맑음", rainChance: 30 };
-  }
-
-  if (month >= 9 && month <= 11) {
-    return { temperature: 14, condition: "맑음", rainChance: 25 };
-  }
-
-  return { temperature: 2, condition: "맑음", rainChance: 20 };
 }
 
 function RecommendationLookbookCard({ recommendation }: { recommendation: OutfitRecommendation }) {
@@ -125,6 +105,7 @@ export default function HomeScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [todayRecommendations, setTodayRecommendations] = useState<OutfitRecommendation[]>([]);
+  const [weatherLabel, setWeatherLabel] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,7 +118,7 @@ export default function HomeScreen() {
         let weather: OutfitRecommendationWeather | null = null;
 
         try {
-          weather = await getTodayWeatherForRecommendation();
+          weather = await getCurrentWeatherForRecommendation();
         } catch (error) {
           console.log("[home] weather recommendation fallback", error);
         }
@@ -153,6 +134,7 @@ export default function HomeScreen() {
         setClosetItems(nextClosetItems);
         setSavedOutfits(nextSavedOutfits);
         setTodayRecommendations(recommendationResult.recommendations.slice(0, 5));
+        setWeatherLabel(formatWeatherRecommendationLabel(weather));
       }
 
       loadDashboard();
@@ -237,7 +219,10 @@ export default function HomeScreen() {
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>오늘의 추천 코디</Text>
+            <View>
+              <Text style={styles.sectionTitle}>오늘의 추천 코디</Text>
+              {weatherLabel ? <Text style={styles.weatherBasisText}>{weatherLabel}</Text> : null}
+            </View>
             <Pressable style={styles.moreWrap} onPress={() => router.push("/outfit-recommend")}>
               <Text style={styles.moreText}>추천 더보기</Text>
               <Feather name="chevron-right" size={14} color={colors.point} />
@@ -391,6 +376,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.cardTitle,
     color: colors.text,
+  },
+  weatherBasisText: {
+    color: colors.subText,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 4,
   },
   moreWrap: {
     flexDirection: "row",
