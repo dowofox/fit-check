@@ -87,7 +87,7 @@ function RecommendationCard({
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const alternatives = recommendation.alternatives || [];
   const previewReasons = recommendation.reasons.slice(0, 2);
-  const hasDetails = recommendation.reasons.length > 2 || recommendation.warnings.length > 0;
+  const sockRecommendation = recommendation.sockRecommendation;
 
   return (
     <View style={styles.recommendCard}>
@@ -101,47 +101,74 @@ function RecommendationCard({
             ))}
           </View>
           <Text style={styles.categorySummary}>
-            {recommendation.grade} 등급 · {getCategorySummary(recommendation.items)}
+            {getCategorySummary(recommendation.items)}
           </Text>
         </View>
 
         <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>{recommendation.score}</Text>
-          <Text style={styles.scoreUnit}>점</Text>
+          <Text style={styles.scoreText}>{recommendation.grade} {recommendation.score}점</Text>
         </View>
       </View>
 
-      <View style={styles.itemGrid}>
-        {recommendation.items.map((item) => (
-          <Pressable
-            key={item.id}
-            style={styles.itemCard}
-            onPress={() => router.push({
-              pathname: "/clothes-detail",
-              params: { id: item.id },
-            })}
-          >
-            <Image source={{ uri: getItemImageUri(item) }} style={styles.itemImage} />
-            <Text style={styles.itemName} numberOfLines={1}>
-              {getItemName(item)}
-            </Text>
-            <Text style={styles.itemMeta} numberOfLines={1}>
-              {item.category}{item.color ? ` · ${item.color}` : ""}
-            </Text>
-          </Pressable>
-        ))}
+      <View style={styles.itemShowcase}>
+        <View style={styles.itemGrid}>
+          {recommendation.items.map((item) => (
+            <Pressable
+              key={item.id}
+              style={styles.itemCard}
+              onPress={() => router.push({
+                pathname: "/clothes-detail",
+                params: { id: item.id },
+              })}
+            >
+              <Image source={{ uri: getItemImageUri(item) }} style={styles.itemImage} />
+              <Text style={styles.itemName} numberOfLines={1}>
+                {getItemName(item)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       {previewReasons.length > 0 ? (
-        <View style={styles.reasonSummaryBox}>
+        <Pressable
+          style={styles.reasonSummaryBox}
+          onPress={() => setIsDetailOpen((current) => !current)}
+        >
           <View style={styles.noteHeader}>
             <Feather name="check-circle" size={16} color={colors.text} />
-            <Text style={styles.noteTitle}>왜 좋은 코디인가요?</Text>
+            <Text style={styles.noteTitle}>추천 이유</Text>
+            <Feather
+              name={isDetailOpen ? "chevron-up" : "chevron-down"}
+              size={16}
+              color={colors.point}
+              style={styles.noteHeaderIcon}
+            />
           </View>
-          {previewReasons.map((reason) => (
+          {(isDetailOpen ? recommendation.reasons : previewReasons).map((reason) => (
             <Text key={reason} style={styles.noteText}>- {reason}</Text>
           ))}
-        </View>
+
+          {isDetailOpen && recommendation.warnings.length > 0 ? (
+            <View style={styles.inlineWarningArea}>
+              <Text style={styles.inlineWarningTitle}>주의사항</Text>
+              {recommendation.warnings.map((warning) => (
+                <Text key={warning} style={styles.noteText}>- {warning}</Text>
+              ))}
+            </View>
+          ) : null}
+
+          {isDetailOpen ? (
+            <View style={styles.compactBreakdownBox}>
+              <Text style={styles.breakdownText}>
+                스타일 {recommendation.breakdown.style} · 색상 {recommendation.breakdown.color} · 핏 {recommendation.breakdown.fit} · 완성도 {recommendation.breakdown.optional}
+              </Text>
+              {recommendation.penalty ? (
+                <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
+              ) : null}
+            </View>
+          ) : null}
+        </Pressable>
       ) : null}
 
       <View style={styles.addonRow}>
@@ -158,79 +185,25 @@ function RecommendationCard({
           </View>
         ) : null}
 
+        {sockRecommendation ? (
         <View style={styles.addonCard}>
           <Feather name="circle" size={15} color={colors.point} />
           <Text style={styles.addonLabel}>
-            {recommendation.sockRecommendation.required ? "추천 양말" : "양말"}
+            {sockRecommendation.required ? "추천 양말" : "양말"}
           </Text>
           <Text style={styles.addonTitle} numberOfLines={1}>
-            {recommendation.sockRecommendation.required
-              ? `${recommendation.sockRecommendation.color} ${recommendation.sockRecommendation.type}`
+            {sockRecommendation.required
+              ? `${sockRecommendation.color} ${sockRecommendation.type}`
               : "양말 없음"}
           </Text>
           <Text style={styles.addonText} numberOfLines={2}>
-            {recommendation.sockRecommendation.required
-              ? recommendation.sockRecommendation.reason
+            {sockRecommendation.required
+              ? sockRecommendation.reason
               : "착용하지 않아도 자연스러운 코디입니다."}
           </Text>
         </View>
+        ) : null}
       </View>
-
-      {hasDetails ? (
-        <Pressable
-          style={styles.detailToggle}
-          onPress={() => setIsDetailOpen((current) => !current)}
-        >
-          <Text style={styles.detailToggleText}>
-            {isDetailOpen ? "자세히 닫기" : "자세히 보기"}
-          </Text>
-          <Feather
-            name={isDetailOpen ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={colors.point}
-          />
-        </Pressable>
-      ) : null}
-
-      {isDetailOpen ? (
-        <View style={styles.detailArea}>
-          <View style={styles.breakdownBox}>
-            <Text style={styles.breakdownText}>
-              스타일 {recommendation.breakdown.style} · 색상 {recommendation.breakdown.color} · 핏 {recommendation.breakdown.fit} · 완성도 {recommendation.breakdown.optional}
-            </Text>
-            <Text style={styles.breakdownDescription}>
-              완성도 = 아우터, 액세서리 등 코디 마무리 요소 평가
-            </Text>
-            {recommendation.penalty ? (
-              <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
-            ) : null}
-          </View>
-
-          {recommendation.reasons.length > 0 && (
-            <View style={styles.noteBox}>
-              <View style={styles.noteHeader}>
-                <Feather name="check-circle" size={16} color={colors.text} />
-                <Text style={styles.noteTitle}>전체 추천 이유</Text>
-              </View>
-              {recommendation.reasons.map((reason) => (
-                <Text key={reason} style={styles.noteText}>- {reason}</Text>
-              ))}
-            </View>
-          )}
-
-          {recommendation.warnings.length > 0 && (
-            <View style={styles.warningBox}>
-              <View style={styles.noteHeader}>
-                <Feather name="alert-circle" size={16} color={colors.point} />
-                <Text style={styles.noteTitle}>주의사항</Text>
-              </View>
-              {recommendation.warnings.map((warning) => (
-                <Text key={warning} style={styles.noteText}>- {warning}</Text>
-              ))}
-            </View>
-          )}
-        </View>
-      ) : null}
 
       {recommendation.alternativeCount ? (
         <Pressable
@@ -239,7 +212,7 @@ function RecommendationCard({
         >
           <Feather name="shuffle" size={15} color={colors.point} />
           <Text style={styles.alternativeText}>
-            다른 버전 {recommendation.alternativeCount}개
+            다른 버전 {recommendation.alternativeCount}개 보기
           </Text>
           <Feather
             name={isAlternativeOpen ? "chevron-up" : "chevron-down"}
@@ -268,7 +241,7 @@ function RecommendationCard({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.alternativeItemList}
               >
-                {alternative.items.map((item) => (
+                {alternative.items.slice(0, 3).map((item) => (
                   <Pressable
                     key={item.id}
                     style={styles.alternativeItemCard}
@@ -288,12 +261,6 @@ function RecommendationCard({
                 ))}
               </ScrollView>
 
-              {alternative.reasons[0] && (
-                <Text style={styles.alternativeReason} numberOfLines={2}>
-                  {alternative.reasons[0]}
-                </Text>
-              )}
-
               <Pressable
                 style={styles.alternativeSaveButton}
                 onPress={() => onSave(alternative)}
@@ -311,7 +278,7 @@ function RecommendationCard({
         onPress={() => onSave(recommendation)}
       >
         <Feather name="bookmark" size={17} color={colors.card} />
-        <Text style={styles.saveOutfitButtonText}>코디 저장</Text>
+        <Text style={styles.saveOutfitButtonText}>이 코디 저장하기</Text>
       </Pressable>
     </View>
   );
@@ -502,13 +469,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 15,
+    padding: 14,
   },
   cardHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 12,
     gap: 12,
   },
   cardHeaderTextArea: {
@@ -516,14 +483,14 @@ const styles = StyleSheet.create({
   },
   cardEyebrow: {
     color: colors.point,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1.2,
     marginBottom: 4,
   },
   cardTitle: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
   },
   recommendationTagRow: {
@@ -535,7 +502,7 @@ const styles = StyleSheet.create({
   recommendationTagText: {
     backgroundColor: colors.softCard,
     color: colors.point,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -548,16 +515,19 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   scoreBadge: {
-    minWidth: 58,
-    height: 48,
+    minWidth: 60,
+    height: 30,
     borderRadius: 999,
-    backgroundColor: colors.text,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 8,
   },
   scoreText: {
-    color: colors.card,
-    fontSize: 19,
+    color: colors.text,
+    fontSize: 12,
     fontWeight: "900",
   },
   scoreUnit: {
@@ -591,25 +561,34 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 3,
   },
+  itemShowcase: {
+    backgroundColor: colors.softCard,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    marginBottom: 12,
+  },
   itemGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 12,
+    justifyContent: "center",
+    gap: 8,
   },
   itemCard: {
-    width: "48%",
+    width: "31%",
+    minWidth: 86,
   },
   itemImage: {
     width: "100%",
-    height: 150,
-    borderRadius: 18,
-    backgroundColor: colors.inactiveTab,
-    marginBottom: 8,
+    height: 112,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    marginBottom: 7,
   },
   itemName: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "900",
   },
   itemMeta: {
@@ -619,11 +598,11 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   alternativeBox: {
-    backgroundColor: colors.softCard,
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 10,
+    paddingVertical: 13,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -642,7 +621,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   alternativeCard: {
-    backgroundColor: colors.softCard,
+    backgroundColor: colors.card,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
@@ -660,7 +639,7 @@ const styles = StyleSheet.create({
   },
   alternativeTitle: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
   },
   alternativeSummary: {
@@ -675,11 +654,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   alternativeItemCard: {
-    width: 72,
+    width: 76,
   },
   alternativeItemImage: {
-    width: 72,
-    height: 88,
+    width: 76,
+    height: 76,
     borderRadius: 14,
     backgroundColor: colors.inactiveTab,
     marginBottom: 6,
@@ -717,9 +696,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   reasonSummaryBox: {
-    backgroundColor: colors.softCard,
+    backgroundColor: colors.card,
     borderRadius: 18,
     padding: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: 10,
   },
   warningBox: {
@@ -740,7 +721,7 @@ const styles = StyleSheet.create({
     padding: 13,
     borderWidth: 1,
     borderColor: colors.border,
-    minHeight: 126,
+    minHeight: 112,
   },
   addonLabel: {
     color: colors.point,
@@ -758,8 +739,30 @@ const styles = StyleSheet.create({
   addonText: {
     color: colors.subText,
     fontSize: 12,
-    lineHeight: 18,
+    lineHeight: 17,
     fontWeight: "600",
+  },
+  noteHeaderIcon: {
+    marginLeft: "auto",
+  },
+  inlineWarningArea: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: 10,
+    paddingTop: 10,
+  },
+  inlineWarningTitle: {
+    color: colors.warning,
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+  compactBreakdownBox: {
+    backgroundColor: colors.softCard,
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    marginTop: 10,
   },
   detailToggle: {
     borderRadius: 16,
@@ -828,9 +831,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   saveOutfitButton: {
-    backgroundColor: colors.text,
+    backgroundColor: colors.point,
     borderRadius: 18,
-    paddingVertical: 14,
+    paddingVertical: 15,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
