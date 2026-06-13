@@ -1,4 +1,4 @@
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
@@ -340,7 +340,7 @@ export default function ResultScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f2ee" },
-  container: { backgroundColor: "#f5f2ee", paddingTop: 30, paddingHorizontal: 20, paddingBottom: 112 },
+  container: { backgroundColor: "#f5f2ee", paddingTop: 30, paddingHorizontal: 20, paddingBottom: BOTTOM_NAV_CONTENT_PADDING },
 
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   backButton: { width: 40, height: 40, borderRadius: 999, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#eee7dd" },

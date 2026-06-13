@@ -1,4 +1,4 @@
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 34,
     paddingHorizontal: 20,
-    paddingBottom: 92,
+    paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
   headerRow: {
     flexDirection: "row",

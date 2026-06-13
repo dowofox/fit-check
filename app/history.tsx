@@ -1,4 +1,4 @@
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { deleteAnalysis, getAnalysisHistory } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
@@ -204,7 +204,7 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f2ee" },
-  container: { backgroundColor: "#f5f2ee", paddingTop: 28, paddingHorizontal: 0, paddingBottom: 104 },
+  container: { backgroundColor: "#f5f2ee", paddingTop: 28, paddingHorizontal: 0, paddingBottom: BOTTOM_NAV_CONTENT_PADDING },
   heroArea: { minHeight: 198, paddingHorizontal: 24, paddingTop: 4, paddingBottom: 18, position: "relative", overflow: "hidden" },
   heroTextArea: { zIndex: 2 },
   heroAccentLine: { position: "absolute", left: -9, top: 2, width: 1, height: 112, backgroundColor: "#b99862" },

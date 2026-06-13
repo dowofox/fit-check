@@ -1,4 +1,4 @@
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import {
     ClosetItem,
     deleteClosetItem,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingTop: 42,
         paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
-        paddingBottom: 132,
+        paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
     },
     headerRow: {
         flexDirection: "row",

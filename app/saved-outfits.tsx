@@ -1,4 +1,4 @@
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { getShoeRecommendationsForOutfit } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 42,
     paddingHorizontal: 20,
-    paddingBottom: 92,
+    paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
   headerTitle: {
     color: "#111",

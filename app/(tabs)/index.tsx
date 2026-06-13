@@ -3,7 +3,7 @@ import JacketIcon from "@/assets/icons/jacket.svg";
 import PantsIcon from "@/assets/icons/pants.svg";
 import ShirtIcon from "@/assets/icons/shirt.svg";
 import ShoeIcon from "@/assets/icons/sneakers.svg";
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { getOutfitRecommendationResult } from "@/utils/outfitRecommend";
 import type { OutfitRecommendation, OutfitRecommendationWeather } from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 28,
     paddingHorizontal: 20,
-    paddingBottom: 96,
+    paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
   header: {
     flexDirection: "row",

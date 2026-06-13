@@ -1,4 +1,4 @@
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { getUserProfile, saveUserProfile } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7F2EB",
     paddingTop: 28,
     paddingHorizontal: 20,
-    paddingBottom: 78,
+    paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
   headerRow: {
     flexDirection: "row",
