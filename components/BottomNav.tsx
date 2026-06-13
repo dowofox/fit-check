@@ -8,8 +8,8 @@ import { colors, radius, shadow } from "@/utils/theme";
 const ACTIVE_COLOR = colors.point;
 const INACTIVE_COLOR = colors.subText;
 
-export const BOTTOM_NAV_HEIGHT = 130;
-export const BOTTOM_NAV_EXTRA_SPACE = 30;
+export const BOTTOM_NAV_HEIGHT = 112;
+export const BOTTOM_NAV_EXTRA_SPACE = 16;
 export const BOTTOM_NAV_CONTENT_PADDING = BOTTOM_NAV_HEIGHT + BOTTOM_NAV_EXTRA_SPACE;
 
 export type BottomNavTab = "home" | "closet" | "outfit" | "profile";
