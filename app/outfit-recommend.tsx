@@ -36,6 +36,10 @@ function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
 
+function getItemImageUri(item: ClosetItem) {
+  return item.cleanImageUri || item.imageUri;
+}
+
 function getSortedItemIds(items: ClosetItem[]) {
   return items.map((item) => item.id).sort();
 }
@@ -85,7 +89,7 @@ function RecommendationCard({
   return (
     <View style={styles.recommendCard}>
       <View style={styles.cardHeader}>
-        <View>
+        <View style={styles.cardHeaderTextArea}>
           <Text style={styles.cardEyebrow}>OUTFIT {index + 1}</Text>
           <Text style={styles.cardTitle}>{recommendation.title}</Text>
           <View style={styles.recommendationTagRow}>
@@ -130,7 +134,7 @@ function RecommendationCard({
               params: { id: item.id },
             })}
           >
-            <Image source={{ uri: item.imageUri }} style={styles.itemImage} />
+            <Image source={{ uri: getItemImageUri(item) }} style={styles.itemImage} />
             <Text style={styles.itemName} numberOfLines={1}>
               {getItemName(item)}
             </Text>
@@ -163,17 +167,13 @@ function RecommendationCard({
           {alternatives.map((alternative, alternativeIndex) => (
             <View key={alternative.id} style={styles.alternativeCard}>
               <View style={styles.alternativeHeader}>
-                <View>
-                  <Text style={styles.alternativeEyebrow}>
-                    VERSION {alternativeIndex + 1}
-                  </Text>
-                  <Text style={styles.alternativeTitle}>
-                    {alternative.grade} 등급 · {alternative.score}점
-                  </Text>
-                  <Text style={styles.alternativeSummary}>
-                    {getCategorySummary(alternative.items)}
-                  </Text>
-                </View>
+                <Text style={styles.alternativeEyebrow}>VERSION {alternativeIndex + 1}</Text>
+                <Text style={styles.alternativeTitle}>
+                  {alternative.grade} 등급 · {alternative.score}점
+                </Text>
+                <Text style={styles.alternativeSummary}>
+                  {getCategorySummary(alternative.items)}
+                </Text>
               </View>
 
               <ScrollView
@@ -191,7 +191,7 @@ function RecommendationCard({
                     })}
                   >
                     <Image
-                      source={{ uri: item.imageUri }}
+                      source={{ uri: getItemImageUri(item) }}
                       style={styles.alternativeItemImage}
                     />
                     <Text style={styles.alternativeItemName} numberOfLines={1}>
@@ -352,9 +352,7 @@ export default function OutfitRecommendScreen() {
               <Feather name="layers" size={26} color={colors.point} />
             </View>
             <Text style={styles.emptyTitle}>{emptyMessage.title}</Text>
-            <Text style={styles.emptyText}>
-              {emptyMessage.text}
-            </Text>
+            <Text style={styles.emptyText}>{emptyMessage.text}</Text>
           </View>
         ) : (
           <View style={styles.listArea}>
@@ -448,6 +446,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
+    gap: 12,
+  },
+  cardHeaderTextArea: {
+    flex: 1,
   },
   cardEyebrow: {
     color: colors.point,
