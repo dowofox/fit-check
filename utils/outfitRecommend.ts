@@ -7,6 +7,7 @@ export type OutfitRecommendation = {
   title: string;
   tags: string[];
   sockRecommendation: {
+    required: boolean;
     type: string;
     color: string;
     reason: string;
@@ -168,15 +169,32 @@ function getSockRecommendation(items: ClosetItem[]): OutfitRecommendation["sockR
   const styles = items.flatMap(getItemStyles).filter((style): style is string => Boolean(style));
   const shoe = items.find((item) => item.category === "신발");
   const bottom = items.find((item) => item.category === "하의");
+  const shoeText = shoe ? getItemSearchText(shoe) : "";
   const shoeColor = shoe?.color || "";
   const bottomLabel = bottom ? getItemLabel(bottom) : "하의";
   const shoeLabel = shoe ? `${shoeColor || ""} ${getItemLabel(shoe)}`.trim() : "신발";
+  const noSockKeywords = ["슬리퍼", "샌들", "크록스", "쪼리", "플립플랍", "플립플롭"];
+  const optionalSockKeywords = ["버켄스탁", "피셔맨 샌들", "피셔맨"];
+  const sockRecommendedKeywords = ["운동화", "스니커즈", "러닝화", "로퍼", "더비슈즈", "더비", "부츠", "워커"];
+  const isNoSockShoe = noSockKeywords.some((keyword) => shoeText.includes(keyword)) &&
+    !optionalSockKeywords.some((keyword) => shoeText.includes(keyword));
+  const isOptionalSockShoe = optionalSockKeywords.some((keyword) => shoeText.includes(keyword));
+  const isSockRecommendedShoe = sockRecommendedKeywords.some((keyword) => shoeText.includes(keyword));
   const isDaily = styles.some((style) => ["데일리", "캐주얼", "편안함", "꾸안꾸"].some((keyword) => style.includes(keyword)));
   const isMinimal = styles.some((style) => ["미니멀", "모던", "깔끔함"].some((keyword) => style.includes(keyword)));
   const isStreet = styles.some((style) => ["스트릿", "고프코어", "테크웨어", "워크웨어"].some((keyword) => style.includes(keyword)));
   const isFormal = styles.some((style) => ["포멀", "댄디", "클래식", "프레피"].some((keyword) => style.includes(keyword)));
   let type = "크루삭스";
   let color = "흰색";
+
+  if (isNoSockShoe) {
+    return {
+      required: false,
+      type: "양말 없음",
+      color: "",
+      reason: `${shoeLabel} 스타일이라 양말 없이 착용하는 것이 자연스럽습니다.`,
+    };
+  }
 
   if (isFormal) {
     type = "얇은 드레스삭스";
@@ -200,11 +218,31 @@ function getSockRecommendation(items: ClosetItem[]): OutfitRecommendation["sockR
     color = "검정/네이비";
   }
 
+  if (isOptionalSockShoe) {
+    type = isDaily || isMinimal ? "무지 크루삭스" : "양말 없음 또는 크루삭스";
+    color = isDaily ? "아이보리" : color;
+  }
+
+  const styleReason = isStreet
+    ? "스트릿 스타일과 잘 어울립니다."
+    : isFormal
+      ? "포멀한 신발에는 얇은 양말이 실루엣을 깔끔하게 잡아줍니다."
+      : isMinimal
+        ? "미니멀한 분위기를 해치지 않는 무지 양말이 좋아요."
+        : "데일리 코디에 자연스럽게 연결됩니다.";
+  const shoeReason = shoe
+    ? isSockRecommendedShoe
+      ? `${shoeLabel}와 자연스럽게 연결됩니다.`
+      : `${shoeLabel}에 부담 없이 맞출 수 있어요.`
+    : "";
   const reason = shoe
-    ? `${bottomLabel}와 ${shoeLabel} 조합에 ${color} ${type}가 가장 자연스럽게 어울려요.`
+    ? isOptionalSockShoe
+      ? `${getItemLabel(shoe)}는 양말 없이도 자연스럽고, 포인트를 주고 싶다면 ${color} ${type}도 좋아요.`
+      : `${bottomLabel}와 ${shoeLabel} 조합에 ${color} ${type}가 가장 자연스럽게 어울려요. ${shoeReason} ${styleReason}`
     : `${bottomLabel} 중심의 코디라 ${color} ${type}를 신으면 전체 분위기를 깔끔하게 마무리할 수 있어요.`;
 
   return {
+    required: !isOptionalSockShoe,
     type,
     color,
     reason,

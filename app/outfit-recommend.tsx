@@ -246,11 +246,15 @@ function RecommendationCard({
       <View style={styles.sockBox}>
         <View style={styles.noteHeader}>
           <Feather name="circle" size={15} color={colors.point} />
-          <Text style={styles.noteTitle}>추천 양말</Text>
+          <Text style={styles.noteTitle}>
+            {recommendation.sockRecommendation.required ? "추천 양말" : "양말"}
+          </Text>
         </View>
 
         <Text style={styles.sockName}>
-          {recommendation.sockRecommendation.color} {recommendation.sockRecommendation.type}
+          {recommendation.sockRecommendation.required
+            ? `${recommendation.sockRecommendation.color} ${recommendation.sockRecommendation.type}`
+            : "착용하지 않아도 자연스러운 코디입니다."}
         </Text>
         <Text style={styles.sockReason}>
           {recommendation.sockRecommendation.reason}
