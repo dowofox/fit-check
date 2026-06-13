@@ -27,6 +27,16 @@ export type OutfitRecommendationResult = {
   hasAnyRecommendation: boolean;
 };
 
+export type OutfitRecommendationWeather = {
+  temperature?: number;
+  condition?: string;
+  rainChance?: number;
+};
+
+export type OutfitRecommendationOptions = {
+  weather?: OutfitRecommendationWeather | null;
+};
+
 export type ShoeRecommendation = {
   shoe: ClosetItem;
   score: number;
@@ -552,6 +562,132 @@ function getWarningPenalty(warnings: string[]) {
   }, 0);
 }
 
+function hasSeason(item: ClosetItem, season: string) {
+  return getItemSeasons(item).some((itemSeason) =>
+    UNIVERSAL_SEASONS.includes(itemSeason) || itemSeason.includes(season)
+  );
+}
+
+function hasOuterLikeItem(items: ClosetItem[]) {
+  return items.some((item) => item.category === "아우터");
+}
+
+function hasThickOuter(items: ClosetItem[]) {
+  const thickKeywords = ["패딩", "코트", "울", "플리스", "무스탕", "두꺼운"];
+
+  return items.some((item) =>
+    item.category === "아우터" &&
+    thickKeywords.some((keyword) => `${getItemLabel(item)} ${item.description || ""}`.includes(keyword))
+  );
+}
+
+function hasLightClothes(items: ClosetItem[]) {
+  const lightKeywords = ["반팔", "민소매", "린넨", "얇은", "티셔츠"];
+
+  return items.some((item) =>
+    lightKeywords.some((keyword) => `${getItemLabel(item)} ${item.description || ""}`.includes(keyword))
+  );
+}
+
+function getShoeItems(items: ClosetItem[]) {
+  return items.filter((item) => item.category === "신발");
+}
+
+function isBrightShoe(item: ClosetItem) {
+  const color = item.color || "";
+
+  return ["화이트", "아이보리", "크림", "베이지"].some((keyword) => color.includes(keyword));
+}
+
+function hasRainOrSnow(weather: OutfitRecommendationWeather) {
+  const condition = weather.condition || "";
+
+  return ["비", "소나기", "눈", "우천", "rain", "snow"].some((keyword) =>
+    condition.toLowerCase().includes(keyword.toLowerCase())
+  );
+}
+
+function applyWeatherAdjustment(
+  recommendation: OutfitRecommendation,
+  weather: OutfitRecommendationWeather | null | undefined
+): OutfitRecommendation {
+  if (!weather || typeof weather.temperature !== "number") return recommendation;
+
+  const reasons = [...recommendation.reasons];
+  const warnings = [...recommendation.warnings];
+  const temperature = weather.temperature;
+  const rainChance = weather.rainChance ?? 0;
+  const hasOuter = hasOuterLikeItem(recommendation.items);
+  const hasSummerItem = recommendation.items.some((item) => hasSeason(item, "여름"));
+  const hasSpringFallItem = recommendation.items.some((item) => hasSeason(item, "봄") || hasSeason(item, "가을"));
+  const hasWinterItem = recommendation.items.some((item) => hasSeason(item, "겨울"));
+  const shoes = getShoeItems(recommendation.items);
+  const weatherIsWet = hasRainOrSnow(weather) || rainChance >= 60;
+  let weatherScore = 0;
+
+  if (temperature <= 5) {
+    if (hasOuter || hasWinterItem) {
+      weatherScore += 8;
+      reasons.push("오늘은 기온이 낮아 아우터나 겨울 아이템이 포함된 조합을 우선 추천했어요.");
+    }
+
+    if (hasSummerItem || hasLightClothes(recommendation.items)) {
+      weatherScore -= 12;
+      warnings.push("오늘 기온이 낮아 여름 옷이나 얇은 아이템은 춥게 느껴질 수 있어요.");
+    }
+  } else if (temperature <= 15) {
+    if (hasOuter || hasSpringFallItem) {
+      weatherScore += 6;
+      reasons.push("오늘은 선선해서 봄/가을 아이템이나 아우터가 있는 조합에 점수를 더 줬어요.");
+    }
+  } else if (temperature <= 23) {
+    if (hasSpringFallItem || hasLightClothes(recommendation.items)) {
+      weatherScore += 4;
+      reasons.push("오늘 기온에는 봄/가을 느낌의 가벼운 조합이 부담 없이 잘 맞아요.");
+    }
+  } else {
+    if (hasSummerItem || hasLightClothes(recommendation.items)) {
+      weatherScore += 7;
+      reasons.push("오늘은 더운 편이라 여름 옷이나 가벼운 아이템이 포함된 조합을 높게 봤어요.");
+    }
+
+    if (hasThickOuter(recommendation.items)) {
+      weatherScore -= 10;
+      warnings.push("오늘 기온에는 두꺼운 아우터가 답답하게 느껴질 수 있어요.");
+    }
+  }
+
+  if (weatherIsWet) {
+    if (shoes.length > 0) {
+      weatherScore += 2;
+      reasons.push("비나 눈 예보가 있어 신발까지 포함된 조합을 조금 더 안정적으로 봤어요.");
+    } else {
+      weatherScore -= 6;
+      warnings.push("비나 눈 예보가 있어 신발 선택이 빠진 조합은 완성도가 낮아 보여요.");
+    }
+
+    if (shoes.some(isBrightShoe)) {
+      weatherScore -= 6;
+      warnings.push("비 예보가 있어 밝은 흰 신발 조합은 오염이 신경 쓰일 수 있어 점수를 낮췄어요.");
+    }
+
+    if (!hasOuter && temperature <= 18) {
+      weatherScore -= 4;
+      warnings.push("비 예보와 낮은 기온을 고려하면 가벼운 아우터가 없는 점이 아쉬워요.");
+    }
+  }
+
+  const score = Math.min(100, Math.max(0, recommendation.score + weatherScore));
+
+  return {
+    ...recommendation,
+    score,
+    grade: getGrade(score),
+    reasons,
+    warnings,
+  };
+}
+
 function buildRecommendation(
   items: ClosetItem[],
   currentSeason: string,
@@ -945,9 +1081,11 @@ export function getOutfitRecommendationResult(
   items: ClosetItem[],
   profile?: UserProfile | null,
   currentSeason = getCurrentSeason(),
-  savedOutfitItemIds: string[][] = []
+  savedOutfitItemIds: string[][] = [],
+  options: OutfitRecommendationOptions = {}
 ): OutfitRecommendationResult {
-  const recommendationCandidates = buildRecommendationCandidates(items, profile, currentSeason);
+  const recommendationCandidates = buildRecommendationCandidates(items, profile, currentSeason)
+    .map((recommendation) => applyWeatherAdjustment(recommendation, options.weather));
   const allRecommendations = selectRecommendations(recommendationCandidates);
   const recommendations = savedOutfitItemIds.length > 0
     ? selectRecommendations(recommendationCandidates, savedOutfitItemIds)

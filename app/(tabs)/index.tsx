@@ -4,7 +4,11 @@ import PantsIcon from "@/assets/icons/pants.svg";
 import ShirtIcon from "@/assets/icons/shirt.svg";
 import ShoeIcon from "@/assets/icons/sneakers.svg";
 import BottomNav from "@/components/BottomNav";
-import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
+import {
+  getOutfitRecommendationResult,
+  OutfitRecommendation,
+  OutfitRecommendationWeather,
+} from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
 import { colors, typography } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
@@ -41,6 +45,24 @@ function getItemShortLabel(item: ClosetItem) {
 
 function getItemImageUri(item: ClosetItem) {
   return item.cleanImageUri || item.imageUri;
+}
+
+async function getTodayWeatherForRecommendation(): Promise<OutfitRecommendationWeather | null> {
+  const month = new Date().getMonth() + 1;
+
+  if (month >= 3 && month <= 5) {
+    return { temperature: 17, condition: "맑음", rainChance: 20 };
+  }
+
+  if (month >= 6 && month <= 8) {
+    return { temperature: 27, condition: "맑음", rainChance: 30 };
+  }
+
+  if (month >= 9 && month <= 11) {
+    return { temperature: 14, condition: "맑음", rainChance: 25 };
+  }
+
+  return { temperature: 2, condition: "맑음", rainChance: 20 };
 }
 
 function RecommendationLookbookCard({ recommendation }: { recommendation: OutfitRecommendation }) {
@@ -112,7 +134,21 @@ export default function HomeScreen() {
           getSavedOutfits(),
           getUserProfile(),
         ]);
-        const recommendationResult = getOutfitRecommendationResult(nextClosetItems, nextProfile);
+        let weather: OutfitRecommendationWeather | null = null;
+
+        try {
+          weather = await getTodayWeatherForRecommendation();
+        } catch (error) {
+          console.log("[home] weather recommendation fallback", error);
+        }
+
+        const recommendationResult = getOutfitRecommendationResult(
+          nextClosetItems,
+          nextProfile,
+          undefined,
+          [],
+          { weather }
+        );
 
         setClosetItems(nextClosetItems);
         setSavedOutfits(nextSavedOutfits);
