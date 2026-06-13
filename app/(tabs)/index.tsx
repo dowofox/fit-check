@@ -8,7 +8,11 @@ import { getOutfitRecommendationResult } from "@/utils/outfitRecommend";
 import type { OutfitRecommendation, OutfitRecommendationWeather } from "@/utils/outfitRecommend";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
 import { colors, typography } from "@/utils/theme";
-import { formatWeatherRecommendationLabel, getCurrentWeatherForRecommendation } from "@/utils/weather";
+import {
+  formatWeatherRecommendationLabel,
+  getCachedWeatherForRecommendation,
+  getCurrentWeatherForRecommendation,
+} from "@/utils/weather";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -109,35 +113,65 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      let isActive = true;
+
+      function updateTodayRecommendations(
+        items: ClosetItem[],
+        profile: Awaited<ReturnType<typeof getUserProfile>>,
+        weather: OutfitRecommendationWeather | null
+      ) {
+        const recommendationResult = getOutfitRecommendationResult(
+          items,
+          profile,
+          undefined,
+          [],
+          weather ? { weather } : undefined
+        );
+
+        if (!isActive) return;
+
+        setTodayRecommendations(recommendationResult.recommendations.slice(0, 5));
+        setWeatherLabel(formatWeatherRecommendationLabel(weather));
+      }
+
       async function loadDashboard() {
         const [nextClosetItems, nextSavedOutfits, nextProfile] = await Promise.all([
           getClosetItems(),
           getSavedOutfits(),
           getUserProfile(),
         ]);
-        let weather: OutfitRecommendationWeather | null = null;
 
-        try {
-          weather = await getCurrentWeatherForRecommendation();
-        } catch (error) {
-          console.log("[home] weather recommendation fallback", error);
-        }
+        if (!isActive) return;
 
-        const recommendationResult = getOutfitRecommendationResult(
-          nextClosetItems,
-          nextProfile,
-          undefined,
-          [],
-          { weather }
-        );
+        const defaultRecommendationResult = getOutfitRecommendationResult(nextClosetItems, nextProfile);
 
         setClosetItems(nextClosetItems);
         setSavedOutfits(nextSavedOutfits);
-        setTodayRecommendations(recommendationResult.recommendations.slice(0, 5));
-        setWeatherLabel(formatWeatherRecommendationLabel(weather));
+        setTodayRecommendations(defaultRecommendationResult.recommendations.slice(0, 5));
+        setWeatherLabel(null);
+
+        const cachedWeather = await getCachedWeatherForRecommendation();
+
+        if (cachedWeather) {
+          updateTodayRecommendations(nextClosetItems, nextProfile, cachedWeather);
+        }
+
+        try {
+          const weather = await getCurrentWeatherForRecommendation();
+
+          if (weather) {
+            updateTodayRecommendations(nextClosetItems, nextProfile, weather);
+          }
+        } catch (error) {
+          console.log("[home] weather recommendation fallback", error);
+        }
       }
 
       loadDashboard();
+
+      return () => {
+        isActive = false;
+      };
     }, [])
   );
 

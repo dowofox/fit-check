@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 
 import type { OutfitRecommendationWeather } from "@/utils/outfitRecommend";
@@ -16,6 +17,24 @@ type OpenMeteoResponse = {
     precipitation_probability?: number[];
   };
 };
+
+const WEATHER_CACHE_KEY = "naes_weather_cache";
+const WEATHER_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 2;
+const DEFAULT_WEATHER_TIMEOUT_MS = 4500;
+
+type WeatherCache = {
+  weather: OutfitRecommendationWeather;
+  cachedAt: number;
+};
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    }),
+  ]);
+}
 
 function getWeatherConditionFromCode(code?: number) {
   if (code == null) return "날씨 정보 없음";
@@ -69,7 +88,32 @@ export function formatWeatherRecommendationLabel(weather: OutfitRecommendationWe
   return `오늘 ${Math.round(weather.temperature)}도 · ${weather.condition || "날씨"} 기준 추천`;
 }
 
-export async function getCurrentWeatherForRecommendation(): Promise<OutfitRecommendationWeather | null> {
+async function saveWeatherCache(weather: OutfitRecommendationWeather) {
+  const cache: WeatherCache = {
+    weather,
+    cachedAt: Date.now(),
+  };
+
+  await AsyncStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(cache));
+}
+
+export async function getCachedWeatherForRecommendation(): Promise<OutfitRecommendationWeather | null> {
+  const rawCache = await AsyncStorage.getItem(WEATHER_CACHE_KEY);
+
+  if (!rawCache) return null;
+
+  try {
+    const cache = JSON.parse(rawCache) as WeatherCache;
+    const isFresh = Date.now() - cache.cachedAt <= WEATHER_CACHE_MAX_AGE_MS;
+
+    if (!isFresh || typeof cache.weather?.temperature !== "number") return null;
+    return cache.weather;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCurrentWeatherForRecommendation(): Promise<OutfitRecommendationWeather | null> {
   const permission = await Location.requestForegroundPermissionsAsync();
 
   if (permission.status !== "granted") return null;
@@ -101,4 +145,16 @@ export async function getCurrentWeatherForRecommendation(): Promise<OutfitRecomm
     condition: getWeatherConditionFromCode(data.current?.weather_code),
     rainChance: getRainChance(data),
   };
+}
+
+export async function getCurrentWeatherForRecommendation(
+  timeoutMs = DEFAULT_WEATHER_TIMEOUT_MS
+): Promise<OutfitRecommendationWeather | null> {
+  const weather = await withTimeout(fetchCurrentWeatherForRecommendation(), timeoutMs);
+
+  if (weather) {
+    await saveWeatherCache(weather);
+  }
+
+  return weather;
 }
