@@ -243,6 +243,20 @@ function RecommendationCard({
         </View>
       )}
 
+      <View style={styles.sockBox}>
+        <View style={styles.noteHeader}>
+          <Feather name="circle" size={15} color={colors.point} />
+          <Text style={styles.noteTitle}>추천 양말</Text>
+        </View>
+
+        <Text style={styles.sockName}>
+          {recommendation.sockRecommendation.color} {recommendation.sockRecommendation.type}
+        </Text>
+        <Text style={styles.sockReason}>
+          {recommendation.sockRecommendation.reason}
+        </Text>
+      </View>
+
       <Pressable
         style={styles.saveOutfitButton}
         onPress={() => onSave(recommendation)}
@@ -655,6 +669,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.softCard,
     borderRadius: 18,
     padding: 13,
+    marginBottom: 10,
+  },
+  sockBox: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 10,
+  },
+  sockName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+  sockReason: {
+    color: colors.subText,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
   },
   saveOutfitButton: {
     backgroundColor: colors.text,

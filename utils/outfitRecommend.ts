@@ -6,6 +6,11 @@ export type OutfitRecommendation = {
   items: ClosetItem[];
   title: string;
   tags: string[];
+  sockRecommendation: {
+    type: string;
+    color: string;
+    reason: string;
+  };
   score: number;
   grade: "S" | "A" | "B" | "C" | "D";
   alternativeCount?: number;
@@ -156,6 +161,53 @@ function getRecommendationDisplay(items: ClosetItem[], currentSeason: string) {
   return {
     title,
     tags: tags.length > 0 ? tags : ["데일리", "추천"],
+  };
+}
+
+function getSockRecommendation(items: ClosetItem[]): OutfitRecommendation["sockRecommendation"] {
+  const styles = items.flatMap(getItemStyles).filter((style): style is string => Boolean(style));
+  const shoe = items.find((item) => item.category === "신발");
+  const bottom = items.find((item) => item.category === "하의");
+  const shoeColor = shoe?.color || "";
+  const bottomLabel = bottom ? getItemLabel(bottom) : "하의";
+  const shoeLabel = shoe ? `${shoeColor || ""} ${getItemLabel(shoe)}`.trim() : "신발";
+  const isDaily = styles.some((style) => ["데일리", "캐주얼", "편안함", "꾸안꾸"].some((keyword) => style.includes(keyword)));
+  const isMinimal = styles.some((style) => ["미니멀", "모던", "깔끔함"].some((keyword) => style.includes(keyword)));
+  const isStreet = styles.some((style) => ["스트릿", "고프코어", "테크웨어", "워크웨어"].some((keyword) => style.includes(keyword)));
+  const isFormal = styles.some((style) => ["포멀", "댄디", "클래식", "프레피"].some((keyword) => style.includes(keyword)));
+  let type = "크루삭스";
+  let color = "흰색";
+
+  if (isFormal) {
+    type = "얇은 드레스삭스";
+  } else if (isStreet) {
+    type = "스포츠 양말";
+  } else if (isMinimal) {
+    type = "무지 크루삭스";
+  } else if (isDaily) {
+    type = "크루삭스";
+  }
+
+  if (isDaily) {
+    color = "흰색";
+  } else if (["화이트", "아이보리", "크림"].some((keyword) => shoeColor.includes(keyword))) {
+    color = "흰색/아이보리";
+  } else if (["블랙", "검정", "차콜"].some((keyword) => shoeColor.includes(keyword))) {
+    color = "검정/회색";
+  } else if (["베이지", "브라운", "카멜"].some((keyword) => shoeColor.includes(keyword))) {
+    color = "아이보리/베이지";
+  } else if (isFormal) {
+    color = "검정/네이비";
+  }
+
+  const reason = shoe
+    ? `${bottomLabel}와 ${shoeLabel} 조합에 ${color} ${type}가 가장 자연스럽게 어울려요.`
+    : `${bottomLabel} 중심의 코디라 ${color} ${type}를 신으면 전체 분위기를 깔끔하게 마무리할 수 있어요.`;
+
+  return {
+    type,
+    color,
+    reason,
   };
 }
 
@@ -806,6 +858,7 @@ function buildRecommendation(
   const rawScore = category + style + color + fit + optional;
   const score = Math.min(100, Math.max(0, rawScore - warningPenalty));
   const display = getRecommendationDisplay(items, currentSeason);
+  const sockRecommendation = getSockRecommendation(items);
 
   if (score < 70 && reasons.length > 0) {
     reasons.push("전체적으로 무난할 수는 있지만 강한 추천 조합은 아니에요.");
@@ -816,6 +869,7 @@ function buildRecommendation(
     items,
     title: display.title,
     tags: display.tags,
+    sockRecommendation,
     score,
     grade: getGrade(score),
     penalty: warningPenalty,
