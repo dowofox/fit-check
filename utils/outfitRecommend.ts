@@ -279,7 +279,7 @@ function isSeasonAllowed(item: ClosetItem, currentSeason: string, warnings: stri
     return true;
   }
 
-  const isAllowed = seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason));
+  const isAllowed = isSeasonCandidate(item, currentSeason);
 
   if (!isAllowed) {
     warnings.push(`${getItemLabel(item)}: ${currentSeason}에 맞는 계절 정보가 아니라 실제 착용감이 어색할 수 있어요.`);
@@ -293,19 +293,80 @@ function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
 
   if (seasons.length === 0) return true;
 
-  return seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason));
+  return seasons.some((season) => {
+    if (UNIVERSAL_SEASONS.includes(season)) return true;
+    if (season.includes(currentSeason)) return true;
+    if (currentSeason === "봄" && season.includes("가을")) return true;
+    if (currentSeason === "가을" && season.includes("봄")) return true;
+    return false;
+  });
 }
 
-function getSeasonMatchedItems(items: ClosetItem[], currentSeason: string) {
-  void currentSeason;
-  return items;
+function getItemSearchText(item: ClosetItem) {
+  return [
+    item.category,
+    item.subCategory,
+    item.detailCategory,
+    item.description,
+    item.fit,
+    item.style,
+    ...(item.styleTags || []),
+  ].filter(Boolean).join(" ");
+}
+
+function isThickOuterItem(item: ClosetItem) {
+  const thickKeywords = ["패딩", "코트", "울", "플리스", "무스탕", "두꺼운", "퍼", "기모"];
+  const itemText = getItemSearchText(item);
+
+  return item.category === "아우터" && thickKeywords.some((keyword) => itemText.includes(keyword));
+}
+
+function isSummerLightItem(item: ClosetItem) {
+  const lightKeywords = ["반팔", "민소매", "린넨", "얇은", "쿨", "쇼츠", "반바지"];
+  const itemText = getItemSearchText(item);
+
+  return lightKeywords.some((keyword) => itemText.includes(keyword));
+}
+
+function isWeatherCandidate(item: ClosetItem, weather?: OutfitRecommendationWeather | null) {
+  if (!weather || typeof weather.temperature !== "number") return true;
+
+  const temperature = weather.temperature;
+
+  if (temperature >= 24) {
+    return !hasSpecificSeason(item, "겨울") && !isThickOuterItem(item);
+  }
+
+  if (temperature >= 18) {
+    return !isThickOuterItem(item);
+  }
+
+  if (temperature <= 10) {
+    return !hasSpecificSeason(item, "여름") && !isSummerLightItem(item);
+  }
+
+  return true;
+}
+
+function getSeasonMatchedItems(
+  items: ClosetItem[],
+  currentSeason: string,
+  weather?: OutfitRecommendationWeather | null,
+  strictSeasonFilter = true
+) {
+  if (!strictSeasonFilter) return items;
+
+  return items.filter((item) =>
+    isSeasonCandidate(item, currentSeason) &&
+    isWeatherCandidate(item, weather)
+  );
 }
 
 function getSeasonPriority(item: ClosetItem, currentSeason: string) {
   const seasons = getItemSeasons(item);
 
   if (seasons.length === 0) return 1;
-  if (seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason))) return 2;
+  if (isSeasonCandidate(item, currentSeason)) return 2;
   return 0;
 }
 
@@ -562,9 +623,9 @@ function getWarningPenalty(warnings: string[]) {
   }, 0);
 }
 
-function hasSeason(item: ClosetItem, season: string) {
+function hasSpecificSeason(item: ClosetItem, season: string) {
   return getItemSeasons(item).some((itemSeason) =>
-    UNIVERSAL_SEASONS.includes(itemSeason) || itemSeason.includes(season)
+    !UNIVERSAL_SEASONS.includes(itemSeason) && itemSeason.includes(season)
   );
 }
 
@@ -618,9 +679,11 @@ function applyWeatherAdjustment(
   const temperature = weather.temperature;
   const rainChance = weather.rainChance ?? 0;
   const hasOuter = hasOuterLikeItem(recommendation.items);
-  const hasSummerItem = recommendation.items.some((item) => hasSeason(item, "여름"));
-  const hasSpringFallItem = recommendation.items.some((item) => hasSeason(item, "봄") || hasSeason(item, "가을"));
-  const hasWinterItem = recommendation.items.some((item) => hasSeason(item, "겨울"));
+  const hasSummerItem = recommendation.items.some((item) => hasSpecificSeason(item, "여름"));
+  const hasSpringFallItem = recommendation.items.some((item) =>
+    hasSpecificSeason(item, "봄") || hasSpecificSeason(item, "가을")
+  );
+  const hasWinterItem = recommendation.items.some((item) => hasSpecificSeason(item, "겨울"));
   const shoes = getShoeItems(recommendation.items);
   const weatherIsWet = hasRainOrSnow(weather) || rainChance >= 60;
   let weatherScore = 0;
@@ -1007,9 +1070,11 @@ export function getShoeRecommendationsForOutfit(
 function buildRecommendationCandidates(
   items: ClosetItem[],
   profile?: UserProfile | null,
-  currentSeason = getCurrentSeason()
+  currentSeason = getCurrentSeason(),
+  options: OutfitRecommendationOptions & { strictSeasonFilter?: boolean } = {}
 ) {
-  const seasonItems = getSeasonMatchedItems(items, currentSeason);
+  const strictSeasonFilter = options.strictSeasonFilter ?? true;
+  const seasonItems = getSeasonMatchedItems(items, currentSeason, options.weather, strictSeasonFilter);
   const tops = sortBySeasonPriority(byCategory(seasonItems, "상의"), currentSeason);
   const bottoms = sortBySeasonPriority(byCategory(seasonItems, "하의"), currentSeason);
   const shoes = sortBySeasonPriority(byCategory(seasonItems, "신발"), currentSeason);
@@ -1042,6 +1107,19 @@ function buildRecommendationCandidates(
             );
 
             if (recommendation) {
+              if (strictSeasonFilter) {
+                recommendation.reasons.unshift(
+                  options.weather
+                    ? "현재 날씨와 계절에 맞는 옷만 우선 추천했어요."
+                    : "현재 계절에 맞는 옷만 우선 추천했어요."
+                );
+                recommendation.reasons.push("계절이 맞지 않는 아이템은 추천 후보에서 제외했어요.");
+              } else {
+                recommendation.warnings.unshift(
+                  "계절에 맞는 조합이 부족해서 일부 계절감이 애매한 아이템까지 함께 비교했어요."
+                );
+              }
+
               recommendations.push(recommendation);
             }
           }
@@ -1065,6 +1143,25 @@ function selectRecommendations(
   return diversifyRecommendations(sortedRecommendations, 5);
 }
 
+function buildRecommendationCandidatesWithFallback(
+  items: ClosetItem[],
+  profile?: UserProfile | null,
+  currentSeason = getCurrentSeason(),
+  options: OutfitRecommendationOptions = {}
+) {
+  const filteredCandidates = buildRecommendationCandidates(items, profile, currentSeason, {
+    ...options,
+    strictSeasonFilter: true,
+  });
+
+  if (filteredCandidates.length > 0) return filteredCandidates;
+
+  return buildRecommendationCandidates(items, profile, currentSeason, {
+    ...options,
+    strictSeasonFilter: false,
+  });
+}
+
 export function getOutfitRecommendations(
   items: ClosetItem[],
   profile?: UserProfile | null,
@@ -1072,7 +1169,7 @@ export function getOutfitRecommendations(
   savedOutfitItemIds: string[][] = []
 ): OutfitRecommendation[] {
   return selectRecommendations(
-    buildRecommendationCandidates(items, profile, currentSeason),
+    buildRecommendationCandidatesWithFallback(items, profile, currentSeason),
     savedOutfitItemIds
   );
 }
@@ -1084,7 +1181,7 @@ export function getOutfitRecommendationResult(
   savedOutfitItemIds: string[][] = [],
   options: OutfitRecommendationOptions = {}
 ): OutfitRecommendationResult {
-  const recommendationCandidates = buildRecommendationCandidates(items, profile, currentSeason)
+  const recommendationCandidates = buildRecommendationCandidatesWithFallback(items, profile, currentSeason, options)
     .map((recommendation) => applyWeatherAdjustment(recommendation, options.weather));
   const allRecommendations = selectRecommendations(recommendationCandidates);
   const recommendations = savedOutfitItemIds.length > 0
