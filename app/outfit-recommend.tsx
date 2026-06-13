@@ -84,7 +84,10 @@ function RecommendationCard({
   onSave: (recommendation: OutfitRecommendation) => void;
 }) {
   const [isAlternativeOpen, setIsAlternativeOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const alternatives = recommendation.alternatives || [];
+  const previewReasons = recommendation.reasons.slice(0, 2);
+  const hasDetails = recommendation.reasons.length > 2 || recommendation.warnings.length > 0;
 
   return (
     <View style={styles.recommendCard}>
@@ -93,7 +96,7 @@ function RecommendationCard({
           <Text style={styles.cardEyebrow}>OUTFIT {index + 1}</Text>
           <Text style={styles.cardTitle}>{recommendation.title}</Text>
           <View style={styles.recommendationTagRow}>
-            {recommendation.tags.slice(0, 2).map((tag) => (
+            {recommendation.tags.slice(0, 3).map((tag) => (
               <Text key={tag} style={styles.recommendationTagText}>#{tag}</Text>
             ))}
           </View>
@@ -108,23 +111,7 @@ function RecommendationCard({
         </View>
       </View>
 
-      <View style={styles.breakdownBox}>
-        <Text style={styles.breakdownText}>
-          스타일 {recommendation.breakdown.style} · 색상 {recommendation.breakdown.color} · 핏 {recommendation.breakdown.fit} · 완성도 {recommendation.breakdown.optional}
-        </Text>
-        <Text style={styles.breakdownDescription}>
-          완성도 = 아우터, 액세서리 등 코디 마무리 요소 평가
-        </Text>
-        {recommendation.penalty ? (
-          <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
-        ) : null}
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.itemList}
-      >
+      <View style={styles.itemGrid}>
         {recommendation.items.map((item) => (
           <Pressable
             key={item.id}
@@ -143,7 +130,107 @@ function RecommendationCard({
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
+
+      {previewReasons.length > 0 ? (
+        <View style={styles.reasonSummaryBox}>
+          <View style={styles.noteHeader}>
+            <Feather name="check-circle" size={16} color={colors.text} />
+            <Text style={styles.noteTitle}>왜 좋은 코디인가요?</Text>
+          </View>
+          {previewReasons.map((reason) => (
+            <Text key={reason} style={styles.noteText}>- {reason}</Text>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={styles.addonRow}>
+        {recommendation.recommendedShoes ? (
+          <View style={styles.addonCard}>
+            <Feather name="navigation" size={15} color={colors.point} />
+            <Text style={styles.addonLabel}>추천 신발</Text>
+            <Text style={styles.addonTitle} numberOfLines={1}>
+              {recommendation.recommendedShoes.type}
+            </Text>
+            <Text style={styles.addonText} numberOfLines={2}>
+              {recommendation.recommendedShoes.reason}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.addonCard}>
+          <Feather name="circle" size={15} color={colors.point} />
+          <Text style={styles.addonLabel}>
+            {recommendation.sockRecommendation.required ? "추천 양말" : "양말"}
+          </Text>
+          <Text style={styles.addonTitle} numberOfLines={1}>
+            {recommendation.sockRecommendation.required
+              ? `${recommendation.sockRecommendation.color} ${recommendation.sockRecommendation.type}`
+              : "양말 없음"}
+          </Text>
+          <Text style={styles.addonText} numberOfLines={2}>
+            {recommendation.sockRecommendation.required
+              ? recommendation.sockRecommendation.reason
+              : "착용하지 않아도 자연스러운 코디입니다."}
+          </Text>
+        </View>
+      </View>
+
+      {hasDetails ? (
+        <Pressable
+          style={styles.detailToggle}
+          onPress={() => setIsDetailOpen((current) => !current)}
+        >
+          <Text style={styles.detailToggleText}>
+            {isDetailOpen ? "자세히 닫기" : "자세히 보기"}
+          </Text>
+          <Feather
+            name={isDetailOpen ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={colors.point}
+          />
+        </Pressable>
+      ) : null}
+
+      {isDetailOpen ? (
+        <View style={styles.detailArea}>
+          <View style={styles.breakdownBox}>
+            <Text style={styles.breakdownText}>
+              스타일 {recommendation.breakdown.style} · 색상 {recommendation.breakdown.color} · 핏 {recommendation.breakdown.fit} · 완성도 {recommendation.breakdown.optional}
+            </Text>
+            <Text style={styles.breakdownDescription}>
+              완성도 = 아우터, 액세서리 등 코디 마무리 요소 평가
+            </Text>
+            {recommendation.penalty ? (
+              <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
+            ) : null}
+          </View>
+
+          {recommendation.reasons.length > 0 && (
+            <View style={styles.noteBox}>
+              <View style={styles.noteHeader}>
+                <Feather name="check-circle" size={16} color={colors.text} />
+                <Text style={styles.noteTitle}>전체 추천 이유</Text>
+              </View>
+              {recommendation.reasons.map((reason) => (
+                <Text key={reason} style={styles.noteText}>- {reason}</Text>
+              ))}
+            </View>
+          )}
+
+          {recommendation.warnings.length > 0 && (
+            <View style={styles.warningBox}>
+              <View style={styles.noteHeader}>
+                <Feather name="alert-circle" size={16} color={colors.point} />
+                <Text style={styles.noteTitle}>주의사항</Text>
+              </View>
+              {recommendation.warnings.map((warning) => (
+                <Text key={warning} style={styles.noteText}>- {warning}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : null}
 
       {recommendation.alternativeCount ? (
         <Pressable
@@ -152,7 +239,7 @@ function RecommendationCard({
         >
           <Feather name="shuffle" size={15} color={colors.point} />
           <Text style={styles.alternativeText}>
-            이 코디의 다른 버전 {recommendation.alternativeCount}개가 있어요
+            다른 버전 {recommendation.alternativeCount}개
           </Text>
           <Feather
             name={isAlternativeOpen ? "chevron-up" : "chevron-down"}
@@ -218,67 +305,6 @@ function RecommendationCard({
           ))}
         </View>
       )}
-
-      {recommendation.reasons.length > 0 && (
-        <View style={styles.noteBox}>
-          <View style={styles.noteHeader}>
-            <Feather name="check-circle" size={16} color={colors.text} />
-            <Text style={styles.noteTitle}>추천 이유</Text>
-          </View>
-          {recommendation.reasons.map((reason) => (
-            <Text key={reason} style={styles.noteText}>- {reason}</Text>
-          ))}
-        </View>
-      )}
-
-      {recommendation.warnings.length > 0 && (
-        <View style={styles.warningBox}>
-          <View style={styles.noteHeader}>
-            <Feather name="alert-circle" size={16} color={colors.point} />
-            <Text style={styles.noteTitle}>주의사항</Text>
-          </View>
-          {recommendation.warnings.map((warning) => (
-            <Text key={warning} style={styles.noteText}>- {warning}</Text>
-          ))}
-        </View>
-      )}
-
-      {recommendation.recommendedShoes ? (
-        <View style={styles.recommendedShoeBox}>
-          <View style={styles.noteHeader}>
-            <Feather name="navigation" size={15} color={colors.point} />
-            <Text style={styles.noteTitle}>추천 신발</Text>
-          </View>
-
-          <Text style={styles.recommendedShoeName}>
-            {recommendation.recommendedShoes.type}
-          </Text>
-          <Text style={styles.recommendedShoeReason}>
-            {recommendation.recommendedShoes.reason}
-          </Text>
-          <Text style={styles.recommendedShoeHint}>
-            현재 옷장에 등록된 신발이 없어 추천 신발을 제안했어요.
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={styles.sockBox}>
-        <View style={styles.noteHeader}>
-          <Feather name="circle" size={15} color={colors.point} />
-          <Text style={styles.noteTitle}>
-            {recommendation.sockRecommendation.required ? "추천 양말" : "양말"}
-          </Text>
-        </View>
-
-        <Text style={styles.sockName}>
-          {recommendation.sockRecommendation.required
-            ? `${recommendation.sockRecommendation.color} ${recommendation.sockRecommendation.type}`
-            : "착용하지 않아도 자연스러운 코디입니다."}
-        </Text>
-        <Text style={styles.sockReason}>
-          {recommendation.sockRecommendation.reason}
-        </Text>
-      </View>
 
       <Pressable
         style={styles.saveOutfitButton}
@@ -476,7 +502,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: 15,
   },
   cardHeader: {
     flexDirection: "row",
@@ -497,7 +523,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: colors.text,
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: "900",
   },
   recommendationTagRow: {
@@ -522,8 +548,8 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   scoreBadge: {
-    minWidth: 64,
-    height: 64,
+    minWidth: 58,
+    height: 48,
     borderRadius: 999,
     backgroundColor: colors.text,
     alignItems: "center",
@@ -531,7 +557,7 @@ const styles = StyleSheet.create({
   },
   scoreText: {
     color: colors.card,
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: "900",
   },
   scoreUnit: {
@@ -565,17 +591,18 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 3,
   },
-  itemList: {
+  itemGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
-    paddingRight: 2,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   itemCard: {
-    width: 104,
+    width: "48%",
   },
   itemImage: {
-    width: 104,
-    height: 128,
+    width: "100%",
+    height: 150,
     borderRadius: 18,
     backgroundColor: colors.inactiveTab,
     marginBottom: 8,
@@ -602,6 +629,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     marginBottom: 10,
+    marginTop: 2,
   },
   alternativeText: {
     flex: 1,
@@ -688,11 +716,69 @@ const styles = StyleSheet.create({
     padding: 13,
     marginBottom: 10,
   },
+  reasonSummaryBox: {
+    backgroundColor: colors.softCard,
+    borderRadius: 18,
+    padding: 13,
+    marginBottom: 10,
+  },
   warningBox: {
     backgroundColor: colors.softCard,
     borderRadius: 18,
     padding: 13,
     marginBottom: 10,
+  },
+  addonRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 10,
+  },
+  addonCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 126,
+  },
+  addonLabel: {
+    color: colors.point,
+    fontSize: 11,
+    fontWeight: "900",
+    marginTop: 8,
+    marginBottom: 5,
+  },
+  addonTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+  addonText: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  detailToggle: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  detailToggleText: {
+    color: colors.point,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  detailArea: {
+    marginBottom: 2,
   },
   recommendedShoeBox: {
     backgroundColor: colors.card,
