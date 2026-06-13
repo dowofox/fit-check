@@ -39,6 +39,10 @@ function getItemShortLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
 
+function getItemImageUri(item: ClosetItem) {
+  return item.cleanImageUri || item.imageUri;
+}
+
 function RecommendationLookbookCard({ recommendation }: { recommendation: OutfitRecommendation }) {
   const coreItems = getCoreItems(recommendation);
   const top = recommendation.items.find((item) => item.category === "상의");
@@ -61,7 +65,7 @@ function RecommendationLookbookCard({ recommendation }: { recommendation: Outfit
           {coreItems.map((item) => (
             <Image
               key={item.id}
-              source={{ uri: item.imageUri }}
+              source={{ uri: getItemImageUri(item) }}
               style={styles.itemPreviewImage}
             />
           ))}
@@ -528,19 +532,20 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   savedActionArea: {
-    minWidth: 74,
-    alignItems: "flex-end",
+    width: 72,
+    alignItems: "center",
     justifyContent: "space-between",
+    paddingVertical: 2,
   },
   savedIconBox: {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: 999,
     backgroundColor: colors.softCard,
-    alignItems: "center",
-    justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
   savedLink: {
     flexDirection: "row",
