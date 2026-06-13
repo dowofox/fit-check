@@ -35,13 +35,22 @@ export type ShoeRecommendation = {
 };
 
 const STYLE_GROUPS = [
-  ["캐주얼", "꾸안꾸", "시티보이", "아메카지"],
+  ["캐주얼", "꾸안꾸", "시티보이", "아메카지", "데일리", "편안함"],
   ["스트릿", "고프코어", "테크웨어", "워크웨어"],
-  ["포멀", "댄디", "클래식", "모던", "프레피"],
+  ["포멀", "댄디", "클래식", "모던", "프레피", "미니멀", "깔끔함"],
   ["러블리", "페미닌"],
 ];
 
 const BASIC_COLORS = ["블랙", "화이트", "아이보리", "베이지", "그레이", "네이비", "데님"];
+const DARK_COLORS = ["블랙", "네이비", "차콜"];
+const LIGHT_COLORS = ["화이트", "아이보리", "베이지", "크림", "라이트그레이"];
+const STYLE_CONFLICT_PAIRS = [
+  ["포멀", "스트릿"],
+  ["댄디", "스트릿"],
+  ["클래식", "고프코어"],
+  ["페미닌", "테크웨어"],
+  ["러블리", "워크웨어"],
+];
 const WIDE_FITS = ["와이드", "와이드핏", "스트레이트", "레귤러", "레귤러핏"];
 const SLIM_FITS = ["슬림", "슬림핏", "타이트"];
 const OVERSIZED_FITS = ["오버핏", "루즈", "루즈핏"];
@@ -165,6 +174,25 @@ function getStyleGroup(style?: string) {
   return styleGroupCache.get(key);
 }
 
+function hasStyleConflict(styles: string[]) {
+  return STYLE_CONFLICT_PAIRS.some(([firstStyle, secondStyle]) =>
+    styles.some((style) => style.includes(firstStyle)) &&
+    styles.some((style) => style.includes(secondStyle))
+  );
+}
+
+function getStyleGroupName(style?: string) {
+  const group = getStyleGroup(style);
+
+  if (!group) return style || "미분석";
+  if (group.includes("캐주얼")) return "캐주얼";
+  if (group.includes("스트릿")) return "스트릿";
+  if (group.includes("포멀")) return "포멀";
+  if (group.includes("러블리")) return "러블리";
+
+  return style || "미분석";
+}
+
 function getCategoryScore(items: ClosetItem[]) {
   const hasTop = items.some((item) => item.category === "상의");
   const hasBottom = items.some((item) => item.category === "하의");
@@ -175,7 +203,7 @@ function getCategoryScore(items: ClosetItem[]) {
   return 0;
 }
 
-function getStyleScore(items: ClosetItem[], reasons: string[]) {
+function getStyleScore(items: ClosetItem[], reasons: string[], warnings: string[]) {
   const styles = items.flatMap(getItemStyles).filter((style): style is string => Boolean(style));
   const counts = styles.reduce<Record<string, number>>((acc, style) => {
     acc[style] = (acc[style] || 0) + 1;
@@ -189,18 +217,23 @@ function getStyleScore(items: ClosetItem[], reasons: string[]) {
   const topStyleGroup = getStyleGroup(topStyle);
   const bottomStyleGroup = getStyleGroup(bottomStyle);
 
+  if (hasStyleConflict(styles)) {
+    warnings.push(`${styles.slice(0, 3).join(", ")} 조합은 스타일 방향이 충돌할 수 있어요.`);
+    return 5;
+  }
+
   if (topStyleGroup && bottomStyleGroup && topStyleGroup === bottomStyleGroup) {
-    reasons.push(`상의와 하의가 모두 ${topStyle || "같은"} 계열이라 방향성은 맞아요.`);
+    reasons.push(`상의와 하의가 모두 ${getStyleGroupName(topStyle)} 계열이라 스타일 방향이 자연스럽게 이어져요.`);
   }
 
   if (maxSameStyleCount >= 3) {
-    reasons.push("스타일은 잘 맞지만, 스타일 일치만으로 강한 추천이라고 보긴 어려워요.");
-    return 20;
+    reasons.push(`${Object.keys(counts).find((style) => counts[style] === maxSameStyleCount) || "비슷한"} 태그가 여러 아이템에 반복되어 코디 분위기가 분명해요.`);
+    return 24;
   }
 
   if (maxSameStyleCount === 2) {
-    reasons.push("같은 스타일 아이템이 2개라 조합의 방향성은 보여요.");
-    return 14;
+    reasons.push("같은 스타일 태그가 2개라 조합의 방향성은 충분히 보여요.");
+    return 18;
   }
 
   const knownGroups = styles.map(getStyleGroup).filter((group): group is string[] => Boolean(group));
@@ -208,11 +241,15 @@ function getStyleScore(items: ClosetItem[], reasons: string[]) {
     && knownGroups.some((group) => knownGroups.filter((otherGroup) => otherGroup === group).length >= 2);
 
   if (hasSimilarStyleGroup) {
-    reasons.push("완전히 같진 않지만 비슷한 스타일 계열끼리 묶여 있어요.");
-    return 8;
+    reasons.push("태그가 완전히 같지는 않지만 비슷한 스타일 계열끼리 묶여 있어요.");
+    return 14;
   }
 
-  return 0;
+  if (styles.length > 0) {
+    warnings.push("아이템별 스타일 태그 연결감이 약해서 코디 의도가 흐려질 수 있어요.");
+  }
+
+  return 4;
 }
 
 function getCurrentSeason(date = new Date()) {
@@ -232,7 +269,13 @@ function isSeasonAllowed(item: ClosetItem, currentSeason: string, warnings: stri
     return true;
   }
 
-  return seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason));
+  const isAllowed = seasons.some((season) => UNIVERSAL_SEASONS.includes(season) || season.includes(currentSeason));
+
+  if (!isAllowed) {
+    warnings.push(`${getItemLabel(item)}: ${currentSeason}에 맞는 계절 정보가 아니라 실제 착용감이 어색할 수 있어요.`);
+  }
+
+  return isAllowed;
 }
 
 function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
@@ -244,7 +287,8 @@ function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
 }
 
 function getSeasonMatchedItems(items: ClosetItem[], currentSeason: string) {
-  return items.filter((item) => isSeasonCandidate(item, currentSeason));
+  void currentSeason;
+  return items;
 }
 
 function getSeasonPriority(item: ClosetItem, currentSeason: string) {
@@ -272,6 +316,48 @@ function getColorScore(items: ClosetItem[], reasons: string[], warnings: string[
   const colors = uniqueValues(items.map((item) => item.color));
   const basicColorCount = colors.filter((color) => BASIC_COLORS.includes(color)).length;
   const accentColorCount = colors.length - basicColorCount;
+  const top = items.find((item) => item.category === "상의");
+  const bottom = items.find((item) => item.category === "하의");
+  const topColor = top?.color;
+  const bottomColor = bottom?.color;
+
+  if (topColor && bottomColor) {
+    const topIsBasic = isBasicColor(topColor);
+    const bottomIsBasic = isBasicColor(bottomColor);
+    const bottomLabel = bottom ? getItemLabel(bottom) : "";
+    const hasDenimBottom = bottomColor.includes("데님") || bottomLabel.includes("데님") || bottomLabel.includes("청바지");
+
+    if (topColor.includes("블랙") && hasDenimBottom) {
+      reasons.push("검정 상의와 데님 하의 조합이라 캐주얼하게 안정적이에요.");
+      return 25;
+    }
+
+    if (topIsBasic && bottomIsBasic && topColor !== bottomColor) {
+      reasons.push(`${topColor} 상의와 ${bottomColor} 하의 조합이라 과하지 않고 안정적이에요.`);
+      return 23;
+    }
+
+    if (topColor === bottomColor && !topColor.includes("블랙") && !topColor.includes("화이트")) {
+      warnings.push(`상의와 하의가 모두 ${topColor} 계열이라 실루엣이 뭉쳐 보일 수 있어요.`);
+      return 10;
+    }
+
+    if (
+      DARK_COLORS.some((color) => topColor.includes(color)) &&
+      DARK_COLORS.some((color) => bottomColor.includes(color))
+    ) {
+      warnings.push("상의와 하의가 모두 어두운 색이라 답답하게 보일 수 있어요.");
+      return 13;
+    }
+
+    if (
+      LIGHT_COLORS.some((color) => topColor.includes(color)) &&
+      LIGHT_COLORS.some((color) => bottomColor.includes(color))
+    ) {
+      reasons.push("밝은 톤끼리 이어져 부드럽고 깨끗한 인상이에요.");
+      return 20;
+    }
+  }
 
   if (colors.length === 0 || accentColorCount === 0) {
     reasons.push("무채색이나 베이직 컬러 중심이라 색 조합이 안정적이에요.");
@@ -279,8 +365,8 @@ function getColorScore(items: ClosetItem[], reasons: string[], warnings: string[
   }
 
   if (accentColorCount === 1) {
-    reasons.push("포인트 컬러가 하나라 부담 없이 포인트를 줄 수 있어요.");
-    return 18;
+    reasons.push("베이직 컬러 위에 포인트 컬러가 하나라 부담 없이 개성을 줄 수 있어요.");
+    return 20;
   }
 
   if (colors.length >= 4) {
@@ -388,6 +474,10 @@ function getOptionalScore(items: ClosetItem[], currentSeason: string, reasons: s
 function getFitScore(top: ClosetItem, bottom: ClosetItem, reasons: string[], warnings: string[]) {
   const topFit = top.fit || "";
   const bottomFit = `${bottom.fit || ""} ${bottom.detailCategory || ""} ${bottom.subCategory || ""}`;
+  const outfitStyles = [...getItemStyles(top), ...getItemStyles(bottom)];
+  const isCasualOrStreet = outfitStyles.some((style) =>
+    ["캐주얼", "데일리", "편안함", "스트릿", "고프코어", "시티보이"].some((keyword) => style.includes(keyword))
+  );
   const topIsOversized = includesAny(topFit, OVERSIZED_FITS);
   const topIsSlim = includesAny(topFit, SLIM_FITS);
   const bottomIsOversized = includesAny(bottomFit, OVERSIZED_FITS);
@@ -395,18 +485,21 @@ function getFitScore(top: ClosetItem, bottom: ClosetItem, reasons: string[], war
   const bottomIsSlim = includesAny(bottomFit, SLIM_FITS);
 
   if (topIsOversized && bottomIsOversized) {
-    warnings.push("상의가 오버핏이고 하의도 넓은 실루엣이라 체형에 따라 부해 보일 수 있어요.");
-    return 5;
+    warnings.push("상의와 하의가 모두 크게 잡혀 체형에 따라 전체 실루엣이 부해 보일 수 있어요.");
+    return isCasualOrStreet ? 9 : 5;
   }
 
   if (topIsOversized && bottomIsWide) {
-    reasons.push("상의 오버핏과 하의 와이드/스트레이트 실루엣이 잘 맞아요.");
-    return 17;
+    reasons.push(isCasualOrStreet
+      ? "오버핏 상의와 와이드 하의가 캐주얼/스트릿 무드에서는 자연스럽게 맞아요."
+      : "오버핏 상의와 와이드 하의가 여유 있는 실루엣으로 맞아요."
+    );
+    return isCasualOrStreet ? 20 : 17;
   }
 
-  if (!topIsOversized && bottomIsWide) {
-    reasons.push("상의는 과하지 않고 하의 실루엣에 여유가 있어 균형은 무난해요.");
-    return 15;
+  if ((topIsSlim || !topIsOversized) && bottomIsWide) {
+    reasons.push("상의는 비교적 정돈되고 하의는 여유가 있어 상하의 실루엣 균형이 좋아요.");
+    return topIsSlim ? 18 : 15;
   }
 
   if (topIsSlim && bottomIsSlim) {
@@ -449,6 +542,10 @@ function getWarningPenalty(warnings: string[]) {
       "작을 수",
       "답답",
       "과해",
+      "계절",
+      "충돌",
+      "색상",
+      "어색",
     ].some((keyword) => warning.includes(keyword));
 
     return totalPenalty + (isImportantWarning ? 6 : 3);
@@ -471,10 +568,14 @@ function buildRecommendation(
   const warnings = getSizeWarnings(items, profile, fitSuitabilityCache);
   const isSeasonMatched = items.every((item) => isSeasonAllowed(item, currentSeason, warnings));
 
-  if (!isSeasonMatched) return null;
+  if (!isSeasonMatched) {
+    warnings.push(`${currentSeason} 기준으로 계절감이 맞지 않는 아이템이 포함되어 점수를 낮게 봤어요.`);
+  } else {
+    reasons.push(`${currentSeason}에 입기 좋은 계절 정보의 아이템들로 구성됐어요.`);
+  }
 
   const category = getCategoryScore(items);
-  const style = getStyleScore(items, reasons);
+  const style = getStyleScore(items, reasons, warnings);
   const color = getColorScore(items, reasons, warnings);
   const fit = getFitScore(top, bottom, reasons, warnings);
   const optional = getOptionalScore(items, currentSeason, reasons, warnings);
@@ -504,7 +605,7 @@ function buildRecommendation(
 
   const warningPenalty = getWarningPenalty(warnings);
   const rawScore = category + style + color + fit + optional;
-  const score = Math.max(0, rawScore - warningPenalty);
+  const score = Math.min(100, Math.max(0, rawScore - warningPenalty));
   const display = getRecommendationDisplay(items, currentSeason);
 
   if (score < 70 && reasons.length > 0) {
@@ -625,6 +726,39 @@ function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation
       })),
     };
   });
+}
+
+function getTopItemId(recommendation: OutfitRecommendation) {
+  return recommendation.items.find((item) => item.category === "상의")?.id || "no-top";
+}
+
+function diversifyRecommendations(recommendations: OutfitRecommendation[], limit = 5) {
+  const result: OutfitRecommendation[] = [];
+  const topUsageCount = new Map<string, number>();
+
+  for (const recommendation of recommendations) {
+    const topId = getTopItemId(recommendation);
+    const currentUsage = topUsageCount.get(topId) || 0;
+
+    if (currentUsage >= 2) continue;
+
+    result.push(recommendation);
+    topUsageCount.set(topId, currentUsage + 1);
+
+    if (result.length >= limit) return result;
+  }
+
+  for (const recommendation of recommendations) {
+    if (result.some((selectedRecommendation) => selectedRecommendation.id === recommendation.id)) {
+      continue;
+    }
+
+    result.push(recommendation);
+
+    if (result.length >= limit) break;
+  }
+
+  return result;
 }
 
 function getSortedItemIds(items: ClosetItem[]) {
@@ -787,11 +921,12 @@ function selectRecommendations(
   recommendations: OutfitRecommendation[],
   savedOutfitItemIds: string[][] = []
 ) {
-  return getBestRecommendationByCoreOutfit(
+  const sortedRecommendations = getBestRecommendationByCoreOutfit(
     excludeSavedCombinations(recommendations, savedOutfitItemIds)
   )
-    .sort(compareRecommendations)
-    .slice(0, 3);
+    .sort(compareRecommendations);
+
+  return diversifyRecommendations(sortedRecommendations, 5);
 }
 
 export function getOutfitRecommendations(
