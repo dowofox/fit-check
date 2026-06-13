@@ -55,10 +55,7 @@ export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
 
 const styles = StyleSheet.create({
   bottomNavWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flexShrink: 0,
     backgroundColor: colors.card,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
