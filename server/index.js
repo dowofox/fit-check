@@ -42,6 +42,56 @@ const DEFAULT_CLOTHES_DETAIL_ANALYSIS = {
   pattern: "판단 어려움",
 };
 
+const BRAND_OR_LOGO_TERMS = [
+  "Nike",
+  "나이키",
+  "스우시",
+  "Swoosh",
+  "Adidas",
+  "아디다스",
+  "삼선",
+  "Jordan",
+  "조던",
+  "Jumpman",
+  "Puma",
+  "푸마",
+  "New Balance",
+  "뉴발란스",
+  "NB",
+  "Converse",
+  "컨버스",
+  "Vans",
+  "반스",
+  "Reebok",
+  "리복",
+  "Asics",
+  "아식스",
+  "Fila",
+  "휠라",
+  "Lacoste",
+  "라코스테",
+  "Supreme",
+  "슈프림",
+  "Stussy",
+  "스투시",
+  "Carhartt",
+  "칼하트",
+  "Patagonia",
+  "파타고니아",
+  "The North Face",
+  "노스페이스",
+  "Arc'teryx",
+  "Arcteryx",
+  "아크테릭스",
+  "Uniqlo",
+  "유니클로",
+  "GU",
+  "Zara",
+  "자라",
+  "H&M",
+  "무신사",
+];
+
 function normalizeScore(score) {
   const numericScore = Number(score);
   if (!Number.isFinite(numericScore)) return 0;
@@ -52,6 +102,27 @@ function normalizeBoolean(value) {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") return value.toLowerCase() === "true";
   return false;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function generalizeBrandTerms(value, fallback = "") {
+  if (typeof value !== "string") return fallback;
+
+  let sanitized = value;
+
+  for (const term of BRAND_OR_LOGO_TERMS) {
+    sanitized = sanitized.replace(new RegExp(escapeRegExp(term), "gi"), "로고");
+  }
+
+  return sanitized
+    .replace(/로고\s*로고/g, "로고")
+    .replace(/브랜드명/g, "로고")
+    .replace(/상표명/g, "로고")
+    .replace(/\s{2,}/g, " ")
+    .trim() || fallback;
 }
 
 function getRiskLevel(score) {
@@ -496,10 +567,10 @@ app.post("/analyze-clothes", async (req, res) => {
   "styleTags": ["캐주얼", "편안함", "데일리"],
   "seasons": ["봄", "가을"],
   "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
-  "brand": "감지된 브랜드명. 확실하지 않으면 판단 어려움",
+  "brand": "판단 어려움",
   "brandConfidence": 0,
   "logoDetected": false,
-  "logoText": "로고나 텍스트가 보이면 작성, 없으면 빈 문자열",
+  "logoText": "브랜드명이나 상표명이 아닌 일반 레터링/그래픽 설명. 없으면 빈 문자열",
   "graphicDetected": false,
   "graphicType": "무지 / 로고 / 전면 프린팅 / 백프린팅 / 패턴 / 그래픽 / 자수 / 판단 어려움 중 하나",
   "graphicSize": "없음 / 작음 / 중간 / 큼 / 판단 어려움 중 하나",
@@ -516,9 +587,13 @@ app.post("/analyze-clothes", async (req, res) => {
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
 - styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
 - seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
-- 브랜드는 사진에서 로고, 텍스트, 상징이 명확히 보일 때만 추정하세요.
-- 확실하지 않으면 절대 브랜드를 지어내지 말고 brand는 "판단 어려움", brandConfidence는 0~40으로 작성하세요.
-- brandConfidence는 0~100 숫자로 작성하고, 확실할수록 높게 작성하세요.
+- 브랜드명, 로고명, 상표명, 브랜드 상징 이름은 절대 추측하거나 출력하지 마세요.
+- 실제 로고가 명확히 보여도 Nike, 스우시, Adidas 같은 이름을 쓰지 말고 "로고 프린팅", "레터링", "그래픽"처럼 일반 표현만 사용하세요.
+- brand는 항상 "판단 어려움"으로 작성하고 brandConfidence는 항상 0으로 작성하세요.
+- logoText에도 브랜드명, 로고명, 상표명을 쓰지 말고 "레터링", "로고 프린팅", "그래픽"처럼 일반화해서 작성하세요.
+- description, detailCategory, styleTags, matchTip, avoidTip에도 브랜드명, 로고명, 상표명을 절대 넣지 마세요.
+- "Nike 로고 티셔츠", "스우시 로고 티셔츠"처럼 특정 브랜드나 로고명을 포함한 표현은 금지입니다.
+- "로고 프린팅 반팔 티셔츠", "레터링 티셔츠", "그래픽 티셔츠"처럼 일반 표현만 허용됩니다.
 - 로고, 프린팅, 패턴은 코디 추천 품질에 중요하므로 보이는 범위 안에서 최대한 구체적으로 분석하세요.
 - 전면 프린팅인지 백프린팅인지 사진만으로 불확실하면 graphicType은 "판단 어려움"으로 작성하세요.
 - graphicType은 "무지", "로고", "전면 프린팅", "백프린팅", "패턴", "그래픽", "자수", "판단 어려움" 중 하나로 작성하세요.
@@ -548,29 +623,50 @@ app.post("/analyze-clothes", async (req, res) => {
     const parsed = JSON.parse(text);
     const seasons = normalizeClothesSeasons(parsed.seasons || parsed.season);
     const styleTags = normalizeStyleTags(parsed.styleTags, parsed.style);
+    const sanitizedSubCategory = generalizeBrandTerms(parsed.subCategory, "분석 전");
+    const sanitizedDetailCategory = generalizeBrandTerms(
+      parsed.detailCategory || parsed.subCategory,
+      "상세 분류 전"
+    );
+    const sanitizedDescription = generalizeBrandTerms(
+      parsed.description,
+      "옷 특징을 분석하지 못했습니다."
+    );
+    const sanitizedMatchTip = generalizeBrandTerms(
+      parsed.matchTip,
+      "어울리는 조합을 분석하지 못했습니다."
+    );
+    const sanitizedAvoidTip = generalizeBrandTerms(
+      parsed.avoidTip,
+      "피해야 할 조합을 분석하지 못했습니다."
+    );
+    const sanitizedLogoText = generalizeBrandTerms(
+      parsed.logoText,
+      DEFAULT_CLOTHES_DETAIL_ANALYSIS.logoText
+    );
 
     return res.json({
       category: parsed.category || "기타",
-      subCategory: parsed.subCategory || "분석 전",
-      detailCategory: parsed.detailCategory || parsed.subCategory || "상세 분류 전",
+      subCategory: sanitizedSubCategory,
+      detailCategory: sanitizedDetailCategory,
       color: parsed.color || "색상 분석 전",
       style: styleTags[0] || parsed.style || "스타일 분석 전",
       styleTags,
       season: seasons.join(", "),
       seasons,
       fit: parsed.fit || "핏 분석 전",
-      brand: parsed.brand || DEFAULT_CLOTHES_DETAIL_ANALYSIS.brand,
-      brandConfidence: normalizeScore(parsed.brandConfidence),
+      brand: DEFAULT_CLOTHES_DETAIL_ANALYSIS.brand,
+      brandConfidence: DEFAULT_CLOTHES_DETAIL_ANALYSIS.brandConfidence,
       logoDetected: normalizeBoolean(parsed.logoDetected),
-      logoText: parsed.logoText || DEFAULT_CLOTHES_DETAIL_ANALYSIS.logoText,
+      logoText: sanitizedLogoText,
       graphicDetected: normalizeBoolean(parsed.graphicDetected),
       graphicType: parsed.graphicType || DEFAULT_CLOTHES_DETAIL_ANALYSIS.graphicType,
       graphicSize: parsed.graphicSize || DEFAULT_CLOTHES_DETAIL_ANALYSIS.graphicSize,
       material: parsed.material || DEFAULT_CLOTHES_DETAIL_ANALYSIS.material,
       pattern: parsed.pattern || DEFAULT_CLOTHES_DETAIL_ANALYSIS.pattern,
-      description: parsed.description || "옷 특징을 분석하지 못했습니다.",
-      matchTip: parsed.matchTip || "어울리는 조합을 분석하지 못했습니다.",
-      avoidTip: parsed.avoidTip || "피해야 할 조합을 분석하지 못했습니다.",
+      description: sanitizedDescription,
+      matchTip: sanitizedMatchTip,
+      avoidTip: sanitizedAvoidTip,
       cleanImageBase64,
     });
   } catch (error) {

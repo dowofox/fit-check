@@ -48,6 +48,37 @@ const STYLE_TAG_OPTIONS = [
   "깔끔함",
   "꾸안꾸",
 ];
+const BRAND_OR_LOGO_TERMS = [
+  "Nike",
+  "나이키",
+  "스우시",
+  "Swoosh",
+  "Adidas",
+  "아디다스",
+  "Jordan",
+  "조던",
+  "Puma",
+  "푸마",
+  "New Balance",
+  "뉴발란스",
+  "Converse",
+  "컨버스",
+  "Vans",
+  "반스",
+  "Supreme",
+  "슈프림",
+  "Stussy",
+  "스투시",
+  "Carhartt",
+  "칼하트",
+  "Patagonia",
+  "파타고니아",
+  "The North Face",
+  "노스페이스",
+  "Arc'teryx",
+  "Arcteryx",
+  "아크테릭스",
+];
 
 type ClothesAnalysis = {
   category?: string;
@@ -181,6 +212,27 @@ function normalizeStyleTags(styleTags?: string[], style?: string) {
   return ["데일리"];
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function generalizeBrandTerms(value?: string, fallback = "") {
+  if (!value) return fallback;
+
+  let sanitized = value;
+
+  BRAND_OR_LOGO_TERMS.forEach((term) => {
+    sanitized = sanitized.replace(new RegExp(escapeRegExp(term), "gi"), "로고");
+  });
+
+  return sanitized
+    .replace(/로고\s*로고/g, "로고")
+    .replace(/브랜드명/g, "로고")
+    .replace(/상표명/g, "로고")
+    .replace(/\s{2,}/g, " ")
+    .trim() || fallback;
+}
+
 function toggleStyleTag(currentTags: string[], tag: string) {
   if (currentTags.includes(tag)) {
     const nextTags = currentTags.filter((currentTag) => currentTag !== tag);
@@ -239,10 +291,10 @@ async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {
 
 function getAnalysisDetailFields(analysis: ClothesAnalysis) {
   return {
-    brand: analysis.brand || "판단 어려움",
-    brandConfidence: analysis.brandConfidence ?? 0,
+    brand: "판단 어려움",
+    brandConfidence: 0,
     logoDetected: analysis.logoDetected ?? false,
-    logoText: analysis.logoText || "",
+    logoText: generalizeBrandTerms(analysis.logoText),
     graphicDetected: analysis.graphicDetected ?? false,
     graphicType: analysis.graphicType || "판단 어려움",
     graphicSize: analysis.graphicSize || "판단 어려움",
@@ -265,8 +317,11 @@ async function saveAnalyzedClosetItem(
     imageUri,
     cleanImageUri,
     category: analysis.category || "기타",
-    subCategory: analysis.subCategory || "분석 전",
-    detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
+    subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
+    detailCategory: generalizeBrandTerms(
+      analysis.detailCategory || analysis.subCategory,
+      "상세 분류 전"
+    ),
     color: analysis.color || "색상 미분석",
     style: styleTags[0] || analysis.style || "스타일 미분석",
     styleTags,
@@ -275,9 +330,9 @@ async function saveAnalyzedClosetItem(
     fit: analysis.fit || "핏 미분석",
     size: size.trim() || DEFAULT_SIZE,
     ...getAnalysisDetailFields(analysis),
-    description: analysis.description || "옷 특징을 분석하지 못했어요.",
-    matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
-    avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",
+    description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
+    matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
+    avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
     createdAt: new Date().toISOString(),
   });
 }
@@ -443,8 +498,11 @@ export default function AddClothesScreen() {
         imageUri,
         cleanImageUri,
         category: analysis.category || "기타",
-        subCategory: analysis.subCategory || "분석 전",
-        detailCategory: analysis.detailCategory || analysis.subCategory || "상세 분류 전",
+        subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
+        detailCategory: generalizeBrandTerms(
+          analysis.detailCategory || analysis.subCategory,
+          "상세 분류 전"
+        ),
         color: analysis.color || "색상 분석 전",
         style: selectedStyleTags[0] || analysis.style || "스타일 분석 전",
         styleTags: selectedStyleTags,
@@ -453,9 +511,9 @@ export default function AddClothesScreen() {
         fit: analysis.fit || "핏 분석 전",
         size: selectedSize.trim() || DEFAULT_SIZE,
         ...getAnalysisDetailFields(analysis),
-        description: analysis.description || "옷 특징을 분석하지 못했어요.",
-        matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
-        avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",
+        description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
+        matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
+        avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
         createdAt: new Date().toISOString(),
       });
 
