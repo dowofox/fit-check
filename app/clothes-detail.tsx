@@ -272,6 +272,35 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
   );
 }
 
+function ProductReferenceCard({ item }: { item: ClosetItem }) {
+  const candidate = item.selectedProductCandidate;
+
+  if (!candidate) return null;
+
+  return (
+    <View style={styles.productReferenceCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="bookmark" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>참고 상품</Text>
+          <Text style={styles.aiDetailSubtitle}>사용자가 직접 선택한 참고용 상품이에요.</Text>
+        </View>
+      </View>
+
+      <Text style={styles.productReferenceBrand}>{candidate.brand}</Text>
+      <Text style={styles.productReferenceName}>{candidate.productName}</Text>
+      <Text style={styles.productReferenceReason}>{candidate.reason}</Text>
+      {typeof candidate.confidence === "number" && (
+        <Text style={styles.productReferenceConfidence}>
+          참고 유사도 {Math.round(candidate.confidence * 100)}%
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function EditRow({
   label,
   value,
@@ -589,6 +618,8 @@ export default function ClothesDetailScreen() {
             </View>
 
             {!editMode && <AiDetailCard item={item} />}
+
+            {!editMode && <ProductReferenceCard item={item} />}
 
             {!editMode && fitSuitability && (
               <View style={styles.sizeMatchCard}>
@@ -915,6 +946,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "900",
+  },
+
+  productReferenceCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  productReferenceBrand: {
+    color: "#8c6f47",
+    fontSize: 13,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+
+  productReferenceName: {
+    color: "#111",
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 7,
+  },
+
+  productReferenceReason: {
+    color: "#625a51",
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+
+  productReferenceConfidence: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: 8,
   },
 
   tipHeader: {

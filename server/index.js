@@ -125,6 +125,28 @@ function generalizeBrandTerms(value, fallback = "") {
     .trim() || fallback;
 }
 
+function normalizeProductCandidates(candidates) {
+  if (!Array.isArray(candidates)) return [];
+
+  return candidates
+    .map((candidate) => ({
+      brand: typeof candidate?.brand === "string" ? candidate.brand.trim() : "",
+      productName: typeof candidate?.productName === "string" ? candidate.productName.trim() : "",
+      reason: typeof candidate?.reason === "string" ? candidate.reason.trim() : "",
+      confidence: Number(candidate?.confidence),
+    }))
+    .filter((candidate) => candidate.brand && candidate.productName)
+    .map((candidate) => ({
+      brand: candidate.brand,
+      productName: candidate.productName,
+      reason: candidate.reason || "디자인이 비슷한 참고 상품 후보입니다.",
+      confidence: Number.isFinite(candidate.confidence)
+        ? Math.max(0, Math.min(1, candidate.confidence))
+        : undefined,
+    }))
+    .slice(0, 5);
+}
+
 function getRiskLevel(score) {
   if (score >= 80) return "낮음";
   if (score >= 65) return "보통";
@@ -523,6 +545,7 @@ app.post("/analyze-clothes", async (req, res) => {
         matchTip: "사진을 다시 선택해주세요.",
         avoidTip: "분석할 이미지가 필요합니다.",
         cleanImageBase64: null,
+        productCandidates: [],
         ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
       });
     }
@@ -576,6 +599,14 @@ app.post("/analyze-clothes", async (req, res) => {
   "graphicSize": "없음 / 작음 / 중간 / 큼 / 판단 어려움 중 하나",
   "material": "면 / 데님 / 니트 / 나일론 / 가죽 / 스웨이드 / 폴리 / 린넨 / 판단 어려움 중 하나",
   "pattern": "무지 / 스트라이프 / 체크 / 카모 / 플라워 / 그래픽 / 로고패턴 / 판단 어려움 중 하나",
+  "productCandidates": [
+    {
+      "brand": "브랜드명",
+      "productName": "상품명",
+      "reason": "로고/색상/디자인이 유사함",
+      "confidence": 0.72
+    }
+  ],
   "description": "옷의 특징을 한 문장으로 설명",
   "matchTip": "이 옷과 잘 어울리는 조합 추천",
   "avoidTip": "피하면 좋은 조합"
@@ -587,7 +618,7 @@ app.post("/analyze-clothes", async (req, res) => {
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
 - styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
 - seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
-- 브랜드명, 로고명, 상표명, 브랜드 상징 이름은 절대 추측하거나 출력하지 마세요.
+- productCandidates를 제외한 모든 분석 필드에서는 브랜드명, 로고명, 상표명, 브랜드 상징 이름을 절대 추측하거나 출력하지 마세요.
 - 실제 로고가 명확히 보여도 Nike, 스우시, Adidas 같은 이름을 쓰지 말고 "로고 프린팅", "레터링", "그래픽"처럼 일반 표현만 사용하세요.
 - brand는 항상 "판단 어려움"으로 작성하고 brandConfidence는 항상 0으로 작성하세요.
 - logoText에도 브랜드명, 로고명, 상표명을 쓰지 말고 "레터링", "로고 프린팅", "그래픽"처럼 일반화해서 작성하세요.
@@ -600,6 +631,11 @@ app.post("/analyze-clothes", async (req, res) => {
 - graphicSize는 "없음", "작음", "중간", "큼", "판단 어려움" 중 하나로 작성하세요.
 - material은 "면", "데님", "니트", "나일론", "가죽", "스웨이드", "폴리", "린넨", "판단 어려움" 중 하나로 작성하세요.
 - pattern은 "무지", "스트라이프", "체크", "카모", "플라워", "그래픽", "로고패턴", "판단 어려움" 중 하나로 작성하세요.
+- productCandidates는 참고용 비슷한 상품 후보입니다. 브랜드를 확정하지 말고 후보로만 제안하세요.
+- productCandidates는 확실한 후보가 있을 때만 최대 3~5개 작성하세요.
+- productCandidates가 불확실하면 빈 배열 []을 반환하세요.
+- productCandidates의 confidence는 0~1 사이 숫자로 작성하세요.
+- productCandidates는 자동 저장 브랜드가 아니며 사용자가 직접 선택할 참고 후보입니다.
 - 사진 품질이 낮아도 최대한 보이는 정보 기준으로 판단해주세요.
 - 모든 답변은 자연스러운 한국어로 작성해주세요.
 `,
@@ -623,6 +659,7 @@ app.post("/analyze-clothes", async (req, res) => {
     const parsed = JSON.parse(text);
     const seasons = normalizeClothesSeasons(parsed.seasons || parsed.season);
     const styleTags = normalizeStyleTags(parsed.styleTags, parsed.style);
+    const productCandidates = normalizeProductCandidates(parsed.productCandidates);
     const sanitizedSubCategory = generalizeBrandTerms(parsed.subCategory, "분석 전");
     const sanitizedDetailCategory = generalizeBrandTerms(
       parsed.detailCategory || parsed.subCategory,
@@ -667,6 +704,7 @@ app.post("/analyze-clothes", async (req, res) => {
       description: sanitizedDescription,
       matchTip: sanitizedMatchTip,
       avoidTip: sanitizedAvoidTip,
+      productCandidates,
       cleanImageBase64,
     });
   } catch (error) {
@@ -686,6 +724,7 @@ app.post("/analyze-clothes", async (req, res) => {
       matchTip: "다시 시도해주세요.",
       avoidTip: "분석 실패",
       cleanImageBase64: null,
+      productCandidates: [],
       ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
     });
   }

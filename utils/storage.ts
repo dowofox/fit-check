@@ -16,6 +16,13 @@ export type UserProfile = {
   shoeSize?: string;
 };
 
+export type ProductCandidate = {
+  brand: string;
+  productName: string;
+  reason: string;
+  confidence?: number;
+};
+
 export type ClosetItem = {
   id: string;
   imageUri: string;
@@ -40,6 +47,7 @@ export type ClosetItem = {
   graphicSize?: string;
   material?: string;
   pattern?: string;
+  selectedProductCandidate?: ProductCandidate;
   description?: string;
   matchTip?: string;
   avoidTip?: string;
