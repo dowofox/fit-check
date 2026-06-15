@@ -74,6 +74,20 @@ function getCategorySummary(items: ClosetItem[]) {
     .join(" · ");
 }
 
+function getDisplayItems(items: ClosetItem[], limit?: number) {
+  const order = ["상의", "하의", "신발", "아우터", "액세서리"];
+  const sortedItems = [...items].sort((firstItem, secondItem) => {
+    const firstIndex = order.indexOf(firstItem.category);
+    const secondIndex = order.indexOf(secondItem.category);
+    const firstOrder = firstIndex === -1 ? order.length : firstIndex;
+    const secondOrder = secondIndex === -1 ? order.length : secondIndex;
+
+    return firstOrder - secondOrder;
+  });
+
+  return typeof limit === "number" ? sortedItems.slice(0, limit) : sortedItems;
+}
+
 function RecommendationCard({
   recommendation,
   index,
@@ -112,7 +126,7 @@ function RecommendationCard({
 
       <View style={styles.itemShowcase}>
         <View style={styles.itemGrid}>
-          {recommendation.items.map((item) => (
+          {getDisplayItems(recommendation.items).map((item) => (
             <Pressable
               key={item.id}
               style={styles.itemCard}
@@ -121,7 +135,11 @@ function RecommendationCard({
                 params: { id: item.id },
               })}
             >
-              <Image source={{ uri: getItemImageUri(item) }} style={styles.itemImage} />
+              <Image
+                source={{ uri: getItemImageUri(item) }}
+                style={styles.itemImage}
+                resizeMode="contain"
+              />
               <Text style={styles.itemName} numberOfLines={1}>
                 {getItemName(item)}
               </Text>
@@ -241,7 +259,7 @@ function RecommendationCard({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.alternativeItemList}
               >
-                {alternative.items.slice(0, 3).map((item) => (
+                {getDisplayItems(alternative.items, 3).map((item) => (
                   <Pressable
                     key={item.id}
                     style={styles.alternativeItemCard}
@@ -253,6 +271,7 @@ function RecommendationCard({
                     <Image
                       source={{ uri: getItemImageUri(item) }}
                       style={styles.alternativeItemImage}
+                      resizeMode="contain"
                     />
                     <Text style={styles.alternativeItemName} numberOfLines={1}>
                       {getItemName(item)}
@@ -357,24 +376,18 @@ export default function OutfitRecommendScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={22} color={colors.text} />
+            <Feather name="chevron-left" size={20} color={colors.text} />
           </Pressable>
 
-          <View>
-            <Text style={styles.headerEyebrow}>AI CLOSET</Text>
-            <Text style={styles.headerTitle}>코디 추천</Text>
-          </View>
+          <Text style={styles.headerTitle}>코디 추천</Text>
 
-          <View style={styles.headerSpacer} />
+          <Pressable
+            style={styles.savedIconButton}
+            onPress={() => router.push("/saved-outfits")}
+          >
+            <Feather name="bookmark" size={17} color={colors.text} />
+          </Pressable>
         </View>
-
-        <Pressable
-          style={styles.savedOutfitsButton}
-          onPress={() => router.push("/saved-outfits")}
-        >
-          <Feather name="bookmark" size={18} color={colors.text} />
-          <Text style={styles.savedOutfitsButtonText}>저장한 코디 보기</Text>
-        </Pressable>
 
         {isLoaded && recommendations.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -406,7 +419,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   container: {
     flexGrow: 1,
-    paddingTop: 34,
+    paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
@@ -414,11 +427,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: 14,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 999,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -426,22 +439,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerSpacer: {
-    width: 40,
-    height: 40,
-  },
-  headerEyebrow: {
-    color: colors.point,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    textAlign: "center",
+  savedIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: "900",
-    marginTop: 2,
     textAlign: "center",
   },
   listArea: {
