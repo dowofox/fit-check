@@ -30,10 +30,28 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const DEFAULT_CLOTHES_DETAIL_ANALYSIS = {
+  brand: "판단 어려움",
+  brandConfidence: 0,
+  logoDetected: false,
+  logoText: "",
+  graphicDetected: false,
+  graphicType: "판단 어려움",
+  graphicSize: "판단 어려움",
+  material: "판단 어려움",
+  pattern: "판단 어려움",
+};
+
 function normalizeScore(score) {
   const numericScore = Number(score);
   if (!Number.isFinite(numericScore)) return 0;
   return Math.round(Math.max(0, Math.min(100, numericScore)));
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return false;
 }
 
 function getRiskLevel(score) {
@@ -434,6 +452,7 @@ app.post("/analyze-clothes", async (req, res) => {
         matchTip: "사진을 다시 선택해주세요.",
         avoidTip: "분석할 이미지가 필요합니다.",
         cleanImageBase64: null,
+        ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
       });
     }
 
@@ -477,6 +496,15 @@ app.post("/analyze-clothes", async (req, res) => {
   "styleTags": ["캐주얼", "편안함", "데일리"],
   "seasons": ["봄", "가을"],
   "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
+  "brand": "감지된 브랜드명. 확실하지 않으면 판단 어려움",
+  "brandConfidence": 0,
+  "logoDetected": false,
+  "logoText": "로고나 텍스트가 보이면 작성, 없으면 빈 문자열",
+  "graphicDetected": false,
+  "graphicType": "무지 / 로고 / 전면 프린팅 / 백프린팅 / 패턴 / 그래픽 / 자수 / 판단 어려움 중 하나",
+  "graphicSize": "없음 / 작음 / 중간 / 큼 / 판단 어려움 중 하나",
+  "material": "면 / 데님 / 니트 / 나일론 / 가죽 / 스웨이드 / 폴리 / 린넨 / 판단 어려움 중 하나",
+  "pattern": "무지 / 스트라이프 / 체크 / 카모 / 플라워 / 그래픽 / 로고패턴 / 판단 어려움 중 하나",
   "description": "옷의 특징을 한 문장으로 설명",
   "matchTip": "이 옷과 잘 어울리는 조합 추천",
   "avoidTip": "피하면 좋은 조합"
@@ -488,6 +516,15 @@ app.post("/analyze-clothes", async (req, res) => {
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
 - styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
 - seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
+- 브랜드는 사진에서 로고, 텍스트, 상징이 명확히 보일 때만 추정하세요.
+- 확실하지 않으면 절대 브랜드를 지어내지 말고 brand는 "판단 어려움", brandConfidence는 0~40으로 작성하세요.
+- brandConfidence는 0~100 숫자로 작성하고, 확실할수록 높게 작성하세요.
+- 로고, 프린팅, 패턴은 코디 추천 품질에 중요하므로 보이는 범위 안에서 최대한 구체적으로 분석하세요.
+- 전면 프린팅인지 백프린팅인지 사진만으로 불확실하면 graphicType은 "판단 어려움"으로 작성하세요.
+- graphicType은 "무지", "로고", "전면 프린팅", "백프린팅", "패턴", "그래픽", "자수", "판단 어려움" 중 하나로 작성하세요.
+- graphicSize는 "없음", "작음", "중간", "큼", "판단 어려움" 중 하나로 작성하세요.
+- material은 "면", "데님", "니트", "나일론", "가죽", "스웨이드", "폴리", "린넨", "판단 어려움" 중 하나로 작성하세요.
+- pattern은 "무지", "스트라이프", "체크", "카모", "플라워", "그래픽", "로고패턴", "판단 어려움" 중 하나로 작성하세요.
 - 사진 품질이 낮아도 최대한 보이는 정보 기준으로 판단해주세요.
 - 모든 답변은 자연스러운 한국어로 작성해주세요.
 `,
@@ -522,6 +559,15 @@ app.post("/analyze-clothes", async (req, res) => {
       season: seasons.join(", "),
       seasons,
       fit: parsed.fit || "핏 분석 전",
+      brand: parsed.brand || DEFAULT_CLOTHES_DETAIL_ANALYSIS.brand,
+      brandConfidence: normalizeScore(parsed.brandConfidence),
+      logoDetected: normalizeBoolean(parsed.logoDetected),
+      logoText: parsed.logoText || DEFAULT_CLOTHES_DETAIL_ANALYSIS.logoText,
+      graphicDetected: normalizeBoolean(parsed.graphicDetected),
+      graphicType: parsed.graphicType || DEFAULT_CLOTHES_DETAIL_ANALYSIS.graphicType,
+      graphicSize: parsed.graphicSize || DEFAULT_CLOTHES_DETAIL_ANALYSIS.graphicSize,
+      material: parsed.material || DEFAULT_CLOTHES_DETAIL_ANALYSIS.material,
+      pattern: parsed.pattern || DEFAULT_CLOTHES_DETAIL_ANALYSIS.pattern,
       description: parsed.description || "옷 특징을 분석하지 못했습니다.",
       matchTip: parsed.matchTip || "어울리는 조합을 분석하지 못했습니다.",
       avoidTip: parsed.avoidTip || "피해야 할 조합을 분석하지 못했습니다.",
@@ -544,6 +590,7 @@ app.post("/analyze-clothes", async (req, res) => {
       matchTip: "다시 시도해주세요.",
       avoidTip: "분석 실패",
       cleanImageBase64: null,
+      ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
     });
   }
 });

@@ -60,6 +60,15 @@ type ClothesAnalysis = {
   seasons?: string[];
   fit?: string;
   size?: string;
+  brand?: string;
+  brandConfidence?: number;
+  logoDetected?: boolean;
+  logoText?: string;
+  graphicDetected?: boolean;
+  graphicType?: string;
+  graphicSize?: string;
+  material?: string;
+  pattern?: string;
   description?: string;
   matchTip?: string;
   avoidTip?: string;
@@ -228,6 +237,20 @@ async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {
   return saveCleanImageToFile(analysis.cleanImageBase64);
 }
 
+function getAnalysisDetailFields(analysis: ClothesAnalysis) {
+  return {
+    brand: analysis.brand || "판단 어려움",
+    brandConfidence: analysis.brandConfidence ?? 0,
+    logoDetected: analysis.logoDetected ?? false,
+    logoText: analysis.logoText || "",
+    graphicDetected: analysis.graphicDetected ?? false,
+    graphicType: analysis.graphicType || "판단 어려움",
+    graphicSize: analysis.graphicSize || "판단 어려움",
+    material: analysis.material || "판단 어려움",
+    pattern: analysis.pattern || "판단 어려움",
+  };
+}
+
 async function saveAnalyzedClosetItem(
   imageUri: string,
   analysis: ClothesAnalysis,
@@ -251,6 +274,7 @@ async function saveAnalyzedClosetItem(
     seasons,
     fit: analysis.fit || "핏 미분석",
     size: size.trim() || DEFAULT_SIZE,
+    ...getAnalysisDetailFields(analysis),
     description: analysis.description || "옷 특징을 분석하지 못했어요.",
     matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
     avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",
@@ -428,6 +452,7 @@ export default function AddClothesScreen() {
         seasons: selectedSeasons,
         fit: analysis.fit || "핏 분석 전",
         size: selectedSize.trim() || DEFAULT_SIZE,
+        ...getAnalysisDetailFields(analysis),
         description: analysis.description || "옷 특징을 분석하지 못했어요.",
         matchTip: analysis.matchTip || "어울리는 조합을 분석하지 못했어요.",
         avoidTip: analysis.avoidTip || "피하면 좋은 조합을 분석하지 못했어요.",

@@ -31,6 +31,15 @@ export type ClosetItem = {
   fit?: string;
   size?: string;
   intendedFit?: string;
+  brand?: string;
+  brandConfidence?: number;
+  logoDetected?: boolean;
+  logoText?: string;
+  graphicDetected?: boolean;
+  graphicType?: string;
+  graphicSize?: string;
+  material?: string;
+  pattern?: string;
   description?: string;
   matchTip?: string;
   avoidTip?: string;
