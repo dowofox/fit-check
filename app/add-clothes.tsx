@@ -93,6 +93,7 @@ type ClothesAnalysis = {
   fit?: string;
   size?: string;
   brand?: string;
+  confirmedBrand?: string | null;
   brandConfidence?: number;
   logoDetected?: boolean;
   logoText?: string;
@@ -235,6 +236,16 @@ function generalizeBrandTerms(value?: string, fallback = "") {
     .trim() || fallback;
 }
 
+function getConfirmedBrand(analysis: ClothesAnalysis) {
+  const confirmedBrand = analysis.confirmedBrand || analysis.brand;
+  const brandConfidence = analysis.brandConfidence ?? 0;
+
+  if (!confirmedBrand || confirmedBrand === "판단 어려움") return undefined;
+  if (!analysis.logoDetected || brandConfidence < 80) return undefined;
+
+  return confirmedBrand;
+}
+
 function toggleStyleTag(currentTags: string[], tag: string) {
   if (currentTags.includes(tag)) {
     const nextTags = currentTags.filter((currentTag) => currentTag !== tag);
@@ -292,9 +303,12 @@ async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {
 }
 
 function getAnalysisDetailFields(analysis: ClothesAnalysis) {
+  const confirmedBrand = getConfirmedBrand(analysis);
+
   return {
-    brand: "판단 어려움",
-    brandConfidence: 0,
+    brand: confirmedBrand,
+    confirmedBrand,
+    brandConfidence: confirmedBrand ? analysis.brandConfidence ?? 0 : 0,
     logoDetected: analysis.logoDetected ?? false,
     logoText: generalizeBrandTerms(analysis.logoText),
     graphicDetected: analysis.graphicDetected ?? false,
@@ -302,6 +316,7 @@ function getAnalysisDetailFields(analysis: ClothesAnalysis) {
     graphicSize: analysis.graphicSize || "판단 어려움",
     material: analysis.material || "판단 어려움",
     pattern: analysis.pattern || "판단 어려움",
+    productCandidates: analysis.productCandidates || [],
   };
 }
 

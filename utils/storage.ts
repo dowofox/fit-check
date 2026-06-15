@@ -40,6 +40,7 @@ export type ClosetItem = {
   intendedFit?: string;
   brand?: string;
   brandConfidence?: number;
+  confirmedBrand?: string | null;
   logoDetected?: boolean;
   logoText?: string;
   graphicDetected?: boolean;
@@ -47,6 +48,7 @@ export type ClosetItem = {
   graphicSize?: string;
   material?: string;
   pattern?: string;
+  productCandidates?: ProductCandidate[];
   selectedProductCandidate?: ProductCandidate;
   description?: string;
   matchTip?: string;

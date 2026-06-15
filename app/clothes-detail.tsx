@@ -234,7 +234,7 @@ function getBooleanLabel(value?: boolean) {
 
 function getAiAnalysisRows(item: ClosetItem) {
   return [
-    { label: "브랜드", value: item.brand || "판단 어려움" },
+    { label: "확정 브랜드", value: item.confirmedBrand || item.brand || "확정 없음" },
     { label: "브랜드 신뢰도", value: `${item.brandConfidence ?? 0}%` },
     { label: "로고", value: getBooleanLabel(item.logoDetected) },
     { label: "로고 텍스트", value: item.logoText || "없음" },
@@ -254,7 +254,7 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
         </View>
         <View>
           <Text style={styles.tipTitle}>AI 상세 분석</Text>
-          <Text style={styles.aiDetailSubtitle}>브랜드, 로고, 소재 정보를 AI가 추정했어요.</Text>
+          <Text style={styles.aiDetailSubtitle}>명확한 로고/텍스트가 있을 때만 브랜드를 확정해요.</Text>
         </View>
       </View>
 

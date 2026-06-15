@@ -31,7 +31,8 @@ const openai = new OpenAI({
 });
 
 const DEFAULT_CLOTHES_DETAIL_ANALYSIS = {
-  brand: "판단 어려움",
+  brand: null,
+  confirmedBrand: null,
   brandConfidence: 0,
   logoDetected: false,
   logoText: "",
@@ -145,6 +146,18 @@ function normalizeProductCandidates(candidates) {
         : undefined,
     }))
     .slice(0, 5);
+}
+
+function normalizeConfirmedBrand(brand, confidence, logoDetected) {
+  if (typeof brand !== "string") return null;
+
+  const trimmedBrand = brand.trim();
+  if (!trimmedBrand || trimmedBrand === "판단 어려움") return null;
+
+  const normalizedConfidence = normalizeScore(confidence);
+  if (!logoDetected || normalizedConfidence < 80) return null;
+
+  return trimmedBrand;
 }
 
 function getRiskLevel(score) {
@@ -590,7 +603,8 @@ app.post("/analyze-clothes", async (req, res) => {
   "styleTags": ["캐주얼", "편안함", "데일리"],
   "seasons": ["봄", "가을"],
   "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
-  "brand": "판단 어려움",
+  "brand": null,
+  "confirmedBrand": null,
   "brandConfidence": 0,
   "logoDetected": false,
   "logoText": "브랜드명이나 상표명이 아닌 일반 레터링/그래픽 설명. 없으면 빈 문자열",
@@ -618,9 +632,11 @@ app.post("/analyze-clothes", async (req, res) => {
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
 - styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
 - seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
-- productCandidates를 제외한 모든 분석 필드에서는 브랜드명, 로고명, 상표명, 브랜드 상징 이름을 절대 추측하거나 출력하지 마세요.
-- 실제 로고가 명확히 보여도 Nike, 스우시, Adidas 같은 이름을 쓰지 말고 "로고 프린팅", "레터링", "그래픽"처럼 일반 표현만 사용하세요.
-- brand는 항상 "판단 어려움"으로 작성하고 brandConfidence는 항상 0으로 작성하세요.
+- 브랜드는 로고, 브랜드 텍스트, 상표명이 사진에서 명확하게 읽히는 경우에만 brand와 confirmedBrand에 같은 브랜드명을 작성하세요.
+- 로고나 텍스트가 흐리거나 일부만 보이거나 상징만 애매하게 보이면 brand와 confirmedBrand는 null로 작성하세요.
+- 추측으로 브랜드를 단정하지 마세요. 애매한 경우에는 productCandidates에 후보로만 제안하세요.
+- brandConfidence는 확정 브랜드가 있을 때만 80~100으로 작성하고, 확정할 수 없으면 0으로 작성하세요.
+- confirmedBrand는 확정 브랜드가 있을 때만 문자열, 아니면 null로 작성하세요.
 - logoText에도 브랜드명, 로고명, 상표명을 쓰지 말고 "레터링", "로고 프린팅", "그래픽"처럼 일반화해서 작성하세요.
 - description, detailCategory, styleTags, matchTip, avoidTip에도 브랜드명, 로고명, 상표명을 절대 넣지 마세요.
 - "Nike 로고 티셔츠", "스우시 로고 티셔츠"처럼 특정 브랜드나 로고명을 포함한 표현은 금지입니다.
@@ -660,6 +676,13 @@ app.post("/analyze-clothes", async (req, res) => {
     const seasons = normalizeClothesSeasons(parsed.seasons || parsed.season);
     const styleTags = normalizeStyleTags(parsed.styleTags, parsed.style);
     const productCandidates = normalizeProductCandidates(parsed.productCandidates);
+    const logoDetected = normalizeBoolean(parsed.logoDetected);
+    const brandConfidence = normalizeScore(parsed.brandConfidence);
+    const confirmedBrand = normalizeConfirmedBrand(
+      parsed.confirmedBrand || parsed.brand,
+      brandConfidence,
+      logoDetected
+    );
     const sanitizedSubCategory = generalizeBrandTerms(parsed.subCategory, "분석 전");
     const sanitizedDetailCategory = generalizeBrandTerms(
       parsed.detailCategory || parsed.subCategory,
@@ -692,9 +715,10 @@ app.post("/analyze-clothes", async (req, res) => {
       season: seasons.join(", "),
       seasons,
       fit: parsed.fit || "핏 분석 전",
-      brand: DEFAULT_CLOTHES_DETAIL_ANALYSIS.brand,
-      brandConfidence: DEFAULT_CLOTHES_DETAIL_ANALYSIS.brandConfidence,
-      logoDetected: normalizeBoolean(parsed.logoDetected),
+      brand: confirmedBrand,
+      confirmedBrand,
+      brandConfidence: confirmedBrand ? brandConfidence : 0,
+      logoDetected,
       logoText: sanitizedLogoText,
       graphicDetected: normalizeBoolean(parsed.graphicDetected),
       graphicType: parsed.graphicType || DEFAULT_CLOTHES_DETAIL_ANALYSIS.graphicType,
