@@ -632,11 +632,13 @@ app.post("/analyze-clothes", async (req, res) => {
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
 - styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
 - seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
-- 브랜드는 로고, 브랜드 텍스트, 상표명이 사진에서 명확하게 읽히는 경우에만 brand와 confirmedBrand에 같은 브랜드명을 작성하세요.
+- 브랜드는 목택, 라벨, 전면 프린트, 로고 주변 텍스트처럼 브랜드명이 사진에서 명확하게 읽히는 경우에만 brand와 confirmedBrand에 같은 브랜드명을 작성하세요.
+- 예를 들어 목택이나 전면 프린트에 "MAISON MINED"가 선명하게 보이면 brand와 confirmedBrand는 "MAISON MINED"로 작성하세요.
 - 로고나 텍스트가 흐리거나 일부만 보이거나 상징만 애매하게 보이면 brand와 confirmedBrand는 null로 작성하세요.
 - 추측으로 브랜드를 단정하지 마세요. 애매한 경우에는 productCandidates에 후보로만 제안하세요.
 - brandConfidence는 확정 브랜드가 있을 때만 80~100으로 작성하고, 확정할 수 없으면 0으로 작성하세요.
 - confirmedBrand는 확정 브랜드가 있을 때만 문자열, 아니면 null로 작성하세요.
+- 브랜드 텍스트가 명확하게 읽히는 경우 logoDetected는 true로 작성하세요.
 - logoText에도 브랜드명, 로고명, 상표명을 쓰지 말고 "레터링", "로고 프린팅", "그래픽"처럼 일반화해서 작성하세요.
 - description, detailCategory, styleTags, matchTip, avoidTip에도 브랜드명, 로고명, 상표명을 절대 넣지 마세요.
 - "Nike 로고 티셔츠", "스우시 로고 티셔츠"처럼 특정 브랜드나 로고명을 포함한 표현은 금지입니다.
@@ -647,7 +649,7 @@ app.post("/analyze-clothes", async (req, res) => {
 - graphicSize는 "없음", "작음", "중간", "큼", "판단 어려움" 중 하나로 작성하세요.
 - material은 "면", "데님", "니트", "나일론", "가죽", "스웨이드", "폴리", "린넨", "판단 어려움" 중 하나로 작성하세요.
 - pattern은 "무지", "스트라이프", "체크", "카모", "플라워", "그래픽", "로고패턴", "판단 어려움" 중 하나로 작성하세요.
-- productCandidates는 참고용 비슷한 상품 후보입니다. 브랜드를 확정하지 말고 후보로만 제안하세요.
+- productCandidates는 brand를 확정할 수 없지만 비슷한 상품 후보가 있을 때만 제안하는 참고용 배열입니다.
 - productCandidates는 확실한 후보가 있을 때만 최대 3~5개 작성하세요.
 - productCandidates가 불확실하면 빈 배열 []을 반환하세요.
 - productCandidates의 confidence는 0~1 사이 숫자로 작성하세요.
