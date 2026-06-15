@@ -228,6 +228,50 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   );
 }
 
+function getBooleanLabel(value?: boolean) {
+  return value ? "감지됨" : "없음";
+}
+
+function getAiAnalysisRows(item: ClosetItem) {
+  return [
+    { label: "브랜드", value: item.brand || "판단 어려움" },
+    { label: "브랜드 신뢰도", value: `${item.brandConfidence ?? 0}%` },
+    { label: "로고", value: getBooleanLabel(item.logoDetected) },
+    { label: "로고 텍스트", value: item.logoText || "없음" },
+    { label: "프린팅/그래픽", value: item.graphicType || "판단 어려움" },
+    { label: "그래픽 크기", value: item.graphicSize || "판단 어려움" },
+    { label: "소재", value: item.material || "판단 어려움" },
+    { label: "패턴", value: item.pattern || "판단 어려움" },
+  ];
+}
+
+function AiDetailCard({ item }: { item: ClosetItem }) {
+  return (
+    <View style={styles.aiDetailCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="cpu" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>AI 상세 분석</Text>
+          <Text style={styles.aiDetailSubtitle}>브랜드, 로고, 소재 정보를 AI가 추정했어요.</Text>
+        </View>
+      </View>
+
+      <View style={styles.aiDetailGrid}>
+        {getAiAnalysisRows(item).map((row) => (
+          <View key={row.label} style={styles.aiDetailPill}>
+            <Text style={styles.aiDetailLabel}>{row.label}</Text>
+            <Text style={styles.aiDetailValue} numberOfLines={2}>
+              {row.value}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function EditRow({
   label,
   value,
@@ -544,6 +588,8 @@ export default function ClothesDetailScreen() {
               )}
             </View>
 
+            {!editMode && <AiDetailCard item={item} />}
+
             {!editMode && fitSuitability && (
               <View style={styles.sizeMatchCard}>
                 <View style={styles.tipHeader}>
@@ -823,6 +869,52 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee7dd",
     marginBottom: 12,
+  },
+
+  aiDetailCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  aiDetailSubtitle: {
+    color: "#8a8178",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+
+  aiDetailGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  aiDetailPill: {
+    width: "48%",
+    backgroundColor: "#faf8f5",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+
+  aiDetailLabel: {
+    color: "#8a8178",
+    fontSize: 11,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+
+  aiDetailValue: {
+    color: "#111",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "900",
   },
 
   tipHeader: {
