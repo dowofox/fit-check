@@ -284,13 +284,50 @@ function getProductSearchQuery(item: ClosetItem) {
   return "";
 }
 
+function getBaseItemLabel(item: ClosetItem) {
+  const candidate = item.selectedProductCandidate;
+
+  if (candidate) return `${candidate.brand} ${candidate.productName}`.trim();
+  if (item.confirmedBrand) {
+    return `${item.confirmedBrand} ${item.detailCategory || item.subCategory || item.category}`.trim();
+  }
+
+  return [
+    item.detailCategory || item.subCategory || item.category,
+    item.color,
+    ...getItemStyleTags(item),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getMatchingItemQueries(item: ClosetItem) {
+  if (item.category === "상의") {
+    return ["와이드 데님팬츠", "아이보리 스니커즈", "블랙 크로스백"];
+  }
+
+  if (item.category === "하의") {
+    return ["오버핏 반팔 티셔츠", "미니멀 셔츠", "화이트 스니커즈"];
+  }
+
+  if (item.category === "신발") {
+    return ["와이드 데님팬츠", "그래픽 반팔 티셔츠", "크루삭스"];
+  }
+
+  if (item.category === "아우터") {
+    return ["무지 반팔 티셔츠", "데님팬츠", "스니커즈"];
+  }
+
+  return ["미니멀 셔츠", "와이드 데님팬츠", "아이보리 스니커즈"];
+}
+
 async function openProductSearch(provider: "naver" | "musinsa" | "google", query: string) {
   if (!query) return;
 
   const encodedQuery = encodeURIComponent(query);
   const urls = {
     naver: `https://search.shopping.naver.com/search/all?query=${encodedQuery}`,
-    musinsa: `https://www.musinsa.com/search/goods?keyword=${encodedQuery}`,
+    musinsa: `https://www.musinsa.com/search/musinsa/integration?q=${encodedQuery}`,
     google: `https://www.google.com/search?q=${encodedQuery}`,
   };
 
@@ -300,6 +337,61 @@ async function openProductSearch(provider: "naver" | "musinsa" | "google", query
     console.log("상품 검색 열기 실패:", error);
     Alert.alert("검색 실패", "검색 페이지를 열지 못했어요. 다시 시도해주세요.");
   }
+}
+
+function MatchingItemSearchCard({ item }: { item: ClosetItem }) {
+  const baseItemLabel = getBaseItemLabel(item);
+  const matchingQueries = getMatchingItemQueries(item);
+
+  return (
+    <View style={styles.matchingSearchCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="shopping-bag" size={16} color="#8c6f47" />
+        </View>
+        <View style={styles.matchingSearchHeaderText}>
+          <Text style={styles.tipTitle}>이 옷에 어울리는 아이템</Text>
+          <Text style={styles.aiDetailSubtitle}>
+            선택한 참고 상품과 어울릴 만한 아이템을 쇼핑몰에서 찾아볼 수 있어요.
+          </Text>
+        </View>
+      </View>
+
+      {baseItemLabel ? (
+        <Text style={styles.matchingSearchBaseText} numberOfLines={2}>
+          기준: {baseItemLabel}
+        </Text>
+      ) : null}
+
+      <View style={styles.matchingQueryList}>
+        {matchingQueries.map((query) => (
+          <View key={query} style={styles.matchingQueryCard}>
+            <Text style={styles.matchingQueryText}>{query}</Text>
+            <View style={styles.matchingButtonRow}>
+              <Pressable
+                style={styles.matchingSearchButton}
+                onPress={() => openProductSearch("musinsa", query)}
+              >
+                <Text style={styles.matchingSearchButtonText}>무신사</Text>
+              </Pressable>
+              <Pressable
+                style={styles.matchingSearchButton}
+                onPress={() => openProductSearch("naver", query)}
+              >
+                <Text style={styles.matchingSearchButtonText}>네이버</Text>
+              </Pressable>
+              <Pressable
+                style={styles.matchingSearchButton}
+                onPress={() => openProductSearch("google", query)}
+              >
+                <Text style={styles.matchingSearchButtonText}>구글</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
 
 function ProductReferenceCard({ item }: { item: ClosetItem }) {
@@ -681,6 +773,8 @@ export default function ClothesDetailScreen() {
             {!editMode && <AiDetailCard item={item} />}
 
             {!editMode && <ProductReferenceCard item={item} />}
+
+            {!editMode && <MatchingItemSearchCard item={item} />}
 
             {!editMode && fitSuitability && (
               <View style={styles.sizeMatchCard}>
@@ -1076,6 +1170,67 @@ const styles = StyleSheet.create({
   },
 
   productSearchButtonText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  matchingSearchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  matchingSearchHeaderText: {
+    flex: 1,
+  },
+
+  matchingSearchBaseText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "800",
+    marginBottom: 12,
+  },
+
+  matchingQueryList: {
+    gap: 10,
+  },
+
+  matchingQueryCard: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    padding: 12,
+  },
+
+  matchingQueryText: {
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "900",
+    marginBottom: 9,
+  },
+
+  matchingButtonRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  matchingSearchButton: {
+    backgroundColor: "#fff",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 8,
+    paddingHorizontal: 11,
+  },
+
+  matchingSearchButtonText: {
     color: "#8c6f47",
     fontSize: 12,
     fontWeight: "900",
