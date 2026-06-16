@@ -440,6 +440,10 @@ function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
 
 function getItemSearchText(item: ClosetItem) {
   return [
+    item.confirmedProduct?.brand,
+    item.confirmedProduct?.productName,
+    item.confirmedBrand,
+    item.inferredBrand,
     item.category,
     item.subCategory,
     item.detailCategory,

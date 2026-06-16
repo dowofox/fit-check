@@ -1,5 +1,5 @@
 import { saveClosetItem } from "@/utils/storage";
-import type { ProductCandidate, StyleProfile } from "@/utils/storage";
+import type { AnalysisConfidence, AnalysisQuality, ProductCandidate, StyleProfile } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
@@ -94,7 +94,10 @@ type ClothesAnalysis = {
   size?: string;
   brand?: string;
   confirmedBrand?: string | null;
+  inferredBrand?: string;
+  inferredProductName?: string;
   brandConfidence?: number;
+  confidence?: AnalysisConfidence;
   logoDetected?: boolean;
   logoText?: string;
   graphicDetected?: boolean;
@@ -107,6 +110,8 @@ type ClothesAnalysis = {
   avoidTip?: string;
   productCandidates?: ProductCandidate[];
   styleProfile?: StyleProfile;
+  analysisWarnings?: string[];
+  analysisQuality?: AnalysisQuality;
   cleanImageBase64?: string | null;
 };
 
@@ -240,11 +245,23 @@ function generalizeBrandTerms(value?: string, fallback = "") {
 function getConfirmedBrand(analysis: ClothesAnalysis) {
   const confirmedBrand = analysis.confirmedBrand || analysis.brand;
   const brandConfidence = analysis.brandConfidence ?? 0;
+  const hasBrandEvidence = Boolean(analysis.logoText || analysis.brand || analysis.confirmedBrand);
 
   if (!confirmedBrand || confirmedBrand === "판단 어려움") return undefined;
-  if (!analysis.logoDetected || brandConfidence < 80) return undefined;
+  if (!analysis.logoDetected || brandConfidence < 80 || !hasBrandEvidence) return undefined;
 
   return confirmedBrand;
+}
+
+function getInferredBrand(analysis: ClothesAnalysis, confirmedBrand?: string) {
+  const inferredBrand = analysis.inferredBrand || analysis.brand || analysis.confirmedBrand || "";
+  const trimmedBrand = inferredBrand.trim();
+
+  if (!trimmedBrand || trimmedBrand === confirmedBrand || trimmedBrand === "판단 어려움") {
+    return undefined;
+  }
+
+  return trimmedBrand;
 }
 
 function toggleStyleTag(currentTags: string[], tag: string) {
@@ -305,11 +322,15 @@ async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {
 
 function getAnalysisDetailFields(analysis: ClothesAnalysis) {
   const confirmedBrand = getConfirmedBrand(analysis);
+  const inferredBrand = getInferredBrand(analysis, confirmedBrand);
 
   return {
     brand: confirmedBrand,
     confirmedBrand,
+    inferredBrand,
+    inferredProductName: analysis.inferredProductName || undefined,
     brandConfidence: confirmedBrand ? analysis.brandConfidence ?? 0 : 0,
+    confidence: analysis.confidence,
     logoDetected: analysis.logoDetected ?? false,
     logoText: generalizeBrandTerms(analysis.logoText),
     graphicDetected: analysis.graphicDetected ?? false,
@@ -318,6 +339,8 @@ function getAnalysisDetailFields(analysis: ClothesAnalysis) {
     material: analysis.material || "판단 어려움",
     pattern: analysis.pattern || "판단 어려움",
     productCandidates: analysis.productCandidates || [],
+    analysisWarnings: analysis.analysisWarnings || [],
+    analysisQuality: analysis.analysisQuality,
   };
 }
 

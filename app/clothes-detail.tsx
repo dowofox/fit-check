@@ -293,8 +293,10 @@ function getBooleanLabel(value?: boolean) {
 
 function getAiAnalysisRows(item: ClosetItem) {
   return [
-    { label: "확정 브랜드", value: item.confirmedBrand || item.brand || "확정 없음" },
-    { label: "브랜드 신뢰도", value: `${item.brandConfidence ?? 0}%` },
+    { label: "확정 브랜드", value: item.confirmedBrand || "확정 없음" },
+    { label: "추정 브랜드", value: item.inferredBrand || "추정 없음" },
+    { label: "추정 상품명", value: item.inferredProductName || "추정 없음" },
+    { label: "브랜드 신뢰도", value: `${item.brandConfidence ?? item.confidence?.brand ?? 0}%` },
     { label: "로고", value: getBooleanLabel(item.logoDetected) },
     { label: "로고 텍스트", value: item.logoText || "없음" },
     { label: "프린팅/그래픽", value: item.graphicType || "판단 어려움" },
@@ -327,6 +329,86 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+function getLowConfidenceRows(item: ClosetItem) {
+  const confidence = item.confidence || {};
+  const labels: Record<string, string> = {
+    category: "카테고리",
+    color: "색상",
+    season: "계절",
+    style: "스타일",
+    fit: "핏",
+    brand: "브랜드",
+    product: "상품",
+  };
+
+  return Object.entries(confidence)
+    .filter(([, value]) => typeof value === "number" && value < 70)
+    .map(([key, value]) => `${labels[key] || key} ${value}%`);
+}
+
+function getImageQualityLabel(imageQuality?: string) {
+  const labels: Record<string, string> = {
+    good: "좋음",
+    dark: "어두움",
+    blurred: "흐림",
+    folded: "접힘/구김",
+    partial: "일부만 보임",
+  };
+
+  return labels[imageQuality || ""] || "분석 전";
+}
+
+function AnalysisQualityCard({ item }: { item: ClosetItem }) {
+  const lowConfidenceRows = getLowConfidenceRows(item);
+  const warnings = item.analysisWarnings || [];
+  const quality = item.analysisQuality;
+  const missingHints = quality?.missingHints || [];
+  const shouldShow =
+    lowConfidenceRows.length > 0 ||
+    warnings.length > 0 ||
+    quality?.imageQuality ||
+    quality?.needsMorePhotos ||
+    missingHints.length > 0;
+
+  if (!shouldShow) return null;
+
+  return (
+    <View style={styles.analysisQualityCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="alert-triangle" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>분석 검증</Text>
+          <Text style={styles.aiDetailSubtitle}>확실하지 않은 값은 보수적으로 저장했어요.</Text>
+        </View>
+      </View>
+
+      <Text style={styles.analysisQualityText}>
+        사진 상태: {getImageQualityLabel(quality?.imageQuality)}
+      </Text>
+
+      {lowConfidenceRows.length > 0 && (
+        <Text style={styles.analysisQualityText}>
+          신뢰도 낮음: {lowConfidenceRows.join(", ")}
+        </Text>
+      )}
+
+      {warnings.length > 0 && (
+        <Text style={styles.analysisQualityText}>
+          확인 필요: {warnings.join(", ")}
+        </Text>
+      )}
+
+      {quality?.needsMorePhotos || missingHints.length > 0 ? (
+        <Text style={styles.analysisQualityText}>
+          추가 사진 힌트: {missingHints.length > 0 ? missingHints.join(", ") : "라벨, 뒷면, 전체 실루엣"}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -1263,6 +1345,8 @@ export default function ClothesDetailScreen() {
 
             {!editMode && <AiDetailCard item={item} />}
 
+            {!editMode && <AnalysisQualityCard item={item} />}
+
             {!editMode && <StyleProfileCard item={item} />}
 
             {!editMode && item.confirmedProduct && (
@@ -1636,6 +1720,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "900",
+  },
+
+  analysisQualityCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  analysisQualityText: {
+    color: "#625a51",
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "800",
+    marginTop: 6,
   },
 
   styleProfileCard: {

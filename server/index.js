@@ -33,7 +33,10 @@ const openai = new OpenAI({
 const DEFAULT_CLOTHES_DETAIL_ANALYSIS = {
   brand: null,
   confirmedBrand: null,
+  inferredBrand: null,
+  inferredProductName: null,
   brandConfidence: 0,
+  confidence: {},
   logoDetected: false,
   logoText: "",
   graphicDetected: false,
@@ -41,6 +44,12 @@ const DEFAULT_CLOTHES_DETAIL_ANALYSIS = {
   graphicSize: "판단 어려움",
   material: "판단 어려움",
   pattern: "판단 어려움",
+  analysisWarnings: [],
+  analysisQuality: {
+    imageQuality: "good",
+    needsMorePhotos: false,
+    missingHints: [],
+  },
 };
 
 const BRAND_OR_LOGO_TERMS = [
@@ -105,6 +114,53 @@ function normalizeBoolean(value) {
   return false;
 }
 
+function normalizeConfidence(confidence) {
+  if (!confidence || typeof confidence !== "object") return {};
+
+  const keys = ["category", "color", "season", "style", "fit", "brand", "product"];
+
+  return keys.reduce((result, key) => {
+    if (confidence[key] !== undefined) {
+      result[key] = normalizeScore(confidence[key]);
+    }
+
+    return result;
+  }, {});
+}
+
+function normalizeAnalysisWarnings(warnings) {
+  if (!Array.isArray(warnings)) return [];
+
+  return warnings
+    .filter((warning) => typeof warning === "string" && warning.trim().length > 0)
+    .map((warning) => warning.trim())
+    .slice(0, 6);
+}
+
+function normalizeAnalysisQuality(quality) {
+  const allowedQualities = ["good", "dark", "blurred", "folded", "partial"];
+
+  if (!quality || typeof quality !== "object") {
+    return DEFAULT_CLOTHES_DETAIL_ANALYSIS.analysisQuality;
+  }
+
+  const imageQuality = allowedQualities.includes(quality.imageQuality)
+    ? quality.imageQuality
+    : "good";
+  const missingHints = Array.isArray(quality.missingHints)
+    ? quality.missingHints
+        .filter((hint) => typeof hint === "string" && hint.trim().length > 0)
+        .map((hint) => hint.trim())
+        .slice(0, 5)
+    : [];
+
+  return {
+    imageQuality,
+    needsMorePhotos: normalizeBoolean(quality.needsMorePhotos),
+    missingHints,
+  };
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -148,14 +204,15 @@ function normalizeProductCandidates(candidates) {
     .slice(0, 5);
 }
 
-function normalizeConfirmedBrand(brand, confidence, logoDetected) {
+function normalizeConfirmedBrand(brand, confidence, logoDetected, evidenceText) {
   if (typeof brand !== "string") return null;
 
   const trimmedBrand = brand.trim();
   if (!trimmedBrand || trimmedBrand === "판단 어려움") return null;
 
   const normalizedConfidence = normalizeScore(confidence);
-  if (!logoDetected || normalizedConfidence < 80) return null;
+  const hasEvidence = typeof evidenceText === "string" && evidenceText.trim().length > 0;
+  if (!logoDetected || normalizedConfidence < 80 || !hasEvidence) return null;
 
   return trimmedBrand;
 }
@@ -822,7 +879,18 @@ app.post("/analyze-clothes", async (req, res) => {
   "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
   "brand": null,
   "confirmedBrand": null,
+  "inferredBrand": null,
+  "inferredProductName": null,
   "brandConfidence": 0,
+  "confidence": {
+    "category": 80,
+    "color": 80,
+    "season": 80,
+    "style": 80,
+    "fit": 80,
+    "brand": 0,
+    "product": 0
+  },
   "logoDetected": false,
   "logoText": "브랜드명이나 상표명이 아닌 일반 레터링/그래픽 설명. 없으면 빈 문자열",
   "graphicDetected": false,
@@ -858,7 +926,13 @@ app.post("/analyze-clothes", async (req, res) => {
   },
   "description": "옷의 특징을 한 문장으로 설명",
   "matchTip": "이 옷과 잘 어울리는 조합 추천",
-  "avoidTip": "피하면 좋은 조합"
+  "avoidTip": "피하면 좋은 조합",
+  "analysisWarnings": ["분석이 애매한 항목이 있으면 작성"],
+  "analysisQuality": {
+    "imageQuality": "good / dark / blurred / folded / partial 중 하나",
+    "needsMorePhotos": false,
+    "missingHints": ["라벨", "뒷면", "전체 실루엣"]
+  }
 }
 
 규칙:
@@ -921,11 +995,24 @@ app.post("/analyze-clothes", async (req, res) => {
     const styleProfile = normalizeStyleProfile(parsed.styleProfile);
     const logoDetected = normalizeBoolean(parsed.logoDetected);
     const brandConfidence = normalizeScore(parsed.brandConfidence);
+    const confidence = normalizeConfidence(parsed.confidence);
+    const analysisWarnings = normalizeAnalysisWarnings(parsed.analysisWarnings);
+    const analysisQuality = normalizeAnalysisQuality(parsed.analysisQuality);
     const confirmedBrand = normalizeConfirmedBrand(
       parsed.confirmedBrand || parsed.brand,
       brandConfidence,
-      logoDetected
+      logoDetected,
+      parsed.logoText || parsed.confirmedBrand || parsed.brand
     );
+    const inferredBrandSource = parsed.inferredBrand || parsed.brand || parsed.confirmedBrand;
+    const inferredBrand =
+      inferredBrandSource && inferredBrandSource !== confirmedBrand && inferredBrandSource !== "판단 어려움"
+        ? inferredBrandSource
+        : null;
+    const inferredProductName =
+      parsed.inferredProductName && parsed.inferredProductName !== "판단 어려움"
+        ? parsed.inferredProductName
+        : null;
     const sanitizedSubCategory = generalizeBrandTerms(parsed.subCategory, "분석 전");
     const sanitizedDetailCategory = generalizeBrandTerms(
       parsed.detailCategory || parsed.subCategory,
@@ -960,7 +1047,10 @@ app.post("/analyze-clothes", async (req, res) => {
       fit: parsed.fit || "핏 분석 전",
       brand: confirmedBrand,
       confirmedBrand,
+      inferredBrand,
+      inferredProductName,
       brandConfidence: confirmedBrand ? brandConfidence : 0,
+      confidence,
       logoDetected,
       logoText: sanitizedLogoText,
       graphicDetected: normalizeBoolean(parsed.graphicDetected),
@@ -973,6 +1063,8 @@ app.post("/analyze-clothes", async (req, res) => {
       avoidTip: sanitizedAvoidTip,
       productCandidates,
       styleProfile,
+      analysisWarnings,
+      analysisQuality,
       cleanImageBase64,
     });
   } catch (error) {

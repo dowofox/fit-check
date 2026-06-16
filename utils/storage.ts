@@ -54,6 +54,22 @@ export type StyleProfile = {
   };
 };
 
+export type AnalysisConfidence = {
+  category?: number;
+  color?: number;
+  season?: number;
+  style?: number;
+  fit?: number;
+  brand?: number;
+  product?: number;
+};
+
+export type AnalysisQuality = {
+  imageQuality?: "good" | "dark" | "blurred" | "folded" | "partial";
+  needsMorePhotos?: boolean;
+  missingHints?: string[];
+};
+
 export type ClosetItem = {
   id: string;
   imageUri: string;
@@ -72,6 +88,8 @@ export type ClosetItem = {
   brand?: string;
   brandConfidence?: number;
   confirmedBrand?: string | null;
+  inferredBrand?: string;
+  inferredProductName?: string;
   logoDetected?: boolean;
   logoText?: string;
   graphicDetected?: boolean;
@@ -83,6 +101,9 @@ export type ClosetItem = {
   selectedProductCandidate?: ProductCandidate;
   confirmedProduct?: ConfirmedProduct;
   styleProfile?: StyleProfile;
+  confidence?: AnalysisConfidence;
+  analysisWarnings?: string[];
+  analysisQuality?: AnalysisQuality;
   description?: string;
   matchTip?: string;
   avoidTip?: string;
