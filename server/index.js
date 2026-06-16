@@ -649,11 +649,16 @@ app.post("/analyze-clothes", async (req, res) => {
 - graphicSize는 "없음", "작음", "중간", "큼", "판단 어려움" 중 하나로 작성하세요.
 - material은 "면", "데님", "니트", "나일론", "가죽", "스웨이드", "폴리", "린넨", "판단 어려움" 중 하나로 작성하세요.
 - pattern은 "무지", "스트라이프", "체크", "카모", "플라워", "그래픽", "로고패턴", "판단 어려움" 중 하나로 작성하세요.
-- productCandidates는 brand를 확정할 수 없지만 비슷한 상품 후보가 있을 때만 제안하는 참고용 배열입니다.
-- productCandidates는 확실한 후보가 있을 때만 최대 3~5개 작성하세요.
-- productCandidates가 불확실하면 빈 배열 []을 반환하세요.
+- productCandidates는 실제 구매 링크가 아니라 사용자가 참고할 비슷한 상품 예시 후보입니다.
+- confirmedBrand가 있으면 같은 브랜드 안에서 비슷한 상품 후보를 1~5개 제안하세요.
+- confirmedBrand가 없으면 비슷해 보이는 상품 후보를 0~5개 제안하세요.
+- brand가 확정된 경우 productCandidates의 candidate.brand는 confirmedBrand와 같게 작성할 수 있습니다.
+- productName은 실제 상품명이 확실하지 않으면 정확한 상품명처럼 단정하지 말고 "화이트 그래픽 반팔 티셔츠", "레터링 오버핏 반팔 티셔츠" 같은 일반적인 참고명으로 작성하세요.
+- reason에는 로고, 색상, 그래픽 배치, 실루엣, 소재 등 왜 비슷한지 구체적으로 작성하세요.
+- productCandidates가 불확실하면 빈 배열 []을 반환할 수 있습니다.
 - productCandidates의 confidence는 0~1 사이 숫자로 작성하세요.
 - productCandidates는 자동 저장 브랜드가 아니며 사용자가 직접 선택할 참고 후보입니다.
+- 예: confirmedBrand가 "MAISON MINED"이고 흰색 그래픽 티셔츠라면 candidate.brand는 "MAISON MINED", productName은 "화이트 그래픽 반팔 티셔츠", reason은 "전면 레터링과 그래픽 배치가 유사한 참고 상품입니다.", confidence는 0.72처럼 작성하세요.
 - 사진 품질이 낮아도 최대한 보이는 정보 기준으로 판단해주세요.
 - 모든 답변은 자연스러운 한국어로 작성해주세요.
 `,
