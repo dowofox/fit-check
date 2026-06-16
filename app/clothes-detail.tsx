@@ -7,6 +7,7 @@ import { useCallback, useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -272,10 +273,40 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
   );
 }
 
-function ProductReferenceCard({ item }: { item: ClosetItem }) {
+function getProductSearchQuery(item: ClosetItem) {
   const candidate = item.selectedProductCandidate;
 
-  if (!candidate) return null;
+  if (candidate) return `${candidate.brand} ${candidate.productName}`.trim();
+  if (item.confirmedBrand) {
+    return `${item.confirmedBrand} ${item.detailCategory || item.subCategory || item.category}`.trim();
+  }
+
+  return "";
+}
+
+async function openProductSearch(provider: "naver" | "musinsa" | "google", query: string) {
+  if (!query) return;
+
+  const encodedQuery = encodeURIComponent(query);
+  const urls = {
+    naver: `https://search.shopping.naver.com/search/all?query=${encodedQuery}`,
+    musinsa: `https://www.musinsa.com/search/goods?keyword=${encodedQuery}`,
+    google: `https://www.google.com/search?q=${encodedQuery}`,
+  };
+
+  try {
+    await Linking.openURL(urls[provider]);
+  } catch (error) {
+    console.log("상품 검색 열기 실패:", error);
+    Alert.alert("검색 실패", "검색 페이지를 열지 못했어요. 다시 시도해주세요.");
+  }
+}
+
+function ProductReferenceCard({ item }: { item: ClosetItem }) {
+  const candidate = item.selectedProductCandidate;
+  const searchQuery = getProductSearchQuery(item);
+
+  if (!candidate && !item.confirmedBrand) return null;
 
   return (
     <View style={styles.productReferenceCard}>
@@ -285,18 +316,48 @@ function ProductReferenceCard({ item }: { item: ClosetItem }) {
         </View>
         <View>
           <Text style={styles.tipTitle}>참고 상품</Text>
-          <Text style={styles.aiDetailSubtitle}>사용자가 직접 선택한 참고용 상품이에요.</Text>
+          <Text style={styles.aiDetailSubtitle}>실제 상품 확정이 아닌 검색 바로가기예요.</Text>
         </View>
       </View>
 
-      <Text style={styles.productReferenceBrand}>{candidate.brand}</Text>
-      <Text style={styles.productReferenceName}>{candidate.productName}</Text>
-      <Text style={styles.productReferenceReason}>{candidate.reason}</Text>
-      {typeof candidate.confidence === "number" && (
+      <Text style={styles.productReferenceBrand}>
+        {candidate?.brand || item.confirmedBrand}
+      </Text>
+      <Text style={styles.productReferenceName}>
+        {candidate?.productName || item.detailCategory || item.subCategory || item.category}
+      </Text>
+      <Text style={styles.productReferenceReason}>
+        {candidate?.reason || "확정 브랜드와 옷 종류를 기준으로 검색해볼 수 있어요."}
+      </Text>
+      {typeof candidate?.confidence === "number" && (
         <Text style={styles.productReferenceConfidence}>
           참고 유사도 {Math.round(candidate.confidence * 100)}%
         </Text>
       )}
+
+      <View style={styles.productSearchArea}>
+        <Text style={styles.productSearchTitle}>상품 찾아보기</Text>
+        <View style={styles.productSearchButtonRow}>
+          <Pressable
+            style={styles.productSearchButton}
+            onPress={() => openProductSearch("naver", searchQuery)}
+          >
+            <Text style={styles.productSearchButtonText}>네이버에서 찾기</Text>
+          </Pressable>
+          <Pressable
+            style={styles.productSearchButton}
+            onPress={() => openProductSearch("musinsa", searchQuery)}
+          >
+            <Text style={styles.productSearchButtonText}>무신사에서 찾기</Text>
+          </Pressable>
+          <Pressable
+            style={styles.productSearchButton}
+            onPress={() => openProductSearch("google", searchQuery)}
+          >
+            <Text style={styles.productSearchButtonText}>구글에서 찾기</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -983,6 +1044,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     marginTop: 8,
+  },
+
+  productSearchArea: {
+    borderTopWidth: 1,
+    borderTopColor: "#eee7dd",
+    marginTop: 14,
+    paddingTop: 13,
+  },
+
+  productSearchTitle: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+    marginBottom: 9,
+  },
+
+  productSearchButtonRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  productSearchButton: {
+    backgroundColor: "#f4eee7",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+
+  productSearchButtonText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "900",
   },
 
   tipHeader: {
