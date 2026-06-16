@@ -24,6 +24,8 @@ import {
   View,
 } from "react-native";
 
+const EXTRACT_PRODUCT_URL = "http://192.168.219.104:3001/extract-product";
+
 type EditableClosetFields = {
   category: string;
   subCategory: string;
@@ -46,6 +48,10 @@ type ConfirmedProductDraft = {
   productUrl: string;
   mallName: string;
   price: string;
+};
+
+type ExtractedProduct = ConfirmedProductDraft & {
+  imageUrl?: string;
 };
 
 const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
@@ -525,10 +531,12 @@ function ConfirmedProductCard({
   confirmedProduct,
   onOpenUrl,
   onEdit,
+  onOpenUrlForm,
 }: {
   confirmedProduct: ConfirmedProduct;
   onOpenUrl: () => void;
   onEdit: () => void;
+  onOpenUrlForm: () => void;
 }) {
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
 
@@ -555,6 +563,10 @@ function ConfirmedProductCard({
             <Text style={styles.confirmedProductPrimaryButtonText}>상품 링크 열기</Text>
           </Pressable>
         ) : null}
+        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenUrlForm}>
+          <Feather name="link" size={14} color="#8c6f47" />
+          <Text style={styles.confirmedProductSecondaryButtonText}>상품 URL로 변경</Text>
+        </Pressable>
         <Pressable style={styles.confirmedProductSecondaryButton} onPress={onEdit}>
           <Feather name="edit-2" size={14} color="#8c6f47" />
           <Text style={styles.confirmedProductSecondaryButtonText}>확정 정보 수정</Text>
@@ -590,8 +602,6 @@ function ConfirmedProductForm({
       <EditRow label="브랜드명" value={draft.brand} onChangeText={(value) => onChange("brand", value)} />
       <EditRow label="상품명" value={draft.productName} onChangeText={(value) => onChange("productName", value)} />
       <EditRow label="상품 링크" value={draft.productUrl} onChangeText={(value) => onChange("productUrl", value)} />
-      <EditRow label="쇼핑몰명" value={draft.mallName} onChangeText={(value) => onChange("mallName", value)} />
-      <EditRow label="가격" value={draft.price} onChangeText={(value) => onChange("price", value)} />
 
       <View style={styles.confirmedProductActionRow}>
         <Pressable style={styles.confirmedProductSecondaryButton} onPress={onCancel}>
@@ -605,21 +615,102 @@ function ConfirmedProductForm({
   );
 }
 
+function ProductUrlConfirmCard({
+  productUrl,
+  isLoading,
+  errorMessage,
+  preview,
+  onChangeUrl,
+  onExtract,
+  onConfirm,
+  onOpenManualForm,
+  onCancel,
+}: {
+  productUrl: string;
+  isLoading: boolean;
+  errorMessage: string;
+  preview: ExtractedProduct | null;
+  onChangeUrl: (value: string) => void;
+  onExtract: () => void;
+  onConfirm: () => void;
+  onOpenManualForm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <View style={styles.confirmedProductFormCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="link" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>상품 URL로 확정</Text>
+          <Text style={styles.aiDetailSubtitle}>상품 페이지 링크를 붙여넣으면 정보를 자동으로 가져와요.</Text>
+        </View>
+      </View>
+
+      <EditRow label="상품 URL" value={productUrl} onChangeText={onChangeUrl} />
+
+      <View style={styles.confirmedProductActionRow}>
+        <Pressable style={styles.confirmedProductPrimaryButton} onPress={onExtract} disabled={isLoading}>
+          <Feather name="download" size={14} color="#fff" />
+          <Text style={styles.confirmedProductPrimaryButtonText}>
+            {isLoading ? "가져오는 중..." : "상품 정보 가져오기"}
+          </Text>
+        </Pressable>
+        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onCancel}>
+          <Text style={styles.confirmedProductSecondaryButtonText}>취소</Text>
+        </Pressable>
+      </View>
+
+      {errorMessage ? (
+        <View style={styles.productExtractNotice}>
+          <Text style={styles.productExtractNoticeText}>{errorMessage}</Text>
+          <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenManualForm}>
+            <Feather name="edit-3" size={14} color="#8c6f47" />
+            <Text style={styles.confirmedProductSecondaryButtonText}>직접 입력하기</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {preview ? (
+        <View style={styles.productExtractPreview}>
+          <Text style={styles.productExtractPreviewTitle}>추출 결과 미리보기</Text>
+          <Text style={styles.productReferenceBrand}>{preview.brand || "브랜드명 없음"}</Text>
+          <Text style={styles.productReferenceName}>{preview.productName || "상품명 없음"}</Text>
+          <Text style={styles.productReferenceReason} numberOfLines={2}>
+            {preview.productUrl}
+          </Text>
+          <Pressable style={styles.confirmedProductPrimaryButton} onPress={onConfirm}>
+            <Feather name="check" size={14} color="#fff" />
+            <Text style={styles.confirmedProductPrimaryButtonText}>이 상품으로 확정</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function ProductConfirmActionCard({
   hasCandidate,
   onConfirmCandidate,
   onOpenManualForm,
+  onOpenUrlForm,
 }: {
   hasCandidate: boolean;
   onConfirmCandidate: () => void;
   onOpenManualForm: () => void;
+  onOpenUrlForm: () => void;
 }) {
   return (
     <View style={styles.productConfirmArea}>
+      <Pressable style={styles.confirmedProductPrimaryButton} onPress={onOpenUrlForm}>
+        <Feather name="link" size={14} color="#fff" />
+        <Text style={styles.confirmedProductPrimaryButtonText}>상품 URL로 확정</Text>
+      </Pressable>
       {hasCandidate ? (
-        <Pressable style={styles.confirmedProductPrimaryButton} onPress={onConfirmCandidate}>
-          <Feather name="check" size={14} color="#fff" />
-          <Text style={styles.confirmedProductPrimaryButtonText}>이 상품으로 확정하기</Text>
+        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onConfirmCandidate}>
+          <Feather name="check" size={14} color="#8c6f47" />
+          <Text style={styles.confirmedProductSecondaryButtonText}>참고 후보로 바로 확정</Text>
         </Pressable>
       ) : null}
       <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenManualForm}>
@@ -777,6 +868,11 @@ export default function ClothesDetailScreen() {
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [confirmedProductDraft, setConfirmedProductDraft] =
     useState<ConfirmedProductDraft>(EMPTY_CONFIRMED_PRODUCT_DRAFT);
+  const [isProductUrlFormOpen, setIsProductUrlFormOpen] = useState(false);
+  const [productUrlInput, setProductUrlInput] = useState("");
+  const [isExtractingProduct, setIsExtractingProduct] = useState(false);
+  const [extractErrorMessage, setExtractErrorMessage] = useState("");
+  const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -906,12 +1002,89 @@ export default function ClothesDetailScreen() {
 
   function handleOpenConfirmedProductForm() {
     setConfirmedProductDraft(getConfirmedProductDraft(item));
+    setIsProductUrlFormOpen(false);
     setIsProductFormOpen(true);
   }
 
   function handleCancelConfirmedProductForm() {
     setConfirmedProductDraft(getConfirmedProductDraft(item));
     setIsProductFormOpen(false);
+  }
+
+  function handleOpenProductUrlForm() {
+    const currentProductUrl = item?.confirmedProduct?.productUrl || "";
+
+    setProductUrlInput(currentProductUrl);
+    setExtractErrorMessage("");
+    setExtractedProduct(null);
+    setIsProductFormOpen(false);
+    setIsProductUrlFormOpen(true);
+  }
+
+  function handleCancelProductUrlForm() {
+    setProductUrlInput("");
+    setExtractErrorMessage("");
+    setExtractedProduct(null);
+    setIsProductUrlFormOpen(false);
+  }
+
+  async function handleExtractProductFromUrl() {
+    const productUrl = productUrlInput.trim();
+
+    if (!productUrl) {
+      Alert.alert("URL 확인", "상품 URL을 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsExtractingProduct(true);
+      setExtractErrorMessage("");
+      setExtractedProduct(null);
+
+      const response = await fetch(EXTRACT_PRODUCT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: productUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Extract product failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const nextDraft: ConfirmedProductDraft = {
+        brand: result.brand || "",
+        productName: result.productName || "",
+        productUrl: result.productUrl || productUrl,
+        mallName: result.mallName || "",
+        price: result.price || "",
+      };
+
+      if (!nextDraft.brand || !nextDraft.productName) {
+        throw new Error("Missing extracted product fields");
+      }
+
+      setConfirmedProductDraft(nextDraft);
+      setExtractedProduct({ ...nextDraft, imageUrl: result.imageUrl });
+    } catch (error) {
+      console.log("상품 URL 추출 실패:", error);
+      setExtractErrorMessage("자동 추출에 실패했어요. 브랜드명, 상품명, 링크만 직접 입력해주세요.");
+    } finally {
+      setIsExtractingProduct(false);
+    }
+  }
+
+  function handleConfirmExtractedProduct() {
+    const confirmedProduct = buildConfirmedProductFromDraft(confirmedProductDraft);
+
+    if (!confirmedProduct) {
+      Alert.alert("입력 확인", "브랜드명과 상품명은 꼭 필요해요.");
+      return;
+    }
+
+    saveConfirmedProduct(confirmedProduct);
   }
 
   function handleSaveConfirmedProductForm() {
@@ -1097,6 +1270,7 @@ export default function ClothesDetailScreen() {
                 confirmedProduct={item.confirmedProduct}
                 onOpenUrl={handleOpenConfirmedProductUrl}
                 onEdit={handleOpenConfirmedProductForm}
+                onOpenUrlForm={handleOpenProductUrlForm}
               />
             )}
 
@@ -1107,8 +1281,23 @@ export default function ClothesDetailScreen() {
                   hasCandidate={Boolean(item.selectedProductCandidate)}
                   onConfirmCandidate={handleConfirmSelectedProductCandidate}
                   onOpenManualForm={handleOpenConfirmedProductForm}
+                  onOpenUrlForm={handleOpenProductUrlForm}
                 />
               </>
+            )}
+
+            {!editMode && isProductUrlFormOpen && (
+              <ProductUrlConfirmCard
+                productUrl={productUrlInput}
+                isLoading={isExtractingProduct}
+                errorMessage={extractErrorMessage}
+                preview={extractedProduct}
+                onChangeUrl={setProductUrlInput}
+                onExtract={handleExtractProductFromUrl}
+                onConfirm={handleConfirmExtractedProduct}
+                onOpenManualForm={handleOpenConfirmedProductForm}
+                onCancel={handleCancelProductUrlForm}
+              />
             )}
 
             {!editMode && isProductFormOpen && (
@@ -1620,6 +1809,39 @@ const styles = StyleSheet.create({
     color: "#8c6f47",
     fontSize: 12,
     fontWeight: "900",
+  },
+
+  productExtractNotice: {
+    backgroundColor: "#fff7ed",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f2d5b5",
+    padding: 12,
+    marginTop: 12,
+    gap: 10,
+  },
+
+  productExtractNoticeText: {
+    color: "#b45309",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "800",
+  },
+
+  productExtractPreview: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    padding: 13,
+    marginTop: 12,
+  },
+
+  productExtractPreviewTitle: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+    marginBottom: 8,
   },
 
   matchingSearchCard: {

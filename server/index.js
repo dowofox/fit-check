@@ -333,6 +333,87 @@ function getImageFileInfo(imageMimeType) {
   return { fileName: "clothes.jpg", mimeType: "image/jpeg" };
 }
 
+function decodeHtmlEntities(value = "") {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractMetaContent(html, propertyNames) {
+  for (const propertyName of propertyNames) {
+    const escapedName = propertyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name)=["']${escapedName}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i"),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escapedName}["'][^>]*>`, "i"),
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) return decodeHtmlEntities(match[1]);
+    }
+  }
+
+  return "";
+}
+
+function extractTitle(html) {
+  const metaTitle = extractMetaContent(html, ["og:title", "twitter:title"]);
+  if (metaTitle) return metaTitle;
+
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return titleMatch?.[1] ? decodeHtmlEntities(titleMatch[1]) : "";
+}
+
+function inferMallName(productUrl, html) {
+  const siteName = extractMetaContent(html, ["og:site_name", "twitter:site"]);
+  if (siteName) return siteName;
+
+  try {
+    const hostname = new URL(productUrl).hostname.replace(/^www\./, "");
+    if (hostname.includes("musinsa")) return "무신사";
+    if (hostname.includes("naver")) return "네이버쇼핑";
+    return hostname.split(".")[0] || "";
+  } catch {
+    return "";
+  }
+}
+
+function cleanProductTitle(title, mallName) {
+  let cleanedTitle = title || "";
+  const separators = [" | ", " - ", " :: ", " : "];
+
+  for (const separator of separators) {
+    if (cleanedTitle.includes(separator)) {
+      const parts = cleanedTitle
+        .split(separator)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      cleanedTitle = parts.find((part) => !mallName || !part.includes(mallName)) || parts[0] || cleanedTitle;
+      break;
+    }
+  }
+
+  return cleanedTitle.trim();
+}
+
+function extractPrice(html) {
+  const metaPrice = extractMetaContent(html, [
+    "product:price:amount",
+    "og:price:amount",
+    "twitter:data1",
+  ]);
+
+  if (metaPrice) return metaPrice;
+
+  const priceMatch = html.match(/([0-9]{1,3}(?:,[0-9]{3})+)\s*원/);
+  return priceMatch?.[0] || "";
+}
+
 function getRembgCommand(inputPath, outputPath) {
   const rembgCommand = process.env.REMBG_COMMAND;
   const rembgModel = process.env.REMBG_MODEL || "u2net";
@@ -593,6 +674,84 @@ ${profileText}
       problems: "-",
       improvement: "OpenAI 분석 실패",
     });
+  }
+});
+
+app.post("/extract-product", async (req, res) => {
+  try {
+    const { url } = req.body;
+    const productUrl = typeof url === "string" ? url.trim() : "";
+
+    if (!productUrl) {
+      return res.status(400).json({ error: "product url is required" });
+    }
+
+    let parsedUrl;
+
+    try {
+      parsedUrl = new URL(productUrl);
+    } catch {
+      return res.status(400).json({ error: "invalid product url" });
+    }
+
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return res.status(400).json({ error: "unsupported product url protocol" });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const response = await fetch(parsedUrl.toString(), {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        return res.status(502).json({ error: `failed to fetch product page: ${response.status}` });
+      }
+
+      const html = await response.text();
+      const mallName = inferMallName(parsedUrl.toString(), html);
+      const title = cleanProductTitle(extractTitle(html), mallName);
+      const brand = extractMetaContent(html, [
+        "product:brand",
+        "og:brand",
+        "twitter:label1",
+        "brand",
+      ]);
+      const productName = extractMetaContent(html, [
+        "product:name",
+        "og:description",
+      ]);
+      const price = extractPrice(html);
+      const imageUrl = extractMetaContent(html, ["og:image", "twitter:image"]);
+
+      const extractedBrand = brand || mallName || "";
+      const extractedProductName = title || productName || "";
+
+      if (!extractedBrand || !extractedProductName) {
+        return res.status(422).json({ error: "product information not found" });
+      }
+
+      return res.json({
+        brand: extractedBrand,
+        productName: extractedProductName,
+        productUrl: parsedUrl.toString(),
+        mallName,
+        price,
+        imageUrl,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    console.error("[extract-product] error:", error);
+    return res.status(500).json({ error: "extract product failed" });
   }
 });
 
