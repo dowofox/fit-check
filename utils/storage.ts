@@ -32,6 +32,28 @@ export type ConfirmedProduct = {
   confirmedAt: string;
 };
 
+export type StyleProfile = {
+  subCategory?: string;
+  fit?: string;
+  silhouette?: string;
+  formality?: string;
+  mood?: string[];
+  usage?: string[];
+  neckline?: string;
+  sleeveLength?: string;
+  lengthType?: string;
+  mainColor?: string;
+  subColors?: string[];
+  matchColors?: string[];
+  avoidColors?: string[];
+  recommendedPairings?: string[];
+  avoidPairings?: string[];
+  temperatureRange?: {
+    min?: number;
+    max?: number;
+  };
+};
+
 export type ClosetItem = {
   id: string;
   imageUri: string;
@@ -60,6 +82,7 @@ export type ClosetItem = {
   productCandidates?: ProductCandidate[];
   selectedProductCandidate?: ProductCandidate;
   confirmedProduct?: ConfirmedProduct;
+  styleProfile?: StyleProfile;
   description?: string;
   matchTip?: string;
   avoidTip?: string;

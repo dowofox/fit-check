@@ -216,6 +216,63 @@ function normalizeStyleTags(styleTags, style) {
   return (matchedTags.length > 0 ? matchedTags : ["데일리"]).slice(0, 3);
 }
 
+function normalizeStringArray(value, maxLength = 6) {
+  if (!Array.isArray(value)) return undefined;
+
+  const normalized = value
+    .filter((item) => typeof item === "string" && item.trim().length > 0)
+    .map((item) => generalizeBrandTerms(item.trim()))
+    .filter(Boolean)
+    .slice(0, maxLength);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeStyleProfile(styleProfile) {
+  if (!styleProfile || typeof styleProfile !== "object") return undefined;
+
+  const temperatureRange =
+    styleProfile.temperatureRange && typeof styleProfile.temperatureRange === "object"
+      ? {
+          min: Number.isFinite(Number(styleProfile.temperatureRange.min))
+            ? Number(styleProfile.temperatureRange.min)
+            : undefined,
+          max: Number.isFinite(Number(styleProfile.temperatureRange.max))
+            ? Number(styleProfile.temperatureRange.max)
+            : undefined,
+        }
+      : undefined;
+  const normalizedTemperatureRange =
+    temperatureRange && (temperatureRange.min !== undefined || temperatureRange.max !== undefined)
+      ? temperatureRange
+      : undefined;
+
+  const normalized = {
+    subCategory: generalizeBrandTerms(styleProfile.subCategory),
+    fit: generalizeBrandTerms(styleProfile.fit),
+    silhouette: generalizeBrandTerms(styleProfile.silhouette),
+    formality: generalizeBrandTerms(styleProfile.formality),
+    mood: normalizeStringArray(styleProfile.mood),
+    usage: normalizeStringArray(styleProfile.usage),
+    neckline: generalizeBrandTerms(styleProfile.neckline),
+    sleeveLength: generalizeBrandTerms(styleProfile.sleeveLength),
+    lengthType: generalizeBrandTerms(styleProfile.lengthType),
+    mainColor: generalizeBrandTerms(styleProfile.mainColor),
+    subColors: normalizeStringArray(styleProfile.subColors),
+    matchColors: normalizeStringArray(styleProfile.matchColors),
+    avoidColors: normalizeStringArray(styleProfile.avoidColors),
+    recommendedPairings: normalizeStringArray(styleProfile.recommendedPairings),
+    avoidPairings: normalizeStringArray(styleProfile.avoidPairings),
+    temperatureRange: normalizedTemperatureRange,
+  };
+
+  const hasValue = Object.values(normalized).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value)
+  );
+
+  return hasValue ? normalized : undefined;
+}
+
 function getProfileText(profile = {}) {
   const gender = profile.gender || "미입력";
   const age = profile.age || "미입력";
@@ -559,6 +616,7 @@ app.post("/analyze-clothes", async (req, res) => {
         avoidTip: "분석할 이미지가 필요합니다.",
         cleanImageBase64: null,
         productCandidates: [],
+        styleProfile: null,
         ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
       });
     }
@@ -621,6 +679,24 @@ app.post("/analyze-clothes", async (req, res) => {
       "confidence": 0.72
     }
   ],
+  "styleProfile": {
+    "subCategory": "기본 옷 종류",
+    "fit": "정핏 / 여유핏 / 오버핏 / 슬림핏 등",
+    "silhouette": "슬림 / 레귤러 / 루즈 / 와이드 / 구조적 등",
+    "formality": "캐주얼 / 스마트캐주얼 / 포멀 / 스포츠 등",
+    "mood": ["데일리", "미니멀"],
+    "usage": ["일상", "데이트", "출근", "운동", "여행"],
+    "neckline": "라운드넥 / 브이넥 / 카라 / 후드 / 판단 어려움",
+    "sleeveLength": "민소매 / 반팔 / 긴팔 / 판단 어려움",
+    "lengthType": "크롭 / 기본 / 롱 / 판단 어려움",
+    "mainColor": "대표 색상",
+    "subColors": ["보조 색상"],
+    "matchColors": ["잘 어울리는 색"],
+    "avoidColors": ["피하면 좋은 색"],
+    "recommendedPairings": ["와이드 데님팬츠", "아이보리 스니커즈"],
+    "avoidPairings": ["너무 포멀한 슬랙스"],
+    "temperatureRange": { "min": 10, "max": 24 }
+  },
   "description": "옷의 특징을 한 문장으로 설명",
   "matchTip": "이 옷과 잘 어울리는 조합 추천",
   "avoidTip": "피하면 좋은 조합"
@@ -683,6 +759,7 @@ app.post("/analyze-clothes", async (req, res) => {
     const seasons = normalizeClothesSeasons(parsed.seasons || parsed.season);
     const styleTags = normalizeStyleTags(parsed.styleTags, parsed.style);
     const productCandidates = normalizeProductCandidates(parsed.productCandidates);
+    const styleProfile = normalizeStyleProfile(parsed.styleProfile);
     const logoDetected = normalizeBoolean(parsed.logoDetected);
     const brandConfidence = normalizeScore(parsed.brandConfidence);
     const confirmedBrand = normalizeConfirmedBrand(
@@ -736,6 +813,7 @@ app.post("/analyze-clothes", async (req, res) => {
       matchTip: sanitizedMatchTip,
       avoidTip: sanitizedAvoidTip,
       productCandidates,
+      styleProfile,
       cleanImageBase64,
     });
   } catch (error) {
@@ -756,6 +834,7 @@ app.post("/analyze-clothes", async (req, res) => {
       avoidTip: "분석 실패",
       cleanImageBase64: null,
       productCandidates: [],
+      styleProfile: null,
       ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
     });
   }

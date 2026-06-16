@@ -1,5 +1,5 @@
 import { saveClosetItem } from "@/utils/storage";
-import type { ProductCandidate } from "@/utils/storage";
+import type { ProductCandidate, StyleProfile } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
@@ -106,6 +106,7 @@ type ClothesAnalysis = {
   matchTip?: string;
   avoidTip?: string;
   productCandidates?: ProductCandidate[];
+  styleProfile?: StyleProfile;
   cleanImageBase64?: string | null;
 };
 
@@ -347,6 +348,7 @@ async function saveAnalyzedClosetItem(
     fit: analysis.fit || "핏 미분석",
     size: size.trim() || DEFAULT_SIZE,
     ...getAnalysisDetailFields(analysis),
+    styleProfile: analysis.styleProfile || undefined,
     description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
     matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
     avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
@@ -532,6 +534,7 @@ export default function AddClothesScreen() {
         fit: analysis.fit || "핏 분석 전",
         size: selectedSize.trim() || DEFAULT_SIZE,
         ...getAnalysisDetailFields(analysis),
+        styleProfile: analysis.styleProfile || undefined,
         description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
         matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
         avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),

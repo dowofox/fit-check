@@ -4,6 +4,7 @@ import {
   ConfirmedProduct,
   getClosetItems,
   getUserProfile,
+  StyleProfile,
   updateClosetItem,
   UserProfile,
 } from "@/utils/storage";
@@ -324,6 +325,73 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
   );
 }
 
+function joinStyleProfileValues(values?: string[]) {
+  return values?.filter(Boolean).join(", ") || "";
+}
+
+function getTemperatureRangeText(temperatureRange?: StyleProfile["temperatureRange"]) {
+  if (!temperatureRange) return "";
+
+  const min = typeof temperatureRange.min === "number" ? `${temperatureRange.min}도` : "";
+  const max = typeof temperatureRange.max === "number" ? `${temperatureRange.max}도` : "";
+
+  if (min && max) return `${min} ~ ${max}`;
+  if (min) return `${min} 이상`;
+  if (max) return `${max} 이하`;
+
+  return "";
+}
+
+function getStyleProfileRows(styleProfile?: StyleProfile) {
+  if (!styleProfile) return [];
+
+  return [
+    { label: "실루엣", value: styleProfile.silhouette },
+    { label: "무드", value: joinStyleProfileValues(styleProfile.mood) },
+    { label: "사용 상황", value: joinStyleProfileValues(styleProfile.usage) },
+    { label: "포멀 정도", value: styleProfile.formality },
+    { label: "넥라인", value: styleProfile.neckline },
+    { label: "소매 길이", value: styleProfile.sleeveLength },
+    { label: "기장", value: styleProfile.lengthType },
+    { label: "어울리는 색", value: joinStyleProfileValues(styleProfile.matchColors) },
+    { label: "피할 색", value: joinStyleProfileValues(styleProfile.avoidColors) },
+    { label: "추천 조합", value: joinStyleProfileValues(styleProfile.recommendedPairings) },
+    { label: "피할 조합", value: joinStyleProfileValues(styleProfile.avoidPairings) },
+    { label: "추천 기온", value: getTemperatureRangeText(styleProfile.temperatureRange) },
+  ].filter((row) => row.value);
+}
+
+function StyleProfileCard({ item }: { item: ClosetItem }) {
+  const rows = getStyleProfileRows(item.styleProfile);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <View style={styles.styleProfileCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="sliders" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>스타일 프로필</Text>
+          <Text style={styles.aiDetailSubtitle}>코디 추천과 쇼핑 검색에 활용할 옷의 스타일 기준이에요.</Text>
+        </View>
+      </View>
+
+      <View style={styles.styleProfileGrid}>
+        {rows.map((row) => (
+          <View key={row.label} style={styles.styleProfilePill}>
+            <Text style={styles.styleProfileLabel}>{row.label}</Text>
+            <Text style={styles.styleProfileValue} numberOfLines={3}>
+              {row.value}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function getProductSearchQuery(item: ClosetItem) {
   const confirmedProduct = item.confirmedProduct;
   const candidate = item.selectedProductCandidate;
@@ -357,6 +425,10 @@ function getBaseItemLabel(item: ClosetItem) {
 }
 
 function getMatchingItemQueries(item: ClosetItem) {
+  const profilePairings = item.styleProfile?.recommendedPairings?.filter(Boolean);
+
+  if (profilePairings?.length) return profilePairings;
+
   if (item.category === "상의") {
     return ["와이드 데님팬츠", "아이보리 스니커즈", "블랙 크로스백"];
   }
@@ -1018,6 +1090,8 @@ export default function ClothesDetailScreen() {
 
             {!editMode && <AiDetailCard item={item} />}
 
+            {!editMode && <StyleProfileCard item={item} />}
+
             {!editMode && item.confirmedProduct && (
               <ConfirmedProductCard
                 confirmedProduct={item.confirmedProduct}
@@ -1369,6 +1443,45 @@ const styles = StyleSheet.create({
   },
 
   aiDetailValue: {
+    color: "#111",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "900",
+  },
+
+  styleProfileCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  styleProfileGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  styleProfilePill: {
+    width: "48%",
+    backgroundColor: "#faf8f5",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+
+  styleProfileLabel: {
+    color: "#8a8178",
+    fontSize: 11,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+
+  styleProfileValue: {
     color: "#111",
     fontSize: 14,
     lineHeight: 19,
