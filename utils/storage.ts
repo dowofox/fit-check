@@ -23,6 +23,15 @@ export type ProductCandidate = {
   confidence?: number;
 };
 
+export type ConfirmedProduct = {
+  brand: string;
+  productName: string;
+  productUrl?: string;
+  mallName?: string;
+  price?: string;
+  confirmedAt: string;
+};
+
 export type ClosetItem = {
   id: string;
   imageUri: string;
@@ -50,6 +59,7 @@ export type ClosetItem = {
   pattern?: string;
   productCandidates?: ProductCandidate[];
   selectedProductCandidate?: ProductCandidate;
+  confirmedProduct?: ConfirmedProduct;
   description?: string;
   matchTip?: string;
   avoidTip?: string;

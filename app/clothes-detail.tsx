@@ -1,5 +1,12 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
-import { ClosetItem, getClosetItems, getUserProfile, updateClosetItem, UserProfile } from "@/utils/storage";
+import {
+  ClosetItem,
+  ConfirmedProduct,
+  getClosetItems,
+  getUserProfile,
+  updateClosetItem,
+  UserProfile,
+} from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -30,6 +37,22 @@ type EditableClosetFields = {
   description: string;
   matchTip: string;
   avoidTip: string;
+};
+
+type ConfirmedProductDraft = {
+  brand: string;
+  productName: string;
+  productUrl: string;
+  mallName: string;
+  price: string;
+};
+
+const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
+  brand: "",
+  productName: "",
+  productUrl: "",
+  mallName: "",
+  price: "",
 };
 
 const EMPTY_DRAFT: EditableClosetFields = {
@@ -147,6 +170,34 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     description: item.description || "",
     matchTip: item.matchTip || "",
     avoidTip: item.avoidTip || "",
+  };
+}
+
+function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDraft {
+  const confirmedProduct = item?.confirmedProduct;
+
+  return {
+    brand: confirmedProduct?.brand || "",
+    productName: confirmedProduct?.productName || "",
+    productUrl: confirmedProduct?.productUrl || "",
+    mallName: confirmedProduct?.mallName || "",
+    price: confirmedProduct?.price || "",
+  };
+}
+
+function buildConfirmedProductFromDraft(draft: ConfirmedProductDraft): ConfirmedProduct | null {
+  const brand = draft.brand.trim();
+  const productName = draft.productName.trim();
+
+  if (!brand || !productName) return null;
+
+  return {
+    brand,
+    productName,
+    productUrl: draft.productUrl.trim(),
+    mallName: draft.mallName.trim(),
+    price: draft.price.trim(),
+    confirmedAt: new Date().toISOString(),
   };
 }
 
@@ -274,8 +325,10 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
 }
 
 function getProductSearchQuery(item: ClosetItem) {
+  const confirmedProduct = item.confirmedProduct;
   const candidate = item.selectedProductCandidate;
 
+  if (confirmedProduct) return `${confirmedProduct.brand} ${confirmedProduct.productName}`.trim();
   if (candidate) return `${candidate.brand} ${candidate.productName}`.trim();
   if (item.confirmedBrand) {
     return `${item.confirmedBrand} ${item.detailCategory || item.subCategory || item.category}`.trim();
@@ -285,8 +338,10 @@ function getProductSearchQuery(item: ClosetItem) {
 }
 
 function getBaseItemLabel(item: ClosetItem) {
+  const confirmedProduct = item.confirmedProduct;
   const candidate = item.selectedProductCandidate;
 
+  if (confirmedProduct) return `${confirmedProduct.brand} ${confirmedProduct.productName}`.trim();
   if (candidate) return `${candidate.brand} ${candidate.productName}`.trim();
   if (item.confirmedBrand) {
     return `${item.confirmedBrand} ${item.detailCategory || item.subCategory || item.category}`.trim();
@@ -390,6 +445,115 @@ function MatchingItemSearchCard({ item }: { item: ClosetItem }) {
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+function ConfirmedProductCard({
+  confirmedProduct,
+  onOpenUrl,
+  onEdit,
+}: {
+  confirmedProduct: ConfirmedProduct;
+  onOpenUrl: () => void;
+  onEdit: () => void;
+}) {
+  const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
+
+  return (
+    <View style={styles.productReferenceCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="check-circle" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>확정 상품</Text>
+          <Text style={styles.aiDetailSubtitle}>사용자가 직접 확인해서 저장한 실제 상품 정보예요.</Text>
+        </View>
+      </View>
+
+      <Text style={styles.productReferenceBrand}>{confirmedProduct.brand}</Text>
+      <Text style={styles.productReferenceName}>{confirmedProduct.productName}</Text>
+      {meta ? <Text style={styles.productReferenceReason}>{meta}</Text> : null}
+
+      <View style={styles.confirmedProductActionRow}>
+        {confirmedProduct.productUrl ? (
+          <Pressable style={styles.confirmedProductPrimaryButton} onPress={onOpenUrl}>
+            <Feather name="external-link" size={14} color="#fff" />
+            <Text style={styles.confirmedProductPrimaryButtonText}>상품 링크 열기</Text>
+          </Pressable>
+        ) : null}
+        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onEdit}>
+          <Feather name="edit-2" size={14} color="#8c6f47" />
+          <Text style={styles.confirmedProductSecondaryButtonText}>확정 정보 수정</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ConfirmedProductForm({
+  draft,
+  onChange,
+  onSave,
+  onCancel,
+}: {
+  draft: ConfirmedProductDraft;
+  onChange: (field: keyof ConfirmedProductDraft, value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <View style={styles.confirmedProductFormCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="edit-3" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>직접 입력해서 확정</Text>
+          <Text style={styles.aiDetailSubtitle}>실제 쇼핑몰에서 확인한 상품 정보를 저장해요.</Text>
+        </View>
+      </View>
+
+      <EditRow label="브랜드명" value={draft.brand} onChangeText={(value) => onChange("brand", value)} />
+      <EditRow label="상품명" value={draft.productName} onChangeText={(value) => onChange("productName", value)} />
+      <EditRow label="상품 링크" value={draft.productUrl} onChangeText={(value) => onChange("productUrl", value)} />
+      <EditRow label="쇼핑몰명" value={draft.mallName} onChangeText={(value) => onChange("mallName", value)} />
+      <EditRow label="가격" value={draft.price} onChangeText={(value) => onChange("price", value)} />
+
+      <View style={styles.confirmedProductActionRow}>
+        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onCancel}>
+          <Text style={styles.confirmedProductSecondaryButtonText}>취소</Text>
+        </Pressable>
+        <Pressable style={styles.confirmedProductPrimaryButton} onPress={onSave}>
+          <Text style={styles.confirmedProductPrimaryButtonText}>확정 저장</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ProductConfirmActionCard({
+  hasCandidate,
+  onConfirmCandidate,
+  onOpenManualForm,
+}: {
+  hasCandidate: boolean;
+  onConfirmCandidate: () => void;
+  onOpenManualForm: () => void;
+}) {
+  return (
+    <View style={styles.productConfirmArea}>
+      {hasCandidate ? (
+        <Pressable style={styles.confirmedProductPrimaryButton} onPress={onConfirmCandidate}>
+          <Feather name="check" size={14} color="#fff" />
+          <Text style={styles.confirmedProductPrimaryButtonText}>이 상품으로 확정하기</Text>
+        </Pressable>
+      ) : null}
+      <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenManualForm}>
+        <Feather name="edit-3" size={14} color="#8c6f47" />
+        <Text style={styles.confirmedProductSecondaryButtonText}>직접 입력해서 확정</Text>
+      </Pressable>
     </View>
   );
 }
@@ -538,6 +702,9 @@ export default function ClothesDetailScreen() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<EditableClosetFields>(EMPTY_DRAFT);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const [confirmedProductDraft, setConfirmedProductDraft] =
+    useState<ConfirmedProductDraft>(EMPTY_CONFIRMED_PRODUCT_DRAFT);
 
   useFocusEffect(
     useCallback(() => {
@@ -552,6 +719,7 @@ export default function ClothesDetailScreen() {
         setItem(selectedItem || null);
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
+          setConfirmedProductDraft(getConfirmedProductDraft(selectedItem));
         }
         setIsLoaded(true);
       }
@@ -562,6 +730,10 @@ export default function ClothesDetailScreen() {
 
   function updateDraft<K extends keyof EditableClosetFields>(field: K, value: EditableClosetFields[K]) {
     setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+  }
+
+  function updateConfirmedProductDraft(field: keyof ConfirmedProductDraft, value: string) {
+    setConfirmedProductDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
   }
 
   function updateDraftSeasons(season: string) {
@@ -620,6 +792,80 @@ export default function ClothesDetailScreen() {
     } catch (error) {
       console.log("옷 정보 수정 실패:", error);
       Alert.alert("수정 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
+    }
+  }
+
+  async function saveConfirmedProduct(confirmedProduct: ConfirmedProduct) {
+    if (!item) return;
+
+    try {
+      const updatedCloset = await updateClosetItem(item.id, { confirmedProduct });
+      const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
+
+      if (!updatedItem) {
+        Alert.alert("저장 실패", "확정 상품 정보를 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      setItem(updatedItem);
+      setConfirmedProductDraft(getConfirmedProductDraft(updatedItem));
+      setIsProductFormOpen(false);
+      Alert.alert("저장 완료", "확정 상품 정보가 저장됐어요.");
+    } catch (error) {
+      console.log("확정 상품 저장 실패:", error);
+      Alert.alert("저장 실패", "확정 상품 정보를 저장하지 못했어요. 다시 시도해주세요.");
+    }
+  }
+
+  function handleConfirmSelectedProductCandidate() {
+    if (!item?.selectedProductCandidate) return;
+
+    const { brand, productName } = item.selectedProductCandidate;
+
+    saveConfirmedProduct({
+      brand,
+      productName,
+      productUrl: "",
+      mallName: "",
+      price: "",
+      confirmedAt: new Date().toISOString(),
+    });
+  }
+
+  function handleOpenConfirmedProductForm() {
+    setConfirmedProductDraft(getConfirmedProductDraft(item));
+    setIsProductFormOpen(true);
+  }
+
+  function handleCancelConfirmedProductForm() {
+    setConfirmedProductDraft(getConfirmedProductDraft(item));
+    setIsProductFormOpen(false);
+  }
+
+  function handleSaveConfirmedProductForm() {
+    const confirmedProduct = buildConfirmedProductFromDraft(confirmedProductDraft);
+
+    if (!confirmedProduct) {
+      Alert.alert("입력 확인", "브랜드명과 상품명은 꼭 입력해주세요.");
+      return;
+    }
+
+    saveConfirmedProduct(confirmedProduct);
+  }
+
+  async function handleOpenConfirmedProductUrl() {
+    const productUrl = item?.confirmedProduct?.productUrl?.trim();
+
+    if (!productUrl) {
+      Alert.alert("상품 링크 없음", "저장된 상품 링크가 없어요.");
+      return;
+    }
+
+    try {
+      await Linking.openURL(productUrl);
+    } catch (error) {
+      console.log("확정 상품 링크 열기 실패:", error);
+      Alert.alert("링크 열기 실패", "상품 링크를 열지 못했어요.");
     }
   }
 
@@ -772,7 +1018,33 @@ export default function ClothesDetailScreen() {
 
             {!editMode && <AiDetailCard item={item} />}
 
-            {!editMode && <ProductReferenceCard item={item} />}
+            {!editMode && item.confirmedProduct && (
+              <ConfirmedProductCard
+                confirmedProduct={item.confirmedProduct}
+                onOpenUrl={handleOpenConfirmedProductUrl}
+                onEdit={handleOpenConfirmedProductForm}
+              />
+            )}
+
+            {!editMode && !item.confirmedProduct && (
+              <>
+                <ProductReferenceCard item={item} />
+                <ProductConfirmActionCard
+                  hasCandidate={Boolean(item.selectedProductCandidate)}
+                  onConfirmCandidate={handleConfirmSelectedProductCandidate}
+                  onOpenManualForm={handleOpenConfirmedProductForm}
+                />
+              </>
+            )}
+
+            {!editMode && isProductFormOpen && (
+              <ConfirmedProductForm
+                draft={confirmedProductDraft}
+                onChange={updateConfirmedProductDraft}
+                onSave={handleSaveConfirmedProductForm}
+                onCancel={handleCancelConfirmedProductForm}
+              />
+            )}
 
             {!editMode && <MatchingItemSearchCard item={item} />}
 
@@ -1170,6 +1442,68 @@ const styles = StyleSheet.create({
   },
 
   productSearchButtonText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  productConfirmArea: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+    gap: 9,
+  },
+
+  confirmedProductFormCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  confirmedProductActionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 14,
+  },
+
+  confirmedProductPrimaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#111",
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+  },
+
+  confirmedProductPrimaryButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  confirmedProductSecondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#f4eee7",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+  },
+
+  confirmedProductSecondaryButtonText: {
     color: "#8c6f47",
     fontSize: 12,
     fontWeight: "900",
