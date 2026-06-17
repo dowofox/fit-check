@@ -549,6 +549,55 @@ function getProductSizeValue(row, keys) {
   return undefined;
 }
 
+const INVALID_SIZE_NAME_KEYWORDS = [
+  "무신사",
+  "단독",
+  "무진장",
+  "쿠폰",
+  "할인",
+  "적립",
+  "후기",
+  "배송",
+  "무료",
+  "이벤트",
+  "랭킹",
+  "브랜드",
+];
+
+function isValidProductSizeName(size) {
+  const normalizedSize = String(size || "").trim().toUpperCase();
+  if (!normalizedSize) return false;
+
+  if (INVALID_SIZE_NAME_KEYWORDS.some((keyword) => normalizedSize.includes(keyword))) return false;
+
+  return /^(?:XS|S|M|L|XL|XXL|XXXL|[2-5]XL|FREE|OS|\d{1,3}|2[2-9]\d|3[0-1]\d)$/.test(normalizedSize);
+}
+
+function hasProductSizeMeasurements(sizeMeasurement) {
+  return [
+    sizeMeasurement.totalLength,
+    sizeMeasurement.shoulder,
+    sizeMeasurement.chest,
+    sizeMeasurement.sleeve,
+    sizeMeasurement.waist,
+    sizeMeasurement.hip,
+    sizeMeasurement.thigh,
+    sizeMeasurement.rise,
+    sizeMeasurement.hem,
+    sizeMeasurement.footLength,
+  ].some((value) => typeof value === "number" && Number.isFinite(value));
+}
+
+function logInvalidSizeRow(reason, row, normalizedRow) {
+  if (process.env.NODE_ENV === "production") return;
+
+  console.log("[extract-product] skip invalid size row", {
+    reason,
+    size: normalizedRow?.size,
+    row,
+  });
+}
+
 function normalizeProductSizeMeasurement(row) {
   if (!row || typeof row !== "object") return null;
 
@@ -557,6 +606,10 @@ function normalizeProductSizeMeasurement(row) {
   ).trim();
 
   if (!size) return null;
+  if (!isValidProductSizeName(size)) {
+    logInvalidSizeRow("invalid size name", row, { size });
+    return null;
+  }
 
   return {
     size,
@@ -586,7 +639,13 @@ function normalizeProductSizeGuide(productSizeGuide) {
 
   const sizes = rawSizes
     .map((row) => normalizeProductSizeMeasurement(row))
-    .filter(Boolean);
+    .filter((row) => {
+      if (!row) return false;
+      if (hasProductSizeMeasurements(row)) return true;
+
+      logInvalidSizeRow("missing measurements", row, row);
+      return false;
+    });
 
   if (sizes.length === 0) return undefined;
 
@@ -977,6 +1036,7 @@ function logProductSizeGuideExtraction(productSizeGuideResult) {
     found: Boolean(productSizeGuide),
     source: productSizeGuideResult?.source || "none",
     sizesLength: productSizeGuide?.sizes?.length || 0,
+    sizes: productSizeGuide?.sizes?.map((sizeInfo) => sizeInfo.size) || [],
   };
 
   console.log("[extract-product] productSizeGuide", sizeGuideSummary);
