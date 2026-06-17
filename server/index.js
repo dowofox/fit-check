@@ -786,7 +786,7 @@ app.post("/extract-product", async (req, res) => {
         "og:description",
       ]);
       const price = extractPrice(html);
-      const imageUrl = extractMetaContent(html, ["og:image", "twitter:image"]);
+      const productImageUrl = extractMetaContent(html, ["og:image", "twitter:image"]);
 
       const extractedBrand = brand || mallName || "";
       const extractedProductName = title || productName || "";
@@ -799,9 +799,9 @@ app.post("/extract-product", async (req, res) => {
         brand: extractedBrand,
         productName: extractedProductName,
         productUrl: parsedUrl.toString(),
+        productImageUrl,
         mallName,
         price,
-        imageUrl,
       });
     } finally {
       clearTimeout(timeout);

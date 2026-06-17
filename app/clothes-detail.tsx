@@ -46,18 +46,20 @@ type ConfirmedProductDraft = {
   brand: string;
   productName: string;
   productUrl: string;
+  productImageUrl: string;
   mallName: string;
   price: string;
 };
 
 type ExtractedProduct = ConfirmedProductDraft & {
-  imageUrl?: string;
+  productImageUrl?: string;
 };
 
 const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
   brand: "",
   productName: "",
   productUrl: "",
+  productImageUrl: "",
   mallName: "",
   price: "",
 };
@@ -187,6 +189,7 @@ function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDra
     brand: confirmedProduct?.brand || "",
     productName: confirmedProduct?.productName || "",
     productUrl: confirmedProduct?.productUrl || "",
+    productImageUrl: confirmedProduct?.productImageUrl || "",
     mallName: confirmedProduct?.mallName || "",
     price: confirmedProduct?.price || "",
   };
@@ -202,6 +205,7 @@ function buildConfirmedProductFromDraft(draft: ConfirmedProductDraft): Confirmed
     brand,
     productName,
     productUrl: draft.productUrl.trim(),
+    productImageUrl: draft.productImageUrl.trim(),
     mallName: draft.mallName.trim(),
     price: draft.price.trim(),
     confirmedAt: new Date().toISOString(),
@@ -633,6 +637,14 @@ function ConfirmedProductCard({
           <Text style={styles.aiDetailSubtitle}>사용자가 직접 확인해서 저장한 실제 상품 정보예요.</Text>
         </View>
       </View>
+
+      {confirmedProduct.productImageUrl ? (
+        <Image
+          source={{ uri: confirmedProduct.productImageUrl }}
+          style={styles.confirmedProductImage}
+          resizeMode="cover"
+        />
+      ) : null}
 
       <Text style={styles.productReferenceBrand}>{confirmedProduct.brand}</Text>
       <Text style={styles.productReferenceName}>{confirmedProduct.productName}</Text>
@@ -1076,6 +1088,7 @@ export default function ClothesDetailScreen() {
       brand,
       productName,
       productUrl: "",
+      productImageUrl: "",
       mallName: "",
       price: "",
       confirmedAt: new Date().toISOString(),
@@ -1140,6 +1153,7 @@ export default function ClothesDetailScreen() {
         brand: result.brand || "",
         productName: result.productName || "",
         productUrl: result.productUrl || productUrl,
+        productImageUrl: result.productImageUrl || "",
         mallName: result.mallName || "",
         price: result.price || "",
       };
@@ -1149,7 +1163,7 @@ export default function ClothesDetailScreen() {
       }
 
       setConfirmedProductDraft(nextDraft);
-      setExtractedProduct({ ...nextDraft, imageUrl: result.imageUrl });
+      setExtractedProduct({ ...nextDraft });
     } catch (error) {
       console.log("상품 URL 추출 실패:", error);
       setExtractErrorMessage("자동 추출에 실패했어요. 브랜드명, 상품명, 링크만 직접 입력해주세요.");
@@ -1813,6 +1827,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     marginTop: 8,
+  },
+
+  confirmedProductImage: {
+    width: "100%",
+    height: 150,
+    borderRadius: 18,
+    backgroundColor: "#faf8f5",
+    marginBottom: 12,
   },
 
   productSearchArea: {

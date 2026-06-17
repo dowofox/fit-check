@@ -27,6 +27,7 @@ export type ConfirmedProduct = {
   brand: string;
   productName: string;
   productUrl?: string;
+  productImageUrl?: string;
   mallName?: string;
   price?: string;
   confirmedAt: string;
