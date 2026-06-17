@@ -3,6 +3,7 @@ import {
   ClosetItem,
   ConfirmedProduct,
   getClosetItems,
+  getDisplayImageUri,
   getUserProfile,
   ProductSizeGuide,
   StyleProfile,
@@ -658,23 +659,27 @@ function ConfirmedProductCard({
         </View>
       </View>
 
-      {confirmedProduct.productImageUrl ? (
-        <Image
-          source={{ uri: confirmedProduct.productImageUrl }}
-          style={styles.confirmedProductImage}
-          resizeMode="cover"
-        />
-      ) : null}
+      <View style={styles.confirmedProductInfoRow}>
+        {confirmedProduct.productImageUrl ? (
+          <Image
+            source={{ uri: confirmedProduct.productImageUrl }}
+            style={styles.confirmedProductImage}
+            resizeMode="cover"
+          />
+        ) : null}
 
-      <Text style={styles.productReferenceBrand}>{confirmedProduct.brand}</Text>
-      <Text style={styles.productReferenceName}>{confirmedProduct.productName}</Text>
-      {meta ? <Text style={styles.productReferenceReason}>{meta}</Text> : null}
-      {sizeGuideSummary ? (
-        <View style={styles.confirmedProductSizeGuideBox}>
-          <Text style={styles.confirmedProductSizeGuideTitle}>사이즈 정보 있음</Text>
-          <Text style={styles.confirmedProductSizeGuideText}>{sizeGuideSummary}</Text>
+        <View style={styles.confirmedProductInfoText}>
+          <Text style={styles.productReferenceBrand}>{confirmedProduct.brand}</Text>
+          <Text style={styles.productReferenceName}>{confirmedProduct.productName}</Text>
+          {meta ? <Text style={styles.productReferenceReason}>{meta}</Text> : null}
+          {sizeGuideSummary ? (
+            <View style={styles.confirmedProductSizeGuideBox}>
+              <Text style={styles.confirmedProductSizeGuideTitle}>사이즈 정보 있음</Text>
+              <Text style={styles.confirmedProductSizeGuideText}>{sizeGuideSummary}</Text>
+            </View>
+          ) : null}
         </View>
-      ) : null}
+      </View>
 
       <View style={styles.confirmedProductActionRow}>
         {confirmedProduct.productUrl ? (
@@ -1299,7 +1304,7 @@ export default function ClothesDetailScreen() {
 
         {item && (
           <>
-            <Image source={{ uri: item.cleanImageUri || item.imageUri }} style={styles.heroImage} />
+            <Image source={{ uri: getDisplayImageUri(item) }} style={styles.heroImage} />
 
             <View style={styles.summaryCard}>
               <Text style={styles.itemTitle}>
@@ -1857,11 +1862,20 @@ const styles = StyleSheet.create({
   },
 
   confirmedProductImage: {
-    width: "100%",
-    height: 150,
+    width: 78,
+    height: 78,
     borderRadius: 18,
     backgroundColor: "#faf8f5",
-    marginBottom: 12,
+  },
+
+  confirmedProductInfoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  confirmedProductInfoText: {
+    flex: 1,
   },
 
   confirmedProductSizeGuideBox: {

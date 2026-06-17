@@ -3,6 +3,7 @@ import {
     ClosetItem,
     deleteClosetItem,
     getClosetItems,
+    getDisplayImageUri,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
@@ -168,7 +169,7 @@ export default function ClosetScreen() {
                                 >
                                     <View style={styles.imageBox}>
                                         <Image
-                                            source={{ uri: item.cleanImageUri || item.imageUri }}
+                                            source={{ uri: getDisplayImageUri(item) }}
                                             style={styles.closetImage}
                                         />
                                     </View>

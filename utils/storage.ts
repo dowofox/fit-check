@@ -129,6 +129,10 @@ export type ClosetItem = {
   createdAt: string;
 };
 
+export function getDisplayImageUri(item: ClosetItem) {
+  return item.cleanImageUri || item.confirmedProduct?.productImageUrl || item.imageUri;
+}
+
 export type SavedOutfit = {
   id: string;
   name?: string;
