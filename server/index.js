@@ -875,7 +875,13 @@ function logMusinsaSizeExploration({
   apiUrlCandidates,
   sizeCandidateEntries,
 }) {
-  if (process.env.NODE_ENV === "production" || !isMusinsaProductUrl(productUrl)) return;
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.DEBUG_SIZE_GUIDE !== "true" ||
+    !isMusinsaProductUrl(productUrl)
+  ) {
+    return;
+  }
 
   console.log("[extract-product] musinsa product id", {
     productId: productId || "not-found",
@@ -967,13 +973,17 @@ function logProductSizeGuideExtraction(productSizeGuideResult) {
   if (process.env.NODE_ENV === "production") return;
 
   const productSizeGuide = productSizeGuideResult?.productSizeGuide;
-
-  console.log("[extract-product] productSizeGuide", {
+  const sizeGuideSummary = {
     found: Boolean(productSizeGuide),
     source: productSizeGuideResult?.source || "none",
     sizesLength: productSizeGuide?.sizes?.length || 0,
-    productSizeGuide,
-  });
+  };
+
+  console.log("[extract-product] productSizeGuide", sizeGuideSummary);
+
+  if (process.env.DEBUG_SIZE_GUIDE === "true" && productSizeGuide) {
+    console.log("[extract-product] productSizeGuide detail", JSON.stringify(productSizeGuide, null, 2));
+  }
 }
 
 function getRembgCommand(inputPath, outputPath) {
