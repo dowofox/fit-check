@@ -6,6 +6,7 @@ import {
   getDisplayImageUri,
   getUserProfile,
   ProductSizeGuide,
+  ProductSizeMeasurement,
   StyleProfile,
   updateClosetItem,
   UserProfile,
@@ -233,6 +234,48 @@ function getProductSizeGuideSummary(productSizeGuide?: ProductSizeGuide) {
       .filter(Boolean) || [];
 
   return sizes.length > 0 ? sizes.join(" / ") : "";
+}
+
+const PRODUCT_SIZE_MEASUREMENT_LABELS: [keyof ProductSizeMeasurement, string][] = [
+  ["totalLength", "총장"],
+  ["shoulder", "어깨"],
+  ["chest", "가슴"],
+  ["sleeve", "소매"],
+  ["waist", "허리"],
+  ["hip", "엉덩이"],
+  ["thigh", "허벅지"],
+  ["rise", "밑위"],
+  ["hem", "밑단"],
+  ["footLength", "발길이"],
+];
+
+function normalizeSizeForCompare(size?: string) {
+  return (size || "").replace(/\s+/g, "").toUpperCase();
+}
+
+function getProfileSizeForItem(item: ClosetItem, profile?: UserProfile | null) {
+  if (!profile) return "";
+
+  if (item.category?.includes("신발")) return profile.shoeSize || "";
+  if (item.category?.includes("하의")) return profile.bottomSize || "";
+  if (item.category?.includes("상의") || item.category?.includes("아우터")) return profile.topSize || "";
+
+  const sizeRows = item.confirmedProduct?.productSizeGuide?.sizes || [];
+  const profileSizes = [profile.topSize, profile.bottomSize, profile.shoeSize].filter(Boolean);
+  const matchedSize = profileSizes.find((profileSize) =>
+    sizeRows.some((row) => normalizeSizeForCompare(row.size) === normalizeSizeForCompare(profileSize))
+  );
+
+  return matchedSize || "";
+}
+
+function getMeasurementRows(sizeInfo: ProductSizeMeasurement) {
+  return PRODUCT_SIZE_MEASUREMENT_LABELS
+    .map(([key, label]) => {
+      const value = sizeInfo[key];
+      return typeof value === "number" ? { label, value: `${value}cm` } : null;
+    })
+    .filter(Boolean) as { label: string; value: string }[];
 }
 
 function ChipGroup({
@@ -626,18 +669,25 @@ function MatchingItemSearchCard({ item }: { item: ClosetItem }) {
 }
 
 function ConfirmedProductCard({
+  item,
+  profile,
   confirmedProduct,
   onOpenUrl,
   onEdit,
   onOpenUrlForm,
 }: {
+  item: ClosetItem;
+  profile?: UserProfile | null;
   confirmedProduct: ConfirmedProduct;
   onOpenUrl: () => void;
   onEdit: () => void;
   onOpenUrlForm: () => void;
 }) {
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
   const sizeGuideSummary = getProductSizeGuideSummary(confirmedProduct.productSizeGuide);
+  const sizeGuideRows = confirmedProduct.productSizeGuide?.sizes || [];
+  const profileSize = getProfileSizeForItem(item, profile);
 
   return (
     <View style={styles.productReferenceCard}>
@@ -666,12 +716,67 @@ function ConfirmedProductCard({
           {meta ? <Text style={styles.productReferenceReason}>{meta}</Text> : null}
           {sizeGuideSummary ? (
             <View style={styles.confirmedProductSizeGuideBox}>
-              <Text style={styles.confirmedProductSizeGuideTitle}>사이즈 정보 있음</Text>
-              <Text style={styles.confirmedProductSizeGuideText}>{sizeGuideSummary}</Text>
+              <View style={styles.confirmedProductSizeGuideHeader}>
+                <View style={styles.confirmedProductSizeGuideTextWrap}>
+                  <Text style={styles.confirmedProductSizeGuideTitle}>사이즈 정보 있음</Text>
+                  <Text style={styles.confirmedProductSizeGuideText}>{sizeGuideSummary}</Text>
+                </View>
+                <Pressable
+                  style={styles.sizeGuideToggleButton}
+                  onPress={() => setIsSizeGuideOpen((current) => !current)}
+                >
+                  <Text style={styles.sizeGuideToggleText}>{isSizeGuideOpen ? "접기" : "실측 보기"}</Text>
+                  <Feather
+                    name={isSizeGuideOpen ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    color="#8c6f47"
+                  />
+                </Pressable>
+              </View>
             </View>
           ) : null}
         </View>
       </View>
+
+      {sizeGuideRows.length > 0 && isSizeGuideOpen ? (
+        <View style={styles.sizeGuideDetailBox}>
+          {profileSize ? (
+            <Text style={styles.sizeGuideProfileHint}>내 프로필 사이즈: {profileSize}</Text>
+          ) : null}
+
+          {sizeGuideRows.map((sizeInfo) => {
+            const isProfileSize =
+              Boolean(profileSize) &&
+              normalizeSizeForCompare(sizeInfo.size) === normalizeSizeForCompare(profileSize);
+            const measurementRows = getMeasurementRows(sizeInfo);
+
+            return (
+              <View
+                key={sizeInfo.size}
+                style={[styles.sizeGuideRowCard, isProfileSize && styles.sizeGuideRowCardActive]}
+              >
+                <View style={styles.sizeGuideRowHeader}>
+                  <Text style={styles.sizeGuideSizeText}>{sizeInfo.size}</Text>
+                  {isProfileSize ? <Text style={styles.sizeGuideMySizeBadge}>내 사이즈</Text> : null}
+                </View>
+
+                {measurementRows.length > 0 ? (
+                  <View style={styles.sizeGuideMeasurementGrid}>
+                    {measurementRows.map((measurement) => (
+                      <View key={`${sizeInfo.size}-${measurement.label}`} style={styles.sizeGuideMeasurementPill}>
+                        <Text style={styles.sizeGuideMeasurementLabel}>{measurement.label}</Text>
+                        <Text style={styles.sizeGuideMeasurementValue}>{measurement.value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.sizeGuideEmptyText}>표시할 실측값이 없어요.</Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
 
       <View style={styles.confirmedProductActionRow}>
         {confirmedProduct.productUrl ? (
@@ -1385,6 +1490,8 @@ export default function ClothesDetailScreen() {
 
             {!editMode && item.confirmedProduct && (
               <ConfirmedProductCard
+                item={item}
+                profile={profile}
                 confirmedProduct={item.confirmedProduct}
                 onOpenUrl={handleOpenConfirmedProductUrl}
                 onEdit={handleOpenConfirmedProductForm}
@@ -1876,6 +1983,17 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
+  confirmedProductSizeGuideHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+
+  confirmedProductSizeGuideTextWrap: {
+    flex: 1,
+  },
+
   confirmedProductSizeGuideTitle: {
     color: "#8c6f47",
     fontSize: 12,
@@ -1888,6 +2006,111 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "800",
+  },
+
+  sizeGuideToggleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#fff",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+  },
+
+  sizeGuideToggleText: {
+    color: "#8c6f47",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  sizeGuideDetailBox: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    padding: 12,
+    marginTop: 12,
+    gap: 10,
+  },
+
+  sizeGuideProfileHint: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  sizeGuideRowCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    padding: 12,
+  },
+
+  sizeGuideRowCardActive: {
+    borderColor: "#8c6f47",
+    backgroundColor: "#f4eee7",
+  },
+
+  sizeGuideRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 9,
+  },
+
+  sizeGuideSizeText: {
+    color: "#111",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  sizeGuideMySizeBadge: {
+    color: "#fff",
+    backgroundColor: "#8c6f47",
+    borderRadius: 999,
+    overflow: "hidden",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  sizeGuideMeasurementGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+
+  sizeGuideMeasurementPill: {
+    minWidth: "30%",
+    backgroundColor: "#f4eee7",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 9,
+  },
+
+  sizeGuideMeasurementLabel: {
+    color: "#8a8178",
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 3,
+  },
+
+  sizeGuideMeasurementValue: {
+    color: "#111",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  sizeGuideEmptyText: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
   },
 
   productSearchArea: {
