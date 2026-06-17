@@ -510,6 +510,16 @@ function cleanProductTitle(title, mallName) {
   return cleanedTitle.trim();
 }
 
+function cleanProductName(productName) {
+  return (productName || "")
+    .replace(/\s*-\s*사이즈\s*&\s*후기\s*$/i, "")
+    .replace(/\s*\|\s*무신사\s*$/i, "")
+    .replace(/\s*-\s*무신사\s*$/i, "")
+    .replace(/\s*-\s*MUSINSA\s*$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function extractPrice(html) {
   const metaPrice = extractMetaContent(html, [
     "product:price:amount",
@@ -939,10 +949,18 @@ app.post("/extract-product", async (req, res) => {
       const productSizeGuide = extractProductSizeGuide(html);
 
       const extractedBrand = brand || mallName || "";
-      const extractedProductName = title || productName || "";
+      const rawProductName = title || productName || "";
+      const extractedProductName = cleanProductName(rawProductName);
 
       if (!extractedBrand || !extractedProductName) {
         return res.status(422).json({ error: "product information not found" });
+      }
+
+      if (process.env.NODE_ENV !== "production" && rawProductName !== extractedProductName) {
+        console.log("[extract-product] product name cleaned", {
+          rawProductName,
+          cleanedProductName: extractedProductName,
+        });
       }
 
       const extractedProduct = {
