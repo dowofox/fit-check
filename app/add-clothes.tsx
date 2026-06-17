@@ -855,11 +855,6 @@ export default function AddClothesScreen() {
                       <Text style={styles.productCandidateReason} numberOfLines={2}>
                         {candidate.reason}
                       </Text>
-                      {typeof candidate.confidence === "number" && (
-                        <Text style={styles.productCandidateConfidence}>
-                          참고 유사도 {Math.round(candidate.confidence * 100)}%
-                        </Text>
-                      )}
                     </Pressable>
                   );
                 })}

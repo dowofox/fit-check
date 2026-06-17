@@ -320,7 +320,6 @@ function getAiAnalysisRows(item: ClosetItem) {
     { label: "확정 브랜드", value: item.confirmedBrand || "확정 없음" },
     { label: "추정 브랜드", value: item.inferredBrand || "추정 없음" },
     { label: "추정 상품명", value: item.inferredProductName || "추정 없음" },
-    { label: "브랜드 신뢰도", value: `${item.brandConfidence ?? item.confidence?.brand ?? 0}%` },
     { label: "로고", value: getBooleanLabel(item.logoDetected) },
     { label: "로고 텍스트", value: item.logoText || "없음" },
     { label: "프린팅/그래픽", value: item.graphicType || "판단 어려움" },
@@ -357,21 +356,8 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
   );
 }
 
-function getLowConfidenceRows(item: ClosetItem) {
-  const confidence = item.confidence || {};
-  const labels: Record<string, string> = {
-    category: "카테고리",
-    color: "색상",
-    season: "계절",
-    style: "스타일",
-    fit: "핏",
-    brand: "브랜드",
-    product: "상품",
-  };
-
-  return Object.entries(confidence)
-    .filter(([, value]) => typeof value === "number" && value < 70)
-    .map(([key, value]) => `${labels[key] || key} ${value}%`);
+function hasLowProductConfidence(item: ClosetItem) {
+  return typeof item.confidence?.product === "number" && item.confidence.product < 70;
 }
 
 function getImageQualityLabel(imageQuality?: string) {
@@ -387,12 +373,12 @@ function getImageQualityLabel(imageQuality?: string) {
 }
 
 function AnalysisQualityCard({ item }: { item: ClosetItem }) {
-  const lowConfidenceRows = getLowConfidenceRows(item);
+  const hasProductWarning = hasLowProductConfidence(item);
   const warnings = item.analysisWarnings || [];
   const quality = item.analysisQuality;
   const missingHints = quality?.missingHints || [];
   const shouldShow =
-    lowConfidenceRows.length > 0 ||
+    hasProductWarning ||
     warnings.length > 0 ||
     quality?.imageQuality ||
     quality?.needsMorePhotos ||
@@ -412,15 +398,18 @@ function AnalysisQualityCard({ item }: { item: ClosetItem }) {
         </View>
       </View>
 
-      <Text style={styles.analysisQualityText}>
-        사진 상태: {getImageQualityLabel(quality?.imageQuality)}
-      </Text>
-
-      {lowConfidenceRows.length > 0 && (
+      {quality?.imageQuality ? (
         <Text style={styles.analysisQualityText}>
-          신뢰도 낮음: {lowConfidenceRows.join(", ")}
+          사진 상태: {getImageQualityLabel(quality.imageQuality)}
         </Text>
-      )}
+      ) : null}
+
+      {hasProductWarning ? (
+        <Text style={styles.analysisQualityText}>
+          실제 상품 식별이 확실하지 않아요.{"\n"}
+          상품 링크로 확정하면 더 정확한 추천을 받을 수 있어요.
+        </Text>
+      ) : null}
 
       {warnings.length > 0 && (
         <Text style={styles.analysisQualityText}>
@@ -873,12 +862,6 @@ function ProductReferenceCard({ item }: { item: ClosetItem }) {
       <Text style={styles.productReferenceReason}>
         {candidate?.reason || "확정 브랜드와 옷 종류를 기준으로 검색해볼 수 있어요."}
       </Text>
-      {typeof candidate?.confidence === "number" && (
-        <Text style={styles.productReferenceConfidence}>
-          참고 유사도 {Math.round(candidate.confidence * 100)}%
-        </Text>
-      )}
-
       <View style={styles.productSearchArea}>
         <Text style={styles.productSearchTitle}>상품 찾아보기</Text>
         <View style={styles.productSearchButtonRow}>
