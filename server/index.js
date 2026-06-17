@@ -926,6 +926,151 @@ function extractJsonDataFromScripts(html) {
   return parsedScripts;
 }
 
+const GOODS_CONTENTS_KEYWORDS = ["총장", "어깨", "가슴", "소매", "실측", "사이즈"];
+
+function getMusinsaGoodsContents(parsedScripts) {
+  const nextData = parsedScripts.find((script) => script.source === "__NEXT_DATA__")?.data;
+  return nextData?.props?.pageProps?.meta?.data?.goodsContents;
+}
+
+function getKeywordContext(value, keywords, contextLength = 500) {
+  let serializedValue = "";
+
+  try {
+    serializedValue = typeof value === "string" ? value : JSON.stringify(value);
+  } catch {
+    serializedValue = String(value || "");
+  }
+
+  const text = stripHtml(serializedValue);
+  const matchedKeyword = keywords.find((keyword) => text.includes(keyword));
+
+  if (!matchedKeyword) return null;
+
+  const keywordIndex = text.indexOf(matchedKeyword);
+  const start = Math.max(0, keywordIndex - Math.floor(contextLength / 2));
+  return {
+    keyword: matchedKeyword,
+    context: text.slice(start, start + contextLength),
+  };
+}
+
+function collectDetailImageUrls(value, productUrl, urls = new Set(), depth = 0) {
+  if (value == null || depth > 10 || urls.size >= 12) return urls;
+
+  if (typeof value === "string") {
+    const urlMatches = value.matchAll(
+      /(?:https?:)?\/\/[^"'<>\\s]+?\.(?:jpe?g|png|webp|gif)(?:\?[^"'<>\\s]*)?|\/[^"'<>\\s]+?\.(?:jpe?g|png|webp|gif)(?:\?[^"'<>\\s]*)?/gi,
+    );
+
+    for (const match of urlMatches) {
+      const absoluteUrl = resolveProductImageUrl(match[0], productUrl);
+      if (absoluteUrl) urls.add(absoluteUrl);
+      if (urls.size >= 12) break;
+    }
+
+    return urls;
+  }
+
+  if (Array.isArray(value)) {
+    value.slice(0, 100).forEach((item) => collectDetailImageUrls(item, productUrl, urls, depth + 1));
+    return urls;
+  }
+
+  if (typeof value === "object") {
+    Object.values(value).forEach((child) =>
+      collectDetailImageUrls(child, productUrl, urls, depth + 1),
+    );
+  }
+
+  return urls;
+}
+
+function getMusinsaSizeDebugApiUrls(productId) {
+  if (!productId) return [];
+
+  return [
+    `https://goods-detail.musinsa.com/api/goods/${productId}/size`,
+    `https://goods-detail.musinsa.com/api/goods/${productId}/measurement`,
+    `https://goods-detail.musinsa.com/api/goods/${productId}/option`,
+    `https://www.musinsa.com/api/goods/v1/goods/${productId}`,
+  ];
+}
+
+async function inspectMusinsaSizeSources({ html, productUrl, productId }) {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.DEBUG_SIZE_GUIDE !== "true" ||
+    !productId
+  ) {
+    return undefined;
+  }
+
+  const parsedScripts = extractJsonDataFromScripts(html);
+  const goodsContents = getMusinsaGoodsContents(parsedScripts);
+  const goodsContentsContext = getKeywordContext(goodsContents, GOODS_CONTENTS_KEYWORDS);
+  const detailImageUrls = [...collectDetailImageUrls(goodsContents, productUrl)];
+
+  console.log("[extract-product] musinsa goodsContents", {
+    found: goodsContents != null,
+    matchedKeyword: goodsContentsContext?.keyword || "none",
+    context: goodsContentsContext?.context || "none",
+  });
+  console.log("[extract-product] musinsa detail image urls", detailImageUrls);
+
+  const apiResults = await Promise.all(
+    getMusinsaSizeDebugApiUrls(productId).map(async (apiUrl) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+            Accept: "application/json,text/plain,*/*",
+            Referer: productUrl,
+          },
+          signal: controller.signal,
+        });
+        const responseText = await response.text();
+        let responseJson;
+
+        try {
+          responseJson = JSON.parse(responseText);
+        } catch {
+          responseJson = undefined;
+        }
+
+        console.log("[extract-product] musinsa size api", {
+          url: apiUrl,
+          status: response.status,
+          jsonKeys:
+            responseJson && typeof responseJson === "object" && !Array.isArray(responseJson)
+              ? Object.keys(responseJson).slice(0, 20)
+              : [],
+        });
+
+        return {
+          url: apiUrl,
+          productSizeGuide: responseJson ? findSizeGuideInJson(responseJson) : undefined,
+        };
+      } catch (error) {
+        console.log("[extract-product] musinsa size api", {
+          url: apiUrl,
+          status: error?.name === "AbortError" ? "timeout" : "request-failed",
+          jsonKeys: [],
+        });
+        return { url: apiUrl, productSizeGuide: undefined };
+      } finally {
+        clearTimeout(timeout);
+      }
+    }),
+  );
+
+  return apiResults.find((result) => result.productSizeGuide);
+}
+
 function logMusinsaSizeExploration({
   productUrl,
   productId,
@@ -1368,7 +1513,24 @@ app.post("/extract-product", async (req, res) => {
         "og:image:secure_url",
       ]);
       const productImageUrl = resolveProductImageUrl(productImageMeta.value, parsedUrl.toString());
-      const productSizeGuideResult = extractProductSizeGuide(html, parsedUrl.toString());
+      let productSizeGuideResult = extractProductSizeGuide(html, parsedUrl.toString());
+
+      if (!productSizeGuideResult.productSizeGuide && productSizeGuideResult.productId) {
+        const apiSizeGuideResult = await inspectMusinsaSizeSources({
+          html,
+          productUrl: parsedUrl.toString(),
+          productId: productSizeGuideResult.productId,
+        });
+
+        if (apiSizeGuideResult?.productSizeGuide) {
+          productSizeGuideResult = {
+            ...productSizeGuideResult,
+            productSizeGuide: apiSizeGuideResult.productSizeGuide,
+            source: `api:${apiSizeGuideResult.url}`,
+          };
+        }
+      }
+
       const productSizeGuide = productSizeGuideResult.productSizeGuide;
       logProductSizeGuideExtraction(productSizeGuideResult);
 
