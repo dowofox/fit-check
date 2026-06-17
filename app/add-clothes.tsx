@@ -1,5 +1,11 @@
 import { saveClosetItem } from "@/utils/storage";
-import type { AnalysisConfidence, AnalysisQuality, ProductCandidate, StyleProfile } from "@/utils/storage";
+import type {
+  AnalysisConfidence,
+  AnalysisQuality,
+  ConfirmedProduct,
+  ProductCandidate,
+  StyleProfile,
+} from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
@@ -19,6 +25,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
+const EXTRACT_PRODUCT_URL = "http://192.168.219.104:3001/extract-product";
 const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const DEFAULT_SIZE = "사이즈 미입력";
@@ -122,6 +129,17 @@ type EncodedImage = {
 
 type SelectedImage = {
   uri: string;
+};
+
+type AddMode = "photo" | "link";
+
+type ExtractedProduct = {
+  brand?: string;
+  productName?: string;
+  productUrl: string;
+  productImageUrl?: string;
+  mallName?: string;
+  price?: string;
 };
 
 function getImageDataFromDataUrl(dataUrl: string): EncodedImage {
@@ -253,6 +271,18 @@ function getConfirmedBrand(analysis: ClothesAnalysis) {
   return confirmedBrand;
 }
 
+function buildConfirmedProductFromExtractedProduct(product: ExtractedProduct): ConfirmedProduct {
+  return {
+    brand: product.brand || "",
+    productName: product.productName || "",
+    productUrl: product.productUrl,
+    productImageUrl: product.productImageUrl,
+    mallName: product.mallName || "",
+    price: product.price || "",
+    confirmedAt: new Date().toISOString(),
+  };
+}
+
 function getInferredBrand(analysis: ClothesAnalysis, confirmedBrand?: string) {
   const inferredBrand = analysis.inferredBrand || analysis.brand || analysis.confirmedBrand || "";
   const trimmedBrand = inferredBrand.trim();
@@ -381,15 +411,36 @@ async function saveAnalyzedClosetItem(
 
 export default function AddClothesScreen() {
   const insets = useSafeAreaInsets();
+  const [addMode, setAddMode] = useState<AddMode>("photo");
   const [imageUri, setImageUri] = useState("");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExtractingProduct, setIsExtractingProduct] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["데일리"]);
   const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
   const [selectedProductCandidate, setSelectedProductCandidate] = useState<ProductCandidate | null>(null);
+  const [productUrlInput, setProductUrlInput] = useState("");
+  const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
+
+  function resetAnalysisState() {
+    setAnalysis(null);
+    setProgressText("");
+    setSelectedSeasons(["사계절"]);
+    setSelectedStyleTags(["데일리"]);
+    setSelectedSize(DEFAULT_SIZE);
+    setSelectedProductCandidate(null);
+  }
+
+  function switchAddMode(nextMode: AddMode) {
+    setAddMode(nextMode);
+    setImageUri("");
+    setSelectedImages([]);
+    setExtractedProduct(null);
+    resetAnalysisState();
+  }
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -404,6 +455,7 @@ export default function AddClothesScreen() {
 
       setSelectedImages(images);
       setImageUri(images[0]?.uri || "");
+      setExtractedProduct(null);
       setAnalysis(null);
       setProgressText("");
       setSelectedSeasons(["사계절"]);
@@ -430,12 +482,61 @@ export default function AddClothesScreen() {
 
       setSelectedImages([nextImage]);
       setImageUri(nextImage.uri);
+      setExtractedProduct(null);
       setAnalysis(null);
       setProgressText("");
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
       setSelectedSize(DEFAULT_SIZE);
       setSelectedProductCandidate(null);
+    }
+  }
+
+  async function extractProductFromUrl() {
+    const productUrl = productUrlInput.trim();
+
+    if (!productUrl) {
+      Alert.alert("URL 확인", "상품 URL을 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsExtractingProduct(true);
+      resetAnalysisState();
+
+      const response = await fetch(EXTRACT_PRODUCT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: productUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Extract product failed: ${response.status}`);
+      }
+
+      const product = (await response.json()) as ExtractedProduct;
+
+      if (!product.productImageUrl) {
+        setExtractedProduct(null);
+        setImageUri("");
+        setSelectedImages([]);
+        Alert.alert(
+          "상품 이미지 없음",
+          "상품 이미지를 가져오지 못했어요. 사진으로 추가해주세요."
+        );
+        return;
+      }
+
+      setExtractedProduct(product);
+      setImageUri(product.productImageUrl);
+      setSelectedImages([{ uri: product.productImageUrl }]);
+    } catch (error) {
+      console.log("상품 정보 추출 실패:", error);
+      Alert.alert("상품 정보 추출 실패", "상품 정보를 가져오지 못했어요. URL을 확인하거나 사진으로 추가해주세요.");
+    } finally {
+      setIsExtractingProduct(false);
     }
   }
 
@@ -562,6 +663,9 @@ export default function AddClothesScreen() {
         matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
         avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
         selectedProductCandidate: selectedProductCandidate || undefined,
+        confirmedProduct: extractedProduct
+          ? buildConfirmedProductFromExtractedProduct(extractedProduct)
+          : undefined,
         createdAt: new Date().toISOString(),
       });
 
@@ -595,6 +699,29 @@ export default function AddClothesScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
+        <View style={styles.modeSwitchCard}>
+          <Pressable
+            style={[styles.modeSwitchButton, addMode === "photo" && styles.modeSwitchButtonActive]}
+            onPress={() => switchAddMode("photo")}
+          >
+            <Feather name="camera" size={16} color={addMode === "photo" ? "#fff" : "#8c6f47"} />
+            <Text style={[styles.modeSwitchText, addMode === "photo" && styles.modeSwitchTextActive]}>
+              사진으로 추가
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.modeSwitchButton, addMode === "link" && styles.modeSwitchButtonActive]}
+            onPress={() => switchAddMode("link")}
+          >
+            <Feather name="link" size={16} color={addMode === "link" ? "#fff" : "#8c6f47"} />
+            <Text style={[styles.modeSwitchText, addMode === "link" && styles.modeSwitchTextActive]}>
+              상품 링크로 추가
+            </Text>
+          </Pressable>
+        </View>
+
+        {addMode === "photo" && (
+          <>
         <Pressable style={styles.uploadCard} onPress={pickImage}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -638,6 +765,66 @@ export default function AddClothesScreen() {
                 ))}
               </View>
             </ScrollView>
+          </View>
+        )}
+          </>
+        )}
+
+        {addMode === "link" && (
+          <View style={styles.linkAddCard}>
+            <View style={styles.linkAddHeader}>
+              <View style={styles.uploadIconCircle}>
+                <Feather name="link" size={24} color="#8c6f47" />
+              </View>
+              <View style={styles.linkAddHeaderText}>
+                <Text style={styles.uploadTitle}>상품 링크로 추가</Text>
+                <Text style={styles.uploadText}>
+                  상품 URL을 붙여넣으면 대표 이미지와 상품 정보를 가져와요.
+                </Text>
+              </View>
+            </View>
+
+            <TextInput
+              style={styles.linkInput}
+              value={productUrlInput}
+              onChangeText={setProductUrlInput}
+              placeholder="상품 URL을 붙여넣어주세요"
+              placeholderTextColor="#b2aaa1"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Pressable
+              style={styles.linkExtractButton}
+              onPress={extractProductFromUrl}
+              disabled={isExtractingProduct}
+            >
+              {isExtractingProduct ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="download" size={16} color="#fff" />
+              )}
+              <Text style={styles.linkExtractButtonText}>
+                {isExtractingProduct ? "가져오는 중..." : "상품 정보 가져오기"}
+              </Text>
+            </Pressable>
+
+            {extractedProduct && (
+              <View style={styles.extractedProductCard}>
+                {extractedProduct.productImageUrl ? (
+                  <Image source={{ uri: extractedProduct.productImageUrl }} style={styles.linkPreviewImage} />
+                ) : null}
+                <Text style={styles.linkProductBrand} numberOfLines={1}>
+                  {extractedProduct.brand || "브랜드 정보 없음"}
+                </Text>
+                <Text style={styles.linkProductName} numberOfLines={2}>
+                  {extractedProduct.productName || "상품명 정보 없음"}
+                </Text>
+                <Text style={styles.linkProductUrl} numberOfLines={2}>
+                  {extractedProduct.productUrl}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -784,9 +971,9 @@ export default function AddClothesScreen() {
         {progressText ? <Text style={styles.progressText}>{progressText}</Text> : null}
 
         <Pressable
-          style={[styles.primaryButton, (!imageUri || isSaving) && styles.primaryButtonDisabled]}
+          style={[styles.primaryButton, (!imageUri || isSaving || isExtractingProduct) && styles.primaryButtonDisabled]}
           onPress={analysis ? saveItem : analyzeItem}
-          disabled={!imageUri || isSaving}
+          disabled={!imageUri || isSaving || isExtractingProduct}
         >
           {isSaving ? (
             <ActivityIndicator color="#fff" />
@@ -841,6 +1028,36 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     marginTop: 2,
+  },
+  modeSwitchCard: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 5,
+    gap: 6,
+    marginBottom: 12,
+  },
+  modeSwitchButton: {
+    flex: 1,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
+  },
+  modeSwitchButtonActive: {
+    backgroundColor: "#111",
+  },
+  modeSwitchText: {
+    color: "#8c6f47",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  modeSwitchTextActive: {
+    color: "#fff",
   },
   uploadCard: {
     height: 280,
@@ -900,6 +1117,84 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 13,
     fontWeight: "700",
+  },
+  linkAddCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 16,
+    gap: 12,
+  },
+  linkAddHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  linkAddHeaderText: {
+    flex: 1,
+  },
+  linkInput: {
+    backgroundColor: "#f7f2eb",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  linkExtractButton: {
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  linkExtractButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  extractedProductCard: {
+    backgroundColor: "#faf8f5",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    overflow: "hidden",
+    paddingBottom: 12,
+  },
+  linkPreviewImage: {
+    width: "100%",
+    height: 210,
+    resizeMode: "cover",
+    backgroundColor: "#f4eee7",
+    marginBottom: 12,
+  },
+  linkProductBrand: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "800",
+    paddingHorizontal: 12,
+    marginBottom: 4,
+  },
+  linkProductName: {
+    color: "#111",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "800",
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+  linkProductUrl: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
+    paddingHorizontal: 12,
   },
   selectedListCard: {
     backgroundColor: "#fff",
