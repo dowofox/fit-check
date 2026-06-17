@@ -541,6 +541,40 @@ function normalizeProductSizeNumber(value) {
   return Number.isFinite(normalized) ? normalized : undefined;
 }
 
+function getProductSizeValue(row, keys) {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+  }
+
+  return undefined;
+}
+
+function normalizeProductSizeMeasurement(row) {
+  if (!row || typeof row !== "object") return null;
+
+  const size = String(
+    getProductSizeValue(row, ["size", "name", "label", "option", "사이즈", "호칭", "SIZE"]) || "",
+  ).trim();
+
+  if (!size) return null;
+
+  return {
+    size,
+    totalLength: normalizeProductSizeNumber(
+      getProductSizeValue(row, ["totalLength", "length", "총장", "기장", "옷길이"]),
+    ),
+    shoulder: normalizeProductSizeNumber(getProductSizeValue(row, ["shoulder", "어깨", "어깨너비"])),
+    chest: normalizeProductSizeNumber(getProductSizeValue(row, ["chest", "bust", "가슴", "가슴단면"])),
+    sleeve: normalizeProductSizeNumber(getProductSizeValue(row, ["sleeve", "arm", "소매", "소매길이"])),
+    waist: normalizeProductSizeNumber(getProductSizeValue(row, ["waist", "허리", "허리단면"])),
+    hip: normalizeProductSizeNumber(getProductSizeValue(row, ["hip", "엉덩이", "힙"])),
+    thigh: normalizeProductSizeNumber(getProductSizeValue(row, ["thigh", "허벅지"])),
+    rise: normalizeProductSizeNumber(getProductSizeValue(row, ["rise", "밑위"])),
+    hem: normalizeProductSizeNumber(getProductSizeValue(row, ["hem", "밑단", "밑단단면"])),
+    footLength: normalizeProductSizeNumber(getProductSizeValue(row, ["footLength", "발길이", "발 길이"])),
+  };
+}
+
 function normalizeProductSizeGuide(productSizeGuide) {
   if (!productSizeGuide || typeof productSizeGuide !== "object") return undefined;
 
@@ -551,26 +585,7 @@ function normalizeProductSizeGuide(productSizeGuide) {
       : [];
 
   const sizes = rawSizes
-    .map((row) => {
-      if (!row || typeof row !== "object") return null;
-
-      const size = String(row.size || row.name || row.label || "").trim();
-      if (!size) return null;
-
-      return {
-        size,
-        totalLength: normalizeProductSizeNumber(row.totalLength || row.length),
-        shoulder: normalizeProductSizeNumber(row.shoulder),
-        chest: normalizeProductSizeNumber(row.chest || row.bust),
-        sleeve: normalizeProductSizeNumber(row.sleeve || row.arm),
-        waist: normalizeProductSizeNumber(row.waist),
-        hip: normalizeProductSizeNumber(row.hip),
-        thigh: normalizeProductSizeNumber(row.thigh),
-        rise: normalizeProductSizeNumber(row.rise),
-        hem: normalizeProductSizeNumber(row.hem),
-        footLength: normalizeProductSizeNumber(row.footLength),
-      };
-    })
+    .map((row) => normalizeProductSizeMeasurement(row))
     .filter(Boolean);
 
   if (sizes.length === 0) return undefined;
@@ -583,6 +598,9 @@ function normalizeProductSizeGuide(productSizeGuide) {
 
 function findSizeGuideInJson(value, depth = 0) {
   if (!value || depth > 6) return undefined;
+
+  const directNormalized = normalizeProductSizeGuide(value);
+  if (directNormalized) return directNormalized;
 
   const normalized = normalizeProductSizeGuide(value.productSizeGuide || value.sizeGuide || value.sizeTable);
   if (normalized) return normalized;
@@ -606,6 +624,76 @@ function findSizeGuideInJson(value, depth = 0) {
   return undefined;
 }
 
+function stripHtml(value = "") {
+  return decodeHtmlEntities(value.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+function getTableCells(rowHtml) {
+  return [...rowHtml.matchAll(/<(?:th|td)[^>]*>([\s\S]*?)<\/(?:th|td)>/gi)]
+    .map((match) => stripHtml(match[1]))
+    .filter(Boolean);
+}
+
+function getSizeMeasurementKey(label) {
+  const normalized = label.toLowerCase().replace(/\s+/g, "");
+
+  if (normalized.includes("사이즈") || normalized === "size") return "size";
+  if (normalized.includes("총장") || normalized.includes("기장") || normalized.includes("length")) return "totalLength";
+  if (normalized.includes("어깨") || normalized.includes("shoulder")) return "shoulder";
+  if (normalized.includes("가슴") || normalized.includes("chest") || normalized.includes("bust")) return "chest";
+  if (normalized.includes("소매") || normalized.includes("sleeve")) return "sleeve";
+  if (normalized.includes("허리") || normalized.includes("waist")) return "waist";
+  if (normalized.includes("엉덩이") || normalized.includes("힙") || normalized.includes("hip")) return "hip";
+  if (normalized.includes("허벅지") || normalized.includes("thigh")) return "thigh";
+  if (normalized.includes("밑위") || normalized.includes("rise")) return "rise";
+  if (normalized.includes("밑단") || normalized.includes("hem")) return "hem";
+  if (normalized.includes("발길이") || normalized.includes("footlength")) return "footLength";
+
+  return "";
+}
+
+function extractProductSizeGuideFromTables(html) {
+  const tableMatches = html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi);
+
+  for (const tableMatch of tableMatches) {
+    const rowMatches = [...tableMatch[1].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
+    const rows = rowMatches.map((match) => getTableCells(match[1])).filter((cells) => cells.length >= 2);
+
+    if (rows.length < 2) continue;
+
+    const headerIndex = rows.findIndex((cells) => {
+      const mappedKeys = cells.map((cell) => getSizeMeasurementKey(cell)).filter(Boolean);
+      return mappedKeys.includes("size") && mappedKeys.some((key) => key !== "size");
+    });
+
+    if (headerIndex < 0) continue;
+
+    const headers = rows[headerIndex].map((cell) => getSizeMeasurementKey(cell));
+    const sizeRows = rows
+      .slice(headerIndex + 1)
+      .map((cells) => {
+        const row = {};
+
+        cells.forEach((cell, index) => {
+          const key = headers[index];
+          if (key) row[key] = cell;
+        });
+
+        return normalizeProductSizeMeasurement(row);
+      })
+      .filter(Boolean);
+
+    if (sizeRows.length > 0) {
+      return {
+        unit: "cm",
+        sizes: sizeRows,
+      };
+    }
+  }
+
+  return undefined;
+}
+
 function extractProductSizeGuide(html) {
   const jsonScriptMatches = html.matchAll(
     /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
@@ -621,7 +709,7 @@ function extractProductSizeGuide(html) {
     }
   }
 
-  return undefined;
+  return extractProductSizeGuideFromTables(html);
 }
 
 function getRembgCommand(inputPath, outputPath) {
