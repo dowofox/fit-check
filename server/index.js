@@ -418,6 +418,58 @@ function extractMetaContent(html, propertyNames) {
   return "";
 }
 
+function extractMetaContentWithDebug(html, propertyNames) {
+  const attempts = [];
+
+  for (const propertyName of propertyNames) {
+    const escapedName = propertyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name)=["']${escapedName}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i"),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escapedName}["'][^>]*>`, "i"),
+    ];
+
+    let value = "";
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) {
+        value = decodeHtmlEntities(match[1]);
+        break;
+      }
+    }
+
+    attempts.push({
+      propertyName,
+      found: Boolean(value),
+      value,
+    });
+
+    if (value) {
+      return {
+        value,
+        matchedProperty: propertyName,
+        attempts,
+      };
+    }
+  }
+
+  return {
+    value: "",
+    matchedProperty: "",
+    attempts,
+  };
+}
+
+function resolveProductImageUrl(imageUrl, productUrl) {
+  if (!imageUrl) return "";
+
+  try {
+    return new URL(imageUrl, productUrl).toString();
+  } catch {
+    return imageUrl;
+  }
+}
+
 function extractTitle(html) {
   const metaTitle = extractMetaContent(html, ["og:title", "twitter:title"]);
   if (metaTitle) return metaTitle;
@@ -877,7 +929,13 @@ app.post("/extract-product", async (req, res) => {
         "og:description",
       ]);
       const price = extractPrice(html);
-      const productImageUrl = extractMetaContent(html, ["og:image", "twitter:image"]);
+      const productImageMeta = extractMetaContentWithDebug(html, [
+        "og:image",
+        "twitter:image",
+        "image",
+        "og:image:secure_url",
+      ]);
+      const productImageUrl = resolveProductImageUrl(productImageMeta.value, parsedUrl.toString());
       const productSizeGuide = extractProductSizeGuide(html);
 
       const extractedBrand = brand || mallName || "";
@@ -887,7 +945,24 @@ app.post("/extract-product", async (req, res) => {
         return res.status(422).json({ error: "product information not found" });
       }
 
-      return res.json({
+      if (!productImageUrl) {
+        console.warn("[extract-product] productImageUrl missing", {
+          url: parsedUrl.toString(),
+          imageMetaAttempts: productImageMeta.attempts.map((attempt) => ({
+            propertyName: attempt.propertyName,
+            found: attempt.found,
+          })),
+        });
+      } else {
+        console.log("[extract-product] productImageUrl found", {
+          url: parsedUrl.toString(),
+          matchedProperty: productImageMeta.matchedProperty,
+          rawProductImageUrl: productImageMeta.value,
+          productImageUrl,
+        });
+      }
+
+      const extractedProduct = {
         brand: extractedBrand,
         productName: extractedProductName,
         productUrl: parsedUrl.toString(),
@@ -895,7 +970,11 @@ app.post("/extract-product", async (req, res) => {
         productSizeGuide,
         mallName,
         price,
-      });
+      };
+
+      console.log("[extract-product] response", extractedProduct);
+
+      return res.json(extractedProduct);
     } finally {
       clearTimeout(timeout);
     }

@@ -520,6 +520,7 @@ export default function AddClothesScreen() {
       }
 
       const product = (await response.json()) as ExtractedProduct;
+      console.log("[add-clothes] extract-product response", product);
 
       if (!product.productImageUrl) {
         setExtractedProduct(null);
