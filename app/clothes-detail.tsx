@@ -220,18 +220,64 @@ function buildConfirmedProductFromDraft(
     productName,
     productUrl: draft.productUrl.trim(),
     productImageUrl: draft.productImageUrl.trim(),
-    productSizeGuide: options.includeProductSizeGuide ? draft.productSizeGuide : undefined,
+    productSizeGuide: options.includeProductSizeGuide
+      ? normalizeProductSizeGuideForDisplay(draft.productSizeGuide)
+      : undefined,
     mallName: draft.mallName.trim(),
     price: draft.price.trim(),
     confirmedAt: new Date().toISOString(),
   };
 }
 
+const INVALID_PRODUCT_SIZE_KEYWORDS = [
+  "무신사",
+  "무진장",
+  "단독",
+  "이벤트",
+  "쿠폰",
+  "할인",
+  "적립",
+  "후기",
+  "배송",
+  "무료",
+  "랭킹",
+  "브랜드",
+];
+
+function hasProductSizeMeasurements(sizeInfo: ProductSizeMeasurement) {
+  return PRODUCT_SIZE_MEASUREMENT_LABELS.some(([key]) => typeof sizeInfo[key] === "number");
+}
+
+function isValidProductSizeName(size?: string) {
+  const normalizedSize = size?.trim();
+
+  return Boolean(
+    normalizedSize &&
+      !INVALID_PRODUCT_SIZE_KEYWORDS.some((keyword) => normalizedSize.includes(keyword))
+  );
+}
+
+function getValidProductSizeRows(productSizeGuide?: ProductSizeGuide) {
+  return (productSizeGuide?.sizes || []).filter(
+    (sizeInfo) => isValidProductSizeName(sizeInfo.size) && hasProductSizeMeasurements(sizeInfo)
+  );
+}
+
+function normalizeProductSizeGuideForDisplay(
+  productSizeGuide?: ProductSizeGuide
+): ProductSizeGuide | undefined {
+  const sizes = getValidProductSizeRows(productSizeGuide);
+
+  if (sizes.length === 0) return undefined;
+
+  return {
+    ...productSizeGuide,
+    sizes,
+  };
+}
+
 function getProductSizeGuideSummary(productSizeGuide?: ProductSizeGuide) {
-  const sizes =
-    productSizeGuide?.sizes
-      ?.map((sizeInfo) => sizeInfo.size?.trim())
-      .filter(Boolean) || [];
+  const sizes = getValidProductSizeRows(productSizeGuide).map((sizeInfo) => sizeInfo.size.trim());
 
   return sizes.length > 0 ? sizes.join(" / ") : "";
 }
@@ -260,7 +306,7 @@ function getProfileSizeForItem(item: ClosetItem, profile?: UserProfile | null) {
   if (item.category?.includes("하의")) return profile.bottomSize || "";
   if (item.category?.includes("상의") || item.category?.includes("아우터")) return profile.topSize || "";
 
-  const sizeRows = item.confirmedProduct?.productSizeGuide?.sizes || [];
+  const sizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide);
   const profileSizes = [profile.topSize, profile.bottomSize, profile.shoeSize].filter(Boolean);
   const matchedSize = profileSizes.find((profileSize) =>
     sizeRows.some((row) => normalizeSizeForCompare(row.size) === normalizeSizeForCompare(profileSize))
@@ -686,7 +732,7 @@ function ConfirmedProductCard({
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
   const sizeGuideSummary = getProductSizeGuideSummary(confirmedProduct.productSizeGuide);
-  const sizeGuideRows = confirmedProduct.productSizeGuide?.sizes || [];
+  const sizeGuideRows = getValidProductSizeRows(confirmedProduct.productSizeGuide);
   const profileSize = getProfileSizeForItem(item, profile);
 
   return (
@@ -760,18 +806,14 @@ function ConfirmedProductCard({
                   {isProfileSize ? <Text style={styles.sizeGuideMySizeBadge}>내 사이즈</Text> : null}
                 </View>
 
-                {measurementRows.length > 0 ? (
-                  <View style={styles.sizeGuideMeasurementGrid}>
-                    {measurementRows.map((measurement) => (
-                      <View key={`${sizeInfo.size}-${measurement.label}`} style={styles.sizeGuideMeasurementPill}>
-                        <Text style={styles.sizeGuideMeasurementLabel}>{measurement.label}</Text>
-                        <Text style={styles.sizeGuideMeasurementValue}>{measurement.value}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.sizeGuideEmptyText}>표시할 실측값이 없어요.</Text>
-                )}
+                <View style={styles.sizeGuideMeasurementGrid}>
+                  {measurementRows.map((measurement) => (
+                    <View key={`${sizeInfo.size}-${measurement.label}`} style={styles.sizeGuideMeasurementPill}>
+                      <Text style={styles.sizeGuideMeasurementLabel}>{measurement.label}</Text>
+                      <Text style={styles.sizeGuideMeasurementValue}>{measurement.value}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             );
           })}
@@ -1183,7 +1225,13 @@ export default function ClothesDetailScreen() {
     if (!item) return;
 
     try {
-      const updatedCloset = await updateClosetItem(item.id, { confirmedProduct });
+      const replacementConfirmedProduct: ConfirmedProduct = {
+        ...confirmedProduct,
+        productSizeGuide: normalizeProductSizeGuideForDisplay(confirmedProduct.productSizeGuide),
+      };
+      const updatedCloset = await updateClosetItem(item.id, {
+        confirmedProduct: replacementConfirmedProduct,
+      });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
       if (!updatedItem) {
