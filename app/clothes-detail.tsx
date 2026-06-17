@@ -205,7 +205,10 @@ function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDra
   };
 }
 
-function buildConfirmedProductFromDraft(draft: ConfirmedProductDraft): ConfirmedProduct | null {
+function buildConfirmedProductFromDraft(
+  draft: ConfirmedProductDraft,
+  options: { includeProductSizeGuide?: boolean } = { includeProductSizeGuide: true }
+): ConfirmedProduct | null {
   const brand = draft.brand.trim();
   const productName = draft.productName.trim();
 
@@ -216,7 +219,7 @@ function buildConfirmedProductFromDraft(draft: ConfirmedProductDraft): Confirmed
     productName,
     productUrl: draft.productUrl.trim(),
     productImageUrl: draft.productImageUrl.trim(),
-    productSizeGuide: draft.productSizeGuide,
+    productSizeGuide: options.includeProductSizeGuide ? draft.productSizeGuide : undefined,
     mallName: draft.mallName.trim(),
     price: draft.price.trim(),
     confirmedAt: new Date().toISOString(),
@@ -1199,7 +1202,9 @@ export default function ClothesDetailScreen() {
   }
 
   function handleSaveConfirmedProductForm() {
-    const confirmedProduct = buildConfirmedProductFromDraft(confirmedProductDraft);
+    const confirmedProduct = buildConfirmedProductFromDraft(confirmedProductDraft, {
+      includeProductSizeGuide: false,
+    });
 
     if (!confirmedProduct) {
       Alert.alert("입력 확인", "브랜드명과 상품명은 꼭 입력해주세요.");
