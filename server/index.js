@@ -471,6 +471,97 @@ function extractPrice(html) {
   return priceMatch?.[0] || "";
 }
 
+function normalizeProductSizeNumber(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+
+  const normalized = Number(value.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(normalized) ? normalized : undefined;
+}
+
+function normalizeProductSizeGuide(productSizeGuide) {
+  if (!productSizeGuide || typeof productSizeGuide !== "object") return undefined;
+
+  const rawSizes = Array.isArray(productSizeGuide.sizes)
+    ? productSizeGuide.sizes
+    : Array.isArray(productSizeGuide)
+      ? productSizeGuide
+      : [];
+
+  const sizes = rawSizes
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+
+      const size = String(row.size || row.name || row.label || "").trim();
+      if (!size) return null;
+
+      return {
+        size,
+        totalLength: normalizeProductSizeNumber(row.totalLength || row.length),
+        shoulder: normalizeProductSizeNumber(row.shoulder),
+        chest: normalizeProductSizeNumber(row.chest || row.bust),
+        sleeve: normalizeProductSizeNumber(row.sleeve || row.arm),
+        waist: normalizeProductSizeNumber(row.waist),
+        hip: normalizeProductSizeNumber(row.hip),
+        thigh: normalizeProductSizeNumber(row.thigh),
+        rise: normalizeProductSizeNumber(row.rise),
+        hem: normalizeProductSizeNumber(row.hem),
+        footLength: normalizeProductSizeNumber(row.footLength),
+      };
+    })
+    .filter(Boolean);
+
+  if (sizes.length === 0) return undefined;
+
+  return {
+    unit: "cm",
+    sizes,
+  };
+}
+
+function findSizeGuideInJson(value, depth = 0) {
+  if (!value || depth > 6) return undefined;
+
+  const normalized = normalizeProductSizeGuide(value.productSizeGuide || value.sizeGuide || value.sizeTable);
+  if (normalized) return normalized;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findSizeGuideInJson(item, depth + 1);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  if (typeof value === "object") {
+    for (const child of Object.values(value)) {
+      if (!child || typeof child !== "object") continue;
+      const found = findSizeGuideInJson(child, depth + 1);
+      if (found) return found;
+    }
+  }
+
+  return undefined;
+}
+
+function extractProductSizeGuide(html) {
+  const jsonScriptMatches = html.matchAll(
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  );
+
+  for (const match of jsonScriptMatches) {
+    try {
+      const parsed = JSON.parse(decodeHtmlEntities(match[1]));
+      const found = findSizeGuideInJson(parsed);
+      if (found) return found;
+    } catch {
+      // Ignore malformed structured data. Product extraction should still succeed.
+    }
+  }
+
+  return undefined;
+}
+
 function getRembgCommand(inputPath, outputPath) {
   const rembgCommand = process.env.REMBG_COMMAND;
   const rembgModel = process.env.REMBG_MODEL || "u2net";
@@ -787,6 +878,7 @@ app.post("/extract-product", async (req, res) => {
       ]);
       const price = extractPrice(html);
       const productImageUrl = extractMetaContent(html, ["og:image", "twitter:image"]);
+      const productSizeGuide = extractProductSizeGuide(html);
 
       const extractedBrand = brand || mallName || "";
       const extractedProductName = title || productName || "";
@@ -800,6 +892,7 @@ app.post("/extract-product", async (req, res) => {
         productName: extractedProductName,
         productUrl: parsedUrl.toString(),
         productImageUrl,
+        productSizeGuide,
         mallName,
         price,
       });

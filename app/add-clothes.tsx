@@ -4,6 +4,7 @@ import type {
   AnalysisQuality,
   ConfirmedProduct,
   ProductCandidate,
+  ProductSizeGuide,
   StyleProfile,
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
@@ -138,6 +139,7 @@ type ExtractedProduct = {
   productName?: string;
   productUrl: string;
   productImageUrl?: string;
+  productSizeGuide?: ProductSizeGuide;
   mallName?: string;
   price?: string;
 };
@@ -277,6 +279,7 @@ function buildConfirmedProductFromExtractedProduct(product: ExtractedProduct): C
     productName: product.productName || "",
     productUrl: product.productUrl,
     productImageUrl: product.productImageUrl,
+    productSizeGuide: product.productSizeGuide,
     mallName: product.mallName || "",
     price: product.price || "",
     confirmedAt: new Date().toISOString(),

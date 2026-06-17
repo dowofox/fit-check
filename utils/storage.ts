@@ -23,11 +23,29 @@ export type ProductCandidate = {
   confidence?: number;
 };
 
+export type ProductSizeGuide = {
+  unit?: "cm";
+  sizes: {
+    size: string;
+    totalLength?: number;
+    shoulder?: number;
+    chest?: number;
+    sleeve?: number;
+    waist?: number;
+    hip?: number;
+    thigh?: number;
+    rise?: number;
+    hem?: number;
+    footLength?: number;
+  }[];
+};
+
 export type ConfirmedProduct = {
   brand: string;
   productName: string;
   productUrl?: string;
   productImageUrl?: string;
+  productSizeGuide?: ProductSizeGuide;
   mallName?: string;
   price?: string;
   confirmedAt: string;

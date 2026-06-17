@@ -4,6 +4,7 @@ import {
   ConfirmedProduct,
   getClosetItems,
   getUserProfile,
+  ProductSizeGuide,
   StyleProfile,
   updateClosetItem,
   UserProfile,
@@ -47,13 +48,20 @@ type ConfirmedProductDraft = {
   productName: string;
   productUrl: string;
   productImageUrl: string;
+  productSizeGuide?: ProductSizeGuide;
   mallName: string;
   price: string;
 };
 
-type ExtractedProduct = ConfirmedProductDraft & {
-  productImageUrl?: string;
-};
+type ConfirmedProductDraftTextField =
+  | "brand"
+  | "productName"
+  | "productUrl"
+  | "productImageUrl"
+  | "mallName"
+  | "price";
+
+type ExtractedProduct = ConfirmedProductDraft;
 
 const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
   brand: "",
@@ -190,6 +198,7 @@ function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDra
     productName: confirmedProduct?.productName || "",
     productUrl: confirmedProduct?.productUrl || "",
     productImageUrl: confirmedProduct?.productImageUrl || "",
+    productSizeGuide: confirmedProduct?.productSizeGuide,
     mallName: confirmedProduct?.mallName || "",
     price: confirmedProduct?.price || "",
   };
@@ -206,10 +215,20 @@ function buildConfirmedProductFromDraft(draft: ConfirmedProductDraft): Confirmed
     productName,
     productUrl: draft.productUrl.trim(),
     productImageUrl: draft.productImageUrl.trim(),
+    productSizeGuide: draft.productSizeGuide,
     mallName: draft.mallName.trim(),
     price: draft.price.trim(),
     confirmedAt: new Date().toISOString(),
   };
+}
+
+function getProductSizeGuideSummary(productSizeGuide?: ProductSizeGuide) {
+  const sizes =
+    productSizeGuide?.sizes
+      ?.map((sizeInfo) => sizeInfo.size?.trim())
+      .filter(Boolean) || [];
+
+  return sizes.length > 0 ? sizes.join(" / ") : "";
 }
 
 function ChipGroup({
@@ -625,6 +644,7 @@ function ConfirmedProductCard({
   onOpenUrlForm: () => void;
 }) {
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
+  const sizeGuideSummary = getProductSizeGuideSummary(confirmedProduct.productSizeGuide);
 
   return (
     <View style={styles.productReferenceCard}>
@@ -649,6 +669,12 @@ function ConfirmedProductCard({
       <Text style={styles.productReferenceBrand}>{confirmedProduct.brand}</Text>
       <Text style={styles.productReferenceName}>{confirmedProduct.productName}</Text>
       {meta ? <Text style={styles.productReferenceReason}>{meta}</Text> : null}
+      {sizeGuideSummary ? (
+        <View style={styles.confirmedProductSizeGuideBox}>
+          <Text style={styles.confirmedProductSizeGuideTitle}>사이즈 정보 있음</Text>
+          <Text style={styles.confirmedProductSizeGuideText}>{sizeGuideSummary}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.confirmedProductActionRow}>
         {confirmedProduct.productUrl ? (
@@ -677,7 +703,7 @@ function ConfirmedProductForm({
   onCancel,
 }: {
   draft: ConfirmedProductDraft;
-  onChange: (field: keyof ConfirmedProductDraft, value: string) => void;
+  onChange: (field: ConfirmedProductDraftTextField, value: string) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -994,7 +1020,7 @@ export default function ClothesDetailScreen() {
     setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
   }
 
-  function updateConfirmedProductDraft(field: keyof ConfirmedProductDraft, value: string) {
+  function updateConfirmedProductDraft(field: ConfirmedProductDraftTextField, value: string) {
     setConfirmedProductDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
   }
 
@@ -1154,6 +1180,7 @@ export default function ClothesDetailScreen() {
         productName: result.productName || "",
         productUrl: result.productUrl || productUrl,
         productImageUrl: result.productImageUrl || "",
+        productSizeGuide: result.productSizeGuide,
         mallName: result.mallName || "",
         price: result.price || "",
       };
@@ -1835,6 +1862,30 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#faf8f5",
     marginBottom: 12,
+  },
+
+  confirmedProductSizeGuideBox: {
+    backgroundColor: "#f4eee7",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+
+  confirmedProductSizeGuideTitle: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+
+  confirmedProductSizeGuideText: {
+    color: "#111",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
   },
 
   productSearchArea: {
