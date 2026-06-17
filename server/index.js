@@ -816,6 +816,21 @@ function getSizeUrlCandidates(html, productUrl) {
   return candidates;
 }
 
+function getMusinsaApiUrlCandidates(productId) {
+  if (!productId) return [];
+
+  return [
+    `https://www.musinsa.com/app/goods/${productId}/0`,
+    `https://www.musinsa.com/api/goods/v1/goods/${productId}`,
+    `https://www.musinsa.com/api/goods/${productId}`,
+    `https://goods-detail.musinsa.com/api/goods/${productId}`,
+    `https://goods-detail.musinsa.com/api/goods/${productId}/detail`,
+    `https://goods-detail.musinsa.com/api/goods/${productId}/option`,
+    `https://goods-detail.musinsa.com/api/goods/${productId}/size`,
+    `https://goods-detail.musinsa.com/api/goods/${productId}/measurement`,
+  ];
+}
+
 function parseJsonScriptContent(content) {
   const trimmedContent = decodeHtmlEntities(content || "").trim();
   if (!trimmedContent) return null;
@@ -857,6 +872,7 @@ function logMusinsaSizeExploration({
   productId,
   scriptCandidates,
   urlCandidates,
+  apiUrlCandidates,
   sizeCandidateEntries,
 }) {
   if (process.env.NODE_ENV === "production" || !isMusinsaProductUrl(productUrl)) return;
@@ -870,6 +886,7 @@ function logMusinsaSizeExploration({
   console.log("[extract-product] size candidate samples", {
     scriptCandidates,
     urlCandidates,
+    apiUrlCandidates,
     samples: sizeCandidateEntries.slice(0, 8),
   });
 }
@@ -878,6 +895,7 @@ function extractProductSizeGuide(html, productUrl = "") {
   const productId = isMusinsaProductUrl(productUrl) ? extractMusinsaProductId(productUrl) : "";
   const scriptCandidates = isMusinsaProductUrl(productUrl) ? getScriptCandidates(html, productUrl) : [];
   const urlCandidates = isMusinsaProductUrl(productUrl) ? getSizeUrlCandidates(html, productUrl) : [];
+  const apiUrlCandidates = isMusinsaProductUrl(productUrl) ? getMusinsaApiUrlCandidates(productId) : [];
   const parsedScripts = extractJsonDataFromScripts(html);
   const sizeCandidateEntries = [];
 
@@ -890,6 +908,7 @@ function extractProductSizeGuide(html, productUrl = "") {
         productId,
         scriptCandidates,
         urlCandidates,
+        apiUrlCandidates,
         sizeCandidateEntries,
       });
 
@@ -916,6 +935,7 @@ function extractProductSizeGuide(html, productUrl = "") {
           productId,
           scriptCandidates,
           urlCandidates,
+          apiUrlCandidates,
           sizeCandidateEntries,
         });
 
@@ -932,6 +952,7 @@ function extractProductSizeGuide(html, productUrl = "") {
     productId,
     scriptCandidates,
     urlCandidates,
+    apiUrlCandidates,
     sizeCandidateEntries,
   });
 
