@@ -703,13 +703,30 @@ function extractProductSizeGuide(html) {
     try {
       const parsed = JSON.parse(decodeHtmlEntities(match[1]));
       const found = findSizeGuideInJson(parsed);
-      if (found) return found;
+      if (found) return { productSizeGuide: found, source: "json" };
     } catch {
       // Ignore malformed structured data. Product extraction should still succeed.
     }
   }
 
-  return extractProductSizeGuideFromTables(html);
+  const tableSizeGuide = extractProductSizeGuideFromTables(html);
+  return {
+    productSizeGuide: tableSizeGuide,
+    source: tableSizeGuide ? "table" : "",
+  };
+}
+
+function logProductSizeGuideExtraction(productSizeGuideResult) {
+  if (process.env.NODE_ENV === "production") return;
+
+  const productSizeGuide = productSizeGuideResult?.productSizeGuide;
+
+  console.log("[extract-product] productSizeGuide", {
+    found: Boolean(productSizeGuide),
+    source: productSizeGuideResult?.source || "none",
+    sizesLength: productSizeGuide?.sizes?.length || 0,
+    productSizeGuide,
+  });
 }
 
 function getRembgCommand(inputPath, outputPath) {
@@ -1034,7 +1051,9 @@ app.post("/extract-product", async (req, res) => {
         "og:image:secure_url",
       ]);
       const productImageUrl = resolveProductImageUrl(productImageMeta.value, parsedUrl.toString());
-      const productSizeGuide = extractProductSizeGuide(html);
+      const productSizeGuideResult = extractProductSizeGuide(html);
+      const productSizeGuide = productSizeGuideResult.productSizeGuide;
+      logProductSizeGuideExtraction(productSizeGuideResult);
 
       const extractedBrand = brand || mallName || "";
       const rawProductName = title || productName || "";
