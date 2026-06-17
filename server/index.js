@@ -596,6 +596,85 @@ function normalizeProductSizeGuide(productSizeGuide) {
   };
 }
 
+const SIZE_CANDIDATE_KEYWORDS = [
+  "size",
+  "measure",
+  "measurement",
+  "goods",
+  "option",
+  "product",
+  "detail",
+  "goodsNo",
+  "productNo",
+];
+
+function isMusinsaProductUrl(productUrl) {
+  try {
+    return new URL(productUrl).hostname.includes("musinsa.com");
+  } catch {
+    return false;
+  }
+}
+
+function extractMusinsaProductId(productUrl) {
+  try {
+    const parsedUrl = new URL(productUrl);
+    const productPathMatch = parsedUrl.pathname.match(/\/products\/(\d+)/);
+    if (productPathMatch?.[1]) return productPathMatch[1];
+
+    const goodsNo = parsedUrl.searchParams.get("goodsNo") || parsedUrl.searchParams.get("productNo");
+    return goodsNo || "";
+  } catch {
+    return "";
+  }
+}
+
+function hasSizeCandidateKeyword(value) {
+  const normalized = String(value || "").toLowerCase();
+  return SIZE_CANDIDATE_KEYWORDS.some((keyword) => normalized.includes(keyword.toLowerCase()));
+}
+
+function getJsonSample(value) {
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized.length > 500 ? `${serialized.slice(0, 500)}...` : serialized;
+  } catch {
+    return String(value).slice(0, 500);
+  }
+}
+
+function collectSizeCandidateEntries(value, path = "", depth = 0, entries = []) {
+  if (!value || depth > 8 || entries.length >= 20) return entries;
+
+  if (Array.isArray(value)) {
+    value.slice(0, 30).forEach((item, index) => {
+      collectSizeCandidateEntries(item, `${path}[${index}]`, depth + 1, entries);
+    });
+    return entries;
+  }
+
+  if (typeof value !== "object") return entries;
+
+  for (const [key, child] of Object.entries(value)) {
+    const childPath = path ? `${path}.${key}` : key;
+
+    if (hasSizeCandidateKeyword(key)) {
+      entries.push({
+        key: childPath,
+        sample: getJsonSample(child),
+      });
+    }
+
+    if (child && typeof child === "object") {
+      collectSizeCandidateEntries(child, childPath, depth + 1, entries);
+    }
+
+    if (entries.length >= 20) break;
+  }
+
+  return entries;
+}
+
 function findSizeGuideInJson(value, depth = 0) {
   if (!value || depth > 6) return undefined;
 
@@ -694,7 +773,134 @@ function extractProductSizeGuideFromTables(html) {
   return undefined;
 }
 
-function extractProductSizeGuide(html) {
+function getScriptCandidates(html, productUrl) {
+  return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+    .map((match, index) => {
+      const attrs = match[1] || "";
+      const body = match[2] || "";
+      const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
+      const src = srcMatch?.[1] ? resolveProductImageUrl(srcMatch[1], productUrl) : "";
+      const searchableText = `${attrs} ${src} ${body}`;
+
+      if (!hasSizeCandidateKeyword(searchableText)) return null;
+
+      return {
+        index,
+        src,
+        hasInlineBody: Boolean(body.trim()),
+        sample: stripHtml(searchableText).slice(0, 500),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function getSizeUrlCandidates(html, productUrl) {
+  const urlMatches = html.matchAll(/(?:"|')((?:https?:)?\/\/[^"']+|\/[^"']+)(?:"|')/gi);
+  const seenUrls = new Set();
+  const candidates = [];
+
+  for (const match of urlMatches) {
+    const rawUrl = match[1];
+    if (!hasSizeCandidateKeyword(rawUrl)) continue;
+
+    const absoluteUrl = resolveProductImageUrl(rawUrl, productUrl);
+    if (seenUrls.has(absoluteUrl)) continue;
+
+    seenUrls.add(absoluteUrl);
+    candidates.push(absoluteUrl);
+
+    if (candidates.length >= 20) break;
+  }
+
+  return candidates;
+}
+
+function parseJsonScriptContent(content) {
+  const trimmedContent = decodeHtmlEntities(content || "").trim();
+  if (!trimmedContent) return null;
+
+  try {
+    return JSON.parse(trimmedContent);
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonDataFromScripts(html) {
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
+  const parsedScripts = [];
+
+  for (const [index, match] of scripts.entries()) {
+    const attrs = match[1] || "";
+    const body = match[2] || "";
+    const isNextData = /\bid=["']__NEXT_DATA__["']/i.test(attrs);
+    const isJsonScript = /\btype=["']application\/(?:ld\+)?json["']/i.test(attrs);
+
+    if (!isNextData && !isJsonScript && !hasSizeCandidateKeyword(body)) continue;
+
+    const parsed = parseJsonScriptContent(body);
+    if (parsed) {
+      parsedScripts.push({
+        index,
+        source: isNextData ? "__NEXT_DATA__" : isJsonScript ? "json-script" : "inline-json",
+        data: parsed,
+      });
+    }
+  }
+
+  return parsedScripts;
+}
+
+function logMusinsaSizeExploration({
+  productUrl,
+  productId,
+  scriptCandidates,
+  urlCandidates,
+  sizeCandidateEntries,
+}) {
+  if (process.env.NODE_ENV === "production" || !isMusinsaProductUrl(productUrl)) return;
+
+  console.log("[extract-product] musinsa product id", {
+    productId: productId || "not-found",
+  });
+  console.log("[extract-product] size candidate keys", {
+    keys: sizeCandidateEntries.map((entry) => entry.key),
+  });
+  console.log("[extract-product] size candidate samples", {
+    scriptCandidates,
+    urlCandidates,
+    samples: sizeCandidateEntries.slice(0, 8),
+  });
+}
+
+function extractProductSizeGuide(html, productUrl = "") {
+  const productId = isMusinsaProductUrl(productUrl) ? extractMusinsaProductId(productUrl) : "";
+  const scriptCandidates = isMusinsaProductUrl(productUrl) ? getScriptCandidates(html, productUrl) : [];
+  const urlCandidates = isMusinsaProductUrl(productUrl) ? getSizeUrlCandidates(html, productUrl) : [];
+  const parsedScripts = extractJsonDataFromScripts(html);
+  const sizeCandidateEntries = [];
+
+  for (const parsedScript of parsedScripts) {
+    collectSizeCandidateEntries(parsedScript.data, parsedScript.source, 0, sizeCandidateEntries);
+    const found = findSizeGuideInJson(parsedScript.data);
+    if (found) {
+      logMusinsaSizeExploration({
+        productUrl,
+        productId,
+        scriptCandidates,
+        urlCandidates,
+        sizeCandidateEntries,
+      });
+
+      return {
+        productSizeGuide: found,
+        source: parsedScript.source,
+        productId,
+      };
+    }
+  }
+
   const jsonScriptMatches = html.matchAll(
     /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
   );
@@ -702,17 +908,37 @@ function extractProductSizeGuide(html) {
   for (const match of jsonScriptMatches) {
     try {
       const parsed = JSON.parse(decodeHtmlEntities(match[1]));
+      collectSizeCandidateEntries(parsed, "json-ld", 0, sizeCandidateEntries);
       const found = findSizeGuideInJson(parsed);
-      if (found) return { productSizeGuide: found, source: "json" };
+      if (found) {
+        logMusinsaSizeExploration({
+          productUrl,
+          productId,
+          scriptCandidates,
+          urlCandidates,
+          sizeCandidateEntries,
+        });
+
+        return { productSizeGuide: found, source: "json", productId };
+      }
     } catch {
       // Ignore malformed structured data. Product extraction should still succeed.
     }
   }
 
   const tableSizeGuide = extractProductSizeGuideFromTables(html);
+  logMusinsaSizeExploration({
+    productUrl,
+    productId,
+    scriptCandidates,
+    urlCandidates,
+    sizeCandidateEntries,
+  });
+
   return {
     productSizeGuide: tableSizeGuide,
     source: tableSizeGuide ? "table" : "",
+    productId,
   };
 }
 
@@ -1051,7 +1277,7 @@ app.post("/extract-product", async (req, res) => {
         "og:image:secure_url",
       ]);
       const productImageUrl = resolveProductImageUrl(productImageMeta.value, parsedUrl.toString());
-      const productSizeGuideResult = extractProductSizeGuide(html);
+      const productSizeGuideResult = extractProductSizeGuide(html, parsedUrl.toString());
       const productSizeGuide = productSizeGuideResult.productSizeGuide;
       logProductSizeGuideExtraction(productSizeGuideResult);
 
