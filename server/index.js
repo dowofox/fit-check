@@ -945,23 +945,6 @@ app.post("/extract-product", async (req, res) => {
         return res.status(422).json({ error: "product information not found" });
       }
 
-      if (!productImageUrl) {
-        console.warn("[extract-product] productImageUrl missing", {
-          url: parsedUrl.toString(),
-          imageMetaAttempts: productImageMeta.attempts.map((attempt) => ({
-            propertyName: attempt.propertyName,
-            found: attempt.found,
-          })),
-        });
-      } else {
-        console.log("[extract-product] productImageUrl found", {
-          url: parsedUrl.toString(),
-          matchedProperty: productImageMeta.matchedProperty,
-          rawProductImageUrl: productImageMeta.value,
-          productImageUrl,
-        });
-      }
-
       const extractedProduct = {
         brand: extractedBrand,
         productName: extractedProductName,
@@ -971,8 +954,6 @@ app.post("/extract-product", async (req, res) => {
         mallName,
         price,
       };
-
-      console.log("[extract-product] response", extractedProduct);
 
       return res.json(extractedProduct);
     } finally {

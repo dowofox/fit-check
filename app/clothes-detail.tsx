@@ -573,7 +573,7 @@ async function openProductSearch(provider: "naver" | "musinsa" | "google", query
   try {
     await Linking.openURL(urls[provider]);
   } catch (error) {
-    console.log("상품 검색 열기 실패:", error);
+    console.error("상품 검색 열기 실패:", error);
     Alert.alert("검색 실패", "검색 페이지를 열지 못했어요. 다시 시도해주세요.");
   }
 }
@@ -1083,7 +1083,7 @@ export default function ClothesDetailScreen() {
       setDraft(getEditableValues(updatedItem));
       setEditMode(false);
     } catch (error) {
-      console.log("옷 정보 수정 실패:", error);
+      console.error("옷 정보 수정 실패:", error);
       Alert.alert("수정 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
     }
   }
@@ -1105,7 +1105,7 @@ export default function ClothesDetailScreen() {
       setIsProductFormOpen(false);
       Alert.alert("저장 완료", "확정 상품 정보가 저장됐어요.");
     } catch (error) {
-      console.log("확정 상품 저장 실패:", error);
+      console.error("확정 상품 저장 실패:", error);
       Alert.alert("저장 실패", "확정 상품 정보를 저장하지 못했어요. 다시 시도해주세요.");
     }
   }
@@ -1197,7 +1197,7 @@ export default function ClothesDetailScreen() {
       setConfirmedProductDraft(nextDraft);
       setExtractedProduct({ ...nextDraft });
     } catch (error) {
-      console.log("상품 URL 추출 실패:", error);
+      console.error("상품 URL 추출 실패:", error);
       setExtractErrorMessage("자동 추출에 실패했어요. 브랜드명, 상품명, 링크만 직접 입력해주세요.");
     } finally {
       setIsExtractingProduct(false);
@@ -1237,7 +1237,7 @@ export default function ClothesDetailScreen() {
     try {
       await Linking.openURL(productUrl);
     } catch (error) {
-      console.log("확정 상품 링크 열기 실패:", error);
+      console.error("확정 상품 링크 열기 실패:", error);
       Alert.alert("링크 열기 실패", "상품 링크를 열지 못했어요.");
     }
   }

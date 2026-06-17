@@ -174,11 +174,6 @@ async function encodeImageUri(uri: string) {
 async function requestClothesAnalysis(uri: string) {
   const encodedImage = await encodeImageUri(uri);
 
-  console.log("[add-clothes] analyze request", {
-    mimeType: encodedImage.mimeType,
-    base64Length: encodedImage.base64.length,
-  });
-
   const response = await fetch(ANALYZE_CLOTHES_URL, {
     method: "POST",
     headers: {
@@ -195,11 +190,6 @@ async function requestClothesAnalysis(uri: string) {
   }
 
   const analysis = await response.json();
-
-  console.log("[add-clothes] analyze response", {
-    hasCleanImage: Boolean(analysis.cleanImageBase64),
-    cleanImageLength: analysis.cleanImageBase64?.length || 0,
-  });
 
   return analysis as ClothesAnalysis;
 }
@@ -318,7 +308,6 @@ function getSizeOptions(category?: string) {
 
 async function saveCleanImageToFile(base64?: string | null) {
   if (!base64) {
-    console.log("[add-clothes] clean image missing, original image will be saved");
     return undefined;
   }
 
@@ -329,24 +318,15 @@ async function saveCleanImageToFile(base64?: string | null) {
       encoding: FileSystem.EncodingType.Base64,
     });
 
-    console.log("[add-clothes] clean image saved", {
-      fileUri,
-      base64Length: base64.length,
-    });
-
     return fileUri;
   } catch (error) {
-    console.log("배경제거 이미지 저장 실패:", error);
+    console.error("배경제거 이미지 저장 실패:", error);
     return undefined;
   }
 }
 
 async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {
   if (!AUTO_APPLY_BACKGROUND_REMOVAL) {
-    if (analysis.cleanImageBase64) {
-      console.log("[add-clothes] clean image received but auto apply is disabled");
-    }
-
     return undefined;
   }
 
@@ -520,7 +500,6 @@ export default function AddClothesScreen() {
       }
 
       const product = (await response.json()) as ExtractedProduct;
-      console.log("[add-clothes] extract-product response", product);
 
       if (!product.productImageUrl) {
         setExtractedProduct(null);
@@ -537,7 +516,7 @@ export default function AddClothesScreen() {
       setImageUri(product.productImageUrl);
       setSelectedImages([{ uri: product.productImageUrl }]);
     } catch (error) {
-      console.log("상품 정보 추출 실패:", error);
+      console.error("상품 정보 추출 실패:", error);
       Alert.alert("상품 정보 추출 실패", "상품 정보를 가져오지 못했어요. URL을 확인하거나 사진으로 추가해주세요.");
     } finally {
       setIsExtractingProduct(false);
@@ -557,11 +536,6 @@ export default function AddClothesScreen() {
 
       const encodedImage = await encodeImageUri(imageUri);
 
-      console.log("[add-clothes] analyze request", {
-        mimeType: encodedImage.mimeType,
-        base64Length: encodedImage.base64.length,
-      });
-
       const response = await fetch(ANALYZE_CLOTHES_URL, {
         method: "POST",
         headers: {
@@ -575,18 +549,13 @@ export default function AddClothesScreen() {
 
       const analysis = await response.json();
 
-      console.log("[add-clothes] analyze response", {
-        hasCleanImage: Boolean(analysis.cleanImageBase64),
-        cleanImageLength: analysis.cleanImageBase64?.length || 0,
-      });
-
       setAnalysis(analysis);
       setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
       setSelectedStyleTags(normalizeStyleTags(analysis.styleTags, analysis.style));
       setSelectedSize(DEFAULT_SIZE);
       setSelectedProductCandidate(null);
     } catch (error) {
-      console.log("옷 분석 실패:", error);
+      console.error("옷 분석 실패:", error);
       Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
     } finally {
       setIsSaving(false);
@@ -612,7 +581,7 @@ export default function AddClothesScreen() {
           savedCount += 1;
         } catch (error) {
           failedCount += 1;
-          console.log("[add-clothes] batch item failed", {
+          console.error("[add-clothes] batch item failed", {
             index: index + 1,
             uri: selectedImage.uri,
             error,
@@ -675,7 +644,7 @@ export default function AddClothesScreen() {
 
       router.replace("/closet");
     } catch (error) {
-      console.log("옷 저장 실패:", error);
+      console.error("옷 저장 실패:", error);
       Alert.alert("저장 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
     } finally {
       setIsSaving(false);
