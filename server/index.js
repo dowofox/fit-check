@@ -589,7 +589,7 @@ function hasProductSizeMeasurements(sizeMeasurement) {
 }
 
 function logInvalidSizeRow(reason, row, normalizedRow) {
-  if (process.env.NODE_ENV === "production") return;
+  if (process.env.NODE_ENV === "production" || process.env.DEBUG_SIZE_GUIDE !== "true") return;
 
   console.log("[extract-product] skip invalid size row", {
     reason,
@@ -668,6 +668,17 @@ const SIZE_CANDIDATE_KEYWORDS = [
   "productNo",
 ];
 
+const EXCLUDED_SIZE_PATH_KEYWORDS = [
+  "badge",
+  "event",
+  "campaign",
+  "banner",
+  "benefit",
+  "promotion",
+  "review",
+  "logistics",
+];
+
 function isMusinsaProductUrl(productUrl) {
   try {
     return new URL(productUrl).hostname.includes("musinsa.com");
@@ -692,6 +703,11 @@ function extractMusinsaProductId(productUrl) {
 function hasSizeCandidateKeyword(value) {
   const normalized = String(value || "").toLowerCase();
   return SIZE_CANDIDATE_KEYWORDS.some((keyword) => normalized.includes(keyword.toLowerCase()));
+}
+
+function isExcludedSizePathKey(key) {
+  const normalizedKey = String(key || "").toLowerCase();
+  return EXCLUDED_SIZE_PATH_KEYWORDS.some((keyword) => normalizedKey.includes(keyword));
 }
 
 function getJsonSample(value) {
@@ -728,6 +744,8 @@ function collectSizeCandidateEntries(value, path = "", depth = 0, entries = []) 
   if (isEventBannerObject(value)) return entries;
 
   for (const [key, child] of Object.entries(value)) {
+    if (isExcludedSizePathKey(key)) continue;
+
     const childPath = path ? `${path}.${key}` : key;
 
     if (hasSizeCandidateKeyword(key)) {
@@ -766,7 +784,8 @@ function findSizeGuideInJson(value, depth = 0) {
   }
 
   if (typeof value === "object") {
-    for (const child of Object.values(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      if (isExcludedSizePathKey(key)) continue;
       if (!child || typeof child !== "object") continue;
       const found = findSizeGuideInJson(child, depth + 1);
       if (found) return found;
@@ -846,64 +865,6 @@ function extractProductSizeGuideFromTables(html) {
   return undefined;
 }
 
-function getScriptCandidates(html, productUrl) {
-  return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
-    .map((match, index) => {
-      const attrs = match[1] || "";
-      const body = match[2] || "";
-      const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
-      const src = srcMatch?.[1] ? resolveProductImageUrl(srcMatch[1], productUrl) : "";
-      const searchableText = `${attrs} ${src} ${body}`;
-
-      if (!hasSizeCandidateKeyword(searchableText)) return null;
-
-      return {
-        index,
-        src,
-        hasInlineBody: Boolean(body.trim()),
-        sample: stripHtml(searchableText).slice(0, 500),
-      };
-    })
-    .filter(Boolean)
-    .slice(0, 20);
-}
-
-function getSizeUrlCandidates(html, productUrl) {
-  const urlMatches = html.matchAll(/(?:"|')((?:https?:)?\/\/[^"']+|\/[^"']+)(?:"|')/gi);
-  const seenUrls = new Set();
-  const candidates = [];
-
-  for (const match of urlMatches) {
-    const rawUrl = match[1];
-    if (!hasSizeCandidateKeyword(rawUrl)) continue;
-
-    const absoluteUrl = resolveProductImageUrl(rawUrl, productUrl);
-    if (seenUrls.has(absoluteUrl)) continue;
-
-    seenUrls.add(absoluteUrl);
-    candidates.push(absoluteUrl);
-
-    if (candidates.length >= 20) break;
-  }
-
-  return candidates;
-}
-
-function getMusinsaApiUrlCandidates(productId) {
-  if (!productId) return [];
-
-  return [
-    `https://www.musinsa.com/app/goods/${productId}/0`,
-    `https://www.musinsa.com/api/goods/v1/goods/${productId}`,
-    `https://www.musinsa.com/api/goods/${productId}`,
-    `https://goods-detail.musinsa.com/api/goods/${productId}`,
-    `https://goods-detail.musinsa.com/api/goods/${productId}/detail`,
-    `https://goods-detail.musinsa.com/api/goods/${productId}/option`,
-    `https://goods-detail.musinsa.com/api/goods/${productId}/size`,
-    `https://goods-detail.musinsa.com/api/goods/${productId}/measurement`,
-  ];
-}
-
 function parseJsonScriptContent(content) {
   const trimmedContent = decodeHtmlEntities(content || "").trim();
   if (!trimmedContent) return null;
@@ -950,13 +911,85 @@ const GOODS_CONTENTS_KEYWORDS = [
   "허벅지",
   "밑위",
   "밑단",
+  "cm",
   "실측",
-  "사이즈",
 ];
 
-function getMusinsaGoodsContents(parsedScripts) {
+const MUSINSA_DIRECT_SIZE_PATHS = [
+  "goodsContents",
+  "goodsSize",
+  "size",
+  "sizeInfo",
+  "sizeInfos",
+  "sizeGuide",
+  "measurement",
+  "measurements",
+  "option",
+  "options",
+  "goodsOption",
+  "goodsOptions",
+];
+
+function getMusinsaMetaData(parsedScripts) {
   const nextData = parsedScripts.find((script) => script.source === "__NEXT_DATA__")?.data;
-  return nextData?.props?.pageProps?.meta?.data?.goodsContents;
+  return nextData?.props?.pageProps?.meta?.data;
+}
+
+function serializeDebugPreview(value, maxLength = 1000) {
+  try {
+    return JSON.stringify(value).slice(0, maxLength);
+  } catch {
+    return String(value || "").slice(0, maxLength);
+  }
+}
+
+function hasMeasurementKeywords(value) {
+  const serializedValue = serializeDebugPreview(value, Number.MAX_SAFE_INTEGER).toLowerCase();
+  return GOODS_CONTENTS_KEYWORDS.some((keyword) => serializedValue.includes(keyword.toLowerCase()));
+}
+
+function logMusinsaDirectSizePaths(data) {
+  if (process.env.NODE_ENV === "production" || process.env.DEBUG_SIZE_GUIDE !== "true") return;
+
+  const goodsContents = data?.goodsContents;
+  console.log("[extract-product] goodsContents debug", {
+    type: typeof goodsContents,
+    isArray: Array.isArray(goodsContents),
+    preview: serializeDebugPreview(goodsContents),
+  });
+
+  for (const path of MUSINSA_DIRECT_SIZE_PATHS) {
+    const value = data?.[path];
+    console.log("[extract-product] size path debug", {
+      path,
+      type: typeof value,
+      isArray: Array.isArray(value),
+      length: Array.isArray(value) || typeof value === "string" ? value.length : undefined,
+      hasMeasurementKeywords: hasMeasurementKeywords(value),
+      preview: serializeDebugPreview(value),
+    });
+  }
+}
+
+function findMusinsaDirectSizeGuide(data) {
+  for (const path of MUSINSA_DIRECT_SIZE_PATHS) {
+    if (isExcludedSizePathKey(path)) continue;
+
+    const value = data?.[path];
+    if (value == null || !hasMeasurementKeywords(value)) continue;
+
+    const jsonSizeGuide = findSizeGuideInJson(value);
+    if (jsonSizeGuide) return { productSizeGuide: jsonSizeGuide, source: `__NEXT_DATA__.${path}` };
+
+    if (typeof value === "string") {
+      const tableSizeGuide = extractProductSizeGuideFromTables(value);
+      if (tableSizeGuide) {
+        return { productSizeGuide: tableSizeGuide, source: `__NEXT_DATA__.${path}` };
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function getKeywordContext(value, keywords, contextLength = 1000) {
@@ -1035,18 +1068,14 @@ async function inspectMusinsaSizeSources({ html, productUrl, productId }) {
   }
 
   const parsedScripts = extractJsonDataFromScripts(html);
-  const goodsContents = getMusinsaGoodsContents(parsedScripts);
-  const goodsContentsContext = getKeywordContext(goodsContents, GOODS_CONTENTS_KEYWORDS);
+  const data = getMusinsaMetaData(parsedScripts);
+  const goodsContents = data?.goodsContents;
+  const goodsContentsContext = getKeywordContext(goodsContents, GOODS_CONTENTS_KEYWORDS, 1000);
   const detailImageUrls = [...collectDetailImageUrls(goodsContents, productUrl)];
-  const goodsContentsType = Array.isArray(goodsContents)
-    ? "array"
-    : goodsContents === null
-      ? "null"
-      : typeof goodsContents;
 
   console.log("[extract-product] musinsa goodsContents", {
     found: goodsContents != null,
-    type: goodsContentsType,
+    type: typeof goodsContents,
     matchedKeywords: goodsContentsContext?.matchedKeywords || [],
     context: goodsContentsContext?.context || "none",
   });
@@ -1105,57 +1134,36 @@ async function inspectMusinsaSizeSources({ html, productUrl, productId }) {
   return apiResults.find((result) => result.productSizeGuide);
 }
 
-function logMusinsaSizeExploration({
-  productUrl,
-  productId,
-  scriptCandidates,
-  urlCandidates,
-  apiUrlCandidates,
-  sizeCandidateEntries,
-}) {
-  if (
-    process.env.NODE_ENV === "production" ||
-    process.env.DEBUG_SIZE_GUIDE !== "true" ||
-    !isMusinsaProductUrl(productUrl)
-  ) {
-    return;
-  }
-
-  console.log("[extract-product] musinsa product id", {
-    productId: productId || "not-found",
-  });
-  console.log("[extract-product] size candidate keys", {
-    keys: sizeCandidateEntries.map((entry) => entry.key),
-  });
-  console.log("[extract-product] size candidate samples", {
-    scriptCandidates,
-    urlCandidates,
-    apiUrlCandidates,
-    samples: sizeCandidateEntries.slice(0, 8),
-  });
-}
-
 function extractProductSizeGuide(html, productUrl = "") {
-  const productId = isMusinsaProductUrl(productUrl) ? extractMusinsaProductId(productUrl) : "";
-  const scriptCandidates = isMusinsaProductUrl(productUrl) ? getScriptCandidates(html, productUrl) : [];
-  const urlCandidates = isMusinsaProductUrl(productUrl) ? getSizeUrlCandidates(html, productUrl) : [];
-  const apiUrlCandidates = isMusinsaProductUrl(productUrl) ? getMusinsaApiUrlCandidates(productId) : [];
+  const isMusinsa = isMusinsaProductUrl(productUrl);
+  const productId = isMusinsa ? extractMusinsaProductId(productUrl) : "";
   const parsedScripts = extractJsonDataFromScripts(html);
   const sizeCandidateEntries = [];
+
+  if (isMusinsa) {
+    const data = getMusinsaMetaData(parsedScripts);
+    logMusinsaDirectSizePaths(data);
+
+    const directSizeGuide = findMusinsaDirectSizeGuide(data);
+    if (directSizeGuide) {
+      return {
+        ...directSizeGuide,
+        productId,
+      };
+    }
+
+    const tableSizeGuide = extractProductSizeGuideFromTables(html);
+    return {
+      productSizeGuide: tableSizeGuide,
+      source: tableSizeGuide ? "table" : "",
+      productId,
+    };
+  }
 
   for (const parsedScript of parsedScripts) {
     collectSizeCandidateEntries(parsedScript.data, parsedScript.source, 0, sizeCandidateEntries);
     const found = findSizeGuideInJson(parsedScript.data);
     if (found) {
-      logMusinsaSizeExploration({
-        productUrl,
-        productId,
-        scriptCandidates,
-        urlCandidates,
-        apiUrlCandidates,
-        sizeCandidateEntries,
-      });
-
       return {
         productSizeGuide: found,
         source: parsedScript.source,
@@ -1174,15 +1182,6 @@ function extractProductSizeGuide(html, productUrl = "") {
       collectSizeCandidateEntries(parsed, "json-ld", 0, sizeCandidateEntries);
       const found = findSizeGuideInJson(parsed);
       if (found) {
-        logMusinsaSizeExploration({
-          productUrl,
-          productId,
-          scriptCandidates,
-          urlCandidates,
-          apiUrlCandidates,
-          sizeCandidateEntries,
-        });
-
         return { productSizeGuide: found, source: "json", productId };
       }
     } catch {
@@ -1191,14 +1190,6 @@ function extractProductSizeGuide(html, productUrl = "") {
   }
 
   const tableSizeGuide = extractProductSizeGuideFromTables(html);
-  logMusinsaSizeExploration({
-    productUrl,
-    productId,
-    scriptCandidates,
-    urlCandidates,
-    apiUrlCandidates,
-    sizeCandidateEntries,
-  });
 
   return {
     productSizeGuide: tableSizeGuide,
