@@ -1,4 +1,5 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
+import { openProductSearch } from "@/utils/productSearch";
 import {
   ClosetItem,
   ConfirmedProduct,
@@ -639,24 +640,6 @@ function getMatchingItemQueries(item: ClosetItem) {
   }
 
   return ["미니멀 셔츠", "와이드 데님팬츠", "아이보리 스니커즈"];
-}
-
-async function openProductSearch(provider: "naver" | "musinsa" | "google", query: string) {
-  if (!query) return;
-
-  const encodedQuery = encodeURIComponent(query);
-  const urls = {
-    naver: `https://search.shopping.naver.com/search/all?query=${encodedQuery}`,
-    musinsa: `https://www.musinsa.com/search/musinsa/integration?q=${encodedQuery}`,
-    google: `https://www.google.com/search?q=${encodedQuery}`,
-  };
-
-  try {
-    await Linking.openURL(urls[provider]);
-  } catch (error) {
-    console.error("상품 검색 열기 실패:", error);
-    Alert.alert("검색 실패", "검색 페이지를 열지 못했어요. 다시 시도해주세요.");
-  }
 }
 
 function MatchingItemSearchCard({ item }: { item: ClosetItem }) {

@@ -1,5 +1,10 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
+import { openProductSearch } from "@/utils/productSearch";
+import {
+  getRecommendedShoppingItems,
+  RecommendedShoppingItem,
+} from "@/utils/shoppingRecommend";
 import {
   ClosetItem,
   getClosetItems,
@@ -303,8 +308,93 @@ function RecommendationCard({
   );
 }
 
+const SHOPPING_PRIORITY_LABELS = {
+  high: "우선 추천",
+  medium: "추천",
+  low: "여유 있을 때",
+} as const;
+
+function ShoppingRecommendationSection({ items }: { items: RecommendedShoppingItem[] }) {
+  return (
+    <View style={styles.shoppingSection}>
+      <View style={styles.shoppingSectionHeader}>
+        <View style={styles.shoppingSectionIcon}>
+          <Feather name="shopping-bag" size={17} color={colors.point} />
+        </View>
+        <View style={styles.shoppingSectionHeaderText}>
+          <Text style={styles.shoppingSectionTitle}>지금 옷장에 부족한 아이템</Text>
+          <Text style={styles.shoppingSectionDescription}>
+            현재 옷장의 구성과 스타일을 기준으로 골랐어요.
+          </Text>
+        </View>
+      </View>
+
+      {items.length === 0 ? (
+        <View style={styles.shoppingEmptyCard}>
+          <Feather name="check-circle" size={19} color={colors.point} />
+          <Text style={styles.shoppingEmptyText}>
+            현재 옷장 균형이 좋아요. 더 많은 옷을 등록하면 추천이 정교해져요.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.shoppingList}>
+          {items.map((item) => (
+            <View key={item.id} style={styles.shoppingCard}>
+              <View style={styles.shoppingCardHeader}>
+                <View style={styles.shoppingCardTitleArea}>
+                  <Text style={styles.shoppingCategory}>{item.category}</Text>
+                  <Text style={styles.shoppingTitle}>{item.title}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.shoppingPriorityBadge,
+                    item.priority === "high" && styles.shoppingPriorityBadgeHigh,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.shoppingPriorityText,
+                      item.priority === "high" && styles.shoppingPriorityTextHigh,
+                    ]}
+                  >
+                    {SHOPPING_PRIORITY_LABELS[item.priority]}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.shoppingReason}>{item.reason}</Text>
+
+              <View style={styles.shoppingSearchRow}>
+                <Pressable
+                  style={styles.shoppingSearchButton}
+                  onPress={() => openProductSearch("musinsa", item.searchQuery)}
+                >
+                  <Text style={styles.shoppingSearchButtonText}>무신사에서 찾기</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.shoppingSearchButton}
+                  onPress={() => openProductSearch("naver", item.searchQuery)}
+                >
+                  <Text style={styles.shoppingSearchButtonText}>네이버에서 찾기</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.shoppingSearchButton}
+                  onPress={() => openProductSearch("google", item.searchQuery)}
+                >
+                  <Text style={styles.shoppingSearchButtonText}>구글에서 찾기</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function OutfitRecommendScreen() {
   const [recommendations, setRecommendations] = useState<OutfitRecommendation[]>([]);
+  const [shoppingRecommendations, setShoppingRecommendations] = useState<RecommendedShoppingItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
 
@@ -325,6 +415,7 @@ export default function OutfitRecommendScreen() {
     );
 
     setRecommendations(recommendationResult.recommendations);
+    setShoppingRecommendations(getRecommendedShoppingItems(items));
     setEmptyMessage(
       recommendationResult.hasAnyRecommendation && recommendationResult.recommendations.length === 0
         ? SAVED_ONLY_EMPTY_MESSAGE
@@ -409,6 +500,8 @@ export default function OutfitRecommendScreen() {
             ))}
           </View>
         )}
+
+        {isLoaded ? <ShoppingRecommendationSection items={shoppingRecommendations} /> : null}
       </ScrollView>
       <BottomNav activeTab="outfit" />
     </View>
@@ -905,5 +998,131 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: "700",
     textAlign: "center",
+  },
+  shoppingSection: {
+    marginTop: 22,
+  },
+  shoppingSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  shoppingSectionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: colors.softCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shoppingSectionHeaderText: {
+    flex: 1,
+  },
+  shoppingSectionTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "800",
+    marginBottom: 3,
+  },
+  shoppingSectionDescription: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "500",
+  },
+  shoppingList: {
+    gap: 10,
+  },
+  shoppingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+  },
+  shoppingCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 9,
+  },
+  shoppingCardTitleArea: {
+    flex: 1,
+  },
+  shoppingCategory: {
+    color: colors.point,
+    fontSize: 10,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  shoppingTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  shoppingPriorityBadge: {
+    backgroundColor: colors.softCard,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  shoppingPriorityBadgeHigh: {
+    backgroundColor: "#F7EBDD",
+  },
+  shoppingPriorityText: {
+    color: colors.point,
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  shoppingPriorityTextHigh: {
+    color: colors.warning,
+  },
+  shoppingReason: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+    marginBottom: 12,
+  },
+  shoppingSearchRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  shoppingSearchButton: {
+    flexGrow: 1,
+    minWidth: 92,
+    backgroundColor: colors.softCard,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shoppingSearchButtonText: {
+    color: colors.point,
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  shoppingEmptyCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  shoppingEmptyText: {
+    flex: 1,
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
   },
 });
