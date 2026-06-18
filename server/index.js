@@ -1199,9 +1199,10 @@ function extractProductSizeGuide(html, productUrl = "") {
 }
 
 function logProductSizeGuideExtraction(productSizeGuideResult) {
-  if (process.env.NODE_ENV === "production" || process.env.DEBUG_SIZE_GUIDE !== "true") return;
+  if (process.env.NODE_ENV === "production") return;
 
   const productSizeGuide = productSizeGuideResult?.productSizeGuide;
+  const isDebugEnabled = process.env.DEBUG_SIZE_GUIDE === "true";
   const sizeGuideSummary = {
     found: Boolean(productSizeGuide),
     source: productSizeGuideResult?.source || "none",
@@ -1209,9 +1210,16 @@ function logProductSizeGuideExtraction(productSizeGuideResult) {
     sizes: productSizeGuide?.sizes?.map((sizeInfo) => sizeInfo.size) || [],
   };
 
+  if (!productSizeGuide) {
+    if (isDebugEnabled) {
+      console.log("[extract-product] productSizeGuide", sizeGuideSummary);
+    }
+    return;
+  }
+
   console.log("[extract-product] productSizeGuide", sizeGuideSummary);
 
-  if (productSizeGuide) {
+  if (isDebugEnabled) {
     console.log("[extract-product] productSizeGuide detail", JSON.stringify(productSizeGuide, null, 2));
   }
 }
