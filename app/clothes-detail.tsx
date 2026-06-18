@@ -2154,13 +2154,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  sizeGuideEmptyText: {
-    color: "#777064",
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-
   productSearchArea: {
     borderTopWidth: 1,
     borderTopColor: "#eee7dd",

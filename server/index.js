@@ -1199,7 +1199,7 @@ function extractProductSizeGuide(html, productUrl = "") {
 }
 
 function logProductSizeGuideExtraction(productSizeGuideResult) {
-  if (process.env.NODE_ENV === "production") return;
+  if (process.env.NODE_ENV === "production" || process.env.DEBUG_SIZE_GUIDE !== "true") return;
 
   const productSizeGuide = productSizeGuideResult?.productSizeGuide;
   const sizeGuideSummary = {
@@ -1211,7 +1211,7 @@ function logProductSizeGuideExtraction(productSizeGuideResult) {
 
   console.log("[extract-product] productSizeGuide", sizeGuideSummary);
 
-  if (process.env.DEBUG_SIZE_GUIDE === "true" && productSizeGuide) {
+  if (productSizeGuide) {
     console.log("[extract-product] productSizeGuide detail", JSON.stringify(productSizeGuide, null, 2));
   }
 }
@@ -1538,25 +1538,37 @@ app.post("/extract-product", async (req, res) => {
         "og:image:secure_url",
       ]);
       const productImageUrl = resolveProductImageUrl(productImageMeta.value, parsedUrl.toString());
-      let productSizeGuideResult = extractProductSizeGuide(html, parsedUrl.toString());
+      const isProductSizeGuideEnabled = process.env.ENABLE_PRODUCT_SIZE_GUIDE === "true";
+      const isProductSizeGuideDebugEnabled = process.env.DEBUG_SIZE_GUIDE === "true";
+      let productSizeGuideResult = {
+        productSizeGuide: undefined,
+        source: "disabled",
+        productId: "",
+      };
 
-      if (!productSizeGuideResult.productSizeGuide && productSizeGuideResult.productId) {
-        const apiSizeGuideResult = await inspectMusinsaSizeSources({
-          html,
-          productUrl: parsedUrl.toString(),
-          productId: productSizeGuideResult.productId,
-        });
+      if (isProductSizeGuideEnabled || isProductSizeGuideDebugEnabled) {
+        productSizeGuideResult = extractProductSizeGuide(html, parsedUrl.toString());
 
-        if (apiSizeGuideResult?.productSizeGuide) {
-          productSizeGuideResult = {
-            ...productSizeGuideResult,
-            productSizeGuide: apiSizeGuideResult.productSizeGuide,
-            source: `api:${apiSizeGuideResult.url}`,
-          };
+        if (!productSizeGuideResult.productSizeGuide && productSizeGuideResult.productId) {
+          const apiSizeGuideResult = await inspectMusinsaSizeSources({
+            html,
+            productUrl: parsedUrl.toString(),
+            productId: productSizeGuideResult.productId,
+          });
+
+          if (apiSizeGuideResult?.productSizeGuide) {
+            productSizeGuideResult = {
+              ...productSizeGuideResult,
+              productSizeGuide: apiSizeGuideResult.productSizeGuide,
+              source: `api:${apiSizeGuideResult.url}`,
+            };
+          }
         }
       }
 
-      const productSizeGuide = productSizeGuideResult.productSizeGuide;
+      const productSizeGuide = isProductSizeGuideEnabled
+        ? productSizeGuideResult.productSizeGuide
+        : undefined;
       logProductSizeGuideExtraction(productSizeGuideResult);
 
       const extractedBrand = brand || mallName || "";
