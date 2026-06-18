@@ -638,6 +638,7 @@ function normalizeProductSizeGuide(productSizeGuide) {
       : [];
 
   const sizes = rawSizes
+    .filter((row) => !isEventBannerObject(row))
     .map((row) => normalizeProductSizeMeasurement(row))
     .filter((row) => {
       if (!row) return false;
@@ -702,6 +703,17 @@ function getJsonSample(value) {
   }
 }
 
+function isEventBannerObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+
+  return (
+    Object.prototype.hasOwnProperty.call(value, "eventBannerId") ||
+    Object.prototype.hasOwnProperty.call(value, "bannerTitle") ||
+    Object.prototype.hasOwnProperty.call(value, "landingUrl") ||
+    Object.prototype.hasOwnProperty.call(value, "exposeContents")
+  );
+}
+
 function collectSizeCandidateEntries(value, path = "", depth = 0, entries = []) {
   if (!value || depth > 8 || entries.length >= 20) return entries;
 
@@ -713,6 +725,7 @@ function collectSizeCandidateEntries(value, path = "", depth = 0, entries = []) 
   }
 
   if (typeof value !== "object") return entries;
+  if (isEventBannerObject(value)) return entries;
 
   for (const [key, child] of Object.entries(value)) {
     const childPath = path ? `${path}.${key}` : key;
@@ -736,6 +749,7 @@ function collectSizeCandidateEntries(value, path = "", depth = 0, entries = []) 
 
 function findSizeGuideInJson(value, depth = 0) {
   if (!value || depth > 6) return undefined;
+  if (isEventBannerObject(value)) return undefined;
 
   const directNormalized = normalizeProductSizeGuide(value);
   if (directNormalized) return directNormalized;
@@ -926,14 +940,26 @@ function extractJsonDataFromScripts(html) {
   return parsedScripts;
 }
 
-const GOODS_CONTENTS_KEYWORDS = ["총장", "어깨", "가슴", "소매", "실측", "사이즈"];
+const GOODS_CONTENTS_KEYWORDS = [
+  "총장",
+  "어깨",
+  "가슴",
+  "소매",
+  "허리",
+  "엉덩이",
+  "허벅지",
+  "밑위",
+  "밑단",
+  "실측",
+  "사이즈",
+];
 
 function getMusinsaGoodsContents(parsedScripts) {
   const nextData = parsedScripts.find((script) => script.source === "__NEXT_DATA__")?.data;
   return nextData?.props?.pageProps?.meta?.data?.goodsContents;
 }
 
-function getKeywordContext(value, keywords, contextLength = 500) {
+function getKeywordContext(value, keywords, contextLength = 1000) {
   let serializedValue = "";
 
   try {
@@ -943,20 +969,20 @@ function getKeywordContext(value, keywords, contextLength = 500) {
   }
 
   const text = stripHtml(serializedValue);
-  const matchedKeyword = keywords.find((keyword) => text.includes(keyword));
+  const matchedKeywords = keywords.filter((keyword) => text.includes(keyword));
 
-  if (!matchedKeyword) return null;
+  if (matchedKeywords.length === 0) return null;
 
-  const keywordIndex = text.indexOf(matchedKeyword);
+  const keywordIndex = Math.min(...matchedKeywords.map((keyword) => text.indexOf(keyword)));
   const start = Math.max(0, keywordIndex - Math.floor(contextLength / 2));
   return {
-    keyword: matchedKeyword,
+    matchedKeywords,
     context: text.slice(start, start + contextLength),
   };
 }
 
 function collectDetailImageUrls(value, productUrl, urls = new Set(), depth = 0) {
-  if (value == null || depth > 10 || urls.size >= 12) return urls;
+  if (value == null || depth > 10 || urls.size >= 10) return urls;
 
   if (typeof value === "string") {
     const urlMatches = value.matchAll(
@@ -966,7 +992,7 @@ function collectDetailImageUrls(value, productUrl, urls = new Set(), depth = 0) 
     for (const match of urlMatches) {
       const absoluteUrl = resolveProductImageUrl(match[0], productUrl);
       if (absoluteUrl) urls.add(absoluteUrl);
-      if (urls.size >= 12) break;
+      if (urls.size >= 10) break;
     }
 
     return urls;
@@ -978,6 +1004,8 @@ function collectDetailImageUrls(value, productUrl, urls = new Set(), depth = 0) 
   }
 
   if (typeof value === "object") {
+    if (isEventBannerObject(value)) return urls;
+
     Object.values(value).forEach((child) =>
       collectDetailImageUrls(child, productUrl, urls, depth + 1),
     );
@@ -1010,10 +1038,16 @@ async function inspectMusinsaSizeSources({ html, productUrl, productId }) {
   const goodsContents = getMusinsaGoodsContents(parsedScripts);
   const goodsContentsContext = getKeywordContext(goodsContents, GOODS_CONTENTS_KEYWORDS);
   const detailImageUrls = [...collectDetailImageUrls(goodsContents, productUrl)];
+  const goodsContentsType = Array.isArray(goodsContents)
+    ? "array"
+    : goodsContents === null
+      ? "null"
+      : typeof goodsContents;
 
   console.log("[extract-product] musinsa goodsContents", {
     found: goodsContents != null,
-    matchedKeyword: goodsContentsContext?.keyword || "none",
+    type: goodsContentsType,
+    matchedKeywords: goodsContentsContext?.matchedKeywords || [],
     context: goodsContentsContext?.context || "none",
   });
   console.log("[extract-product] musinsa detail image urls", detailImageUrls);
