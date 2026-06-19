@@ -128,6 +128,8 @@ export type ClosetItem = {
   description?: string;
   matchTip?: string;
   avoidTip?: string;
+  wearCount?: number;
+  lastWornAt?: string;
   createdAt: string;
 };
 
@@ -270,12 +272,32 @@ export async function updateClosetItem(id: string, updatedItem: Partial<ClosetIt
   }
 }
 
-export async function saveOutfit(outfit: SavedOutfit) {
+export async function saveOutfit(outfit: SavedOutfit, updateWearHistory = false) {
   try {
     const savedOutfits = await getSavedOutfits();
     const updatedOutfits = [outfit, ...savedOutfits];
 
-    await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits));
+    if (updateWearHistory) {
+      const closet = await getClosetItems();
+      const wornItemIds = new Set(outfit.itemIds);
+      const wornAt = new Date().toISOString();
+      const updatedCloset = closet.map((item) =>
+        wornItemIds.has(item.id)
+          ? {
+              ...item,
+              wearCount: (item.wearCount || 0) + 1,
+              lastWornAt: wornAt,
+            }
+          : item
+      );
+
+      await AsyncStorage.multiSet([
+        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+        [CLOSET_KEY, JSON.stringify(updatedCloset)],
+      ]);
+    } else {
+      await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits));
+    }
 
     return updatedOutfits;
   } catch (error) {
