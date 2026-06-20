@@ -983,10 +983,23 @@ function getRotationScore(items: ClosetItem[], reasons: string[]) {
   const score = Math.round(
     itemScores.reduce((total, itemScore) => total + itemScore, 0) / itemScores.length
   );
-  const normalizedScore = Math.max(-10, Math.min(10, score));
+  const preferenceAdjustment = items.reduce((adjustment, item) => {
+    if (item.recommendationPreference === "prefer") return adjustment + 5;
+    if (item.recommendationPreference === "less") return adjustment - 10;
+    return adjustment;
+  }, 0);
+  const normalizedScore = Math.max(-20, Math.min(20, score + preferenceAdjustment));
+  const hasPreferredItem = items.some((item) => item.recommendationPreference === "prefer");
+  const hasLessPreferredItem = items.some((item) => item.recommendationPreference === "less");
 
-  if (normalizedScore >= 5 && hasLongUnwornItem) {
-    reasons.push("최근 착용하지 않은 아이템을 우선 반영해 옷장 회전율을 높였어요.");
+  if (hasPreferredItem) {
+    reasons.push("자주 추천으로 설정한 아이템을 이번 조합에 우선 반영했어요.");
+  }
+
+  if (hasLessPreferredItem) {
+    reasons.push("잠시 덜 추천으로 설정한 아이템은 추천 우선순위를 낮췄어요.");
+  } else if (normalizedScore >= 5 && hasLongUnwornItem) {
+    reasons.push("최근 코디 저장에 덜 포함된 아이템을 우선 반영해 추천 구성을 다양하게 했어요.");
   } else if (normalizedScore <= -5 && (hasRecentlyWornItem || hasFrequentlyWornItem)) {
     reasons.push("최근 자주 저장한 옷은 추천 우선순위를 낮췄어요.");
   }

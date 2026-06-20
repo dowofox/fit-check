@@ -65,6 +65,7 @@ type ConfirmedProductDraftTextField =
   | "price";
 
 type ExtractedProduct = ConfirmedProductDraft;
+type RecommendationPreference = NonNullable<ClosetItem["recommendationPreference"]>;
 
 const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
   brand: "",
@@ -115,6 +116,14 @@ const STYLE_OPTIONS = [
 ];
 
 const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
+const RECOMMENDATION_PREFERENCE_OPTIONS: {
+  value: RecommendationPreference;
+  label: string;
+}[] = [
+  { value: "prefer", label: "자주 추천" },
+  { value: "normal", label: "기본" },
+  { value: "less", label: "잠시 덜 추천" },
+];
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const STYLE_TAG_OPTIONS = [
   "미니멀",
@@ -697,6 +706,59 @@ function MatchingItemSearchCard({ item }: { item: ClosetItem }) {
   );
 }
 
+function RecommendationPreferenceCard({
+  value,
+  isSaving,
+  onSelect,
+}: {
+  value: RecommendationPreference;
+  isSaving: boolean;
+  onSelect: (value: RecommendationPreference) => void;
+}) {
+  return (
+    <View style={styles.recommendationPreferenceCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="sliders" size={16} color="#8c6f47" />
+        </View>
+        <View style={styles.recommendationPreferenceHeaderText}>
+          <Text style={styles.tipTitle}>추천 조절</Text>
+          <Text style={styles.aiDetailSubtitle}>
+            이 설정은 코디 추천에서 이 옷이 나오는 빈도를 조절해요.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.recommendationPreferenceOptions}>
+        {RECOMMENDATION_PREFERENCE_OPTIONS.map((option) => {
+          const isActive = value === option.value;
+
+          return (
+            <Pressable
+              key={option.value}
+              style={[
+                styles.recommendationPreferenceButton,
+                isActive && styles.recommendationPreferenceButtonActive,
+              ]}
+              onPress={() => onSelect(option.value)}
+              disabled={isSaving}
+            >
+              <Text
+                style={[
+                  styles.recommendationPreferenceButtonText,
+                  isActive && styles.recommendationPreferenceButtonTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function ConfirmedProductCard({
   item,
   profile,
@@ -1114,6 +1176,7 @@ export default function ClothesDetailScreen() {
   const [isExtractingProduct, setIsExtractingProduct] = useState(false);
   const [extractErrorMessage, setExtractErrorMessage] = useState("");
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
+  const [isSavingRecommendationPreference, setIsSavingRecommendationPreference] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -1201,6 +1264,30 @@ export default function ClothesDetailScreen() {
     } catch (error) {
       console.error("옷 정보 수정 실패:", error);
       Alert.alert("수정 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
+    }
+  }
+
+  async function handleRecommendationPreferenceChange(preference: RecommendationPreference) {
+    if (!item || isSavingRecommendationPreference) return;
+
+    try {
+      setIsSavingRecommendationPreference(true);
+      const updatedCloset = await updateClosetItem(item.id, {
+        recommendationPreference: preference,
+      });
+      const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
+
+      if (!updatedItem) {
+        Alert.alert("저장 실패", "추천 설정을 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      setItem(updatedItem);
+    } catch (error) {
+      console.error("추천 설정 저장 실패:", error);
+      Alert.alert("저장 실패", "추천 설정을 저장하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setIsSavingRecommendationPreference(false);
     }
   }
 
@@ -1512,6 +1599,14 @@ export default function ClothesDetailScreen() {
                 </>
               )}
             </View>
+
+            {!editMode && (
+              <RecommendationPreferenceCard
+                value={item.recommendationPreference || "normal"}
+                isSaving={isSavingRecommendationPreference}
+                onSelect={handleRecommendationPreferenceChange}
+              />
+            )}
 
             {!editMode && <AiDetailCard item={item} />}
 
@@ -1837,6 +1932,53 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee7dd",
     marginBottom: 12,
+  },
+
+  recommendationPreferenceCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  recommendationPreferenceHeaderText: {
+    flex: 1,
+  },
+
+  recommendationPreferenceOptions: {
+    flexDirection: "row",
+    gap: 7,
+    marginTop: 14,
+  },
+
+  recommendationPreferenceButton: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 14,
+    backgroundColor: "#f4eee7",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 7,
+  },
+
+  recommendationPreferenceButtonActive: {
+    backgroundColor: "#111",
+    borderColor: "#111",
+  },
+
+  recommendationPreferenceButtonText: {
+    color: "#777064",
+    fontSize: 11,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  recommendationPreferenceButtonTextActive: {
+    color: "#fff",
   },
 
   sizeMatchCard: {

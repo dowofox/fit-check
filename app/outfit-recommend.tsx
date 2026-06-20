@@ -451,7 +451,7 @@ export default function OutfitRecommendScreen() {
     }, true);
 
     if (updatedOutfits.length === 0) {
-      Alert.alert("저장 실패", "코디와 착용 기록을 저장하지 못했어요. 다시 시도해주세요.");
+      Alert.alert("저장 실패", "코디를 저장하지 못했어요. 다시 시도해주세요.");
       return;
     }
 

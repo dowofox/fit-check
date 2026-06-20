@@ -130,6 +130,7 @@ export type ClosetItem = {
   avoidTip?: string;
   wearCount?: number;
   lastWornAt?: string;
+  recommendationPreference?: "normal" | "prefer" | "less";
   createdAt: string;
 };
 
