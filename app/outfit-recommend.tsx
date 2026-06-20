@@ -37,6 +37,14 @@ const SAVED_ONLY_EMPTY_MESSAGE = {
   text: "저장한 코디와 겹치지 않는 조합을 만들려면 옷을 더 추가해보세요.",
 };
 
+const GRADE_LABELS: Record<OutfitRecommendation["grade"], string> = {
+  S: "완성도 높은 추천",
+  A: "좋은 추천",
+  B: "무난한 추천",
+  C: "참고용",
+  D: "비추천",
+};
+
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
@@ -126,6 +134,7 @@ function RecommendationCard({
 
         <View style={styles.scoreBadge}>
           <Text style={styles.scoreText}>{recommendation.grade} {recommendation.score}점</Text>
+          <Text style={styles.scoreGradeLabel}>{GRADE_LABELS[recommendation.grade]}</Text>
         </View>
       </View>
 
@@ -252,7 +261,7 @@ function RecommendationCard({
               <View style={styles.alternativeHeader}>
                 <Text style={styles.alternativeEyebrow}>VERSION {alternativeIndex + 1}</Text>
                 <Text style={styles.alternativeTitle}>
-                  {alternative.grade} 등급 · {alternative.score}점
+                  {alternative.grade} · {GRADE_LABELS[alternative.grade]} · {alternative.score}점
                 </Text>
                 <Text style={styles.alternativeSummary}>
                   {getCategorySummary(alternative.items)}
@@ -624,20 +633,27 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   scoreBadge: {
-    minWidth: 60,
-    height: 30,
-    borderRadius: 999,
+    minWidth: 88,
+    minHeight: 42,
+    borderRadius: 14,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 8,
+    paddingVertical: 5,
   },
   scoreText: {
     color: colors.text,
     fontSize: 12,
     fontWeight: "900",
+  },
+  scoreGradeLabel: {
+    color: colors.subText,
+    fontSize: 9,
+    fontWeight: "700",
+    marginTop: 2,
   },
   scoreUnit: {
     color: colors.inactiveTab,

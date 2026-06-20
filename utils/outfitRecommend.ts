@@ -301,10 +301,10 @@ function getSockRecommendation(
 }
 
 function getGrade(score: number): OutfitRecommendation["grade"] {
-  if (score >= 90) return "S";
-  if (score >= 80) return "A";
+  if (score >= 92) return "S";
+  if (score >= 82) return "A";
   if (score >= 70) return "B";
-  if (score >= 60) return "C";
+  if (score >= 55) return "C";
   return "D";
 }
 
@@ -890,24 +890,53 @@ function getSizeWarnings(
     .filter(Boolean);
 }
 
-function getWarningPenalty(warnings: string[]) {
-  return warnings.reduce((totalPenalty, warning) => {
-    const isImportantWarning = [
-      "신발",
-      "부해",
-      "산만",
-      "복잡",
-      "작을 수",
-      "답답",
-      "과해",
-      "계절",
-      "충돌",
-      "색상",
-      "어색",
-    ].some((keyword) => warning.includes(keyword));
+function isImportantWarning(warning: string) {
+  return [
+    "신발",
+    "부해",
+    "산만",
+    "복잡",
+    "작을 수",
+    "답답",
+    "과해",
+    "계절",
+    "충돌",
+    "색상",
+    "어색",
+  ].some((keyword) => warning.includes(keyword));
+}
 
-    return totalPenalty + (isImportantWarning ? 6 : 3);
-  }, 0);
+function getWarningPenalty(warnings: string[]) {
+  return warnings.reduce(
+    (totalPenalty, warning) => totalPenalty + (isImportantWarning(warning) ? 6 : 3),
+    0
+  );
+}
+
+function applyScoreCaps(
+  score: number,
+  warnings: string[],
+  reasons: string[],
+  breakdown: OutfitRecommendation["breakdown"]
+) {
+  let maximumScore = 100;
+
+  if (warnings.length >= 1) maximumScore = Math.min(maximumScore, 88);
+  if (warnings.length >= 2) maximumScore = Math.min(maximumScore, 82);
+  if (warnings.some(isImportantWarning)) maximumScore = Math.min(maximumScore, 78);
+  if (reasons.length < 3) maximumScore = Math.min(maximumScore, 78);
+
+  const isExceptionalCombination =
+    warnings.length === 0 &&
+    reasons.length >= 4 &&
+    breakdown.category >= 25 &&
+    breakdown.style >= 23 &&
+    breakdown.color >= 20 &&
+    breakdown.fit >= 16;
+
+  if (!isExceptionalCombination) maximumScore = Math.min(maximumScore, 89);
+
+  return Math.min(maximumScore, Math.max(0, Math.round(score)));
 }
 
 function getVersatilityScore(items: ClosetItem[], reasons: string[], warnings: string[]) {
@@ -1124,7 +1153,16 @@ function applyWeatherAdjustment(
     }
   }
 
-  const score = Math.min(100, Math.max(0, recommendation.score + weatherScore));
+  const breakdown = {
+    ...recommendation.breakdown,
+    weather: weatherScore,
+  };
+  const score = applyScoreCaps(
+    recommendation.score + weatherScore,
+    warnings,
+    reasons,
+    breakdown
+  );
 
   return {
     ...recommendation,
@@ -1132,10 +1170,7 @@ function applyWeatherAdjustment(
     grade: getGrade(score),
     reasons,
     warnings,
-    breakdown: {
-      ...recommendation.breakdown,
-      weather: weatherScore,
-    },
+    breakdown,
   };
 }
 
@@ -1193,8 +1228,33 @@ function buildRecommendation(
   }
 
   const warningPenalty = getWarningPenalty(warnings);
-  const rawScore = category + style + color + fit + versatility + rotation + optional;
-  const score = Math.min(100, Math.max(0, rawScore - warningPenalty));
+  const breakdown: OutfitRecommendation["breakdown"] = {
+    category,
+    style,
+    color,
+    fit,
+    weather: 0,
+    versatility,
+    rotation,
+    optional,
+  };
+  const optionalBonus = Math.min(3, Math.round(optional * 0.375));
+  const versatilityAdjustment = Math.round(versatility * 0.4);
+  const rotationAdjustment = Math.round(rotation * 0.2);
+  const rawScore =
+    category +
+    style +
+    color +
+    fit +
+    optionalBonus +
+    versatilityAdjustment +
+    rotationAdjustment;
+  const score = applyScoreCaps(
+    rawScore - warningPenalty,
+    warnings,
+    reasons,
+    breakdown
+  );
   const display = getRecommendationDisplay(items, currentSeason);
   const recommendedShoes = getRecommendedShoes(items);
   const sockRecommendation = getSockRecommendation(items, recommendedShoes);
@@ -1215,16 +1275,7 @@ function buildRecommendation(
     penalty: warningPenalty,
     reasons,
     warnings,
-    breakdown: {
-      category,
-      style,
-      color,
-      fit,
-      weather: 0,
-      versatility,
-      rotation,
-      optional,
-    },
+    breakdown,
   };
 }
 
