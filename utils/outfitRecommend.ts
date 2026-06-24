@@ -869,6 +869,7 @@ function getFitScore(top: ClosetItem, bottom: ClosetItem, reasons: string[], war
 }
 
 type ResolvedGarmentProfile = {
+  source: "measurement" | "impression" | "fallback";
   silhouette: NonNullable<GarmentProfile["silhouette"]>;
   volume: number;
   visualWeight: number;
@@ -998,22 +999,40 @@ function getMeasuredLengthBalance(
   return "regular";
 }
 
-function getResolvedGarmentProfile(item: ClosetItem): ResolvedGarmentProfile {
+function getResolvedGarmentProfile(
+  item: ClosetItem,
+  useImpression = true
+): ResolvedGarmentProfile {
   const explicitProfile = item.garmentProfile;
+  const impressionProfile = useImpression ? explicitProfile : undefined;
+  const currentMeasurement = getCurrentSizeMeasurement(item);
   const measuredVolume = getMeasuredVolume(item);
+  const source: ResolvedGarmentProfile["source"] = currentMeasurement
+    ? "measurement"
+    : explicitProfile
+      ? "impression"
+      : "fallback";
   const fallbackSilhouette = getFallbackSilhouette(item);
   const silhouette =
-    item.category === "하의" && measuredVolume !== undefined
-      ? measuredVolume >= 7
-        ? "wide"
-        : measuredVolume <= 2
-          ? "slim"
-          : fallbackSilhouette
-      : fallbackSilhouette;
+    measuredVolume !== undefined
+      ? item.category === "하의"
+        ? measuredVolume >= 7
+          ? "wide"
+          : measuredVolume <= 2
+            ? "slim"
+            : fallbackSilhouette
+        : measuredVolume >= 8
+          ? "oversized"
+          : measuredVolume >= 6
+            ? "semiOversized"
+            : measuredVolume <= 2
+              ? "slim"
+              : fallbackSilhouette
+      : impressionProfile?.silhouette || fallbackSilhouette;
   const lengthBalance =
     getMeasuredLengthBalance(item) ||
     getFallbackLengthBalance(item, silhouette);
-  const structure = explicitProfile?.structure || getFallbackStructure(item);
+  const structure = impressionProfile?.structure || getFallbackStructure(item);
   const text = getGarmentSearchText(item);
   const defaultVolume: Record<ResolvedGarmentProfile["silhouette"], number> = {
     slim: 2,
@@ -1035,24 +1054,45 @@ function getResolvedGarmentProfile(item: ClosetItem): ResolvedGarmentProfile {
     (item.graphicDetected && String(item.graphicSize || "").includes("큼") ? 2 : 0);
   const baseVolume = measuredVolume ?? defaultVolume[silhouette];
   const impressionVolume =
-    typeof explicitProfile?.volume === "number" ? explicitProfile.volume : baseVolume;
+    typeof impressionProfile?.volume === "number" ? impressionProfile.volume : baseVolume;
   const basePointLevel = Math.min(10, fallbackPointLevel);
   const impressionPointLevel =
-    typeof explicitProfile?.pointLevel === "number"
-      ? explicitProfile.pointLevel
+    typeof impressionProfile?.pointLevel === "number"
+      ? impressionProfile.pointLevel
       : basePointLevel;
 
   return {
+    source,
     silhouette,
     volume: Math.round(baseVolume * 0.75 + impressionVolume * 0.25),
-    visualWeight: explicitProfile?.visualWeight ?? Math.min(10, defaultVisualWeight),
+    visualWeight: impressionProfile?.visualWeight ?? Math.min(10, defaultVisualWeight),
     lengthBalance,
     pointLevel: Math.round(basePointLevel * 0.75 + impressionPointLevel * 0.25),
     structure,
     drape:
-      explicitProfile?.drape ||
+      impressionProfile?.drape ||
       (structure === "soft" ? "high" : structure === "stiff" ? "low" : "medium"),
   };
+}
+
+function getSourceWeight(source: ResolvedGarmentProfile["source"]) {
+  if (source === "measurement") return 1;
+  if (source === "impression") return 0.5;
+  return 0.25;
+}
+
+function blendScoreBySource(
+  score: number,
+  neutralScore: number,
+  maximumScore: number,
+  sources: ResolvedGarmentProfile["source"][]
+) {
+  const averageWeight =
+    sources.reduce((total, source) => total + getSourceWeight(source), 0) /
+    Math.max(1, sources.length);
+  const blendedScore = neutralScore + (score - neutralScore) * averageWeight;
+
+  return Math.max(0, Math.min(maximumScore, Math.round(blendedScore)));
 }
 
 function getSilhouetteScore(
@@ -1130,7 +1170,12 @@ function getSilhouetteScore(
     score += impressionSupportsBalance ? 1 : 0;
   }
 
-  return Math.max(0, Math.min(35, score));
+  return blendScoreBySource(
+    score,
+    25,
+    35,
+    [topProfile.source, bottomProfile.source]
+  );
 }
 
 function getWearFitBalanceScore(
@@ -1140,8 +1185,8 @@ function getWearFitBalanceScore(
   reasons: string[],
   warnings: string[]
 ) {
-  const topProfile = getResolvedGarmentProfile(top);
-  const bottomProfile = getResolvedGarmentProfile(bottom);
+  const topProfile = getResolvedGarmentProfile(top, false);
+  const bottomProfile = getResolvedGarmentProfile(bottom, false);
   const volumeDifference = Math.abs(topProfile.volume - bottomProfile.volume);
   const bodyType = profile?.bodyType || "";
   let score = 18;
@@ -1183,7 +1228,13 @@ function getWearFitBalanceScore(
     warnings.push("현재 체형 정보에서는 하의 볼륨이 하체를 더 무겁게 보이게 할 수 있어요.");
   }
 
-  return Math.max(0, Math.min(25, score));
+  const measurementCount = [topProfile, bottomProfile].filter(
+    (itemProfile) => itemProfile.source === "measurement"
+  ).length;
+  const measurementWeight = 0.25 + measurementCount * 0.375;
+  const weightedScore = 18 + (score - 18) * measurementWeight;
+
+  return Math.max(0, Math.min(25, Math.round(weightedScore)));
 }
 
 function getPointBalanceScore(
@@ -1191,25 +1242,53 @@ function getPointBalanceScore(
   reasons: string[],
   warnings: string[]
 ) {
-  const profiles = items.map(getResolvedGarmentProfile);
-  const strongPointItems = profiles.filter((profile) => profile.pointLevel >= 7);
-  const totalPointLevel = profiles.reduce((total, profile) => total + profile.pointLevel, 0);
+  const profiles = items.map((item) => getResolvedGarmentProfile(item));
+  const weightedPointLevels = profiles.map((profile) => {
+    const neutralPointLevel = 4;
+    return neutralPointLevel +
+      (profile.pointLevel - neutralPointLevel) * getSourceWeight(profile.source);
+  });
+  const strongPointItems = weightedPointLevels.filter((pointLevel) => pointLevel >= 7);
+  const totalPointLevel = weightedPointLevels.reduce(
+    (total, pointLevel) => total + pointLevel,
+    0
+  );
 
   if (strongPointItems.length === 0 && totalPointLevel <= items.length * 4) {
     reasons.push("포인트 강도가 낮아 다른 요소와 충돌하지 않는 안정적인 조합이에요.");
-    return 13;
+    return blendScoreBySource(
+      13,
+      10,
+      15,
+      profiles.map((profile) => profile.source)
+    );
   }
   if (strongPointItems.length === 1) {
     reasons.push("포인트 아이템은 하나만 두고 나머지를 차분하게 받쳐 시선이 정돈돼요.");
-    return 15;
+    return blendScoreBySource(
+      15,
+      10,
+      15,
+      profiles.map((profile) => profile.source)
+    );
   }
   if (strongPointItems.length === 2) {
     warnings.push("포인트가 강한 아이템이 두 개라 실제 착용 시 조금 복잡해 보일 수 있어요.");
-    return 8;
+    return blendScoreBySource(
+      8,
+      10,
+      15,
+      profiles.map((profile) => profile.source)
+    );
   }
 
   warnings.push("포인트가 강한 아이템이 많아 코디의 중심이 분산될 수 있어요.");
-  return 3;
+  return blendScoreBySource(
+    3,
+    10,
+    15,
+    profiles.map((profile) => profile.source)
+  );
 }
 
 function getColorSupportScore(
@@ -1293,11 +1372,19 @@ function getWarningPenalty(warnings: string[]) {
   );
 }
 
+function getCoreMeasurementSourceCount(items: ClosetItem[]) {
+  return items
+    .filter((item) => item.category === "상의" || item.category === "하의")
+    .filter((item) => getResolvedGarmentProfile(item).source === "measurement")
+    .length;
+}
+
 function applyScoreCaps(
   score: number,
   warnings: string[],
   reasons: string[],
-  breakdown: OutfitRecommendation["breakdown"]
+  breakdown: OutfitRecommendation["breakdown"],
+  measurementSourceCount: number
 ) {
   let maximumScore = 100;
 
@@ -1308,8 +1395,11 @@ function applyScoreCaps(
   if (breakdown.silhouette < 22) maximumScore = Math.min(maximumScore, 75);
   if (breakdown.wearFit < 16) maximumScore = Math.min(maximumScore, 78);
   if (breakdown.pointBalance < 9) maximumScore = Math.min(maximumScore, 82);
+  if (measurementSourceCount === 0) maximumScore = Math.min(maximumScore, 82);
+  if (measurementSourceCount === 1) maximumScore = Math.min(maximumScore, 88);
 
   const isExceptionalCombination =
+    measurementSourceCount === 2 &&
     warnings.length === 0 &&
     reasons.length >= 4 &&
     breakdown.silhouette >= 32 &&
@@ -1550,7 +1640,8 @@ function applyWeatherAdjustment(
     recommendation.score + weatherBreakdownScore - recommendation.breakdown.weather,
     warnings,
     reasons,
-    breakdown
+    breakdown,
+    getCoreMeasurementSourceCount(recommendation.items)
   );
 
   return {
@@ -1577,7 +1668,25 @@ function buildRecommendation(
 
   const reasons: string[] = [];
   const warnings = getSizeWarnings(items, profile, fitSuitabilityCache);
+  const topProfileSource = getResolvedGarmentProfile(top).source;
+  const bottomProfileSource = getResolvedGarmentProfile(bottom).source;
+  const measurementSourceCount = [topProfileSource, bottomProfileSource].filter(
+    (source) => source === "measurement"
+  ).length;
   const isSeasonMatched = items.every((item) => isSeasonAllowed(item, currentSeason, warnings));
+
+  if (measurementSourceCount === 2) {
+    reasons.push("상품 실측을 기준으로 상하의 실루엣 균형을 봤어요.");
+  } else if (measurementSourceCount === 1) {
+    reasons.push("한 아이템은 상품 실측을 사용하고, 나머지는 보수적인 추정값으로 판단했어요.");
+  } else if (
+    topProfileSource === "impression" ||
+    bottomProfileSource === "impression"
+  ) {
+    reasons.push("실측이 없어 사진상 의류 인상으로 보수적으로 판단했어요.");
+  } else {
+    reasons.push("실측과 사진 분석값이 없어 옷 종류와 설명만으로 보수적으로 판단했어요.");
+  }
 
   if (!isSeasonMatched) {
     warnings.push(`${currentSeason} 기준으로 계절감이 맞지 않는 아이템이 포함되어 점수를 낮게 봤어요.`);
@@ -1625,7 +1734,8 @@ function buildRecommendation(
     rawScore - warningPenalty,
     warnings,
     reasons,
-    breakdown
+    breakdown,
+    measurementSourceCount
   );
   const display = getRecommendationDisplay(items, currentSeason);
   const recommendedShoes = getRecommendedShoes(items);
