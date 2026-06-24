@@ -3,6 +3,7 @@ import { openProductSearch } from "@/utils/productSearch";
 import {
   ClosetItem,
   ConfirmedProduct,
+  GarmentProfile,
   getClosetItems,
   getDisplayImageUri,
   getUserProfile,
@@ -588,6 +589,97 @@ function StyleProfileCard({ item }: { item: ClosetItem }) {
             <Text style={styles.styleProfileValue} numberOfLines={3}>
               {row.value}
             </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const SILHOUETTE_LABELS: Record<NonNullable<GarmentProfile["silhouette"]>, string> = {
+  slim: "슬림",
+  regular: "레귤러",
+  semiOversized: "세미오버",
+  oversized: "오버사이즈",
+  wide: "와이드",
+  cropped: "크롭",
+  long: "롱",
+};
+
+const LENGTH_BALANCE_LABELS: Record<NonNullable<GarmentProfile["lengthBalance"]>, string> = {
+  short: "짧음",
+  regular: "기본",
+  long: "김",
+};
+
+const STRUCTURE_LABELS: Record<NonNullable<GarmentProfile["structure"]>, string> = {
+  soft: "부드러움",
+  normal: "보통",
+  stiff: "각이 잡힘",
+};
+
+const DRAPE_LABELS: Record<NonNullable<GarmentProfile["drape"]>, string> = {
+  low: "낮음",
+  medium: "보통",
+  high: "높음",
+};
+
+function GarmentProfileCard({ item }: { item: ClosetItem }) {
+  const profile = item.garmentProfile;
+  if (!profile) return null;
+
+  const rows = [
+    {
+      label: "실루엣",
+      value: profile.silhouette ? SILHOUETTE_LABELS[profile.silhouette] : "",
+    },
+    {
+      label: "볼륨감",
+      value: typeof profile.volume === "number" ? `${profile.volume} / 10` : "",
+    },
+    {
+      label: "기장감",
+      value: profile.lengthBalance ? LENGTH_BALANCE_LABELS[profile.lengthBalance] : "",
+    },
+    {
+      label: "포인트 강도",
+      value: typeof profile.pointLevel === "number" ? `${profile.pointLevel} / 10` : "",
+    },
+    {
+      label: "시각적 무게감",
+      value: typeof profile.visualWeight === "number" ? `${profile.visualWeight} / 10` : "",
+    },
+    {
+      label: "소재 구조감",
+      value: profile.structure ? STRUCTURE_LABELS[profile.structure] : "",
+    },
+    {
+      label: "드레이프감",
+      value: profile.drape ? DRAPE_LABELS[profile.drape] : "",
+    },
+  ].filter((row) => row.value);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <View style={styles.styleProfileCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="maximize-2" size={16} color="#8c6f47" />
+        </View>
+        <View>
+          <Text style={styles.tipTitle}>실착 프로필</Text>
+          <Text style={styles.aiDetailSubtitle}>
+            옷의 실루엣과 실제 착용 균형을 판단하는 기준이에요.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.styleProfileGrid}>
+        {rows.map((row) => (
+          <View key={row.label} style={styles.styleProfilePill}>
+            <Text style={styles.styleProfileLabel}>{row.label}</Text>
+            <Text style={styles.styleProfileValue}>{row.value}</Text>
           </View>
         ))}
       </View>
@@ -1612,6 +1704,7 @@ export default function ClothesDetailScreen() {
 
             {!editMode && <AnalysisQualityCard item={item} />}
 
+            {!editMode && <GarmentProfileCard item={item} />}
             {!editMode && <StyleProfileCard item={item} />}
 
             {!editMode && item.confirmedProduct && (

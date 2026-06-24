@@ -1,5 +1,5 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
-import { ClosetItem, UserProfile } from "@/utils/storage";
+import { ClosetItem, GarmentProfile, UserProfile } from "@/utils/storage";
 
 export type OutfitRecommendation = {
   id: string;
@@ -24,14 +24,13 @@ export type OutfitRecommendation = {
   reasons: string[];
   warnings: string[];
   breakdown: {
-    category: number;
-    style: number;
-    color: number;
-    fit: number;
+    silhouette: number;
+    wearFit: number;
+    pointBalance: number;
+    colorSupport: number;
+    styleSupport: number;
     weather: number;
-    versatility: number;
     rotation: number;
-    optional: number;
   };
 };
 
@@ -869,6 +868,391 @@ function getFitScore(top: ClosetItem, bottom: ClosetItem, reasons: string[], war
   return Math.max(0, Math.min(20, score));
 }
 
+type ResolvedGarmentProfile = {
+  silhouette: NonNullable<GarmentProfile["silhouette"]>;
+  volume: number;
+  visualWeight: number;
+  lengthBalance: NonNullable<GarmentProfile["lengthBalance"]>;
+  fitIntent: NonNullable<GarmentProfile["fitIntent"]>;
+  pointLevel: number;
+  structure: NonNullable<GarmentProfile["structure"]>;
+  drape: NonNullable<GarmentProfile["drape"]>;
+};
+
+function getGarmentSearchText(item: ClosetItem) {
+  return [
+    item.category,
+    item.subCategory,
+    item.detailCategory,
+    item.fit,
+    item.description,
+    item.material,
+    item.styleProfile?.fit,
+    item.styleProfile?.silhouette,
+    item.styleProfile?.lengthType,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getFallbackSilhouette(item: ClosetItem): ResolvedGarmentProfile["silhouette"] {
+  const text = getGarmentSearchText(item);
+
+  if (includesAny(text, ["크롭", "짧은 기장", "cropped"])) return "cropped";
+  if (includesAny(text, ["세미오버", "세미 오버", "semi oversized"])) return "semiOversized";
+  if (includesAny(text, ["오버핏", "오버사이즈", "루즈", "oversized"])) return "oversized";
+  if (includesAny(text, ["와이드", "배기", "wide"])) return "wide";
+  if (includesAny(text, ["슬림", "스키니", "타이트", "slim"])) return "slim";
+  if (includesAny(text, ["롱", "긴 기장", "맥시", "long"])) return "long";
+
+  return "regular";
+}
+
+function getFallbackLengthBalance(
+  item: ClosetItem,
+  silhouette: ResolvedGarmentProfile["silhouette"]
+): ResolvedGarmentProfile["lengthBalance"] {
+  const text = getGarmentSearchText(item);
+
+  if (silhouette === "cropped" || includesAny(text, ["크롭", "숏", "짧은 기장"])) return "short";
+  if (silhouette === "long" || includesAny(text, ["롱", "맥시", "긴 기장"])) return "long";
+  return "regular";
+}
+
+function getFallbackStructure(item: ClosetItem): ResolvedGarmentProfile["structure"] {
+  const text = getGarmentSearchText(item);
+
+  if (includesAny(text, ["데님", "가죽", "레더", "캔버스", "테일러드", "블레이저"])) {
+    return "stiff";
+  }
+  if (includesAny(text, ["니트", "린넨", "레이온", "실크", "저지", "부드러운"])) {
+    return "soft";
+  }
+  return "normal";
+}
+
+function normalizeMeasurementSize(size?: string) {
+  return String(size || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+}
+
+function getCurrentSizeMeasurement(item: ClosetItem) {
+  const sizeGuide = item.confirmedProduct?.productSizeGuide;
+  const itemSize = normalizeMeasurementSize(item.size);
+
+  if (!sizeGuide?.sizes?.length || !itemSize) return undefined;
+  return sizeGuide.sizes.find(
+    (measurement) => normalizeMeasurementSize(measurement.size) === itemSize
+  );
+}
+
+function getMeasuredVolume(item: ClosetItem) {
+  const measurement = getCurrentSizeMeasurement(item);
+  if (!measurement) return undefined;
+
+  if (item.category === "상의" || item.category === "아우터") {
+    if (typeof measurement.chest !== "number") return undefined;
+    if (measurement.chest >= 62) return 8;
+    if (measurement.chest >= 57) return 6;
+    if (measurement.chest <= 50) return 2;
+    return 4;
+  }
+
+  if (item.category === "하의") {
+    if (
+      (typeof measurement.thigh === "number" && measurement.thigh >= 35) ||
+      (typeof measurement.hem === "number" && measurement.hem >= 26)
+    ) {
+      return 8;
+    }
+    if (
+      typeof measurement.thigh === "number" &&
+      measurement.thigh <= 28 &&
+      typeof measurement.hem === "number" &&
+      measurement.hem <= 19
+    ) {
+      return 2;
+    }
+  }
+
+  return undefined;
+}
+
+function getMeasuredLengthBalance(
+  item: ClosetItem
+): ResolvedGarmentProfile["lengthBalance"] | undefined {
+  const totalLength = getCurrentSizeMeasurement(item)?.totalLength;
+  if (typeof totalLength !== "number") return undefined;
+
+  if (item.category === "상의" || item.category === "아우터") {
+    if (totalLength <= 58) return "short";
+    if (totalLength >= 75) return "long";
+  }
+  if (item.category === "하의") {
+    if (totalLength <= 90) return "short";
+    if (totalLength >= 105) return "long";
+  }
+
+  return "regular";
+}
+
+function getResolvedGarmentProfile(item: ClosetItem): ResolvedGarmentProfile {
+  const explicitProfile = item.garmentProfile;
+  const measuredVolume = getMeasuredVolume(item);
+  const fallbackSilhouette = getFallbackSilhouette(item);
+  const silhouette =
+    item.category === "하의" && measuredVolume !== undefined
+      ? measuredVolume >= 7
+        ? "wide"
+        : measuredVolume <= 2
+          ? "slim"
+          : explicitProfile?.silhouette || fallbackSilhouette
+      : explicitProfile?.silhouette || fallbackSilhouette;
+  const lengthBalance =
+    getMeasuredLengthBalance(item) ||
+    explicitProfile?.lengthBalance ||
+    getFallbackLengthBalance(item, silhouette);
+  const structure = explicitProfile?.structure || getFallbackStructure(item);
+  const text = getGarmentSearchText(item);
+  const defaultVolume: Record<ResolvedGarmentProfile["silhouette"], number> = {
+    slim: 2,
+    regular: 4,
+    semiOversized: 6,
+    oversized: 8,
+    wide: 8,
+    cropped: 4,
+    long: 6,
+  };
+  const defaultVisualWeight =
+    structure === "stiff" || includesAny(text, ["패딩", "코트", "울", "두꺼운"])
+      ? 7
+      : structure === "soft"
+        ? 4
+        : 5;
+  const fallbackPointLevel =
+    (isPointItem(item) ? 6 : 2) +
+    (item.graphicDetected && String(item.graphicSize || "").includes("큼") ? 2 : 0);
+
+  return {
+    silhouette,
+    volume: measuredVolume ?? explicitProfile?.volume ?? defaultVolume[silhouette],
+    visualWeight: explicitProfile?.visualWeight ?? Math.min(10, defaultVisualWeight),
+    lengthBalance,
+    fitIntent:
+      explicitProfile?.fitIntent ||
+      (silhouette === "oversized"
+        ? "oversized"
+        : silhouette === "semiOversized" || silhouette === "wide"
+          ? "relaxed"
+          : structure === "stiff"
+            ? "structured"
+            : "trueToSize"),
+    pointLevel: explicitProfile?.pointLevel ?? Math.min(10, fallbackPointLevel),
+    structure,
+    drape:
+      explicitProfile?.drape ||
+      (structure === "soft" ? "high" : structure === "stiff" ? "low" : "medium"),
+  };
+}
+
+function getSilhouetteScore(
+  top: ClosetItem,
+  bottom: ClosetItem,
+  reasons: string[],
+  warnings: string[]
+) {
+  const topProfile = getResolvedGarmentProfile(top);
+  const bottomProfile = getResolvedGarmentProfile(bottom);
+  const topLoose = ["semiOversized", "oversized"].includes(topProfile.silhouette);
+  const bottomWide = bottomProfile.silhouette === "wide";
+  const bottomSlim = bottomProfile.silhouette === "slim";
+  let score = 25;
+
+  if (topProfile.silhouette === "cropped" && bottomWide) {
+    score = 35;
+    reasons.push("짧은 상의와 와이드 하의가 만나 상하 비율과 실루엣 균형이 좋아요.");
+  } else if (topLoose && bottomWide) {
+    score = topProfile.silhouette === "semiOversized" ? 34 : 31;
+    reasons.push(
+      topProfile.silhouette === "semiOversized"
+        ? "상의가 세미오버핏이라 와이드 하의와 실루엣 균형이 좋아요."
+        : "여유 있는 상의와 와이드 하의가 자연스러운 볼륨 흐름을 만들어요."
+    );
+  } else if (["slim", "regular"].includes(topProfile.silhouette) && bottomWide) {
+    score = 32;
+    reasons.push("상체는 정돈되고 하체에 여유가 있어 실루엣 대비가 안정적이에요.");
+  } else if (topLoose && bottomSlim) {
+    score = 19;
+    warnings.push("상의 볼륨에 비해 하의가 지나치게 슬림해 상하 균형이 끊겨 보일 수 있어요.");
+  } else if (
+    topProfile.lengthBalance === "long" &&
+    bottomProfile.lengthBalance === "long"
+  ) {
+    score = 18;
+    warnings.push("상의와 하의 기장이 모두 길어 전체 비율이 무겁고 답답해 보일 수 있어요.");
+  } else if (
+    topProfile.silhouette === "regular" &&
+    ["regular", "slim"].includes(bottomProfile.silhouette)
+  ) {
+    score = 29;
+    reasons.push("상의와 하의의 기본 실루엣이 정돈되어 무난하게 이어져요.");
+  }
+
+  if (
+    topProfile.volume >= 7 &&
+    bottomProfile.volume >= 7 &&
+    topProfile.lengthBalance !== "short"
+  ) {
+    score -= 8;
+    warnings.push("두 아이템 모두 볼륨이 커서 전체 실루엣이 부해 보일 수 있어요.");
+  }
+
+  const visualWeightDifference = Math.abs(
+    topProfile.visualWeight - bottomProfile.visualWeight
+  );
+  if (visualWeightDifference <= 2) {
+    score += 2;
+    reasons.push("상의와 하의의 시각적 무게감이 비슷해 한쪽으로 치우치지 않아요.");
+  } else if (visualWeightDifference >= 6) {
+    score -= 5;
+    warnings.push("상의와 하의의 시각적 무게감 차이가 커서 조합이 따로 보일 수 있어요.");
+  } else if (topProfile.visualWeight >= 7 && bottomProfile.pointLevel <= 4) {
+    reasons.push("상의의 시각적 무게감이 강해서 하의는 단순한 실루엣으로 받쳐주는 조합이에요.");
+  }
+
+  return Math.max(0, Math.min(35, score));
+}
+
+function getWearFitBalanceScore(
+  top: ClosetItem,
+  bottom: ClosetItem,
+  profile: UserProfile | null | undefined,
+  reasons: string[],
+  warnings: string[]
+) {
+  const topProfile = getResolvedGarmentProfile(top);
+  const bottomProfile = getResolvedGarmentProfile(bottom);
+  const volumeDifference = Math.abs(topProfile.volume - bottomProfile.volume);
+  const bodyType = profile?.bodyType || "";
+  let score = 18;
+
+  if (volumeDifference <= 3) {
+    score += 3;
+    reasons.push("상하의 볼륨 차이가 과하지 않아 실제로 입었을 때 연결감이 좋아요.");
+  } else if (volumeDifference >= 6) {
+    score -= 4;
+    warnings.push("상하의 볼륨 차이가 커서 실제 착용 시 한쪽만 과장되어 보일 수 있어요.");
+  }
+
+  if (topProfile.lengthBalance === "short" && bottomProfile.lengthBalance === "long") {
+    score += 3;
+  }
+  if (topProfile.lengthBalance === "long" && bottomProfile.lengthBalance === "long") {
+    score -= 4;
+  }
+  if (topProfile.structure === "stiff" && bottomProfile.structure === "stiff") {
+    score -= 2;
+    warnings.push("상하의가 모두 각이 강해 움직임이 딱딱하고 무거워 보일 수 있어요.");
+  } else if (topProfile.drape === "high" || bottomProfile.drape === "high") {
+    score += 1;
+  }
+  if (topProfile.fitIntent === "oversized" && topProfile.volume >= 6) {
+    score += 1;
+  } else if (topProfile.fitIntent === "oversized" && topProfile.volume <= 4) {
+    score -= 2;
+    warnings.push("의도한 오버핏에 비해 상의 실측 볼륨이 작아 원하는 착용감이 약할 수 있어요.");
+  }
+  if (
+    topProfile.fitIntent === "structured" &&
+    topProfile.structure === "stiff"
+  ) {
+    score += 1;
+  }
+
+  if (
+    (bodyType.includes("상체") || bodyType.includes("역삼각")) &&
+    topProfile.volume >= 7
+  ) {
+    score -= 2;
+    warnings.push("현재 체형 정보에서는 상의 볼륨이 상체를 더 크게 보이게 할 수 있어요.");
+  }
+  if (
+    (bodyType.includes("하체") || bodyType.includes("삼각")) &&
+    bottomProfile.volume >= 8
+  ) {
+    score -= 2;
+    warnings.push("현재 체형 정보에서는 하의 볼륨이 하체를 더 무겁게 보이게 할 수 있어요.");
+  }
+
+  return Math.max(0, Math.min(25, score));
+}
+
+function getPointBalanceScore(
+  items: ClosetItem[],
+  reasons: string[],
+  warnings: string[]
+) {
+  const profiles = items.map(getResolvedGarmentProfile);
+  const strongPointItems = profiles.filter((profile) => profile.pointLevel >= 7);
+  const totalPointLevel = profiles.reduce((total, profile) => total + profile.pointLevel, 0);
+
+  if (strongPointItems.length === 0 && totalPointLevel <= items.length * 4) {
+    reasons.push("포인트 강도가 낮아 다른 요소와 충돌하지 않는 안정적인 조합이에요.");
+    return 13;
+  }
+  if (strongPointItems.length === 1) {
+    reasons.push("포인트 아이템은 하나만 두고 나머지를 차분하게 받쳐 시선이 정돈돼요.");
+    return 15;
+  }
+  if (strongPointItems.length === 2) {
+    warnings.push("포인트가 강한 아이템이 두 개라 실제 착용 시 조금 복잡해 보일 수 있어요.");
+    return 8;
+  }
+
+  warnings.push("포인트가 강한 아이템이 많아 코디의 중심이 분산될 수 있어요.");
+  return 3;
+}
+
+function getColorSupportScore(
+  items: ClosetItem[],
+  reasons: string[],
+  warnings: string[]
+) {
+  const colorReasons: string[] = [];
+  const colorWarnings: string[] = [];
+  const rawColorScore = getColorScore(items, colorReasons, colorWarnings);
+
+  reasons.push(...colorReasons.slice(0, 1));
+  warnings.push(...colorWarnings);
+  return Math.max(0, Math.min(10, Math.round(rawColorScore * 0.4)));
+}
+
+function getStyleSupportScore(
+  items: ClosetItem[],
+  reasons: string[],
+  warnings: string[]
+) {
+  const styleReasons: string[] = [];
+  const styleWarnings: string[] = [];
+  const rawStyleScore = getBaseStyleScore(items, styleReasons, styleWarnings);
+
+  reasons.push(...styleReasons.slice(0, 1));
+  warnings.push(...styleWarnings);
+  return Math.max(0, Math.min(5, Math.round(rawStyleScore / 5)));
+}
+
+function getSeasonWeatherBaseScore(isSeasonMatched: boolean) {
+  return isSeasonMatched ? 5 : 0;
+}
+
+function getRotationBreakdownScore(items: ClosetItem[], reasons: string[]) {
+  const rawRotationScore = getRotationScore(items, reasons);
+  return Math.max(0, Math.min(5, Math.round((rawRotationScore + 20) / 8)));
+}
+
 function getSizeWarnings(
   items: ClosetItem[],
   profile?: UserProfile | null,
@@ -925,14 +1309,19 @@ function applyScoreCaps(
   if (warnings.length >= 2) maximumScore = Math.min(maximumScore, 82);
   if (warnings.some(isImportantWarning)) maximumScore = Math.min(maximumScore, 78);
   if (reasons.length < 3) maximumScore = Math.min(maximumScore, 78);
+  if (breakdown.silhouette < 22) maximumScore = Math.min(maximumScore, 75);
+  if (breakdown.wearFit < 16) maximumScore = Math.min(maximumScore, 78);
+  if (breakdown.pointBalance < 9) maximumScore = Math.min(maximumScore, 82);
 
   const isExceptionalCombination =
     warnings.length === 0 &&
     reasons.length >= 4 &&
-    breakdown.category >= 25 &&
-    breakdown.style >= 23 &&
-    breakdown.color >= 20 &&
-    breakdown.fit >= 16;
+    breakdown.silhouette >= 32 &&
+    breakdown.wearFit >= 22 &&
+    breakdown.pointBalance >= 13 &&
+    breakdown.colorSupport >= 8 &&
+    breakdown.styleSupport >= 4 &&
+    breakdown.weather >= 4;
 
   if (!isExceptionalCombination) maximumScore = Math.min(maximumScore, 89);
 
@@ -1153,12 +1542,16 @@ function applyWeatherAdjustment(
     }
   }
 
+  const weatherBreakdownScore = Math.max(
+    0,
+    Math.min(5, recommendation.breakdown.weather + Math.round(weatherScore / 4))
+  );
   const breakdown = {
     ...recommendation.breakdown,
-    weather: weatherScore,
+    weather: weatherBreakdownScore,
   };
   const score = applyScoreCaps(
-    recommendation.score + weatherScore,
+    recommendation.score + weatherBreakdownScore - recommendation.breakdown.weather,
     warnings,
     reasons,
     breakdown
@@ -1196,18 +1589,13 @@ function buildRecommendation(
     reasons.push(`${currentSeason}에 입기 좋은 계절 정보의 아이템들로 구성됐어요.`);
   }
 
-  const category = getCategoryScore(items);
-  const style = getStyleScore(items, reasons, warnings);
-  const color = getColorScore(items, reasons, warnings);
-  const fit = getFitScore(top, bottom, reasons, warnings);
-  const versatility = getVersatilityScore(items, reasons, warnings);
-  const rotation = getRotationScore(items, reasons);
-  const optional = getOptionalScore(items, currentSeason, reasons, warnings);
-  const hasSizeWarning = warnings.some((warning) =>
-    ["작을 수 있어요", "사이즈를 직접 확인해보세요", "사이즈 정보가 더 필요해요"].some((keyword) =>
-      warning.includes(keyword)
-    )
-  );
+  const silhouette = getSilhouetteScore(top, bottom, reasons, warnings);
+  const wearFit = getWearFitBalanceScore(top, bottom, profile, reasons, warnings);
+  const pointBalance = getPointBalanceScore(items, reasons, warnings);
+  const colorSupport = getColorSupportScore(items, reasons, warnings);
+  const styleSupport = getStyleSupportScore(items, reasons, warnings);
+  const weather = getSeasonWeatherBaseScore(isSeasonMatched);
+  const rotation = getRotationBreakdownScore(items, reasons);
 
   if (shoes) {
     reasons.push("신발까지 포함되어 코디 완성도는 높아요.");
@@ -1215,40 +1603,28 @@ function buildRecommendation(
     warnings.push("신발이 빠져 완성 코디로 보기 어렵고 실제 착장 완성도가 낮아요.");
   }
 
-  if (style >= 14 && color <= 10) {
-    warnings.push("스타일 방향성은 맞지만 색상이 많아 좋은 조합이라고 단정하기 어려워요.");
-  }
-
-  if (style >= 14 && fit <= 5) {
-    warnings.push("스타일은 맞아도 상하의 핏 균형이 무너질 수 있어 점수를 낮게 봤어요.");
-  }
-
-  if (style >= 14 && hasSizeWarning) {
-    warnings.push("스타일이 맞아도 사이즈 경고가 있어 실제 착용 만족도는 낮을 수 있어요.");
+  if (silhouette < 22 && colorSupport >= 8) {
+    warnings.push("색상은 안정적이지만 실루엣 균형이 약해 강한 추천은 아니에요.");
   }
 
   const warningPenalty = getWarningPenalty(warnings);
   const breakdown: OutfitRecommendation["breakdown"] = {
-    category,
-    style,
-    color,
-    fit,
-    weather: 0,
-    versatility,
+    silhouette,
+    wearFit,
+    pointBalance,
+    colorSupport,
+    styleSupport,
+    weather,
     rotation,
-    optional,
   };
-  const optionalBonus = Math.min(3, Math.round(optional * 0.375));
-  const versatilityAdjustment = Math.round(versatility * 0.4);
-  const rotationAdjustment = Math.round(rotation * 0.2);
   const rawScore =
-    category +
-    style +
-    color +
-    fit +
-    optionalBonus +
-    versatilityAdjustment +
-    rotationAdjustment;
+    silhouette +
+    wearFit +
+    pointBalance +
+    colorSupport +
+    styleSupport +
+    weather +
+    rotation;
   const score = applyScoreCaps(
     rawScore - warningPenalty,
     warnings,

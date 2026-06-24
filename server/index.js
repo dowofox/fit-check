@@ -330,6 +330,47 @@ function normalizeStyleProfile(styleProfile) {
   return hasValue ? normalized : undefined;
 }
 
+function normalizeGarmentProfile(garmentProfile) {
+  if (!garmentProfile || typeof garmentProfile !== "object") return undefined;
+
+  const normalizeEnum = (value, allowedValues) =>
+    typeof value === "string" && allowedValues.includes(value) ? value : undefined;
+  const normalizeTenPointScore = (value) => {
+    const parsedValue = Number(value);
+    return Number.isFinite(parsedValue)
+      ? Math.max(0, Math.min(10, Math.round(parsedValue)))
+      : undefined;
+  };
+
+  const normalized = {
+    silhouette: normalizeEnum(garmentProfile.silhouette, [
+      "slim",
+      "regular",
+      "semiOversized",
+      "oversized",
+      "wide",
+      "cropped",
+      "long",
+    ]),
+    volume: normalizeTenPointScore(garmentProfile.volume),
+    visualWeight: normalizeTenPointScore(garmentProfile.visualWeight),
+    lengthBalance: normalizeEnum(garmentProfile.lengthBalance, ["short", "regular", "long"]),
+    fitIntent: normalizeEnum(garmentProfile.fitIntent, [
+      "trueToSize",
+      "relaxed",
+      "oversized",
+      "structured",
+    ]),
+    pointLevel: normalizeTenPointScore(garmentProfile.pointLevel),
+    structure: normalizeEnum(garmentProfile.structure, ["soft", "normal", "stiff"]),
+    drape: normalizeEnum(garmentProfile.drape, ["low", "medium", "high"]),
+  };
+
+  return Object.values(normalized).some((value) => value !== undefined)
+    ? normalized
+    : undefined;
+}
+
 function getProfileText(profile = {}) {
   const gender = profile.gender || "미입력";
   const age = profile.age || "미입력";
@@ -1635,6 +1676,7 @@ app.post("/analyze-clothes", async (req, res) => {
         cleanImageBase64: null,
         productCandidates: [],
         styleProfile: null,
+        garmentProfile: null,
         ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
       });
     }
@@ -1726,6 +1768,16 @@ app.post("/analyze-clothes", async (req, res) => {
     "avoidPairings": ["너무 포멀한 슬랙스"],
     "temperatureRange": { "min": 10, "max": 24 }
   },
+  "garmentProfile": {
+    "silhouette": "slim / regular / semiOversized / oversized / wide / cropped / long 중 하나",
+    "volume": 0,
+    "visualWeight": 0,
+    "lengthBalance": "short / regular / long 중 하나",
+    "fitIntent": "trueToSize / relaxed / oversized / structured 중 하나",
+    "pointLevel": 0,
+    "structure": "soft / normal / stiff 중 하나",
+    "drape": "low / medium / high 중 하나"
+  },
   "description": "옷의 특징을 한 문장으로 설명",
   "matchTip": "이 옷과 잘 어울리는 조합 추천",
   "avoidTip": "피하면 좋은 조합",
@@ -1743,6 +1795,16 @@ app.post("/analyze-clothes", async (req, res) => {
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
 - styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
 - seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
+- garmentProfile은 옷의 실제 착용 실루엣과 물성을 분석하는 필드입니다.
+- silhouette은 몸에 붙는 정도, 품, 기장과 전체 외곽선을 함께 보고 가장 가까운 값을 선택하세요.
+- volume은 옷이 몸 주변에 만드는 부피감을 0~10으로 평가하세요. 0은 매우 슬림, 10은 매우 풍성한 볼륨입니다.
+- visualWeight는 두께, 색의 무게, 소재 밀도와 면적을 고려한 시각적 무게감을 0~10으로 평가하세요.
+- lengthBalance는 같은 카테고리의 일반적인 옷과 비교한 상대 기장입니다.
+- fitIntent는 정사이즈 착용, 여유로운 착용, 의도된 오버핏, 각 잡힌 구조적 착용 중 가장 가까운 값을 선택하세요.
+- pointLevel은 그래픽, 패턴, 강한 색, 독특한 구조 등 코디에서 시선을 끄는 강도를 0~10으로 평가하세요.
+- structure는 소재와 봉제 형태가 부드러운지, 보통인지, 단단하게 각이 잡히는지 평가하세요.
+- drape는 원단이 아래로 자연스럽게 흐르는 정도를 low / medium / high로 평가하세요.
+- 사진만으로 판단하기 어려운 수치는 과장하지 말고 중간값에 가깝게 보수적으로 작성하세요.
 - 브랜드는 목택, 라벨, 전면 프린트, 로고 주변 텍스트처럼 브랜드명이 사진에서 명확하게 읽히는 경우에만 brand와 confirmedBrand에 같은 브랜드명을 작성하세요.
 - 예를 들어 목택이나 전면 프린트에 "MAISON MINED"가 선명하게 보이면 brand와 confirmedBrand는 "MAISON MINED"로 작성하세요.
 - 로고나 텍스트가 흐리거나 일부만 보이거나 상징만 애매하게 보이면 brand와 confirmedBrand는 null로 작성하세요.
@@ -1795,6 +1857,7 @@ app.post("/analyze-clothes", async (req, res) => {
     const styleTags = normalizeStyleTags(parsed.styleTags, parsed.style);
     const productCandidates = normalizeProductCandidates(parsed.productCandidates);
     const styleProfile = normalizeStyleProfile(parsed.styleProfile);
+    const garmentProfile = normalizeGarmentProfile(parsed.garmentProfile);
     const logoDetected = normalizeBoolean(parsed.logoDetected);
     const brandConfidence = normalizeScore(parsed.brandConfidence);
     const confidence = normalizeConfidence(parsed.confidence);
@@ -1865,6 +1928,7 @@ app.post("/analyze-clothes", async (req, res) => {
       avoidTip: sanitizedAvoidTip,
       productCandidates,
       styleProfile,
+      garmentProfile,
       analysisWarnings,
       analysisQuality,
       cleanImageBase64,
@@ -1888,6 +1952,7 @@ app.post("/analyze-clothes", async (req, res) => {
       cleanImageBase64: null,
       productCandidates: [],
       styleProfile: null,
+      garmentProfile: null,
       ...DEFAULT_CLOTHES_DETAIL_ANALYSIS,
     });
   }

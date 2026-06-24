@@ -3,6 +3,7 @@ import type {
   AnalysisConfidence,
   AnalysisQuality,
   ConfirmedProduct,
+  GarmentProfile,
   ProductCandidate,
   ProductSizeGuide,
   StyleProfile,
@@ -118,6 +119,7 @@ type ClothesAnalysis = {
   avoidTip?: string;
   productCandidates?: ProductCandidate[];
   styleProfile?: StyleProfile;
+  garmentProfile?: GarmentProfile;
   analysisWarnings?: string[];
   analysisQuality?: AnalysisQuality;
   cleanImageBase64?: string | null;
@@ -385,6 +387,7 @@ async function saveAnalyzedClosetItem(
     size: size.trim() || DEFAULT_SIZE,
     ...getAnalysisDetailFields(analysis),
     styleProfile: analysis.styleProfile || undefined,
+    garmentProfile: analysis.garmentProfile || undefined,
     description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
     matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
     avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
@@ -632,6 +635,7 @@ export default function AddClothesScreen() {
         size: selectedSize.trim() || DEFAULT_SIZE,
         ...getAnalysisDetailFields(analysis),
         styleProfile: analysis.styleProfile || undefined,
+        garmentProfile: analysis.garmentProfile || undefined,
         description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
         matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
         avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),

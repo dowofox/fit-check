@@ -75,6 +75,17 @@ export type StyleProfile = {
   };
 };
 
+export type GarmentProfile = {
+  silhouette?: "slim" | "regular" | "semiOversized" | "oversized" | "wide" | "cropped" | "long";
+  volume?: number;
+  visualWeight?: number;
+  lengthBalance?: "short" | "regular" | "long";
+  fitIntent?: "trueToSize" | "relaxed" | "oversized" | "structured";
+  pointLevel?: number;
+  structure?: "soft" | "normal" | "stiff";
+  drape?: "low" | "medium" | "high";
+};
+
 export type AnalysisConfidence = {
   category?: number;
   color?: number;
@@ -122,6 +133,7 @@ export type ClosetItem = {
   selectedProductCandidate?: ProductCandidate;
   confirmedProduct?: ConfirmedProduct;
   styleProfile?: StyleProfile;
+  garmentProfile?: GarmentProfile;
   confidence?: AnalysisConfidence;
   analysisWarnings?: string[];
   analysisQuality?: AnalysisQuality;
