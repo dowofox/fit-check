@@ -57,6 +57,22 @@ type ConfirmedProductDraft = {
   price: string;
 };
 
+type ProductMeasurementDraft = {
+  size: string;
+  totalLength: string;
+  shoulder: string;
+  chest: string;
+  sleeve: string;
+  waist: string;
+  hip: string;
+  thigh: string;
+  rise: string;
+  hem: string;
+  footLength: string;
+};
+
+type ProductMeasurementField = Exclude<keyof ProductMeasurementDraft, "size">;
+
 type ConfirmedProductDraftTextField =
   | "brand"
   | "productName"
@@ -75,6 +91,20 @@ const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
   productImageUrl: "",
   mallName: "",
   price: "",
+};
+
+const EMPTY_PRODUCT_MEASUREMENT_DRAFT: ProductMeasurementDraft = {
+  size: "",
+  totalLength: "",
+  shoulder: "",
+  chest: "",
+  sleeve: "",
+  waist: "",
+  hip: "",
+  thigh: "",
+  rise: "",
+  hem: "",
+  footLength: "",
 };
 
 const EMPTY_DRAFT: EditableClosetFields = {
@@ -333,6 +363,94 @@ function getMeasurementRows(sizeInfo: ProductSizeMeasurement) {
       return typeof value === "number" ? { label, value: `${value}cm` } : null;
     })
     .filter(Boolean) as { label: string; value: string }[];
+}
+
+function measurementValueToDraft(value?: number) {
+  return typeof value === "number" ? String(value) : "";
+}
+
+function getProductMeasurementDraft(item: ClosetItem): ProductMeasurementDraft {
+  const sizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide);
+  const currentSize = item.size || "";
+  const matchingRow =
+    sizeRows.find(
+      (row) => normalizeSizeForCompare(row.size) === normalizeSizeForCompare(currentSize)
+    ) || sizeRows[0];
+
+  if (!matchingRow) {
+    return {
+      ...EMPTY_PRODUCT_MEASUREMENT_DRAFT,
+      size: currentSize,
+    };
+  }
+
+  return {
+    size: matchingRow.size,
+    totalLength: measurementValueToDraft(matchingRow.totalLength),
+    shoulder: measurementValueToDraft(matchingRow.shoulder),
+    chest: measurementValueToDraft(matchingRow.chest),
+    sleeve: measurementValueToDraft(matchingRow.sleeve),
+    waist: measurementValueToDraft(matchingRow.waist),
+    hip: measurementValueToDraft(matchingRow.hip),
+    thigh: measurementValueToDraft(matchingRow.thigh),
+    rise: measurementValueToDraft(matchingRow.rise),
+    hem: measurementValueToDraft(matchingRow.hem),
+    footLength: measurementValueToDraft(matchingRow.footLength),
+  };
+}
+
+function parseProductMeasurement(value: string) {
+  const parsedValue = Number(value.replace(",", ".").trim());
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
+}
+
+function buildProductSizeMeasurement(
+  draft: ProductMeasurementDraft
+): ProductSizeMeasurement | null {
+  const size = draft.size.trim();
+  if (!size) return null;
+
+  const measurement: ProductSizeMeasurement = {
+    size,
+    totalLength: parseProductMeasurement(draft.totalLength),
+    shoulder: parseProductMeasurement(draft.shoulder),
+    chest: parseProductMeasurement(draft.chest),
+    sleeve: parseProductMeasurement(draft.sleeve),
+    waist: parseProductMeasurement(draft.waist),
+    hip: parseProductMeasurement(draft.hip),
+    thigh: parseProductMeasurement(draft.thigh),
+    rise: parseProductMeasurement(draft.rise),
+    hem: parseProductMeasurement(draft.hem),
+    footLength: parseProductMeasurement(draft.footLength),
+  };
+
+  return hasProductSizeMeasurements(measurement) ? measurement : null;
+}
+
+const TOP_MEASUREMENT_FIELDS: { key: ProductMeasurementField; label: string }[] = [
+  { key: "totalLength", label: "총장" },
+  { key: "shoulder", label: "어깨" },
+  { key: "chest", label: "가슴" },
+  { key: "sleeve", label: "소매" },
+];
+
+const BOTTOM_MEASUREMENT_FIELDS: { key: ProductMeasurementField; label: string }[] = [
+  { key: "totalLength", label: "총장" },
+  { key: "waist", label: "허리" },
+  { key: "hip", label: "엉덩이" },
+  { key: "thigh", label: "허벅지" },
+  { key: "rise", label: "밑위" },
+  { key: "hem", label: "밑단" },
+];
+
+const SHOE_MEASUREMENT_FIELDS: { key: ProductMeasurementField; label: string }[] = [
+  { key: "footLength", label: "발길이" },
+];
+
+function getMeasurementFields(category?: string) {
+  if (category?.includes("하의")) return BOTTOM_MEASUREMENT_FIELDS;
+  if (category?.includes("신발")) return SHOE_MEASUREMENT_FIELDS;
+  return TOP_MEASUREMENT_FIELDS;
 }
 
 function ChipGroup({
@@ -859,6 +977,7 @@ function ConfirmedProductCard({
   onOpenUrl,
   onEdit,
   onOpenUrlForm,
+  onOpenMeasurementForm,
 }: {
   item: ClosetItem;
   profile?: UserProfile | null;
@@ -866,6 +985,7 @@ function ConfirmedProductCard({
   onOpenUrl: () => void;
   onEdit: () => void;
   onOpenUrlForm: () => void;
+  onOpenMeasurementForm: () => void;
 }) {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
@@ -972,6 +1092,78 @@ function ConfirmedProductCard({
         <Pressable style={styles.confirmedProductSecondaryButton} onPress={onEdit}>
           <Feather name="edit-2" size={14} color="#8c6f47" />
           <Text style={styles.confirmedProductSecondaryButtonText}>확정 정보 수정</Text>
+        </Pressable>
+        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenMeasurementForm}>
+          <Feather name="maximize" size={14} color="#8c6f47" />
+          <Text style={styles.confirmedProductSecondaryButtonText}>
+            {sizeGuideRows.length > 0 ? "실측 수정" : "실측 직접 입력"}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ProductMeasurementForm({
+  category,
+  draft,
+  onChange,
+  onSave,
+  onCancel,
+}: {
+  category?: string;
+  draft: ProductMeasurementDraft;
+  onChange: (field: keyof ProductMeasurementDraft, value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const fields = getMeasurementFields(category);
+
+  return (
+    <View style={styles.confirmedProductFormCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="maximize" size={16} color="#8c6f47" />
+        </View>
+        <View style={styles.measurementFormHeaderText}>
+          <Text style={styles.tipTitle}>상품 실측 직접 입력</Text>
+          <Text style={styles.aiDetailSubtitle}>
+            상품 페이지의 실측표를 cm 단위로 입력해주세요. 같은 사이즈는 기존 값이 수정돼요.
+          </Text>
+        </View>
+      </View>
+
+      <EditRow
+        label="사이즈명"
+        value={draft.size}
+        onChangeText={(value) => onChange("size", value)}
+      />
+
+      <View style={styles.manualMeasurementGrid}>
+        {fields.map((field) => (
+          <View key={field.key} style={styles.manualMeasurementField}>
+            <Text style={styles.detailLabel}>{field.label}</Text>
+            <View style={styles.manualMeasurementInputWrap}>
+              <TextInput
+                value={draft[field.key]}
+                onChangeText={(value) => onChange(field.key, value)}
+                placeholder="0"
+                keyboardType="decimal-pad"
+                style={styles.manualMeasurementInput}
+              />
+              <Text style={styles.manualMeasurementUnit}>cm</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.confirmedProductActionRow}>
+        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onCancel}>
+          <Text style={styles.confirmedProductSecondaryButtonText}>취소</Text>
+        </Pressable>
+        <Pressable style={styles.confirmedProductPrimaryButton} onPress={onSave}>
+          <Feather name="save" size={14} color="#fff" />
+          <Text style={styles.confirmedProductPrimaryButtonText}>실측 저장</Text>
         </Pressable>
       </View>
     </View>
@@ -1270,6 +1462,10 @@ export default function ClothesDetailScreen() {
   const [extractErrorMessage, setExtractErrorMessage] = useState("");
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
   const [isSavingRecommendationPreference, setIsSavingRecommendationPreference] = useState(false);
+  const [isMeasurementFormOpen, setIsMeasurementFormOpen] = useState(false);
+  const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
+    EMPTY_PRODUCT_MEASUREMENT_DRAFT
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -1299,6 +1495,10 @@ export default function ClothesDetailScreen() {
 
   function updateConfirmedProductDraft(field: ConfirmedProductDraftTextField, value: string) {
     setConfirmedProductDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+  }
+
+  function updateMeasurementDraft(field: keyof ProductMeasurementDraft, value: string) {
+    setMeasurementDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
   }
 
   function updateDraftSeasons(season: string) {
@@ -1432,6 +1632,67 @@ export default function ClothesDetailScreen() {
     setConfirmedProductDraft(getConfirmedProductDraft(item));
     setIsProductUrlFormOpen(false);
     setIsProductFormOpen(true);
+  }
+
+  function handleOpenMeasurementForm() {
+    if (!item?.confirmedProduct) return;
+
+    setMeasurementDraft(getProductMeasurementDraft(item));
+    setIsProductFormOpen(false);
+    setIsProductUrlFormOpen(false);
+    setIsMeasurementFormOpen(true);
+  }
+
+  function handleCancelMeasurementForm() {
+    setMeasurementDraft(
+      item ? getProductMeasurementDraft(item) : EMPTY_PRODUCT_MEASUREMENT_DRAFT
+    );
+    setIsMeasurementFormOpen(false);
+  }
+
+  async function handleSaveProductMeasurement() {
+    if (!item?.confirmedProduct) return;
+
+    const measurement = buildProductSizeMeasurement(measurementDraft);
+    if (!measurement) {
+      Alert.alert("입력 확인", "사이즈명과 실측값을 하나 이상 입력해주세요.");
+      return;
+    }
+
+    const existingRows = getValidProductSizeRows(item.confirmedProduct.productSizeGuide);
+    const nextRows = [
+      ...existingRows.filter(
+        (row) =>
+          normalizeSizeForCompare(row.size) !== normalizeSizeForCompare(measurement.size)
+      ),
+      measurement,
+    ];
+    const confirmedProduct: ConfirmedProduct = {
+      ...item.confirmedProduct,
+      productSizeGuide: {
+        unit: "cm",
+        sizes: nextRows,
+      },
+    };
+
+    try {
+      const updatedCloset = await updateClosetItem(item.id, { confirmedProduct });
+      const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
+
+      if (!updatedItem) {
+        Alert.alert("저장 실패", "상품 실측을 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      setItem(updatedItem);
+      setConfirmedProductDraft(getConfirmedProductDraft(updatedItem));
+      setMeasurementDraft(getProductMeasurementDraft(updatedItem));
+      setIsMeasurementFormOpen(false);
+      Alert.alert("저장 완료", `${measurement.size} 사이즈 실측이 저장됐어요.`);
+    } catch (error) {
+      console.error("상품 실측 저장 실패:", error);
+      Alert.alert("저장 실패", "상품 실측을 저장하지 못했어요. 다시 시도해주세요.");
+    }
   }
 
   function handleCancelConfirmedProductForm() {
@@ -1716,6 +1977,17 @@ export default function ClothesDetailScreen() {
                 onOpenUrl={handleOpenConfirmedProductUrl}
                 onEdit={handleOpenConfirmedProductForm}
                 onOpenUrlForm={handleOpenProductUrlForm}
+                onOpenMeasurementForm={handleOpenMeasurementForm}
+              />
+            )}
+
+            {!editMode && isMeasurementFormOpen && item.confirmedProduct && (
+              <ProductMeasurementForm
+                category={item.category}
+                draft={measurementDraft}
+                onChange={updateMeasurementDraft}
+                onSave={handleSaveProductMeasurement}
+                onCancel={handleCancelMeasurementForm}
               />
             )}
 
@@ -2425,6 +2697,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee7dd",
     marginBottom: 12,
+  },
+
+  measurementFormHeaderText: {
+    flex: 1,
+  },
+
+  manualMeasurementGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  manualMeasurementField: {
+    width: "48%",
+  },
+
+  manualMeasurementInputWrap: {
+    height: 42,
+    backgroundColor: "#faf8f5",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  manualMeasurementInput: {
+    flex: 1,
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  manualMeasurementUnit: {
+    color: "#8a8178",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   confirmedProductActionRow: {
