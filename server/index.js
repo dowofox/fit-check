@@ -731,7 +731,9 @@ function isMusinsaProductUrl(productUrl) {
 function extractMusinsaProductId(productUrl) {
   try {
     const parsedUrl = new URL(productUrl);
-    const productPathMatch = parsedUrl.pathname.match(/\/products\/(\d+)/);
+    const productPathMatch = parsedUrl.pathname.match(
+      /\/(?:products|app\/goods|goods)\/(\d+)/,
+    );
     if (productPathMatch?.[1]) return productPathMatch[1];
 
     const goodsNo = parsedUrl.searchParams.get("goodsNo") || parsedUrl.searchParams.get("productNo");
@@ -1554,6 +1556,7 @@ app.post("/extract-product", async (req, res) => {
 
     try {
       const response = await fetch(parsedUrl.toString(), {
+        redirect: "follow",
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
@@ -1566,8 +1569,29 @@ app.post("/extract-product", async (req, res) => {
         return res.status(502).json({ error: `failed to fetch product page: ${response.status}` });
       }
 
+      const finalProductUrl = (() => {
+        try {
+          const resolvedUrl = new URL(response.url || parsedUrl.toString());
+          return ["http:", "https:"].includes(resolvedUrl.protocol)
+            ? resolvedUrl.toString()
+            : parsedUrl.toString();
+        } catch {
+          return parsedUrl.toString();
+        }
+      })();
       const html = await response.text();
-      const mallName = inferMallName(parsedUrl.toString(), html);
+      const isMusinsa = isMusinsaProductUrl(finalProductUrl);
+      const productId = isMusinsa ? extractMusinsaProductId(finalProductUrl) : "";
+
+      if (process.env.NODE_ENV !== "production" && process.env.DEBUG_SIZE_GUIDE === "true") {
+        console.log("[extract-product] resolved product url", {
+          finalUrl: finalProductUrl,
+          isMusinsa,
+          productId,
+        });
+      }
+
+      const mallName = inferMallName(finalProductUrl, html);
       const title = cleanProductTitle(extractTitle(html), mallName);
       const brand = extractMetaContent(html, [
         "product:brand",
@@ -1586,7 +1610,7 @@ app.post("/extract-product", async (req, res) => {
         "image",
         "og:image:secure_url",
       ]);
-      const productImageUrl = resolveProductImageUrl(productImageMeta.value, parsedUrl.toString());
+      const productImageUrl = resolveProductImageUrl(productImageMeta.value, finalProductUrl);
       const isProductSizeGuideEnabled = process.env.ENABLE_PRODUCT_SIZE_GUIDE === "true";
       const isProductSizeGuideDebugEnabled = process.env.DEBUG_SIZE_GUIDE === "true";
       let productSizeGuideResult = {
@@ -1596,12 +1620,12 @@ app.post("/extract-product", async (req, res) => {
       };
 
       if (isProductSizeGuideEnabled || isProductSizeGuideDebugEnabled) {
-        productSizeGuideResult = extractProductSizeGuide(html, parsedUrl.toString());
+        productSizeGuideResult = extractProductSizeGuide(html, finalProductUrl);
 
         if (!productSizeGuideResult.productSizeGuide && productSizeGuideResult.productId) {
           const apiSizeGuideResult = await inspectMusinsaSizeSources({
             html,
-            productUrl: parsedUrl.toString(),
+            productUrl: finalProductUrl,
             productId: productSizeGuideResult.productId,
           });
 
@@ -1638,7 +1662,7 @@ app.post("/extract-product", async (req, res) => {
       const extractedProduct = {
         brand: extractedBrand,
         productName: extractedProductName,
-        productUrl: parsedUrl.toString(),
+        productUrl: finalProductUrl,
         productImageUrl,
         productSizeGuide,
         mallName,
