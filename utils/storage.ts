@@ -76,6 +76,7 @@ export type StyleProfile = {
 };
 
 export type GarmentProfile = {
+  // Photo-based visual estimates only. Do not treat these values as a user's actual fit.
   silhouette?: "slim" | "regular" | "semiOversized" | "oversized" | "wide" | "cropped" | "long";
   volume?: number;
   visualWeight?: number;
@@ -84,6 +85,25 @@ export type GarmentProfile = {
   pointLevel?: number;
   structure?: "soft" | "normal" | "stiff";
   drape?: "low" | "medium" | "high";
+};
+
+export type FitMeasurements = {
+  shoulder?: number;
+  chest?: number;
+  sleeve?: number;
+  waist?: number;
+  hip?: number;
+  thigh?: number;
+  rise?: number;
+  totalLength?: number;
+  footLength?: number;
+};
+
+export type FitAnalysisProfile = {
+  sourceSize: string;
+  userMeasurements?: FitMeasurements;
+  garmentMeasurements?: FitMeasurements;
+  fitResult?: "small" | "fitted" | "comfortable" | "relaxed" | "oversized" | "unknown";
 };
 
 export type AnalysisConfidence = {

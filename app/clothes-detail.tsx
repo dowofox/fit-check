@@ -668,9 +668,10 @@ function GarmentProfileCard({ item }: { item: ClosetItem }) {
           <Feather name="maximize-2" size={16} color="#8c6f47" />
         </View>
         <View>
-          <Text style={styles.tipTitle}>실착 프로필</Text>
+          <Text style={styles.tipTitle}>의류 인상 프로필</Text>
           <Text style={styles.aiDetailSubtitle}>
-            옷의 실루엣과 실제 착용 균형을 판단하는 기준이에요.
+            사진에서 보이는 옷의 실루엣, 부피감, 소재 느낌을 추정한 값이에요.{"\n"}
+            실제 핏은 상품 실측과 내 신체 치수를 기준으로 따로 판단해야 해요.
           </Text>
         </View>
       </View>

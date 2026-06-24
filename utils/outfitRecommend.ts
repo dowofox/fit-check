@@ -873,7 +873,6 @@ type ResolvedGarmentProfile = {
   volume: number;
   visualWeight: number;
   lengthBalance: NonNullable<GarmentProfile["lengthBalance"]>;
-  fitIntent: NonNullable<GarmentProfile["fitIntent"]>;
   pointLevel: number;
   structure: NonNullable<GarmentProfile["structure"]>;
   drape: NonNullable<GarmentProfile["drape"]>;
@@ -1009,11 +1008,10 @@ function getResolvedGarmentProfile(item: ClosetItem): ResolvedGarmentProfile {
         ? "wide"
         : measuredVolume <= 2
           ? "slim"
-          : explicitProfile?.silhouette || fallbackSilhouette
-      : explicitProfile?.silhouette || fallbackSilhouette;
+          : fallbackSilhouette
+      : fallbackSilhouette;
   const lengthBalance =
     getMeasuredLengthBalance(item) ||
-    explicitProfile?.lengthBalance ||
     getFallbackLengthBalance(item, silhouette);
   const structure = explicitProfile?.structure || getFallbackStructure(item);
   const text = getGarmentSearchText(item);
@@ -1035,22 +1033,21 @@ function getResolvedGarmentProfile(item: ClosetItem): ResolvedGarmentProfile {
   const fallbackPointLevel =
     (isPointItem(item) ? 6 : 2) +
     (item.graphicDetected && String(item.graphicSize || "").includes("큼") ? 2 : 0);
+  const baseVolume = measuredVolume ?? defaultVolume[silhouette];
+  const impressionVolume =
+    typeof explicitProfile?.volume === "number" ? explicitProfile.volume : baseVolume;
+  const basePointLevel = Math.min(10, fallbackPointLevel);
+  const impressionPointLevel =
+    typeof explicitProfile?.pointLevel === "number"
+      ? explicitProfile.pointLevel
+      : basePointLevel;
 
   return {
     silhouette,
-    volume: measuredVolume ?? explicitProfile?.volume ?? defaultVolume[silhouette],
+    volume: Math.round(baseVolume * 0.75 + impressionVolume * 0.25),
     visualWeight: explicitProfile?.visualWeight ?? Math.min(10, defaultVisualWeight),
     lengthBalance,
-    fitIntent:
-      explicitProfile?.fitIntent ||
-      (silhouette === "oversized"
-        ? "oversized"
-        : silhouette === "semiOversized" || silhouette === "wide"
-          ? "relaxed"
-          : structure === "stiff"
-            ? "structured"
-            : "trueToSize"),
-    pointLevel: explicitProfile?.pointLevel ?? Math.min(10, fallbackPointLevel),
+    pointLevel: Math.round(basePointLevel * 0.75 + impressionPointLevel * 0.25),
     structure,
     drape:
       explicitProfile?.drape ||
@@ -1123,6 +1120,16 @@ function getSilhouetteScore(
     reasons.push("상의의 시각적 무게감이 강해서 하의는 단순한 실루엣으로 받쳐주는 조합이에요.");
   }
 
+  const impressionSilhouettes = [
+    top.garmentProfile?.silhouette,
+    bottom.garmentProfile?.silhouette,
+  ].filter(Boolean);
+  if (impressionSilhouettes.length > 0) {
+    const impressionSupportsBalance =
+      top.garmentProfile?.silhouette === "cropped" && bottomProfile.silhouette === "wide";
+    score += impressionSupportsBalance ? 1 : 0;
+  }
+
   return Math.max(0, Math.min(35, score));
 }
 
@@ -1141,10 +1148,10 @@ function getWearFitBalanceScore(
 
   if (volumeDifference <= 3) {
     score += 3;
-    reasons.push("상하의 볼륨 차이가 과하지 않아 실제로 입었을 때 연결감이 좋아요.");
+    reasons.push("상하의 볼륨 차이가 과하지 않아 착장 구성의 연결감이 좋아요.");
   } else if (volumeDifference >= 6) {
     score -= 4;
-    warnings.push("상하의 볼륨 차이가 커서 실제 착용 시 한쪽만 과장되어 보일 수 있어요.");
+    warnings.push("상하의 볼륨 차이가 커서 착장 구성에서 한쪽만 과장되어 보일 수 있어요.");
   }
 
   if (topProfile.lengthBalance === "short" && bottomProfile.lengthBalance === "long") {
@@ -1159,21 +1166,9 @@ function getWearFitBalanceScore(
   } else if (topProfile.drape === "high" || bottomProfile.drape === "high") {
     score += 1;
   }
-  if (topProfile.fitIntent === "oversized" && topProfile.volume >= 6) {
-    score += 1;
-  } else if (topProfile.fitIntent === "oversized" && topProfile.volume <= 4) {
-    score -= 2;
-    warnings.push("의도한 오버핏에 비해 상의 실측 볼륨이 작아 원하는 착용감이 약할 수 있어요.");
-  }
-  if (
-    topProfile.fitIntent === "structured" &&
-    topProfile.structure === "stiff"
-  ) {
-    score += 1;
-  }
-
   if (
     (bodyType.includes("상체") || bodyType.includes("역삼각")) &&
+    getCurrentSizeMeasurement(top) &&
     topProfile.volume >= 7
   ) {
     score -= 2;
@@ -1181,6 +1176,7 @@ function getWearFitBalanceScore(
   }
   if (
     (bodyType.includes("하체") || bodyType.includes("삼각")) &&
+    getCurrentSizeMeasurement(bottom) &&
     bottomProfile.volume >= 8
   ) {
     score -= 2;

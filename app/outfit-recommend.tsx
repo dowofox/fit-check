@@ -193,7 +193,7 @@ function RecommendationCard({
           {isDetailOpen ? (
             <View style={styles.compactBreakdownBox}>
               <Text style={styles.breakdownText}>
-                실루엣 {recommendation.breakdown.silhouette} · 실착 핏 {recommendation.breakdown.wearFit} · 포인트 {recommendation.breakdown.pointBalance} · 색상 {recommendation.breakdown.colorSupport} · 스타일 {recommendation.breakdown.styleSupport} · 계절/날씨 {recommendation.breakdown.weather} · 회전율 {recommendation.breakdown.rotation}
+                실루엣 {recommendation.breakdown.silhouette} · 핏 균형 {recommendation.breakdown.wearFit} · 포인트 {recommendation.breakdown.pointBalance} · 색상 {recommendation.breakdown.colorSupport} · 스타일 {recommendation.breakdown.styleSupport} · 계절/날씨 {recommendation.breakdown.weather} · 회전율 {recommendation.breakdown.rotation}
               </Text>
               {recommendation.penalty ? (
                 <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
