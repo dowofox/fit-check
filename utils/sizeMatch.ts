@@ -1,4 +1,10 @@
-import { ClosetItem, UserProfile } from "@/utils/storage";
+import {
+  ClosetItem,
+  FitAnalysisProfile,
+  FitMeasurements,
+  ProductSizeMeasurement,
+  UserProfile,
+} from "@/utils/storage";
 
 const LETTER_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 const TOP_LETTER_SIZE_VALUE: Record<string, number> = {
@@ -70,11 +76,145 @@ function compareSize(profileSize?: string, itemSize?: string, category?: string)
   return Math.sign(itemIndex - profileIndex);
 }
 
+export type MeasurementComparison = {
+  key: keyof FitMeasurements;
+  label: string;
+  userValue: number;
+  garmentValue: number;
+  difference: number;
+};
+
+export type MeasurementComparisonResult = {
+  fitProfile?: FitAnalysisProfile;
+  comparisons: MeasurementComparison[];
+  unavailableFields: string[];
+};
+
+function parseMeasurement(value?: string) {
+  const parsedValue = Number(String(value || "").replace(",", ".").trim());
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
+}
+
+function getCurrentProductMeasurement(item: ClosetItem) {
+  const itemSize = normalizeSize(item.size);
+  const sizes = item.confirmedProduct?.productSizeGuide?.sizes || [];
+
+  if (!itemSize) return undefined;
+  return sizes.find((measurement) => normalizeSize(measurement.size) === itemSize);
+}
+
+export function getUserFitMeasurements(profile?: UserProfile | null): FitMeasurements {
+  if (!profile) return {};
+
+  return {
+    shoulder: parseMeasurement(profile.shoulderWidth),
+    chest: parseMeasurement(profile.chestCircumference),
+    sleeve: parseMeasurement(profile.armLength),
+    waist: parseMeasurement(profile.waistCircumference),
+    hip: parseMeasurement(profile.hipCircumference),
+    thigh: parseMeasurement(profile.thighCircumference),
+    inseam: parseMeasurement(profile.inseam),
+  };
+}
+
+function getComparableUserMeasurements(profile?: UserProfile | null): FitMeasurements {
+  const measurements = getUserFitMeasurements(profile);
+
+  return {
+    shoulder: measurements.shoulder,
+    chest: measurements.chest !== undefined ? measurements.chest / 2 : undefined,
+    sleeve: measurements.sleeve,
+    waist: measurements.waist !== undefined ? measurements.waist / 2 : undefined,
+    hip: measurements.hip !== undefined ? measurements.hip / 2 : undefined,
+    thigh: measurements.thigh !== undefined ? measurements.thigh / 2 : undefined,
+  };
+}
+
+const COMPARISON_FIELDS: {
+  key: keyof FitMeasurements;
+  productKey: keyof ProductSizeMeasurement;
+  label: string;
+}[] = [
+  { key: "shoulder", productKey: "shoulder", label: "어깨" },
+  { key: "chest", productKey: "chest", label: "가슴" },
+  { key: "sleeve", productKey: "sleeve", label: "팔 길이" },
+  { key: "waist", productKey: "waist", label: "허리" },
+  { key: "hip", productKey: "hip", label: "엉덩이" },
+  { key: "thigh", productKey: "thigh", label: "허벅지" },
+];
+
+export function getMeasurementComparison(
+  item: ClosetItem,
+  profile?: UserProfile | null
+): MeasurementComparisonResult {
+  const garmentMeasurement = getCurrentProductMeasurement(item);
+  const userMeasurements = getUserFitMeasurements(profile);
+  const comparableUserMeasurements = getComparableUserMeasurements(profile);
+
+  if (!garmentMeasurement) {
+    return {
+      comparisons: [],
+      unavailableFields: ["현재 옷 사이즈의 상품 실측"],
+    };
+  }
+
+  const comparisons: MeasurementComparison[] = [];
+  const unavailableFields: string[] = [];
+
+  COMPARISON_FIELDS.forEach(({ key, productKey, label }) => {
+    const userValue = comparableUserMeasurements[key];
+    const garmentValue = garmentMeasurement[productKey];
+
+    if (typeof userValue === "number" && typeof garmentValue === "number") {
+      comparisons.push({
+        key,
+        label,
+        userValue,
+        garmentValue,
+        difference: Number((garmentValue - userValue).toFixed(1)),
+      });
+      return;
+    }
+
+    unavailableFields.push(label);
+  });
+
+  const sourceSize = garmentMeasurement.size || item.size || "";
+  return {
+    fitProfile: {
+      sourceSize,
+      userMeasurements,
+      garmentMeasurements: {
+        shoulder: garmentMeasurement.shoulder,
+        chest: garmentMeasurement.chest,
+        sleeve: garmentMeasurement.sleeve,
+        waist: garmentMeasurement.waist,
+        hip: garmentMeasurement.hip,
+        thigh: garmentMeasurement.thigh,
+        rise: garmentMeasurement.rise,
+        totalLength: garmentMeasurement.totalLength,
+        footLength: garmentMeasurement.footLength,
+      },
+      fitResult: "unknown",
+    },
+    comparisons,
+    unavailableFields,
+  };
+}
+
 export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null) {
   const intendedFit = item.intendedFit || "상관없음";
   const profileSize = getProfileSize(item, profile);
   const itemSize = item.size || "";
   const sizeDiff = compareSize(profileSize, itemSize, item.category);
+  const measurementComparison = getMeasurementComparison(item, profile);
+
+  if (measurementComparison.comparisons.length > 0) {
+    return {
+      status: "실측 비교 자료가 있어요",
+      description: `현재 ${measurementComparison.comparisons.length}개 항목을 비교할 수 있어요. 아직 자동 핏 판정은 하지 않고 상품 실측과 내 신체 치수 차이만 준비해두었어요.`,
+    };
+  }
 
   if (!profileSize || !itemSize || itemSize === "사이즈 미입력") {
     return {

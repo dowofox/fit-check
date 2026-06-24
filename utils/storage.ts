@@ -14,6 +14,13 @@ export type UserProfile = {
   topSize?: string;
   bottomSize?: string;
   shoeSize?: string;
+  shoulderWidth?: string;
+  chestCircumference?: string;
+  waistCircumference?: string;
+  hipCircumference?: string;
+  armLength?: string;
+  inseam?: string;
+  thighCircumference?: string;
 };
 
 export type ProductCandidate = {
@@ -95,6 +102,7 @@ export type FitMeasurements = {
   hip?: number;
   thigh?: number;
   rise?: number;
+  inseam?: number;
   totalLength?: number;
   footLength?: number;
 };

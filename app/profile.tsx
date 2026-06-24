@@ -8,6 +8,34 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 const genderOptions = ["남성", "여성"];
 const bodyTypeOptions = ["마름", "보통", "근육형", "통통"];
 
+function MeasurementInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <View style={styles.inputBox}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.textInputWrap}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          keyboardType="decimal-pad"
+          style={styles.textInput}
+        />
+        <Text style={styles.unitText}>cm</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const [gender, setGender] = useState("남성");
   const [age, setAge] = useState("");
@@ -17,7 +45,23 @@ export default function ProfileScreen() {
   const [topSize, setTopSize] = useState("");
   const [bottomSize, setBottomSize] = useState("");
   const [shoeSize, setShoeSize] = useState("");
+  const [shoulderWidth, setShoulderWidth] = useState("");
+  const [chestCircumference, setChestCircumference] = useState("");
+  const [waistCircumference, setWaistCircumference] = useState("");
+  const [hipCircumference, setHipCircumference] = useState("");
+  const [armLength, setArmLength] = useState("");
+  const [inseam, setInseam] = useState("");
+  const [thighCircumference, setThighCircumference] = useState("");
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
+  const measurementCount = [
+    shoulderWidth,
+    chestCircumference,
+    waistCircumference,
+    hipCircumference,
+    armLength,
+    inseam,
+    thighCircumference,
+  ].filter(Boolean).length;
 
   useFocusEffect(
     useCallback(() => {
@@ -33,6 +77,13 @@ export default function ProfileScreen() {
           setTopSize(profile.topSize || "");
           setBottomSize(profile.bottomSize || "");
           setShoeSize(profile.shoeSize || "");
+          setShoulderWidth(profile.shoulderWidth || "");
+          setChestCircumference(profile.chestCircumference || "");
+          setWaistCircumference(profile.waistCircumference || "");
+          setHipCircumference(profile.hipCircumference || "");
+          setArmLength(profile.armLength || "");
+          setInseam(profile.inseam || "");
+          setThighCircumference(profile.thighCircumference || "");
         }
       };
 
@@ -50,6 +101,13 @@ export default function ProfileScreen() {
       topSize,
       bottomSize,
       shoeSize,
+      shoulderWidth,
+      chestCircumference,
+      waistCircumference,
+      hipCircumference,
+      armLength,
+      inseam,
+      thighCircumference,
     });
 
     Alert.alert("저장 완료", "내 프로필 정보가 저장됐어요.");
@@ -216,6 +274,72 @@ export default function ProfileScreen() {
 
             <View style={styles.inputBoxPlaceholder} />
           </View>
+
+          <Text style={styles.sizeSectionTitle}>상세 신체 치수</Text>
+          <Text style={styles.measurementDescription}>
+            선택 입력 항목이에요. 상품 실측과 비교할 때만 사용하며 단위는 cm예요.
+          </Text>
+
+          <View style={styles.inputRow}>
+            <MeasurementInput
+              label="어깨 너비"
+              value={shoulderWidth}
+              onChangeText={setShoulderWidth}
+              placeholder="45"
+            />
+            <MeasurementInput
+              label="가슴 둘레"
+              value={chestCircumference}
+              onChangeText={setChestCircumference}
+              placeholder="100"
+            />
+          </View>
+
+          <View style={styles.inputRow}>
+            <MeasurementInput
+              label="허리 둘레"
+              value={waistCircumference}
+              onChangeText={setWaistCircumference}
+              placeholder="82"
+            />
+            <MeasurementInput
+              label="엉덩이 둘레"
+              value={hipCircumference}
+              onChangeText={setHipCircumference}
+              placeholder="96"
+            />
+          </View>
+
+          <View style={styles.inputRow}>
+            <MeasurementInput
+              label="팔 길이"
+              value={armLength}
+              onChangeText={setArmLength}
+              placeholder="61"
+            />
+            <MeasurementInput
+              label="인심"
+              value={inseam}
+              onChangeText={setInseam}
+              placeholder="76"
+            />
+          </View>
+
+          <View style={styles.inputRowLast}>
+            <MeasurementInput
+              label="허벅지 둘레"
+              value={thighCircumference}
+              onChangeText={setThighCircumference}
+              placeholder="56"
+            />
+            <View style={styles.inputBoxPlaceholder} />
+          </View>
+
+          {measurementCount > 0 ? (
+            <Text style={styles.measurementCountText}>
+              상세 치수 {measurementCount}개가 저장 대상에 포함돼요.
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.infoCard}>
@@ -442,6 +566,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 14,
     marginBottom: 8,
+  },
+  measurementDescription: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+    marginTop: -2,
+    marginBottom: 10,
+  },
+  measurementCountText: {
+    color: "#8C6F47",
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "700",
+    marginTop: 9,
   },
   infoCard: {
     backgroundColor: "#fff",
