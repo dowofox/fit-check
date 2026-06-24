@@ -919,7 +919,7 @@ function parseJsonScriptContent(content) {
   }
 }
 
-function extractJsonDataFromScripts(html) {
+function extractJsonDataFromScripts(html, includeAllJson = false) {
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
   const parsedScripts = [];
 
@@ -929,7 +929,7 @@ function extractJsonDataFromScripts(html) {
     const isNextData = /\bid=["']__NEXT_DATA__["']/i.test(attrs);
     const isJsonScript = /\btype=["']application\/(?:ld\+)?json["']/i.test(attrs);
 
-    if (!isNextData && !isJsonScript && !hasSizeCandidateKeyword(body)) continue;
+    if (!includeAllJson && !isNextData && !isJsonScript && !hasSizeCandidateKeyword(body)) continue;
 
     const parsed = parseJsonScriptContent(body);
     if (parsed) {
@@ -945,6 +945,7 @@ function extractJsonDataFromScripts(html) {
 }
 
 const GOODS_CONTENTS_KEYWORDS = [
+  "사이즈",
   "총장",
   "어깨",
   "가슴",
@@ -956,6 +957,18 @@ const GOODS_CONTENTS_KEYWORDS = [
   "밑단",
   "cm",
   "실측",
+];
+
+const SIZE_GUIDE_IMAGE_KEYWORDS = [
+  "size",
+  "measure",
+  "measurement",
+  "dimension",
+  "spec",
+  "guide",
+  "사이즈",
+  "실측",
+  "치수",
 ];
 
 const MUSINSA_DIRECT_SIZE_PATHS = [
@@ -989,6 +1002,68 @@ function serializeDebugPreview(value, maxLength = 1000) {
 function hasMeasurementKeywords(value) {
   const serializedValue = serializeDebugPreview(value, Number.MAX_SAFE_INTEGER).toLowerCase();
   return GOODS_CONTENTS_KEYWORDS.some((keyword) => serializedValue.includes(keyword.toLowerCase()));
+}
+
+function collectMeasurementValueEntries(
+  value,
+  path = "",
+  depth = 0,
+  entries = [],
+  parent = undefined,
+) {
+  if (value == null || depth > 12 || entries.length >= 40) return entries;
+  if (isEventBannerObject(value)) return entries;
+
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value);
+    const matchedKeywords = GOODS_CONTENTS_KEYWORDS.filter((keyword) =>
+      text.toLowerCase().includes(keyword.toLowerCase()),
+    );
+
+    if (matchedKeywords.length > 0) {
+      entries.push({
+        path: path || "(root)",
+        matchedKeywords,
+        sample: stripHtml(text).slice(0, 700),
+        parent,
+      });
+    }
+    return entries;
+  }
+
+  if (Array.isArray(value)) {
+    value.slice(0, 200).forEach((item, index) => {
+      collectMeasurementValueEntries(item, `${path}[${index}]`, depth + 1, entries, value);
+    });
+    return entries;
+  }
+
+  if (typeof value === "object") {
+    for (const [key, child] of Object.entries(value)) {
+      if (isExcludedSizePathKey(key)) continue;
+      const childPath = path ? `${path}.${key}` : key;
+      collectMeasurementValueEntries(child, childPath, depth + 1, entries, value);
+      if (entries.length >= 40) break;
+    }
+  }
+
+  return entries;
+}
+
+function findSizeGuideFromMeasurementEntries(entries) {
+  for (const entry of entries) {
+    if (!entry.parent || typeof entry.parent !== "object") continue;
+
+    const found = findSizeGuideInJson(entry.parent);
+    if (found) {
+      return {
+        productSizeGuide: found,
+        source: `value-path:${entry.path}`,
+      };
+    }
+  }
+
+  return undefined;
 }
 
 function logMusinsaDirectSizePaths(data) {
@@ -1090,6 +1165,36 @@ function collectDetailImageUrls(value, productUrl, urls = new Set(), depth = 0) 
   return urls;
 }
 
+function collectSizeGuideImageCandidates(html, productUrl) {
+  const candidates = new Set();
+  const imageTagMatches = html.matchAll(/<img\b[^>]*>/gi);
+
+  for (const match of imageTagMatches) {
+    const imageTag = match[0];
+    const sourceMatch = imageTag.match(/\b(?:src|data-src|data-original)=["']([^"']+)["']/i);
+    const imageUrl = sourceMatch?.[1];
+    if (!imageUrl) continue;
+
+    const contextStart = Math.max(0, (match.index || 0) - 350);
+    const contextEnd = Math.min(html.length, (match.index || 0) + imageTag.length + 350);
+    const context = decodeHtmlEntities(html.slice(contextStart, contextEnd));
+    const absoluteUrl = resolveProductImageUrl(imageUrl, productUrl);
+    const searchableValue = `${absoluteUrl} ${imageTag} ${context}`.toLowerCase();
+
+    if (
+      SIZE_GUIDE_IMAGE_KEYWORDS.some((keyword) =>
+        searchableValue.includes(keyword.toLowerCase()),
+      )
+    ) {
+      candidates.add(absoluteUrl);
+    }
+
+    if (candidates.size >= 10) break;
+  }
+
+  return [...candidates];
+}
+
 function getMusinsaSizeDebugApiUrls(productId) {
   if (!productId) return [];
 
@@ -1110,11 +1215,34 @@ async function inspectMusinsaSizeSources({ html, productUrl, productId }) {
     return undefined;
   }
 
-  const parsedScripts = extractJsonDataFromScripts(html);
+  const parsedScripts = extractJsonDataFromScripts(html, true);
   const data = getMusinsaMetaData(parsedScripts);
   const goodsContents = data?.goodsContents;
   const goodsContentsContext = getKeywordContext(goodsContents, GOODS_CONTENTS_KEYWORDS, 1000);
   const detailImageUrls = [...collectDetailImageUrls(goodsContents, productUrl)];
+  const sizeGuideImageCandidates = [
+    ...new Set([
+      ...collectSizeGuideImageCandidates(html, productUrl),
+      ...collectSizeGuideImageCandidates(
+        typeof goodsContents === "string"
+          ? goodsContents.replace(/\\"/g, '"').replace(/\\\//g, "/")
+          : "",
+        productUrl,
+      ),
+      ...detailImageUrls.filter((imageUrl) =>
+        SIZE_GUIDE_IMAGE_KEYWORDS.some((keyword) =>
+          imageUrl.toLowerCase().includes(keyword.toLowerCase()),
+        ),
+      ),
+    ]),
+  ].slice(0, 10);
+  const measurementValueEntries = parsedScripts.flatMap((parsedScript) =>
+    collectMeasurementValueEntries(
+      parsedScript.data,
+      parsedScript.source,
+    ),
+  );
+  const mappedValueSizeGuide = findSizeGuideFromMeasurementEntries(measurementValueEntries);
 
   console.log("[extract-product] musinsa goodsContents", {
     found: goodsContents != null,
@@ -1123,6 +1251,23 @@ async function inspectMusinsaSizeSources({ html, productUrl, productId }) {
     context: goodsContentsContext?.context || "none",
   });
   console.log("[extract-product] musinsa detail image urls", detailImageUrls);
+  console.log(
+    "[extract-product] measurement value paths",
+    measurementValueEntries.slice(0, 40).map((entry) => ({
+      path: entry.path,
+      matchedKeywords: entry.matchedKeywords,
+      sample: entry.sample,
+    })),
+  );
+  console.log("[extract-product] size guide image candidates", sizeGuideImageCandidates);
+
+  if (mappedValueSizeGuide?.productSizeGuide) {
+    return {
+      ...mappedValueSizeGuide,
+      sizeGuideStatus: "text data found",
+      sizeGuideImageCandidates,
+    };
+  }
 
   const apiResults = await Promise.all(
     getMusinsaSizeDebugApiUrls(productId).map(async (apiUrl) => {
@@ -1174,7 +1319,22 @@ async function inspectMusinsaSizeSources({ html, productUrl, productId }) {
     }),
   );
 
-  return apiResults.find((result) => result.productSizeGuide);
+  const apiResult = apiResults.find((result) => result.productSizeGuide);
+  if (apiResult) {
+    return {
+      ...apiResult,
+      sizeGuideStatus: "api data found",
+      sizeGuideImageCandidates,
+    };
+  }
+
+  return {
+    productSizeGuide: undefined,
+    url: "",
+    sizeGuideStatus:
+      sizeGuideImageCandidates.length > 0 ? "size guide image only" : "not found",
+    sizeGuideImageCandidates,
+  };
 }
 
 function extractProductSizeGuide(html, productUrl = "") {
@@ -1192,6 +1352,7 @@ function extractProductSizeGuide(html, productUrl = "") {
       return {
         ...directSizeGuide,
         productId,
+        sizeGuideStatus: "text data found",
       };
     }
 
@@ -1200,6 +1361,7 @@ function extractProductSizeGuide(html, productUrl = "") {
       productSizeGuide: tableSizeGuide,
       source: tableSizeGuide ? "table" : "",
       productId,
+      sizeGuideStatus: tableSizeGuide ? "text data found" : "not found",
     };
   }
 
@@ -1211,6 +1373,7 @@ function extractProductSizeGuide(html, productUrl = "") {
         productSizeGuide: found,
         source: parsedScript.source,
         productId,
+        sizeGuideStatus: "text data found",
       };
     }
   }
@@ -1225,7 +1388,12 @@ function extractProductSizeGuide(html, productUrl = "") {
       collectSizeCandidateEntries(parsed, "json-ld", 0, sizeCandidateEntries);
       const found = findSizeGuideInJson(parsed);
       if (found) {
-        return { productSizeGuide: found, source: "json", productId };
+        return {
+          productSizeGuide: found,
+          source: "json",
+          productId,
+          sizeGuideStatus: "text data found",
+        };
       }
     } catch {
       // Ignore malformed structured data. Product extraction should still succeed.
@@ -1238,6 +1406,7 @@ function extractProductSizeGuide(html, productUrl = "") {
     productSizeGuide: tableSizeGuide,
     source: tableSizeGuide ? "table" : "",
     productId,
+    sizeGuideStatus: tableSizeGuide ? "text data found" : "not found",
   };
 }
 
@@ -1249,6 +1418,7 @@ function logProductSizeGuideExtraction(productSizeGuideResult) {
   const sizeGuideSummary = {
     found: Boolean(productSizeGuide),
     source: productSizeGuideResult?.source || "none",
+    status: productSizeGuideResult?.sizeGuideStatus || "not found",
     sizesLength: productSizeGuide?.sizes?.length || 0,
     sizes: productSizeGuide?.sizes?.map((sizeInfo) => sizeInfo.size) || [],
   };
@@ -1617,6 +1787,8 @@ app.post("/extract-product", async (req, res) => {
         productSizeGuide: undefined,
         source: "disabled",
         productId: "",
+        sizeGuideStatus: "disabled",
+        sizeGuideImageCandidates: [],
       };
 
       if (isProductSizeGuideEnabled || isProductSizeGuideDebugEnabled) {
@@ -1629,11 +1801,20 @@ app.post("/extract-product", async (req, res) => {
             productId: productSizeGuideResult.productId,
           });
 
-          if (apiSizeGuideResult?.productSizeGuide) {
+          if (apiSizeGuideResult) {
             productSizeGuideResult = {
               ...productSizeGuideResult,
-              productSizeGuide: apiSizeGuideResult.productSizeGuide,
-              source: `api:${apiSizeGuideResult.url}`,
+              productSizeGuide:
+                apiSizeGuideResult.productSizeGuide ||
+                productSizeGuideResult.productSizeGuide,
+              source: apiSizeGuideResult.productSizeGuide
+                ? apiSizeGuideResult.source || `api:${apiSizeGuideResult.url}`
+                : productSizeGuideResult.source,
+              sizeGuideStatus:
+                apiSizeGuideResult.sizeGuideStatus ||
+                productSizeGuideResult.sizeGuideStatus,
+              sizeGuideImageCandidates:
+                apiSizeGuideResult.sizeGuideImageCandidates || [],
             };
           }
         }
@@ -1665,6 +1846,10 @@ app.post("/extract-product", async (req, res) => {
         productUrl: finalProductUrl,
         productImageUrl,
         productSizeGuide,
+        sizeGuideStatus: productSizeGuideResult.sizeGuideStatus,
+        ...(isProductSizeGuideDebugEnabled
+          ? { sizeGuideImageCandidates: productSizeGuideResult.sizeGuideImageCandidates || [] }
+          : {}),
         mallName,
         price,
       };
