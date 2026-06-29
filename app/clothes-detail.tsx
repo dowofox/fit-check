@@ -578,7 +578,15 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
 }
 
 function hasLowProductConfidence(item: ClosetItem) {
+  if (item.confirmedProduct) return false;
+
   return typeof item.confidence?.product === "number" && item.confidence.product < 70;
+}
+
+function isProductConfirmationWarning(warning: string) {
+  return ["상품 링크", "상품 식별", "상품 확정"].some((keyword) =>
+    warning.includes(keyword)
+  );
 }
 
 function getImageQualityLabel(imageQuality?: string) {
@@ -595,11 +603,18 @@ function getImageQualityLabel(imageQuality?: string) {
 
 function AnalysisQualityCard({ item }: { item: ClosetItem }) {
   const hasProductWarning = hasLowProductConfidence(item);
-  const warnings = item.analysisWarnings || [];
+  const hasConfirmedProduct = Boolean(item.confirmedProduct);
+  const warnings = (item.analysisWarnings || []).filter(
+    (warning) => !hasConfirmedProduct || !isProductConfirmationWarning(warning)
+  );
   const quality = item.analysisQuality;
   const missingHints = quality?.missingHints || [];
+  const needsManualSizeGuide =
+    hasConfirmedProduct &&
+    getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).length === 0;
   const shouldShow =
     hasProductWarning ||
+    needsManualSizeGuide ||
     warnings.length > 0 ||
     quality?.imageQuality ||
     quality?.needsMorePhotos ||
@@ -629,6 +644,12 @@ function AnalysisQualityCard({ item }: { item: ClosetItem }) {
         <Text style={styles.analysisQualityText}>
           실제 상품 식별이 확실하지 않아요.{"\n"}
           상품 링크로 확정하면 더 정확한 추천을 받을 수 있어요.
+        </Text>
+      ) : null}
+
+      {needsManualSizeGuide ? (
+        <Text style={styles.analysisQualityText}>
+          상품 실측은 자동으로 찾지 못했어요. 직접 입력하면 핏 분석이 더 정확해져요.
         </Text>
       ) : null}
 
