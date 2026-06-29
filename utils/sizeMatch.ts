@@ -18,12 +18,40 @@ const TOP_LETTER_SIZE_VALUE: Record<string, number> = {
 };
 
 function normalizeSize(size?: string) {
-  const upperSize = String(size || "").trim().toUpperCase();
+  const upperSize = String(size || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/X-LARGE/g, "XL")
+    .replace(/LARGE/g, "L")
+    .replace(/MEDIUM/g, "M")
+    .replace(/SMALL/g, "S");
 
   if (upperSize === "2XL") return "XXL";
   if (upperSize === "3XL") return "XXXL";
 
   return upperSize;
+}
+
+function getSizeAliases(size?: string) {
+  const normalizedSize = normalizeSize(size);
+  if (!normalizedSize || normalizedSize === "사이즈미입력") return [];
+
+  const aliases = new Set<string>([normalizedSize]);
+  const letterSizeMatches = normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L)/g) || [];
+  const numericSizeMatches = normalizedSize.match(/\d{1,3}(?:\.\d+)?/g) || [];
+
+  letterSizeMatches.forEach((matchedSize) => aliases.add(normalizeSize(matchedSize)));
+  numericSizeMatches.forEach((matchedSize) => aliases.add(matchedSize));
+
+  return [...aliases];
+}
+
+function areSameSizeLabels(firstSize?: string, secondSize?: string) {
+  const firstAliases = getSizeAliases(firstSize);
+  const secondAliases = new Set(getSizeAliases(secondSize));
+
+  return firstAliases.some((alias) => secondAliases.has(alias));
 }
 
 function getProfileSize(item: ClosetItem, profile?: UserProfile | null) {
@@ -123,11 +151,13 @@ function parseMeasurement(value?: string) {
 }
 
 function getCurrentProductMeasurement(item: ClosetItem) {
-  const itemSize = normalizeSize(item.size);
+  const itemSizeAliases = getSizeAliases(item.size);
   const sizes = item.confirmedProduct?.productSizeGuide?.sizes || [];
 
-  if (!itemSize) return undefined;
-  return sizes.find((measurement) => normalizeSize(measurement.size) === itemSize);
+  if (itemSizeAliases.length === 0) return undefined;
+  return sizes.find((measurement) =>
+    getSizeAliases(measurement.size).some((alias) => itemSizeAliases.includes(alias))
+  );
 }
 
 export function getUserFitMeasurements(profile?: UserProfile | null): FitMeasurements {
@@ -645,14 +675,44 @@ function getFitStatus(fitResult: FitResult, intendedFit: string) {
 export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null) {
   const intendedFit = item.intendedFit || "상관없음";
   const profileSize = getProfileSize(item, profile);
-  const itemSize = item.size || "";
-  const sizeDiff = compareSize(profileSize, itemSize, item.category);
+  const itemSize = item.size?.trim() || "";
+  const productSizeRows = item.confirmedProduct?.productSizeGuide?.sizes || [];
+  const hasProductSizeGuide = productSizeRows.length > 0;
+  const currentProductMeasurement = getCurrentProductMeasurement(item);
   const measurementComparison = getMeasurementComparison(item, profile);
 
-  if (measurementComparison.fitResult !== "unknown") {
+  if (!itemSize || itemSize === "사이즈 미입력") {
+    return {
+      status: "비교할 상품 사이즈를 먼저 선택해주세요",
+      description:
+        "상품 실측표가 있어도 선택한 사이즈를 알아야 해당 사이즈 행만 정확히 비교할 수 있어요.",
+      lengthResult: "unknown" as const,
+      widthResult: "unknown" as const,
+      fitResult: "unknown" as const,
+      measurementComparison,
+    };
+  }
+
+  if (currentProductMeasurement) {
+    const sizeLabelDescription =
+      profileSize && !areSameSizeLabels(profileSize, itemSize)
+        ? "표기 사이즈는 다르지만, 상품 실측 기준으로 비교했어요. "
+        : "상품 실측 기준으로 비교했어요. ";
+
+    if (measurementComparison.fitResult === "unknown") {
+      return {
+        status: "정확한 실측 비교가 더 필요해요",
+        description: `${sizeLabelDescription}${measurementComparison.description}`,
+        lengthResult: measurementComparison.lengthResult,
+        widthResult: measurementComparison.widthResult,
+        fitResult: measurementComparison.fitResult,
+        measurementComparison,
+      };
+    }
+
     return {
       status: getFitStatus(measurementComparison.fitResult, intendedFit),
-      description: measurementComparison.description,
+      description: `${sizeLabelDescription}${measurementComparison.description}`,
       lengthResult: measurementComparison.lengthResult,
       widthResult: measurementComparison.widthResult,
       fitResult: measurementComparison.fitResult,
@@ -660,18 +720,20 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
     };
   }
 
-  if (measurementComparison.description && item.confirmedProduct?.productSizeGuide) {
+  if (hasProductSizeGuide) {
     return {
-      status: "정확한 실측 비교가 더 필요해요",
-      description: measurementComparison.description,
-      lengthResult: measurementComparison.lengthResult,
-      widthResult: measurementComparison.widthResult,
-      fitResult: measurementComparison.fitResult,
+      status: "선택한 사이즈의 실측을 찾지 못했어요",
+      description: `${itemSize}와 일치하는 상품 실측 행이 없어요. 상품 사이즈를 다시 선택하거나 실측을 직접 입력해주세요.`,
+      lengthResult: "unknown" as const,
+      widthResult: "unknown" as const,
+      fitResult: "unknown" as const,
       measurementComparison,
     };
   }
 
-  if (!profileSize || !itemSize || itemSize === "사이즈 미입력") {
+  const sizeDiff = compareSize(profileSize, itemSize, item.category);
+
+  if (!profileSize) {
     return {
       status: "정확한 실측 비교는 아직 어려워요",
       description:
