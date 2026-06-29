@@ -142,6 +142,7 @@ type ExtractedProduct = {
   productUrl: string;
   productImageUrl?: string;
   productSizeGuide?: ProductSizeGuide;
+  materialComposition?: ConfirmedProduct["materialComposition"];
   sizeGuideStatus?: string;
   mallName?: string;
   price?: string;
@@ -273,6 +274,7 @@ function buildConfirmedProductFromExtractedProduct(product: ExtractedProduct): C
     productUrl: product.productUrl,
     productImageUrl: product.productImageUrl,
     productSizeGuide: product.productSizeGuide,
+    materialComposition: product.materialComposition,
     mallName: product.mallName || "",
     price: product.price || "",
     confirmedAt: new Date().toISOString(),
@@ -620,6 +622,10 @@ export default function AddClothesScreen() {
         ? buildConfirmedProductFromExtractedProduct(extractedProduct)
         : undefined;
       const confirmedProductBrand = confirmedProduct?.brand?.trim() || undefined;
+      const confirmedMaterial = confirmedProduct?.materialComposition?.summary?.trim();
+      const shouldApplyConfirmedMaterial =
+        Boolean(confirmedMaterial) &&
+        (!analysis.material?.trim() || analysis.material.trim() === "판단 어려움");
 
       await saveClosetItem({
         id: Date.now().toString(),
@@ -653,6 +659,7 @@ export default function AddClothesScreen() {
               brandConfidence: 100,
             }
           : {}),
+        ...(shouldApplyConfirmedMaterial ? { material: confirmedMaterial } : {}),
         createdAt: new Date().toISOString(),
       });
 

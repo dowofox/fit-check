@@ -10,7 +10,7 @@ const { execFile } = require("child_process");
 const { promisify } = require("util");
 
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 const execFileAsync = promisify(execFile);
 const MIN_REMBG_FILE_SIZE_RATIO = 0.2;
 const MIN_NON_TRANSPARENT_PIXEL_RATIO = 0.03;
@@ -904,6 +904,298 @@ function findSizeGuideInJson(value, depth = 0) {
 
 function stripHtml(value = "") {
   return decodeHtmlEntities(value.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+const MATERIAL_DEFINITIONS = [
+  { name: "폴리우레탄", aliases: ["폴리우레탄", "스판덱스", "스판", "span", "polyurethane", "elastane"] },
+  { name: "폴리에스터", aliases: ["폴리에스터", "폴리에스테르", "polyester", "poly"] },
+  { name: "레이온", aliases: ["레이온", "rayon", "viscose"] },
+  { name: "나일론", aliases: ["나일론", "nylon"] },
+  { name: "아크릴", aliases: ["아크릴", "acrylic"] },
+  { name: "린넨", aliases: ["린넨", "linen", "마"] },
+  { name: "면", aliases: ["코튼", "cotton", "면"] },
+  { name: "울", aliases: ["wool", "울", "모"] },
+  { name: "가죽", aliases: ["천연가죽", "합성가죽", "leather", "가죽"] },
+  { name: "캐시미어", aliases: ["캐시미어", "cashmere"] },
+  { name: "실크", aliases: ["실크", "silk"] },
+];
+const MATERIAL_CONTEXT_KEYWORDS = [
+  "goodsMaterial",
+  "material",
+  "materials",
+  "goodsContents",
+  "소재",
+  "혼용률",
+  "겉감",
+  "안감",
+  "충전재",
+];
+
+function escapeRegularExpression(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeMaterialName(value) {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  if (!normalizedValue) return "";
+
+  const definition = MATERIAL_DEFINITIONS.find(({ aliases }) =>
+    aliases.some((alias) => normalizedValue.includes(alias.toLowerCase())),
+  );
+
+  return definition?.name || "";
+}
+
+function normalizeMaterialPercentage(value) {
+  if (value === null || value === undefined || value === "") return null;
+
+  const parsedValue = Number(String(value).replace(/[^0-9.]/g, ""));
+  return Number.isFinite(parsedValue) && parsedValue >= 0 && parsedValue <= 100
+    ? parsedValue
+    : null;
+}
+
+function buildMaterialComposition(items, source) {
+  const uniqueItems = [];
+
+  for (const item of items) {
+    const name = normalizeMaterialName(item?.name);
+    if (!name) continue;
+
+    const percentage = normalizeMaterialPercentage(item?.percentage);
+    const existingItem = uniqueItems.find((candidate) => candidate.name === name);
+
+    if (existingItem) {
+      if (existingItem.percentage == null && percentage != null) {
+        existingItem.percentage = percentage;
+      }
+      continue;
+    }
+
+    uniqueItems.push({ name, percentage });
+  }
+
+  if (uniqueItems.length === 0) return undefined;
+
+  return {
+    summary: uniqueItems
+      .map((item) =>
+        item.percentage == null ? item.name : `${item.name} ${item.percentage}%`,
+      )
+      .join(", "),
+    items: uniqueItems,
+    source,
+  };
+}
+
+function parseMaterialCompositionText(value, source, contextLabel = "") {
+  const text = stripHtml(`${contextLabel} ${String(value || "")}`);
+  if (!text) return undefined;
+
+  const hasMaterialContext = MATERIAL_CONTEXT_KEYWORDS.some((keyword) =>
+    text.toLowerCase().includes(keyword.toLowerCase()),
+  );
+  const aliases = MATERIAL_DEFINITIONS.flatMap(({ aliases }) => aliases)
+    .sort((first, second) => second.length - first.length)
+    .map(escapeRegularExpression)
+    .join("|");
+  const percentagePattern = new RegExp(
+    `(?:^|[\\s,/:()])(${aliases})\\s*[:：]?\\s*(\\d{1,3}(?:\\.\\d+)?)\\s*%`,
+    "gi",
+  );
+  const percentageItems = [...text.matchAll(percentagePattern)].map((match) => ({
+    name: match[1],
+    percentage: match[2],
+  }));
+
+  if (percentageItems.length > 0) {
+    return buildMaterialComposition(percentageItems, source);
+  }
+
+  const hasStrongMaterialContext =
+    Boolean(contextLabel) &&
+    isMaterialCandidateKey(contextLabel) &&
+    !String(contextLabel).toLowerCase().includes("goodscontents");
+
+  if (!hasMaterialContext || !hasStrongMaterialContext) return undefined;
+
+  const nameItems = MATERIAL_DEFINITIONS.filter(({ aliases: definitionAliases }) =>
+    definitionAliases.some((alias) => {
+      const normalizedAlias = alias.toLowerCase();
+      if (normalizedAlias.length > 1) {
+        return text.toLowerCase().includes(normalizedAlias);
+      }
+
+      return new RegExp(
+        `(?:^|[\\s,/:()])${escapeRegularExpression(normalizedAlias)}(?:$|[\\s,/:()])`,
+        "i",
+      ).test(text);
+    }),
+  ).map(({ name }) => ({ name, percentage: null }));
+
+  return buildMaterialComposition(nameItems, source);
+}
+
+function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
+  if (typeof value === "string" || typeof value === "number") {
+    return parseMaterialCompositionText(value, source, contextLabel);
+  }
+
+  if (Array.isArray(value)) {
+    const structuredItems = value.map((item) => ({
+      name:
+        item && typeof item === "object"
+          ? getProductSizeValue(item, ["name", "material", "label", "title", "type"])
+          : item,
+      percentage:
+        item && typeof item === "object"
+          ? getProductSizeValue(item, ["percentage", "ratio", "percent", "value"])
+          : null,
+    }));
+    const structuredComposition = buildMaterialComposition(structuredItems, source);
+
+    return (
+      structuredComposition ||
+      parseMaterialCompositionText(JSON.stringify(value), source, contextLabel)
+    );
+  }
+
+  if (!value || typeof value !== "object") return undefined;
+
+  if (Array.isArray(value.items)) {
+    const itemComposition = normalizeMaterialCompositionValue(value.items, source, contextLabel);
+    if (itemComposition) return itemComposition;
+  }
+
+  const scalarText = Object.entries(value)
+    .filter(([, child]) => ["string", "number"].includes(typeof child))
+    .map(([key, child]) => `${key}: ${child}`)
+    .join(", ");
+
+  return parseMaterialCompositionText(scalarText, source, contextLabel);
+}
+
+function isMaterialCandidateKey(key) {
+  const normalizedKey = String(key || "").toLowerCase();
+  return MATERIAL_CONTEXT_KEYWORDS.some((keyword) =>
+    normalizedKey.includes(keyword.toLowerCase()),
+  );
+}
+
+function findMaterialCompositionInJson(value, source, depth = 0) {
+  if (!value || depth > 9) return undefined;
+
+  if (Array.isArray(value)) {
+    for (const child of value.slice(0, 100)) {
+      const found = findMaterialCompositionInJson(child, source, depth + 1);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  if (typeof value !== "object" || isEventBannerObject(value)) return undefined;
+
+  const entryLabel = getProductSizeValue(value, ["name", "label", "title", "key"]);
+  if (isMaterialCandidateKey(entryLabel)) {
+    const entryValue = getProductSizeValue(value, [
+      "value",
+      "content",
+      "description",
+      "text",
+      "items",
+    ]);
+    const normalizedEntry = normalizeMaterialCompositionValue(
+      entryValue,
+      source,
+      String(entryLabel),
+    );
+    if (normalizedEntry) return normalizedEntry;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    if (!isMaterialCandidateKey(key)) continue;
+
+    const normalized = normalizeMaterialCompositionValue(child, source, key);
+    if (normalized) return normalized;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    if (isExcludedSizePathKey(key) || !child || typeof child !== "object") continue;
+
+    const found = findMaterialCompositionInJson(child, source, depth + 1);
+    if (found) return found;
+  }
+
+  return undefined;
+}
+
+function extractProductMaterialComposition(html, productUrl) {
+  const source = isMusinsaProductUrl(productUrl) ? "musinsa" : "product_page";
+  const parsedScripts = extractJsonDataFromScripts(html, true);
+
+  for (const parsedScript of parsedScripts) {
+    const found = findMaterialCompositionInJson(parsedScript.data, source);
+    if (found) return found;
+  }
+
+  const visibleProductHtml = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+
+  return parseMaterialCompositionText(visibleProductHtml, source);
+}
+
+async function fetchMusinsaMaterialComposition(productId, productUrl) {
+  if (!productId) return undefined;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+
+  try {
+    const response = await fetch(
+      `https://goods-detail.musinsa.com/api2/goods/${productId}/essential`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+          Accept: "application/json,text/plain,*/*",
+          Referer: productUrl,
+        },
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) return undefined;
+
+    const responseJson = await response.json();
+    const essentials = Array.isArray(responseJson?.data?.essentials)
+      ? responseJson.data.essentials
+      : [];
+    const materialEssential = essentials.find((essential) =>
+      isMaterialCandidateKey(essential?.name),
+    );
+    const materialComposition = materialEssential
+      ? normalizeMaterialCompositionValue(
+          materialEssential.value,
+          "musinsa",
+          materialEssential.name,
+        )
+      : findMaterialCompositionInJson(responseJson, "musinsa");
+
+    if (process.env.DEBUG_MATERIAL === "true") {
+      console.log("[extract-product] material essential", {
+        productId,
+        essentials: essentials.slice(0, 10),
+        materialComposition,
+      });
+    }
+
+    return materialComposition;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function getTableCells(rowHtml) {
@@ -1898,6 +2190,21 @@ app.post("/extract-product", async (req, res) => {
         "og:image:secure_url",
       ]);
       const productImageUrl = resolveProductImageUrl(productImageMeta.value, finalProductUrl);
+      let materialComposition = extractProductMaterialComposition(html, finalProductUrl);
+
+      if (process.env.DEBUG_MATERIAL === "true") {
+        console.log("[extract-product] material page", {
+          productId,
+          materialComposition,
+        });
+      }
+
+      if (!materialComposition && isMusinsa && productId) {
+        materialComposition = await fetchMusinsaMaterialComposition(
+          productId,
+          finalProductUrl,
+        );
+      }
       const isProductSizeGuideEnabled = process.env.ENABLE_PRODUCT_SIZE_GUIDE === "true";
       const isProductSizeGuideDebugEnabled = process.env.DEBUG_SIZE_GUIDE === "true";
       let productSizeGuideResult = {
@@ -1963,6 +2270,7 @@ app.post("/extract-product", async (req, res) => {
         productUrl: finalProductUrl,
         productImageUrl,
         productSizeGuide,
+        materialComposition,
         sizeGuideStatus: productSizeGuideResult.sizeGuideStatus,
         ...(isProductSizeGuideDebugEnabled
           ? { sizeGuideImageCandidates: productSizeGuideResult.sizeGuideImageCandidates || [] }

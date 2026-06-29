@@ -49,12 +49,22 @@ export type ProductSizeGuide = {
   sizes: ProductSizeMeasurement[];
 };
 
+export type MaterialComposition = {
+  summary?: string;
+  items?: {
+    name: string;
+    percentage?: number | null;
+  }[];
+  source?: string;
+};
+
 export type ConfirmedProduct = {
   brand: string;
   productName: string;
   productUrl?: string;
   productImageUrl?: string;
   productSizeGuide?: ProductSizeGuide;
+  materialComposition?: MaterialComposition;
   mallName?: string;
   price?: string;
   confirmedAt: string;

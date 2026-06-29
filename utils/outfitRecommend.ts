@@ -880,13 +880,16 @@ type ResolvedGarmentProfile = {
 };
 
 function getGarmentSearchText(item: ClosetItem) {
+  const resolvedMaterial =
+    item.confirmedProduct?.materialComposition?.summary || item.material;
+
   return [
     item.category,
     item.subCategory,
     item.detailCategory,
     item.fit,
     item.description,
-    item.material,
+    resolvedMaterial,
     item.styleProfile?.fit,
     item.styleProfile?.silhouette,
     item.styleProfile?.lengthType,

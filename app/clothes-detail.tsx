@@ -53,6 +53,7 @@ type ConfirmedProductDraft = {
   productUrl: string;
   productImageUrl: string;
   productSizeGuide?: ProductSizeGuide;
+  materialComposition?: ConfirmedProduct["materialComposition"];
   mallName: string;
   price: string;
 };
@@ -244,6 +245,7 @@ function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDra
     productUrl: confirmedProduct?.productUrl || "",
     productImageUrl: confirmedProduct?.productImageUrl || "",
     productSizeGuide: confirmedProduct?.productSizeGuide,
+    materialComposition: confirmedProduct?.materialComposition,
     mallName: confirmedProduct?.mallName || "",
     price: confirmedProduct?.price || "",
   };
@@ -266,6 +268,7 @@ function buildConfirmedProductFromDraft(
     productSizeGuide: options.includeProductSizeGuide
       ? normalizeProductSizeGuideForDisplay(draft.productSizeGuide)
       : undefined,
+    materialComposition: draft.materialComposition,
     mallName: draft.mallName.trim(),
     price: draft.price.trim(),
     confirmedAt: new Date().toISOString(),
@@ -553,7 +556,13 @@ function getAiAnalysisRows(item: ClosetItem) {
     { label: "로고 텍스트", value: item.logoText || "없음" },
     { label: "프린팅/그래픽", value: item.graphicType || "판단 어려움" },
     { label: "그래픽 크기", value: item.graphicSize || "판단 어려움" },
-    { label: "소재", value: item.material || "판단 어려움" },
+    {
+      label: "소재",
+      value:
+        item.confirmedProduct?.materialComposition?.summary ||
+        item.material ||
+        "판단 어려움",
+    },
     { label: "패턴", value: item.pattern || "판단 어려움" },
   ];
 }
@@ -1640,6 +1649,15 @@ export default function ClothesDetailScreen() {
 
     try {
       const confirmedBrand = confirmedProduct.brand.trim();
+      const confirmedMaterial = confirmedProduct.materialComposition?.summary?.trim();
+      const currentMaterial = item.material?.trim() || "";
+      const previousConfirmedMaterial =
+        item.confirmedProduct?.materialComposition?.summary?.trim() || "";
+      const shouldSyncMaterial =
+        Boolean(confirmedMaterial) &&
+        (!currentMaterial ||
+          currentMaterial === "판단 어려움" ||
+          currentMaterial === previousConfirmedMaterial);
       const replacementConfirmedProduct: ConfirmedProduct = {
         ...confirmedProduct,
         brand: confirmedBrand,
@@ -1650,6 +1668,7 @@ export default function ClothesDetailScreen() {
         confirmedBrand,
         brand: confirmedBrand,
         brandConfidence: 100,
+        ...(shouldSyncMaterial ? { material: confirmedMaterial } : {}),
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
@@ -1816,6 +1835,7 @@ export default function ClothesDetailScreen() {
         productUrl: result.productUrl || productUrl,
         productImageUrl: result.productImageUrl || "",
         productSizeGuide: result.productSizeGuide,
+        materialComposition: result.materialComposition,
         mallName: result.mallName || "",
         price: result.price || "",
       };
