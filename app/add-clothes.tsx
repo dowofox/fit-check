@@ -142,6 +142,7 @@ type ExtractedProduct = {
   productUrl: string;
   productImageUrl?: string;
   productSizeGuide?: ProductSizeGuide;
+  sizeGuideStatus?: string;
   mallName?: string;
   price?: string;
 };
@@ -809,6 +810,11 @@ export default function AddClothesScreen() {
                 <Text style={styles.linkProductUrl} numberOfLines={2}>
                   {extractedProduct.productUrl}
                 </Text>
+                {!extractedProduct.productSizeGuide?.sizes?.length ? (
+                  <Text style={styles.linkProductUrl}>
+                    실측 자동 추출 실패: 저장 후 옷 상세에서 실측을 직접 입력할 수 있어요.
+                  </Text>
+                ) : null}
               </View>
             )}
           </View>

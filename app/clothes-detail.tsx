@@ -81,7 +81,9 @@ type ConfirmedProductDraftTextField =
   | "mallName"
   | "price";
 
-type ExtractedProduct = ConfirmedProductDraft;
+type ExtractedProduct = ConfirmedProductDraft & {
+  sizeGuideStatus?: string;
+};
 type RecommendationPreference = NonNullable<ClosetItem["recommendationPreference"]>;
 
 const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
@@ -1315,6 +1317,11 @@ function ProductUrlConfirmCard({
           <Text style={styles.productReferenceReason} numberOfLines={2}>
             {preview.productUrl}
           </Text>
+          {getValidProductSizeRows(preview.productSizeGuide).length === 0 ? (
+            <Text style={styles.productExtractNoticeText}>
+              실측 자동 추출 실패: 상품을 확정하면 실측 직접 입력 화면으로 이어져요.
+            </Text>
+          ) : null}
           <Pressable style={styles.confirmedProductPrimaryButton} onPress={onConfirm}>
             <Feather name="check" size={14} color="#fff" />
             <Text style={styles.confirmedProductPrimaryButtonText}>이 상품으로 확정</Text>
@@ -1625,7 +1632,10 @@ export default function ClothesDetailScreen() {
     }
   }
 
-  async function saveConfirmedProduct(confirmedProduct: ConfirmedProduct) {
+  async function saveConfirmedProduct(
+    confirmedProduct: ConfirmedProduct,
+    options: { openMeasurementForm?: boolean } = {}
+  ) {
     if (!item) return;
 
     try {
@@ -1651,7 +1661,18 @@ export default function ClothesDetailScreen() {
       setItem(updatedItem);
       setConfirmedProductDraft(getConfirmedProductDraft(updatedItem));
       setIsProductFormOpen(false);
-      Alert.alert("저장 완료", "확정 상품 정보가 저장됐어요.");
+      setIsProductUrlFormOpen(false);
+
+      if (options.openMeasurementForm) {
+        setMeasurementDraft(getProductMeasurementDraft(updatedItem));
+        setIsMeasurementFormOpen(true);
+        Alert.alert(
+          "상품 정보 저장 완료",
+          "상품 실측을 자동으로 찾지 못했어요. 직접 입력하면 핏 분석이 더 정확해져요."
+        );
+      } else {
+        Alert.alert("저장 완료", "확정 상품 정보가 저장됐어요.");
+      }
     } catch (error) {
       console.error("확정 상품 저장 실패:", error);
       Alert.alert("저장 실패", "확정 상품 정보를 저장하지 못했어요. 다시 시도해주세요.");
@@ -1804,7 +1825,10 @@ export default function ClothesDetailScreen() {
       }
 
       setConfirmedProductDraft(nextDraft);
-      setExtractedProduct({ ...nextDraft });
+      setExtractedProduct({
+        ...nextDraft,
+        sizeGuideStatus: result.sizeGuideStatus,
+      });
     } catch (error) {
       console.error("상품 URL 추출 실패:", error);
       setExtractErrorMessage("자동 추출에 실패했어요. 브랜드명, 상품명, 링크만 직접 입력해주세요.");
@@ -1813,7 +1837,7 @@ export default function ClothesDetailScreen() {
     }
   }
 
-  function handleConfirmExtractedProduct() {
+  async function handleConfirmExtractedProduct() {
     const confirmedProduct = buildConfirmedProductFromDraft(confirmedProductDraft);
 
     if (!confirmedProduct) {
@@ -1821,7 +1845,10 @@ export default function ClothesDetailScreen() {
       return;
     }
 
-    saveConfirmedProduct(confirmedProduct);
+    await saveConfirmedProduct(confirmedProduct, {
+      openMeasurementForm:
+        getValidProductSizeRows(confirmedProduct.productSizeGuide).length === 0,
+    });
   }
 
   function handleSaveConfirmedProductForm() {
