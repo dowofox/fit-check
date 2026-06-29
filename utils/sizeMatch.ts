@@ -110,6 +110,13 @@ export type FitResult =
   | "oversized"
   | "unknown";
 
+type WidthAnalysis = {
+  result: WidthResult;
+  description: string;
+  shoulderDescription?: string;
+  chestDescription?: string;
+};
+
 function parseMeasurement(value?: string) {
   const parsedValue = Number(String(value || "").replace(",", ".").trim());
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
@@ -152,6 +159,10 @@ function getComparableUserMeasurements(profile?: UserProfile | null): FitMeasure
 
 function isBottomCategory(item: ClosetItem) {
   return item.category === "하의";
+}
+
+function isUpperCategory(item: ClosetItem) {
+  return item.category === "상의" || item.category === "아우터";
 }
 
 function getIntendedLengthOffset(intendedFit?: string) {
@@ -221,26 +232,157 @@ function getBottomLengthAnalysis(
   };
 }
 
-function getWidthScore(difference: number, key: keyof FitMeasurements, isBottom: boolean) {
-  if (isBottom) {
-    if (key === "waist") return difference;
-    if (key === "hip") return difference - 2;
-    if (key === "thigh") return difference - 1.5;
+function getUpperLengthAnalysis(
+  item: ClosetItem,
+  garmentMeasurement: ProductSizeMeasurement,
+  profile?: UserProfile | null
+): { result: LengthResult; description: string } {
+  if (!isUpperCategory(item) || typeof garmentMeasurement.totalLength !== "number") {
+    return { result: "unknown", description: "" };
   }
 
-  if (key === "chest") return difference - 2;
-  if (key === "shoulder") return difference;
+  const userHeight = parseMeasurement(profile?.height);
+  if (userHeight === undefined) {
+    return {
+      result: "unknown",
+      description: "총장은 확인됐지만 키 정보가 없어 상의 길이감을 비교하기 어려워요.",
+    };
+  }
+
+  const lengthRatio = garmentMeasurement.totalLength / userHeight;
+  const roundedLength = Number(garmentMeasurement.totalLength.toFixed(1));
+
+  if (lengthRatio < 0.35) {
+    return {
+      result: "short",
+      description: `총장 ${roundedLength}cm로 내 키 대비 허리선 부근에 오는 크롭 또는 짧은 기장일 가능성이 높아요.`,
+    };
+  }
+
+  if (lengthRatio <= 0.45) {
+    return {
+      result: "regular",
+      description: `총장 ${roundedLength}cm로 내 키에 무난하게 맞는 레귤러 기장에 가까워요.`,
+    };
+  }
+
+  if (lengthRatio <= 0.68) {
+    return {
+      result: "long",
+      description: `총장 ${roundedLength}cm로 내 키 대비 엉덩이를 덮는 롱기장에 가까워요.`,
+    };
+  }
+
+  return {
+    result: "tooLong",
+    description: `총장 ${roundedLength}cm로 내 키 대비 상당히 긴 기장이어서 옷 종류에 따라 길게 느껴질 수 있어요.`,
+  };
+}
+
+function getSleeveDescription(
+  item: ClosetItem,
+  comparisons: MeasurementComparison[]
+) {
+  if (!isUpperCategory(item)) return "";
+
+  const sleeveComparison = comparisons.find((comparison) => comparison.key === "sleeve");
+  if (!sleeveComparison) return "";
+
+  const difference = Number(sleeveComparison.difference.toFixed(1));
+  if (difference < -2) {
+    return `소매가 내 팔 길이보다 ${Math.abs(difference)}cm 짧아 손목이 드러날 수 있어요.`;
+  }
+  if (difference > 3) {
+    return `소매가 내 팔 길이보다 ${difference}cm 길어 손등을 덮을 수 있어요.`;
+  }
+  return "소매 길이는 내 팔 길이와 비슷해 무난할 가능성이 높아요.";
+}
+
+function getUpperWidthAnalysis(
+  item: ClosetItem,
+  comparisons: MeasurementComparison[]
+): WidthAnalysis {
+  if (!isUpperCategory(item)) return { result: "unknown", description: "" };
+
+  const shoulder = comparisons.find((comparison) => comparison.key === "shoulder");
+  const chest = comparisons.find((comparison) => comparison.key === "chest");
+  if (!shoulder && !chest) return { result: "unknown", description: "" };
+
+  let shoulderResult: WidthResult = "unknown";
+  let shoulderDescription = "";
+
+  if (shoulder) {
+    const difference = Number(shoulder.difference.toFixed(1));
+    if (difference < -1) shoulderResult = "small";
+    else if (difference <= 1.5) shoulderResult = "fitted";
+    else if (difference <= 4) shoulderResult = "relaxed";
+    else shoulderResult = "oversized";
+
+    shoulderDescription =
+      shoulderResult === "small"
+        ? `어깨가 내 어깨너비보다 ${Math.abs(difference)}cm 좁아 끼거나 당길 수 있어요.`
+        : shoulderResult === "fitted"
+          ? "어깨 실측이 내 어깨너비와 비슷해 정핏에 가까워요."
+          : shoulderResult === "relaxed"
+            ? `어깨가 내 어깨너비보다 ${difference}cm 넓어 세미오버 느낌이 날 수 있어요.`
+            : `어깨가 내 어깨너비보다 ${difference}cm 넓어 드롭된 오버핏으로 보일 가능성이 높아요.`;
+  }
+
+  let chestResult: WidthResult = "unknown";
+  let chestDescription = "";
+
+  if (chest) {
+    const difference = Number(chest.difference.toFixed(1));
+    if (difference < 0) chestResult = "small";
+    else if (difference <= 2) chestResult = "fitted";
+    else if (difference <= 6) chestResult = "comfortable";
+    else if (difference <= 10) chestResult = "relaxed";
+    else chestResult = "oversized";
+
+    chestDescription =
+      chestResult === "small"
+        ? `가슴단면이 내 가슴 기준보다 ${Math.abs(difference)}cm 작아 품이 타이트할 수 있어요.`
+        : chestResult === "fitted"
+          ? "가슴 품의 여유가 적어 몸에 맞게 떨어질 가능성이 높아요."
+          : chestResult === "comfortable"
+            ? `가슴단면에 ${difference}cm 정도 여유가 있어 편안한 품이에요.`
+            : chestResult === "relaxed"
+              ? `가슴단면에 ${difference}cm 여유가 있어 넉넉한 품이에요.`
+              : `가슴단면에 ${difference}cm 이상 여유가 있어 품이 크게 느껴질 수 있어요.`;
+  }
+
+  let result = shoulderResult !== "unknown" ? shoulderResult : chestResult;
+
+  // Shoulder is the primary upper-body fit signal. Chest only overrides when it is tight,
+  // or softly raises a fitted shoulder when the body width is notably roomy.
+  if (chestResult === "small") result = "small";
+  else if (result === "fitted" && (chestResult === "relaxed" || chestResult === "oversized")) {
+    result = "comfortable";
+  }
+
+  return {
+    result,
+    description: [shoulderDescription, chestDescription].filter(Boolean).join(" "),
+    shoulderDescription,
+    chestDescription,
+  };
+}
+
+function getBottomWidthScore(difference: number, key: keyof FitMeasurements) {
+  if (key === "waist") return difference;
+  if (key === "hip") return difference - 2;
+  if (key === "thigh") return difference - 1.5;
   return difference;
 }
 
 function getWidthAnalysis(
   item: ClosetItem,
   comparisons: MeasurementComparison[]
-): { result: WidthResult; description: string } {
+): WidthAnalysis {
   const isBottom = isBottomCategory(item);
-  const widthKeys: (keyof FitMeasurements)[] = isBottom
-    ? ["waist", "hip", "thigh"]
-    : ["chest", "shoulder"];
+  if (!isBottom) return getUpperWidthAnalysis(item, comparisons);
+
+  const widthKeys: (keyof FitMeasurements)[] = ["waist", "hip", "thigh"];
   const widthComparisons = comparisons.filter((comparison) =>
     widthKeys.includes(comparison.key)
   );
@@ -251,14 +393,14 @@ function getWidthAnalysis(
 
   const weightedScores = widthComparisons.map((comparison) => {
     const weight =
-      comparison.key === "waist" || comparison.key === "chest"
+      comparison.key === "waist"
         ? 2
-        : comparison.key === "hip" || comparison.key === "shoulder"
+        : comparison.key === "hip"
           ? 1.5
           : 1;
 
     return {
-      score: getWidthScore(comparison.difference, comparison.key, isBottom),
+      score: getBottomWidthScore(comparison.difference, comparison.key),
       weight,
     };
   });
@@ -283,7 +425,7 @@ function getWidthAnalysis(
   else if (score <= 7) result = "relaxed";
   else result = "oversized";
 
-  if (isBottom && waistComparison) {
+  if (waistComparison) {
     const waistDescription =
       primaryDifference < -1
         ? `허리단면이 내 허리 기준보다 ${Math.abs(primaryDifference)}cm 작아 조일 수 있어요.`
@@ -332,6 +474,28 @@ function getAutomaticFitResult(lengthResult: LengthResult, widthResult: WidthRes
   if (widthResult === "relaxed" || lengthResult === "long") return "semiOversized";
   if (widthResult === "fitted") return "fitted";
   if (widthResult === "comfortable" || lengthResult === "regular") return "regular";
+  return "unknown";
+}
+
+function getUpperAutomaticFitResult(
+  lengthResult: LengthResult,
+  widthResult: WidthResult
+): FitResult {
+  // Upper-body fit follows shoulder width first, then length, chest ease and sleeve length.
+  if (widthResult === "small") return "small";
+  if (widthResult === "oversized") return "oversized";
+  if (widthResult === "relaxed") return "semiOversized";
+  if (widthResult === "comfortable") {
+    return lengthResult === "tooLong" ? "semiOversized" : "regular";
+  }
+  if (widthResult === "fitted") {
+    if (lengthResult === "tooLong" || lengthResult === "long") return "semiOversized";
+    return "fitted";
+  }
+
+  if (lengthResult === "tooLong") return "oversized";
+  if (lengthResult === "long") return "semiOversized";
+  if (lengthResult === "short" || lengthResult === "regular") return "regular";
   return "unknown";
 }
 
@@ -394,10 +558,24 @@ export function getMeasurementComparison(
     unavailableFields.push(label);
   });
 
-  const lengthAnalysis = getBottomLengthAnalysis(item, garmentMeasurement, profile);
+  const lengthAnalysis = isBottomCategory(item)
+    ? getBottomLengthAnalysis(item, garmentMeasurement, profile)
+    : getUpperLengthAnalysis(item, garmentMeasurement, profile);
   const widthAnalysis = getWidthAnalysis(item, comparisons);
-  const fitResult = getAutomaticFitResult(lengthAnalysis.result, widthAnalysis.result);
-  const description = [lengthAnalysis.description, widthAnalysis.description]
+  const fitResult = isUpperCategory(item)
+    ? getUpperAutomaticFitResult(lengthAnalysis.result, widthAnalysis.result)
+    : getAutomaticFitResult(lengthAnalysis.result, widthAnalysis.result);
+  const sleeveDescription = getSleeveDescription(item, comparisons);
+  const description = (
+    isUpperCategory(item)
+      ? [
+          widthAnalysis.shoulderDescription,
+          lengthAnalysis.description,
+          widthAnalysis.chestDescription,
+          sleeveDescription,
+        ]
+      : [lengthAnalysis.description, widthAnalysis.description]
+  )
     .filter(Boolean)
     .join(" ");
   const sourceSize = garmentMeasurement.size || item.size || "";
