@@ -615,6 +615,10 @@ export default function AddClothesScreen() {
     try {
       setIsSaving(true);
       const cleanImageUri = await getOptionalCleanImageUri(analysis);
+      const confirmedProduct = extractedProduct
+        ? buildConfirmedProductFromExtractedProduct(extractedProduct)
+        : undefined;
+      const confirmedProductBrand = confirmedProduct?.brand?.trim() || undefined;
 
       await saveClosetItem({
         id: Date.now().toString(),
@@ -640,9 +644,14 @@ export default function AddClothesScreen() {
         matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
         avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
         selectedProductCandidate: selectedProductCandidate || undefined,
-        confirmedProduct: extractedProduct
-          ? buildConfirmedProductFromExtractedProduct(extractedProduct)
-          : undefined,
+        confirmedProduct,
+        ...(confirmedProductBrand
+          ? {
+              confirmedBrand: confirmedProductBrand,
+              brand: confirmedProductBrand,
+              brandConfidence: 100,
+            }
+          : {}),
         createdAt: new Date().toISOString(),
       });
 

@@ -537,9 +537,15 @@ function getBooleanLabel(value?: boolean) {
 }
 
 function getAiAnalysisRows(item: ClosetItem) {
+  const confirmedBrand =
+    item.confirmedProduct?.brand?.trim() || item.confirmedBrand?.trim() || "";
+
   return [
-    { label: "확정 브랜드", value: item.confirmedBrand || "확정 없음" },
-    { label: "추정 브랜드", value: item.inferredBrand || "추정 없음" },
+    { label: "확정 브랜드", value: confirmedBrand || "확정 없음" },
+    {
+      label: "추정 브랜드",
+      value: confirmedBrand ? "확정 브랜드 우선" : item.inferredBrand || "추정 없음",
+    },
     { label: "추정 상품명", value: item.inferredProductName || "추정 없음" },
     { label: "로고", value: getBooleanLabel(item.logoDetected) },
     { label: "로고 텍스트", value: item.logoText || "없음" },
@@ -589,6 +595,15 @@ function isProductConfirmationWarning(warning: string) {
   );
 }
 
+function isBrandConfirmationWarning(warning: string) {
+  return (
+    warning.includes("브랜드") &&
+    ["불확실", "식별", "추정", "판단", "확실하지"].some((keyword) =>
+      warning.includes(keyword)
+    )
+  );
+}
+
 function getImageQualityLabel(imageQuality?: string) {
   const labels: Record<string, string> = {
     good: "좋음",
@@ -604,8 +619,13 @@ function getImageQualityLabel(imageQuality?: string) {
 function AnalysisQualityCard({ item }: { item: ClosetItem }) {
   const hasProductWarning = hasLowProductConfidence(item);
   const hasConfirmedProduct = Boolean(item.confirmedProduct);
+  const hasConfirmedBrand = Boolean(
+    item.confirmedProduct?.brand?.trim() || item.confirmedBrand?.trim()
+  );
   const warnings = (item.analysisWarnings || []).filter(
-    (warning) => !hasConfirmedProduct || !isProductConfirmationWarning(warning)
+    (warning) =>
+      (!hasConfirmedProduct || !isProductConfirmationWarning(warning)) &&
+      (!hasConfirmedBrand || !isBrandConfirmationWarning(warning))
   );
   const quality = item.analysisQuality;
   const missingHints = quality?.missingHints || [];
@@ -1609,12 +1629,17 @@ export default function ClothesDetailScreen() {
     if (!item) return;
 
     try {
+      const confirmedBrand = confirmedProduct.brand.trim();
       const replacementConfirmedProduct: ConfirmedProduct = {
         ...confirmedProduct,
+        brand: confirmedBrand,
         productSizeGuide: normalizeProductSizeGuideForDisplay(confirmedProduct.productSizeGuide),
       };
       const updatedCloset = await updateClosetItem(item.id, {
         confirmedProduct: replacementConfirmedProduct,
+        confirmedBrand,
+        brand: confirmedBrand,
+        brandConfidence: 100,
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
