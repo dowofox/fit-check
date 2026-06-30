@@ -323,7 +323,9 @@ function normalizeProductSizeGuideForDisplay(
 }
 
 function getProductSizeGuideSummary(productSizeGuide?: ProductSizeGuide) {
-  const sizes = getValidProductSizeRows(productSizeGuide).map((sizeInfo) => sizeInfo.size.trim());
+  const sizes = getValidProductSizeRows(productSizeGuide).map((sizeInfo) =>
+    getProductSizeDisplayName(sizeInfo)
+  );
 
   return sizes.length > 0 ? sizes.join(" / ") : "";
 }
@@ -342,7 +344,70 @@ const PRODUCT_SIZE_MEASUREMENT_LABELS: [keyof ProductSizeMeasurement, string][] 
 ];
 
 function normalizeSizeForCompare(size?: string) {
-  return (size || "").replace(/\s+/g, "").toUpperCase();
+  const normalizedSize = (size || "").replace(/\s+/g, "").toUpperCase();
+  const letterSize = normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/)?.[0];
+  const baseSize = letterSize || normalizedSize;
+
+  if (baseSize === "2XL") return "XXL";
+  if (baseSize === "3XL") return "XXXL";
+
+  return baseSize;
+}
+
+function getBaseSizeForStorage(size: string) {
+  const normalizedSize = size.replace(/\s+/g, "").toUpperCase();
+  const letterSize = normalizedSize.match(
+    /(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/
+  )?.[0];
+
+  return letterSize || normalizedSize;
+}
+
+function getProductSizeDisplayName(sizeInfo: ProductSizeMeasurement) {
+  return (sizeInfo.displaySize || sizeInfo.rawSize || sizeInfo.size).trim();
+}
+
+function getProductSizeNumericRange(sizeInfo: ProductSizeMeasurement) {
+  if (sizeInfo.numericRange) return sizeInfo.numericRange;
+
+  const displaySize = getProductSizeDisplayName(sizeInfo);
+  const rangeMatch = displaySize.match(/(\d{1,3})\s*[~～\-–—]\s*(\d{1,3})/);
+  if (!rangeMatch) return undefined;
+
+  const firstValue = Number(rangeMatch[1]);
+  const secondValue = Number(rangeMatch[2]);
+
+  return {
+    min: Math.min(firstValue, secondValue),
+    max: Math.max(firstValue, secondValue),
+  };
+}
+
+function isSizeInProductNumericRange(
+  size: string | undefined,
+  sizeInfo: ProductSizeMeasurement
+) {
+  const numericSize = Number((size || "").trim());
+  const numericRange = getProductSizeNumericRange(sizeInfo);
+
+  return (
+    Number.isFinite(numericSize) &&
+    numericRange !== undefined &&
+    numericSize >= numericRange.min &&
+    numericSize <= numericRange.max
+  );
+}
+
+function doesProductSizeRowMatch(sizeInfo: ProductSizeMeasurement, size?: string) {
+  const targetSize = normalizeSizeForCompare(size);
+  if (!targetSize) return false;
+
+  return (
+    normalizeSizeForCompare(sizeInfo.size) === targetSize ||
+    normalizeSizeForCompare(sizeInfo.displaySize) === targetSize ||
+    normalizeSizeForCompare(sizeInfo.rawSize) === targetSize ||
+    isSizeInProductNumericRange(size, sizeInfo)
+  );
 }
 
 function getProfileSizeForItem(item: ClosetItem, profile?: UserProfile | null) {
@@ -355,7 +420,7 @@ function getProfileSizeForItem(item: ClosetItem, profile?: UserProfile | null) {
   const sizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide);
   const profileSizes = [profile.topSize, profile.bottomSize, profile.shoeSize].filter(Boolean);
   const matchedSize = profileSizes.find((profileSize) =>
-    sizeRows.some((row) => normalizeSizeForCompare(row.size) === normalizeSizeForCompare(profileSize))
+    sizeRows.some((row) => doesProductSizeRowMatch(row, profileSize))
   );
 
   return matchedSize || "";
@@ -378,9 +443,7 @@ function getProductMeasurementDraft(item: ClosetItem): ProductMeasurementDraft {
   const sizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide);
   const currentSize = item.size || "";
   const matchingRow =
-    sizeRows.find(
-      (row) => normalizeSizeForCompare(row.size) === normalizeSizeForCompare(currentSize)
-    ) || sizeRows[0];
+    sizeRows.find((row) => doesProductSizeRowMatch(row, currentSize));
 
   if (!matchingRow) {
     return {
@@ -390,7 +453,7 @@ function getProductMeasurementDraft(item: ClosetItem): ProductMeasurementDraft {
   }
 
   return {
-    size: matchingRow.size,
+    size: getProductSizeDisplayName(matchingRow),
     totalLength: measurementValueToDraft(matchingRow.totalLength),
     shoulder: measurementValueToDraft(matchingRow.shoulder),
     chest: measurementValueToDraft(matchingRow.chest),
@@ -414,9 +477,20 @@ function buildProductSizeMeasurement(
 ): ProductSizeMeasurement | null {
   const size = draft.size.trim();
   if (!size) return null;
+  const baseSize = getBaseSizeForStorage(size);
+  const rangeMatch = size.match(/(\d{1,3})\s*[~～\-–—]\s*(\d{1,3})/);
+  const numericRange = rangeMatch
+    ? {
+        min: Math.min(Number(rangeMatch[1]), Number(rangeMatch[2])),
+        max: Math.max(Number(rangeMatch[1]), Number(rangeMatch[2])),
+      }
+    : undefined;
 
   const measurement: ProductSizeMeasurement = {
-    size,
+    size: baseSize || size,
+    rawSize: size,
+    displaySize: size,
+    numericRange,
     totalLength: parseProductMeasurement(draft.totalLength),
     shoulder: parseProductMeasurement(draft.shoulder),
     chest: parseProductMeasurement(draft.chest),
@@ -1103,22 +1177,23 @@ function ConfirmedProductCard({
           {sizeGuideRows.map((sizeInfo) => {
             const isProfileSize =
               Boolean(profileSize) &&
-              normalizeSizeForCompare(sizeInfo.size) === normalizeSizeForCompare(profileSize);
+              doesProductSizeRowMatch(sizeInfo, profileSize);
             const measurementRows = getMeasurementRows(sizeInfo);
+            const displaySize = getProductSizeDisplayName(sizeInfo);
 
             return (
               <View
-                key={sizeInfo.size}
+                key={`${sizeInfo.size}-${displaySize}`}
                 style={[styles.sizeGuideRowCard, isProfileSize && styles.sizeGuideRowCardActive]}
               >
                 <View style={styles.sizeGuideRowHeader}>
-                  <Text style={styles.sizeGuideSizeText}>{sizeInfo.size}</Text>
+                  <Text style={styles.sizeGuideSizeText}>{displaySize}</Text>
                   {isProfileSize ? <Text style={styles.sizeGuideMySizeBadge}>내 사이즈</Text> : null}
                 </View>
 
                 <View style={styles.sizeGuideMeasurementGrid}>
                   {measurementRows.map((measurement) => (
-                    <View key={`${sizeInfo.size}-${measurement.label}`} style={styles.sizeGuideMeasurementPill}>
+                    <View key={`${displaySize}-${measurement.label}`} style={styles.sizeGuideMeasurementPill}>
                       <Text style={styles.sizeGuideMeasurementLabel}>{measurement.label}</Text>
                       <Text style={styles.sizeGuideMeasurementValue}>{measurement.value}</Text>
                     </View>
@@ -1748,8 +1823,7 @@ export default function ClothesDetailScreen() {
     const existingRows = getValidProductSizeRows(item.confirmedProduct.productSizeGuide);
     const nextRows = [
       ...existingRows.filter(
-        (row) =>
-          normalizeSizeForCompare(row.size) !== normalizeSizeForCompare(measurement.size)
+        (row) => !doesProductSizeRowMatch(row, measurement.size)
       ),
       measurement,
     ];

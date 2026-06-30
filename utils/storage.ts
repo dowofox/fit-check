@@ -32,6 +32,12 @@ export type ProductCandidate = {
 
 export type ProductSizeMeasurement = {
   size: string;
+  rawSize?: string;
+  displaySize?: string;
+  numericRange?: {
+    min: number;
+    max: number;
+  };
   totalLength?: number;
   shoulder?: number;
   chest?: number;

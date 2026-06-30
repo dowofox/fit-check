@@ -605,13 +605,54 @@ const INVALID_SIZE_NAME_KEYWORDS = [
   "브랜드",
 ];
 
-function isValidProductSizeName(size) {
+function isValidBaseProductSizeName(size) {
   const normalizedSize = String(size || "").trim().toUpperCase();
   if (!normalizedSize) return false;
 
   if (INVALID_SIZE_NAME_KEYWORDS.some((keyword) => normalizedSize.includes(keyword))) return false;
 
   return /^(?:XS|S|M|L|XL|XXL|XXXL|[2-5]XL|FREE|OS|\d{1,3}|2[2-9]\d|3[0-1]\d)$/.test(normalizedSize);
+}
+
+function parseProductSizeName(value) {
+  const rawSize = String(value || "").trim();
+  if (!rawSize) return null;
+  if (INVALID_SIZE_NAME_KEYWORDS.some((keyword) => rawSize.includes(keyword))) return null;
+
+  const normalizedRawSize = rawSize.toUpperCase();
+  const letterSize = normalizedRawSize.match(
+    /(?:^|[\s(/])((?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS))(?=$|[\s()/])/,
+  )?.[1];
+  const numericOnlySize = /^\d{1,3}$/.test(normalizedRawSize)
+    ? normalizedRawSize
+    : "";
+  const size = letterSize || numericOnlySize;
+
+  if (!isValidBaseProductSizeName(size)) return null;
+
+  const rangeMatch = normalizedRawSize.match(
+    /(?:\(|\s|^)(\d{1,3})\s*[~～\-–—]\s*(\d{1,3})(?:\)|\s|$)/,
+  );
+  const firstRangeValue = Number(rangeMatch?.[1]);
+  const secondRangeValue = Number(rangeMatch?.[2]);
+  const numericRange =
+    Number.isFinite(firstRangeValue) && Number.isFinite(secondRangeValue)
+      ? {
+          min: Math.min(firstRangeValue, secondRangeValue),
+          max: Math.max(firstRangeValue, secondRangeValue),
+        }
+      : undefined;
+
+  return {
+    size,
+    rawSize,
+    displaySize: rawSize,
+    numericRange,
+  };
+}
+
+function isValidProductSizeName(size) {
+  return Boolean(parseProductSizeName(size));
 }
 
 function hasProductSizeMeasurements(sizeMeasurement) {
@@ -642,7 +683,7 @@ function logInvalidSizeRow(reason, row, normalizedRow) {
 function normalizeProductSizeMeasurement(row) {
   if (!row || typeof row !== "object") return null;
 
-  const size = String(
+  const rawSize = String(
     getProductSizeValue(row, [
       "size",
       "name",
@@ -655,15 +696,16 @@ function normalizeProductSizeMeasurement(row) {
       "SIZE",
     ]) || "",
   ).trim();
+  const parsedSize = parseProductSizeName(rawSize);
 
-  if (!size) return null;
-  if (!isValidProductSizeName(size)) {
-    logInvalidSizeRow("invalid size name", row, { size });
+  if (!rawSize) return null;
+  if (!parsedSize) {
+    logInvalidSizeRow("invalid size name", row, { size: rawSize });
     return null;
   }
 
   return {
-    size,
+    ...parsedSize,
     totalLength: normalizeProductSizeNumber(
       getProductSizeValue(row, ["totalLength", "length", "총장", "기장", "옷길이"]),
     ),

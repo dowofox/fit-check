@@ -54,6 +54,46 @@ function areSameSizeLabels(firstSize?: string, secondSize?: string) {
   return firstAliases.some((alias) => secondAliases.has(alias));
 }
 
+function getNumericSizeValue(size?: string) {
+  const normalizedSize = normalizeSize(size);
+  return /^\d{1,3}(?:\.\d+)?$/.test(normalizedSize)
+    ? Number(normalizedSize)
+    : undefined;
+}
+
+function isSizeWithinNumericRange(
+  size: string | undefined,
+  numericRange?: ProductSizeMeasurement["numericRange"]
+) {
+  const numericSize = getNumericSizeValue(size);
+
+  return (
+    numericSize !== undefined &&
+    numericRange !== undefined &&
+    numericSize >= numericRange.min &&
+    numericSize <= numericRange.max
+  );
+}
+
+function doesMeasurementMatchSize(
+  measurement: ProductSizeMeasurement,
+  size?: string
+) {
+  const targetAliases = getSizeAliases(size);
+  if (targetAliases.length === 0) return false;
+
+  const measurementAliases = [
+    measurement.size,
+    measurement.displaySize,
+    measurement.rawSize,
+  ].flatMap((measurementSize) => getSizeAliases(measurementSize));
+
+  return (
+    measurementAliases.some((alias) => targetAliases.includes(alias)) ||
+    isSizeWithinNumericRange(size, measurement.numericRange)
+  );
+}
+
 function getProfileSize(item: ClosetItem, profile?: UserProfile | null) {
   if (!profile) return "";
 
@@ -151,13 +191,10 @@ function parseMeasurement(value?: string) {
 }
 
 function getCurrentProductMeasurement(item: ClosetItem) {
-  const itemSizeAliases = getSizeAliases(item.size);
   const sizes = item.confirmedProduct?.productSizeGuide?.sizes || [];
 
-  if (itemSizeAliases.length === 0) return undefined;
-  return sizes.find((measurement) =>
-    getSizeAliases(measurement.size).some((alias) => itemSizeAliases.includes(alias))
-  );
+  if (getSizeAliases(item.size).length === 0) return undefined;
+  return sizes.find((measurement) => doesMeasurementMatchSize(measurement, item.size));
 }
 
 export function getUserFitMeasurements(profile?: UserProfile | null): FitMeasurements {
@@ -694,8 +731,14 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
   }
 
   if (currentProductMeasurement) {
+    const profileSizeMatchesRange = isSizeWithinNumericRange(
+      profileSize,
+      currentProductMeasurement.numericRange
+    );
     const sizeLabelDescription =
-      profileSize && !areSameSizeLabels(profileSize, itemSize)
+      profileSize &&
+      !areSameSizeLabels(profileSize, itemSize) &&
+      !profileSizeMatchesRange
         ? "표기 사이즈는 다르지만, 상품 실측 기준으로 비교했어요. "
         : "상품 실측 기준으로 비교했어요. ";
 
