@@ -8,8 +8,8 @@ export async function hideAndroidNavigationBar() {
 
   try {
     await NavigationBar.setVisibilityAsync("hidden");
-  } catch (error) {
-    console.log("NavigationBar hide failed:", error);
+  } catch {
+    // Some Android devices do not allow immersive navigation changes.
   }
 }
 

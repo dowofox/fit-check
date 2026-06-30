@@ -162,8 +162,8 @@ export default function HomeScreen() {
           if (weather) {
             updateTodayRecommendations(nextClosetItems, nextProfile, weather);
           }
-        } catch (error) {
-          console.log("[home] weather recommendation fallback", error);
+        } catch {
+          // The default recommendation stays visible when weather lookup fails.
         }
       }
 

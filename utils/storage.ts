@@ -221,7 +221,7 @@ export async function saveAnalysis(result: any) {
     );
 
   } catch (error) {
-    console.log("저장 실패:", error);
+    console.error("저장 실패:", error);
   }
 }
 
@@ -231,7 +231,7 @@ export async function getAnalysisHistory() {
 
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.log("불러오기 실패:", error);
+    console.error("불러오기 실패:", error);
     return [];
   }
 }
@@ -248,7 +248,7 @@ export async function deleteAnalysis(id: string) {
 
     return filteredHistory;
   } catch (error) {
-    console.log("삭제 실패:", error);
+    console.error("삭제 실패:", error);
     return [];
   }
 }
@@ -257,7 +257,7 @@ export async function saveUserProfile(profile: UserProfile) {
   try {
     await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   } catch (error) {
-    console.log("프로필 저장 실패:", error);
+    console.error("프로필 저장 실패:", error);
   }
 }
 
@@ -267,7 +267,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
     return data ? JSON.parse(data) : null;
   } catch (error) {
-    console.log("프로필 불러오기 실패:", error);
+    console.error("프로필 불러오기 실패:", error);
     return null;
   }
 }
@@ -283,7 +283,7 @@ export async function saveClosetItem(item: ClosetItem) {
 
     return closet;
   } catch (error) {
-    console.log("옷장 저장 실패:", error);
+    console.error("옷장 저장 실패:", error);
     return [];
   }
 }
@@ -294,7 +294,7 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
 
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.log("옷장 불러오기 실패:", error);
+    console.error("옷장 불러오기 실패:", error);
     return [];
   }
 }
@@ -308,7 +308,7 @@ export async function deleteClosetItem(id: string) {
 
     return filteredCloset;
   } catch (error) {
-    console.log("옷장 삭제 실패:", error);
+    console.error("옷장 삭제 실패:", error);
     return [];
   }
 }
@@ -324,7 +324,7 @@ export async function updateClosetItem(id: string, updatedItem: Partial<ClosetIt
 
     return updatedCloset;
   } catch (error) {
-    console.log("옷장 수정 실패:", error);
+    console.error("옷장 수정 실패:", error);
     return [];
   }
 }
@@ -358,7 +358,7 @@ export async function saveOutfit(outfit: SavedOutfit, updateWearHistory = false)
 
     return updatedOutfits;
   } catch (error) {
-    console.log("코디 저장 실패:", error);
+    console.error("코디 저장 실패:", error);
     return [];
   }
 }
@@ -369,7 +369,7 @@ export async function getSavedOutfits(): Promise<SavedOutfit[]> {
 
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.log("저장된 코디 불러오기 실패:", error);
+    console.error("저장된 코디 불러오기 실패:", error);
     return [];
   }
 }
@@ -383,7 +383,7 @@ export async function deleteSavedOutfit(id: string) {
 
     return filteredOutfits;
   } catch (error) {
-    console.log("저장된 코디 삭제 실패:", error);
+    console.error("저장된 코디 삭제 실패:", error);
     return [];
   }
 }
@@ -399,7 +399,7 @@ export async function updateSavedOutfit(id: string, updatedOutfit: Partial<Saved
 
     return updatedOutfits;
   } catch (error) {
-    console.log("저장된 코디 수정 실패:", error);
+    console.error("저장된 코디 수정 실패:", error);
     return [];
   }
 }

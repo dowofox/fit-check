@@ -19,11 +19,11 @@ import {
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { Image as ExpoImage } from "expo-image";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -1155,10 +1155,11 @@ function ConfirmedProductCard({
 
       <View style={styles.confirmedProductInfoRow}>
         {confirmedProduct.productImageUrl ? (
-          <Image
-            source={{ uri: confirmedProduct.productImageUrl }}
+          <ExpoImage
+            source={confirmedProduct.productImageUrl}
             style={styles.confirmedProductImage}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
           />
         ) : null}
 
@@ -2093,18 +2094,28 @@ export default function ClothesDetailScreen() {
     }
   }
 
+  const hasSizeRecommendationSource = useMemo(
+    () =>
+      Boolean(
+        item &&
+          (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
+          item.confirmedProduct?.productSizeGuide?.sizes?.some(hasProductSizeMeasurements)
+      ),
+    [item]
+  );
   const fitSuitability = useMemo(
     () => (item ? getFitSuitability(item, profile) : null),
     [item, profile]
   );
   const sizeRecommendation = useMemo(
-    () => (item ? getRecommendedProductSize(item, profile) : null),
-    [item, profile]
+    () =>
+      item && hasSizeRecommendationSource
+        ? getRecommendedProductSize(item, profile)
+        : null,
+    [hasSizeRecommendationSource, item, profile]
   );
   const shouldShowRecommendedSizeCard = Boolean(
-    item &&
-      (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
-      item.confirmedProduct?.productSizeGuide?.sizes?.some(hasProductSizeMeasurements) &&
+    hasSizeRecommendationSource &&
       sizeRecommendation &&
       (sizeRecommendation.sizeRecommendations.length > 0 ||
         sizeRecommendation.missingFields.length > 0)
@@ -2170,7 +2181,13 @@ export default function ClothesDetailScreen() {
 
         {item && (
           <>
-            <Image source={{ uri: getDisplayImageUri(item) }} style={styles.heroImage} />
+            <ExpoImage
+              source={getDisplayImageUri(item)}
+              style={styles.heroImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={item.id}
+            />
 
             <View style={styles.summaryCard}>
               <Text style={styles.itemTitle}>
