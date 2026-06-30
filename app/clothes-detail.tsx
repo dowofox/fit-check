@@ -1,4 +1,8 @@
-import { getFitSuitability } from "@/utils/sizeMatch";
+import {
+  getFitSuitability,
+  getRecommendedProductSize,
+  type SizeRecommendationResult,
+} from "@/utils/sizeMatch";
 import { openProductSearch } from "@/utils/productSearch";
 import {
   ClosetItem,
@@ -1578,6 +1582,95 @@ function TipEditCard({
   );
 }
 
+function getAlternativeSizeSummary(
+  recommendation: SizeRecommendationResult["sizeRecommendations"][number]
+) {
+  if (recommendation.widthResult === "small") return "품이 타이트할 가능성이 있어요.";
+  if (recommendation.lengthResult === "short") return "길이가 짧게 느껴질 수 있어요.";
+  if (recommendation.lengthResult === "tooLong") return "길이가 많이 쌓일 수 있어요.";
+  if (recommendation.widthResult === "oversized") return "품이 크게 느껴질 수 있어요.";
+  return `내 실측 기준 적합도는 ${recommendation.score}점이에요.`;
+}
+
+function RecommendedSizeCard({
+  item,
+  result,
+}: {
+  item: ClosetItem;
+  result: SizeRecommendationResult;
+}) {
+  const recommended = result.sizeRecommendations[0];
+
+  if (result.missingFields.length > 0) {
+    return (
+      <View style={styles.sizeMatchCard}>
+        <View style={styles.tipHeader}>
+          <View style={styles.tipIconCircle}>
+            <Feather name="user-check" size={16} color="#8c6f47" />
+          </View>
+          <Text style={styles.tipTitle}>내 체형 기준 추천 사이즈</Text>
+        </View>
+        <Text style={styles.tipText}>
+          추천 사이즈를 계산하려면 {result.missingFields.join(", ")} 정보를 입력해주세요.
+        </Text>
+      </View>
+    );
+  }
+
+  if (!recommended) return null;
+
+  const recommendedRow = getValidProductSizeRows(
+    item.confirmedProduct?.productSizeGuide
+  ).find((row) => normalizeSizeForCompare(row.size) === normalizeSizeForCompare(result.recommendedSize));
+  const currentSizeMatches = recommendedRow
+    ? doesProductSizeRowMatch(recommendedRow, item.size)
+    : normalizeSizeForCompare(item.size) === normalizeSizeForCompare(result.recommendedSize);
+  const alternatives = result.sizeRecommendations.slice(1, 3);
+
+  return (
+    <View style={styles.sizeMatchCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="user-check" size={16} color="#8c6f47" />
+        </View>
+        <Text style={styles.tipTitle}>내 체형 기준 추천 사이즈</Text>
+      </View>
+
+      <View style={styles.recommendedSizeHeader}>
+        <Text style={styles.recommendedSizeLabel}>추천</Text>
+        <Text style={styles.recommendedSizeValue}>
+          {result.recommendedDisplaySize || result.recommendedSize}
+        </Text>
+        <Text style={styles.recommendedSizeScore}>{recommended.score}점</Text>
+      </View>
+
+      {recommended.reasons.slice(0, 2).map((reason, index) => (
+        <Text key={`${recommended.size}-reason-${index}`} style={styles.recommendedSizeReason}>
+          {reason}
+        </Text>
+      ))}
+
+      {!currentSizeMatches && item.size ? (
+        <View style={styles.recommendedSizeNotice}>
+          <Text style={styles.recommendedSizeNoticeText}>
+            현재 선택한 사이즈는 {item.size}이지만, 내 실측 기준으로는 {result.recommendedDisplaySize || result.recommendedSize}이 더 잘 맞을 가능성이 높아요.
+          </Text>
+        </View>
+      ) : null}
+
+      {alternatives.length > 0 ? (
+        <View style={styles.alternativeSizeList}>
+          {alternatives.map((alternative) => (
+            <Text key={`${alternative.size}-${alternative.rank}`} style={styles.alternativeSizeText}>
+              {alternative.displaySize || alternative.size}은 {getAlternativeSizeSummary(alternative)}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function ClothesDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [item, setItem] = useState<ClosetItem | null>(null);
@@ -1975,6 +2068,12 @@ export default function ClothesDetailScreen() {
   }
 
   const fitSuitability = item ? getFitSuitability(item, profile) : null;
+  const sizeRecommendation = item ? getRecommendedProductSize(item, profile) : null;
+  const hasSizeRecommendationSource = Boolean(
+    item &&
+      (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
+      getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).length > 0
+  );
 
   if (isLoaded && !item) {
     return (
@@ -2194,6 +2293,10 @@ export default function ClothesDetailScreen() {
             )}
 
             {!editMode && <MatchingItemSearchCard item={item} />}
+
+            {!editMode && hasSizeRecommendationSource && sizeRecommendation && (
+              <RecommendedSizeCard item={item} result={sizeRecommendation} />
+            )}
 
             {!editMode && fitSuitability && (
               <View style={styles.sizeMatchCard}>
@@ -2521,6 +2624,69 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee7dd",
     marginBottom: 12,
+  },
+
+  recommendedSizeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  recommendedSizeLabel: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  recommendedSizeValue: {
+    color: "#111",
+    fontSize: 22,
+    fontWeight: "900",
+  },
+
+  recommendedSizeScore: {
+    color: "#777064",
+    fontSize: 12,
+    fontWeight: "800",
+    marginLeft: "auto",
+  },
+
+  recommendedSizeReason: {
+    color: "#625a51",
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+
+  recommendedSizeNotice: {
+    backgroundColor: "#f4eee7",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 8,
+  },
+
+  recommendedSizeNoticeText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+
+  alternativeSizeList: {
+    borderTopWidth: 1,
+    borderTopColor: "#eee7dd",
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 12,
+  },
+
+  alternativeSizeText: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
   },
 
   aiDetailCard: {

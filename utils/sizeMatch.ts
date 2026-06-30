@@ -178,6 +178,24 @@ export type FitResult =
   | "oversized"
   | "unknown";
 
+export type SizeRecommendation = {
+  size: string;
+  displaySize?: string;
+  score: number;
+  rank: number;
+  fitResult: FitResult;
+  lengthResult: LengthResult;
+  widthResult: WidthResult;
+  reasons: string[];
+};
+
+export type SizeRecommendationResult = {
+  recommendedSize?: string;
+  recommendedDisplaySize?: string;
+  sizeRecommendations: SizeRecommendation[];
+  missingFields: string[];
+};
+
 type WidthAnalysis = {
   result: WidthResult;
   description: string;
@@ -253,7 +271,11 @@ function getBottomLengthAnalysis(
   let difference: number | undefined;
   let comparisonBasis = "";
 
-  if (userInseam !== undefined && typeof garmentMeasurement.rise === "number") {
+  if (
+    userInseam !== undefined &&
+    typeof garmentMeasurement.rise === "number" &&
+    garmentMeasurement.rise > 0
+  ) {
     const estimatedGarmentInseam = garmentMeasurement.totalLength - garmentMeasurement.rise;
     difference = estimatedGarmentInseam - userInseam - intendedOffset;
     comparisonBasis = "내 인심";
@@ -611,7 +633,11 @@ export function getMeasurementComparison(
     const userValue = comparableUserMeasurements[key];
     const garmentValue = garmentMeasurement[productKey];
 
-    if (typeof userValue === "number" && typeof garmentValue === "number") {
+    if (
+      typeof userValue === "number" &&
+      typeof garmentValue === "number" &&
+      garmentValue > 0
+    ) {
       comparisons.push({
         key,
         label,
@@ -670,6 +696,277 @@ export function getMeasurementComparison(
     fitResult,
     description:
       description || "상품 실측은 있지만 비교 가능한 내 신체 치수가 부족해 자동 핏을 판단하기 어려워요.",
+  };
+}
+
+type FitPreference = "fitted" | "regular" | "relaxed" | "oversized";
+
+function getFitPreference(intendedFit?: string): FitPreference {
+  if (intendedFit === "딱 맞게") return "fitted";
+  if (intendedFit === "여유 있게") return "relaxed";
+  if (intendedFit === "오버핏") return "oversized";
+  return "regular";
+}
+
+function getRequiredProfileFields(item: ClosetItem, profile?: UserProfile | null) {
+  if (isBottomCategory(item)) {
+    return [
+      !parseMeasurement(profile?.waistCircumference) ? "허리둘레" : "",
+      !parseMeasurement(profile?.hipCircumference) ? "엉덩이둘레" : "",
+      !parseMeasurement(profile?.thighCircumference) ? "허벅지둘레" : "",
+      !parseMeasurement(profile?.inseam) && !parseMeasurement(profile?.height)
+        ? "인심 또는 키"
+        : "",
+    ].filter(Boolean);
+  }
+
+  if (isUpperCategory(item)) {
+    return [
+      !parseMeasurement(profile?.shoulderWidth) ? "어깨너비" : "",
+      !parseMeasurement(profile?.chestCircumference) ? "가슴둘레" : "",
+      !parseMeasurement(profile?.height) ? "키" : "",
+      !parseMeasurement(profile?.armLength) ? "팔 길이" : "",
+    ].filter(Boolean);
+  }
+
+  return [];
+}
+
+function getLengthScore(
+  result: LengthResult,
+  preference: FitPreference,
+  maxScore: number
+) {
+  const ratios: Record<FitPreference, Record<LengthResult, number>> = {
+    fitted: { short: 0.45, regular: 1, long: 0.6, tooLong: 0.15, unknown: 0 },
+    regular: { short: 0.5, regular: 1, long: 0.7, tooLong: 0.2, unknown: 0 },
+    relaxed: { short: 0.35, regular: 0.9, long: 1, tooLong: 0.45, unknown: 0 },
+    oversized: { short: 0.2, regular: 0.78, long: 1, tooLong: 0.7, unknown: 0 },
+  };
+
+  return maxScore * ratios[preference][result];
+}
+
+function getTargetEase(
+  category: "upper" | "bottom",
+  key: keyof FitMeasurements,
+  preference: FitPreference
+) {
+  const targets = {
+    upper: {
+      shoulder: { fitted: 0, regular: 1, relaxed: 2.5, oversized: 5 },
+      chest: { fitted: 1.5, regular: 3, relaxed: 6, oversized: 9 },
+      sleeve: { fitted: 0, regular: 0.5, relaxed: 1.5, oversized: 2.5 },
+    },
+    bottom: {
+      waist: { fitted: 0.5, regular: 1.5, relaxed: 2.5, oversized: 4 },
+      hip: { fitted: 1.5, regular: 3, relaxed: 5, oversized: 7 },
+      thigh: { fitted: 1, regular: 2, relaxed: 3.5, oversized: 5 },
+    },
+  } as const;
+
+  const categoryTargets = targets[category] as Partial<
+    Record<keyof FitMeasurements, Record<FitPreference, number>>
+  >;
+  return categoryTargets[key]?.[preference] ?? 0;
+}
+
+function getEaseScore(
+  difference: number | undefined,
+  target: number,
+  tolerance: number,
+  maxScore: number
+) {
+  if (difference === undefined) return 0;
+
+  const distance = Math.abs(difference - target);
+  let score = maxScore * Math.max(0, 1 - distance / tolerance);
+
+  if (difference < 0) {
+    score *= Math.max(0.2, 1 - Math.abs(difference) / tolerance);
+  }
+
+  return score;
+}
+
+function getFitPreferenceScore(fitResult: FitResult, preference: FitPreference) {
+  const scores: Record<FitPreference, Partial<Record<FitResult, number>>> = {
+    fitted: { fitted: 5, regular: 4, semiOversized: 1, oversized: 0, small: 0 },
+    regular: { fitted: 3.5, regular: 5, semiOversized: 3, oversized: 0.5, small: 0 },
+    relaxed: { fitted: 1, regular: 4, semiOversized: 5, oversized: 3, small: 0 },
+    oversized: { fitted: 0.5, regular: 2.5, semiOversized: 5, oversized: 4, small: 0 },
+  };
+
+  return scores[preference][fitResult] ?? 0;
+}
+
+function getIntendedFitReason(fitResult: FitResult, intendedFit?: string) {
+  if (intendedFit === "딱 맞게" && (fitResult === "fitted" || fitResult === "regular")) {
+    return "원하는 딱 맞는 착용감에 가까운 실측이에요.";
+  }
+  if (
+    intendedFit === "여유 있게" &&
+    (fitResult === "regular" || fitResult === "semiOversized")
+  ) {
+    return "원하는 여유 있는 착용감에 가까운 실측이에요.";
+  }
+  if (
+    intendedFit === "오버핏" &&
+    (fitResult === "semiOversized" || fitResult === "oversized")
+  ) {
+    return "원하는 오버핏에 가까운 실측이에요.";
+  }
+  return "길이와 품의 실측 균형을 함께 반영했어요.";
+}
+
+function getSizeDisplayName(measurement: ProductSizeMeasurement) {
+  return measurement.displaySize || measurement.rawSize || measurement.size;
+}
+
+function getMeasurementDifference(
+  comparison: MeasurementComparisonResult,
+  key: keyof FitMeasurements
+) {
+  return comparison.comparisons.find((value) => value.key === key)?.difference;
+}
+
+function getNumericRangeReferenceBonus(
+  item: ClosetItem,
+  measurement: ProductSizeMeasurement,
+  profile?: UserProfile | null
+) {
+  if (!isBottomCategory(item) || !measurement.numericRange) return 0;
+
+  const profileBottomSize = getNumericSizeValue(profile?.bottomSize);
+  if (profileBottomSize === undefined) return 0;
+
+  return profileBottomSize >= measurement.numericRange.min &&
+    profileBottomSize <= measurement.numericRange.max
+    ? 1
+    : 0;
+}
+
+function scoreSizeMeasurement(
+  item: ClosetItem,
+  measurement: ProductSizeMeasurement,
+  profile?: UserProfile | null
+): Omit<SizeRecommendation, "rank"> {
+  const productSizeGuide = item.confirmedProduct?.productSizeGuide;
+  const measurementItem: ClosetItem = {
+    ...item,
+    size: measurement.size,
+    confirmedProduct: item.confirmedProduct
+      ? {
+          ...item.confirmedProduct,
+          productSizeGuide: {
+            ...productSizeGuide,
+            sizes: [measurement],
+          },
+        }
+      : item.confirmedProduct,
+  };
+  const comparison = getMeasurementComparison(measurementItem, profile);
+  const preference = getFitPreference(item.intendedFit);
+  let score = 0;
+
+  if (isBottomCategory(item)) {
+    score += getLengthScore(comparison.lengthResult, preference, 40);
+    score += getEaseScore(
+      getMeasurementDifference(comparison, "waist"),
+      getTargetEase("bottom", "waist", preference),
+      5,
+      24
+    );
+    score += getEaseScore(
+      getMeasurementDifference(comparison, "hip"),
+      getTargetEase("bottom", "hip", preference),
+      8,
+      16
+    );
+    score += getEaseScore(
+      getMeasurementDifference(comparison, "thigh"),
+      getTargetEase("bottom", "thigh", preference),
+      6,
+      12
+    );
+    score += typeof measurement.rise === "number" && measurement.rise > 0 ? 1.5 : 0;
+    score += typeof measurement.hem === "number" && measurement.hem > 0 ? 1.5 : 0;
+  } else {
+    score += getEaseScore(
+      getMeasurementDifference(comparison, "shoulder"),
+      getTargetEase("upper", "shoulder", preference),
+      6,
+      30
+    );
+    score += getLengthScore(comparison.lengthResult, preference, 28);
+    score += getEaseScore(
+      getMeasurementDifference(comparison, "chest"),
+      getTargetEase("upper", "chest", preference),
+      10,
+      22
+    );
+    score += getEaseScore(
+      getMeasurementDifference(comparison, "sleeve"),
+      getTargetEase("upper", "sleeve", preference),
+      5,
+      15
+    );
+  }
+
+  score += getFitPreferenceScore(comparison.fitResult, preference);
+  score += getNumericRangeReferenceBonus(item, measurement, profile);
+
+  return {
+    size: measurement.size,
+    displaySize: getSizeDisplayName(measurement),
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    fitResult: comparison.fitResult,
+    lengthResult: comparison.lengthResult,
+    widthResult: comparison.widthResult,
+    reasons: [
+      comparison.description,
+      getIntendedFitReason(comparison.fitResult, item.intendedFit),
+    ].filter(Boolean),
+  };
+}
+
+export function getRecommendedProductSize(
+  item: ClosetItem,
+  profile?: UserProfile | null
+): SizeRecommendationResult {
+  if (!isBottomCategory(item) && !isUpperCategory(item)) {
+    return { sizeRecommendations: [], missingFields: [] };
+  }
+
+  const missingFields = getRequiredProfileFields(item, profile);
+  if (missingFields.length > 0) {
+    return { sizeRecommendations: [], missingFields };
+  }
+
+  const sizeRows = (item.confirmedProduct?.productSizeGuide?.sizes || []).filter(
+    (measurement) =>
+      Boolean(measurement.size) &&
+      [
+        measurement.totalLength,
+        measurement.shoulder,
+        measurement.chest,
+        measurement.sleeve,
+        measurement.waist,
+        measurement.hip,
+        measurement.thigh,
+      ].some((value) => typeof value === "number" && value > 0)
+  );
+  const scoredRows = sizeRows
+    .map((measurement) => scoreSizeMeasurement(item, measurement, profile))
+    .sort((first, second) => second.score - first.score)
+    .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
+  const recommended = scoredRows[0];
+
+  return {
+    recommendedSize: recommended?.size,
+    recommendedDisplaySize: recommended?.displaySize || recommended?.size,
+    sizeRecommendations: scoredRows,
+    missingFields: [],
   };
 }
 
