@@ -1653,7 +1653,7 @@ function RecommendedSizeCard({
       {!currentSizeMatches && item.size ? (
         <View style={styles.recommendedSizeNotice}>
           <Text style={styles.recommendedSizeNoticeText}>
-            현재 선택한 사이즈는 {item.size}이지만, 내 실측 기준으로는 {result.recommendedDisplaySize || result.recommendedSize}이 더 잘 맞을 가능성이 높아요.
+            현재 선택한 사이즈는 {item.size}이지만 추천은 {result.recommendedDisplaySize || result.recommendedSize}이에요.
           </Text>
         </View>
       ) : null}
@@ -2069,10 +2069,13 @@ export default function ClothesDetailScreen() {
 
   const fitSuitability = item ? getFitSuitability(item, profile) : null;
   const sizeRecommendation = item ? getRecommendedProductSize(item, profile) : null;
-  const hasSizeRecommendationSource = Boolean(
+  const shouldShowRecommendedSizeCard = Boolean(
     item &&
       (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
-      getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).length > 0
+      item.confirmedProduct?.productSizeGuide?.sizes?.some(hasProductSizeMeasurements) &&
+      sizeRecommendation &&
+      (sizeRecommendation.sizeRecommendations.length > 0 ||
+        sizeRecommendation.missingFields.length > 0)
   );
 
   if (isLoaded && !item) {
@@ -2257,6 +2260,23 @@ export default function ClothesDetailScreen() {
               />
             )}
 
+            {!editMode && shouldShowRecommendedSizeCard && sizeRecommendation && (
+              <RecommendedSizeCard item={item} result={sizeRecommendation} />
+            )}
+
+            {!editMode && fitSuitability && (
+              <View style={styles.sizeMatchCard}>
+                <View style={styles.tipHeader}>
+                  <View style={styles.tipIconCircle}>
+                    <Feather name="check-square" size={16} color="#8c6f47" />
+                  </View>
+                  <Text style={styles.tipTitle}>내 사이즈 적합도</Text>
+                </View>
+                <Text style={styles.sizeMatchStatus}>{fitSuitability.status}</Text>
+                <Text style={styles.tipText}>{fitSuitability.description}</Text>
+              </View>
+            )}
+
             {!editMode && !item.confirmedProduct && (
               <>
                 <ProductReferenceCard item={item} />
@@ -2293,23 +2313,6 @@ export default function ClothesDetailScreen() {
             )}
 
             {!editMode && <MatchingItemSearchCard item={item} />}
-
-            {!editMode && hasSizeRecommendationSource && sizeRecommendation && (
-              <RecommendedSizeCard item={item} result={sizeRecommendation} />
-            )}
-
-            {!editMode && fitSuitability && (
-              <View style={styles.sizeMatchCard}>
-                <View style={styles.tipHeader}>
-                  <View style={styles.tipIconCircle}>
-                    <Feather name="check-square" size={16} color="#8c6f47" />
-                  </View>
-                  <Text style={styles.tipTitle}>내 사이즈 적합도</Text>
-                </View>
-                <Text style={styles.sizeMatchStatus}>{fitSuitability.status}</Text>
-                <Text style={styles.tipText}>{fitSuitability.description}</Text>
-              </View>
-            )}
 
             {editMode ? (
               <>
