@@ -20,7 +20,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Image,
@@ -1131,8 +1131,14 @@ function ConfirmedProductCard({
 }) {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
-  const sizeGuideSummary = getProductSizeGuideSummary(confirmedProduct.productSizeGuide);
-  const sizeGuideRows = getValidProductSizeRows(confirmedProduct.productSizeGuide);
+  const sizeGuideSummary = useMemo(
+    () => getProductSizeGuideSummary(confirmedProduct.productSizeGuide),
+    [confirmedProduct.productSizeGuide]
+  );
+  const sizeGuideRows = useMemo(
+    () => getValidProductSizeRows(confirmedProduct.productSizeGuide),
+    [confirmedProduct.productSizeGuide]
+  );
   const profileSize = getProfileSizeForItem(item, profile);
 
   return (
@@ -1611,7 +1617,8 @@ function RecommendedSizeCard({
   item: ClosetItem;
   result: SizeRecommendationResult;
 }) {
-  const recommended = result.sizeRecommendations[0];
+  const displayedRecommendations = result.sizeRecommendations.slice(0, 3);
+  const recommended = displayedRecommendations[0];
 
   if (result.missingFields.length > 0) {
     return (
@@ -1637,7 +1644,7 @@ function RecommendedSizeCard({
   const currentSizeMatches = recommendedRow
     ? doesProductSizeRowMatch(recommendedRow, item.size)
     : normalizeSizeForCompare(item.size) === normalizeSizeForCompare(result.recommendedSize);
-  const alternatives = result.sizeRecommendations.slice(1, 3);
+  const alternatives = displayedRecommendations.slice(1);
   const isFreeRecommendation = normalizeSizeForCompare(result.recommendedSize) === "FREE";
 
   return (
@@ -2086,8 +2093,14 @@ export default function ClothesDetailScreen() {
     }
   }
 
-  const fitSuitability = item ? getFitSuitability(item, profile) : null;
-  const sizeRecommendation = item ? getRecommendedProductSize(item, profile) : null;
+  const fitSuitability = useMemo(
+    () => (item ? getFitSuitability(item, profile) : null),
+    [item, profile]
+  );
+  const sizeRecommendation = useMemo(
+    () => (item ? getRecommendedProductSize(item, profile) : null),
+    [item, profile]
+  );
   const shouldShowRecommendedSizeCard = Boolean(
     item &&
       (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
