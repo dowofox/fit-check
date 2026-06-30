@@ -39,6 +39,52 @@ type HomeRecommendationCache = {
   weatherLabel: string | null;
 };
 
+function toHomeRecommendationItem(item: ClosetItem): ClosetItem {
+  const materialSummary = item.confirmedProduct?.materialComposition?.summary;
+  const confirmedProduct = item.confirmedProduct
+    ? {
+        brand: item.confirmedProduct.brand,
+        productName: item.confirmedProduct.productName,
+        confirmedAt: item.confirmedProduct.confirmedAt,
+        materialComposition: materialSummary
+          ? { summary: materialSummary, source: item.confirmedProduct.materialComposition?.source }
+          : undefined,
+      }
+    : undefined;
+
+  return {
+    id: item.id,
+    imageUri: item.imageUri,
+    cleanImageUri: item.cleanImageUri,
+    category: item.category,
+    subCategory: item.subCategory,
+    detailCategory: item.detailCategory,
+    color: item.color,
+    style: item.style,
+    styleTags: item.styleTags,
+    season: item.season,
+    seasons: item.seasons,
+    fit: item.fit,
+    size: item.size,
+    intendedFit: item.intendedFit,
+    brand: item.brand,
+    confirmedBrand: item.confirmedBrand,
+    graphicDetected: item.graphicDetected,
+    graphicType: item.graphicType,
+    graphicSize: item.graphicSize,
+    material: materialSummary || item.material,
+    pattern: item.pattern,
+    confirmedProduct,
+    styleProfile: item.styleProfile,
+    garmentProfile: item.garmentProfile,
+    description: item.description,
+    recommendationPreference: item.recommendationPreference,
+    wearCount: item.wearCount,
+    lastWornAt: item.lastWornAt,
+    createdAt: item.createdAt,
+  };
+}
+
 function getRecommendationDataKey(
   items: ClosetItem[],
   profile: Awaited<ReturnType<typeof getUserProfile>>
@@ -144,6 +190,7 @@ export default function HomeScreen() {
     useCallback(() => {
       let isActive = true;
       const screenTimer = startPerformanceTimer("screen.home.focus-to-full-load");
+      const initialRenderTimer = startPerformanceTimer("home.time-to-initial-render");
 
       function applyRecommendation(
         items: ClosetItem[],
@@ -163,7 +210,7 @@ export default function HomeScreen() {
             reason: "same input",
             executionCount: recommendationExecutionCountRef.current[kind],
           });
-          return;
+          return false;
         }
 
         recommendationExecutionCountRef.current[kind] += 1;
@@ -191,10 +238,11 @@ export default function HomeScreen() {
           executionCount: recommendationExecutionCountRef.current[kind],
         });
 
-        if (!isActive) return;
+        if (!isActive) return true;
 
         setTodayRecommendations(recommendations);
         setWeatherLabel(nextWeatherLabel);
+        return true;
       }
 
       async function refreshWeatherRecommendation(
@@ -207,20 +255,42 @@ export default function HomeScreen() {
         let failed = false;
 
         try {
-          const cachedWeather = await getCachedWeatherForRecommendation();
+          const cachedWeatherTimer = startPerformanceTimer(
+            "home.cached-weather-recommendation"
+          );
+          let cachedWeather: OutfitRecommendationWeather | null = null;
+          let cachedWeatherApplied = false;
+
+          try {
+            cachedWeather = await getCachedWeatherForRecommendation();
+            if (cachedWeather && isActive) {
+              cachedWeatherApplied = applyRecommendation(items, profile, cachedWeather, dataKey);
+              weatherSource = "cache";
+            }
+          } finally {
+            endPerformanceTimer(cachedWeatherTimer, {
+              weatherFound: Boolean(cachedWeather),
+              recommendationExecuted: cachedWeatherApplied,
+            });
+          }
+
+          const liveWeatherTimer = startPerformanceTimer("home.live-weather-recommendation");
           let currentWeather: OutfitRecommendationWeather | null = null;
+          let liveWeatherApplied = false;
 
           try {
             currentWeather = await getCurrentWeatherForRecommendation();
+            if (currentWeather && isActive) {
+              liveWeatherApplied = applyRecommendation(items, profile, currentWeather, dataKey);
+              weatherSource = "current";
+            }
           } catch {
             currentWeather = null;
-          }
-
-          const finalWeather = currentWeather || cachedWeather;
-          weatherSource = currentWeather ? "current" : cachedWeather ? "cache" : "none";
-
-          if (finalWeather && isActive) {
-            applyRecommendation(items, profile, finalWeather, dataKey);
+          } finally {
+            endPerformanceTimer(liveWeatherTimer, {
+              weatherFound: Boolean(currentWeather),
+              recommendationExecuted: liveWeatherApplied,
+            });
           }
         } catch {
           failed = true;
@@ -246,16 +316,25 @@ export default function HomeScreen() {
 
           if (!isActive) return;
 
-          const dataKey = getRecommendationDataKey(nextClosetItems, nextProfile);
+          const recommendationItems = nextClosetItems.map(toHomeRecommendationItem);
+          const dataKey = getRecommendationDataKey(recommendationItems, nextProfile);
+          logPerformanceMetric("home.lightweight-recommendation-data", {
+            itemCount: recommendationItems.length,
+            serializedCharacters: dataKey.length,
+            containsProductSizeGuide: recommendationItems.some(
+              (item) => Boolean(item.confirmedProduct?.productSizeGuide)
+            ),
+          });
 
           setClosetItems(nextClosetItems);
           setSavedOutfits(nextSavedOutfits);
-          applyRecommendation(nextClosetItems, nextProfile, null, dataKey);
+          applyRecommendation(recommendationItems, nextProfile, null, dataKey);
           initialRecommendationReady = true;
 
-          void refreshWeatherRecommendation(nextClosetItems, nextProfile, dataKey);
+          void refreshWeatherRecommendation(recommendationItems, nextProfile, dataKey);
         } finally {
           endPerformanceTimer(screenTimer, { initialRecommendationReady });
+          endPerformanceTimer(initialRenderTimer, { initialRecommendationReady });
         }
       }
 
