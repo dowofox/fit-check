@@ -4,6 +4,8 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 ## Get started
 
+NAES 전용 Android Development Build 설정과 실행 방법은 [NAES_DEV_BUILD.md](./NAES_DEV_BUILD.md)를 참고하세요.
+
 1. Install dependencies
 
    ```bash
