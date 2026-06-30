@@ -22,3 +22,8 @@ export function endPerformanceTimer(
   }
   console.timeEnd(timerLabel);
 }
+
+export function logPerformanceMetric(label: string, details: Record<string, unknown>) {
+  if (!__DEV__) return;
+  console.info(`[perf] ${label}`, details);
+}
