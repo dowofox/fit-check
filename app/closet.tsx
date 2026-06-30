@@ -1,4 +1,5 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import {
     ClosetItem,
     deleteClosetItem,
@@ -64,8 +65,10 @@ export default function ClosetScreen() {
     );
 
     async function loadCloset() {
+        const timer = startPerformanceTimer("screen.closet.load");
         const closetItems = await getClosetItems();
         setItems(closetItems);
+        endPerformanceTimer(timer, { itemCount: closetItems.length });
     }
 
     const filteredItems = selectedCategory === "전체"

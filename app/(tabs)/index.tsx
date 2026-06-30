@@ -6,6 +6,7 @@ import ShoeIcon from "@/assets/icons/sneakers.svg";
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { getOutfitRecommendationResult } from "@/utils/outfitRecommend";
 import type { OutfitRecommendation, OutfitRecommendationWeather } from "@/utils/outfitRecommend";
+import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
 import { colors, typography } from "@/utils/theme";
 import {
@@ -114,12 +115,16 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+      const screenTimer = startPerformanceTimer("screen.home.focus-to-full-load");
 
       function updateTodayRecommendations(
         items: ClosetItem[],
         profile: Awaited<ReturnType<typeof getUserProfile>>,
         weather: OutfitRecommendationWeather | null
       ) {
+        const recommendationTimer = startPerformanceTimer(
+          weather ? "home.weather-outfit-recommendation" : "home.outfit-recommendation"
+        );
         const recommendationResult = getOutfitRecommendationResult(
           items,
           profile,
@@ -127,6 +132,10 @@ export default function HomeScreen() {
           [],
           weather ? { weather } : undefined
         );
+        endPerformanceTimer(recommendationTimer, {
+          closetItemCount: items.length,
+          recommendationCount: recommendationResult.recommendations.length,
+        });
 
         if (!isActive) return;
 
@@ -135,35 +144,52 @@ export default function HomeScreen() {
       }
 
       async function loadDashboard() {
-        const [nextClosetItems, nextSavedOutfits, nextProfile] = await Promise.all([
-          getClosetItems(),
-          getSavedOutfits(),
-          getUserProfile(),
-        ]);
-
-        if (!isActive) return;
-
-        const defaultRecommendationResult = getOutfitRecommendationResult(nextClosetItems, nextProfile);
-
-        setClosetItems(nextClosetItems);
-        setSavedOutfits(nextSavedOutfits);
-        setTodayRecommendations(defaultRecommendationResult.recommendations.slice(0, 5));
-        setWeatherLabel(null);
-
-        const cachedWeather = await getCachedWeatherForRecommendation();
-
-        if (cachedWeather) {
-          updateTodayRecommendations(nextClosetItems, nextProfile, cachedWeather);
-        }
-
         try {
-          const weather = await getCurrentWeatherForRecommendation();
+          const baseDataTimer = startPerformanceTimer("screen.home.base-data");
+          const [nextClosetItems, nextSavedOutfits, nextProfile] = await Promise.all([
+            getClosetItems(),
+            getSavedOutfits(),
+            getUserProfile(),
+          ]);
+          endPerformanceTimer(baseDataTimer, {
+            closetItemCount: nextClosetItems.length,
+            savedOutfitCount: nextSavedOutfits.length,
+          });
 
-          if (weather) {
-            updateTodayRecommendations(nextClosetItems, nextProfile, weather);
+          if (!isActive) return;
+
+          const recommendationTimer = startPerformanceTimer("home.initial-outfit-recommendation");
+          const defaultRecommendationResult = getOutfitRecommendationResult(
+            nextClosetItems,
+            nextProfile
+          );
+          endPerformanceTimer(recommendationTimer, {
+            closetItemCount: nextClosetItems.length,
+            recommendationCount: defaultRecommendationResult.recommendations.length,
+          });
+
+          setClosetItems(nextClosetItems);
+          setSavedOutfits(nextSavedOutfits);
+          setTodayRecommendations(defaultRecommendationResult.recommendations.slice(0, 5));
+          setWeatherLabel(null);
+
+          const cachedWeather = await getCachedWeatherForRecommendation();
+
+          if (cachedWeather) {
+            updateTodayRecommendations(nextClosetItems, nextProfile, cachedWeather);
           }
-        } catch {
-          // The default recommendation stays visible when weather lookup fails.
+
+          try {
+            const weather = await getCurrentWeatherForRecommendation();
+
+            if (weather) {
+              updateTodayRecommendations(nextClosetItems, nextProfile, weather);
+            }
+          } catch {
+            // The default recommendation stays visible when weather lookup fails.
+          }
+        } finally {
+          endPerformanceTimer(screenTimer);
         }
       }
 

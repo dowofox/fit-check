@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 
 const STORAGE_KEY = "analysis_history";
 const PROFILE_KEY = "naes_profile";
@@ -262,11 +263,19 @@ export async function saveUserProfile(profile: UserProfile) {
 }
 
 export async function getUserProfile(): Promise<UserProfile | null> {
+  const timer = startPerformanceTimer("storage.getUserProfile");
+
   try {
     const data = await AsyncStorage.getItem(PROFILE_KEY);
+    const profile = data ? JSON.parse(data) : null;
 
-    return data ? JSON.parse(data) : null;
+    endPerformanceTimer(timer, {
+      found: Boolean(profile),
+      jsonCharacters: data?.length || 0,
+    });
+    return profile;
   } catch (error) {
+    endPerformanceTimer(timer, { failed: true });
     console.error("프로필 불러오기 실패:", error);
     return null;
   }
@@ -289,11 +298,20 @@ export async function saveClosetItem(item: ClosetItem) {
 }
 
 export async function getClosetItems(): Promise<ClosetItem[]> {
+  const timer = startPerformanceTimer("storage.getClosetItems");
+
   try {
     const data = await AsyncStorage.getItem(CLOSET_KEY);
+    const closet = data ? JSON.parse(data) : [];
 
-    return data ? JSON.parse(data) : [];
+    endPerformanceTimer(timer, {
+      itemCount: closet.length,
+      jsonCharacters: data?.length || 0,
+      approximateKilobytes: Number(((data?.length || 0) / 1024).toFixed(1)),
+    });
+    return closet;
   } catch (error) {
+    endPerformanceTimer(timer, { failed: true });
     console.error("옷장 불러오기 실패:", error);
     return [];
   }
@@ -364,11 +382,19 @@ export async function saveOutfit(outfit: SavedOutfit, updateWearHistory = false)
 }
 
 export async function getSavedOutfits(): Promise<SavedOutfit[]> {
+  const timer = startPerformanceTimer("storage.getSavedOutfits");
+
   try {
     const data = await AsyncStorage.getItem(SAVED_OUTFITS_KEY);
+    const savedOutfits = data ? JSON.parse(data) : [];
 
-    return data ? JSON.parse(data) : [];
+    endPerformanceTimer(timer, {
+      outfitCount: savedOutfits.length,
+      jsonCharacters: data?.length || 0,
+    });
+    return savedOutfits;
   } catch (error) {
+    endPerformanceTimer(timer, { failed: true });
     console.error("저장된 코디 불러오기 실패:", error);
     return [];
   }

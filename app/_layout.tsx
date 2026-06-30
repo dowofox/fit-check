@@ -7,6 +7,9 @@ import { Platform } from "react-native";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
+
+let appStartTimer = startPerformanceTimer("app.start-to-root-mounted");
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -16,6 +19,9 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
+    endPerformanceTimer(appStartTimer);
+    appStartTimer = null;
+
     if (Platform.OS === "android") {
       NavigationBar.setVisibilityAsync("visible");
     }

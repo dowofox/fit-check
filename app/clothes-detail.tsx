@@ -5,6 +5,11 @@ import {
 } from "@/utils/sizeMatch";
 import { openProductSearch } from "@/utils/productSearch";
 import {
+  endPerformanceTimer,
+  startPerformanceTimer,
+  type PerformanceTimer,
+} from "@/utils/performance";
+import {
   ClosetItem,
   ConfirmedProduct,
   GarmentProfile,
@@ -21,7 +26,7 @@ import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image as ExpoImage } from "expo-image";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Linking,
@@ -1130,6 +1135,7 @@ function ConfirmedProductCard({
   onOpenMeasurementForm: () => void;
 }) {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const productImageTimerRef = useRef<PerformanceTimer>(null);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
   const sizeGuideSummary = useMemo(
     () => getProductSizeGuideSummary(confirmedProduct.productSizeGuide),
@@ -1160,6 +1166,20 @@ function ConfirmedProductCard({
             style={styles.confirmedProductImage}
             contentFit="cover"
             cachePolicy="memory-disk"
+            onLoadStart={() => {
+              endPerformanceTimer(productImageTimerRef.current, { restarted: true });
+              productImageTimerRef.current = startPerformanceTimer(
+                "clothes-detail.confirmed-product-image-load"
+              );
+            }}
+            onLoad={() => {
+              endPerformanceTimer(productImageTimerRef.current);
+              productImageTimerRef.current = null;
+            }}
+            onError={() => {
+              endPerformanceTimer(productImageTimerRef.current, { failed: true });
+              productImageTimerRef.current = null;
+            }}
           />
         ) : null}
 
@@ -1718,10 +1738,12 @@ export default function ClothesDetailScreen() {
   const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
   );
+  const heroImageTimerRef = useRef<PerformanceTimer>(null);
 
   useFocusEffect(
     useCallback(() => {
       async function loadItem() {
+        const timer = startPerformanceTimer("screen.clothes-detail.load-item");
         const [closetItems, userProfile] = await Promise.all([
           getClosetItems(),
           getUserProfile(),
@@ -1735,6 +1757,10 @@ export default function ClothesDetailScreen() {
           setConfirmedProductDraft(getConfirmedProductDraft(selectedItem));
         }
         setIsLoaded(true);
+        endPerformanceTimer(timer, {
+          closetItemCount: closetItems.length,
+          itemFound: Boolean(selectedItem),
+        });
       }
 
       loadItem();
@@ -2103,15 +2129,41 @@ export default function ClothesDetailScreen() {
       ),
     [item]
   );
+  const displayImageUri = useMemo(() => {
+    const timer = startPerformanceTimer("clothes-detail.getDisplayImageUri");
+    const uri = item ? getDisplayImageUri(item) : "";
+    endPerformanceTimer(timer, {
+      source: item?.cleanImageUri
+        ? "cleanImageUri"
+        : item?.confirmedProduct?.productImageUrl
+          ? "productImageUrl"
+          : item?.imageUri
+            ? "imageUri"
+            : "none",
+    });
+    return uri;
+  }, [item]);
   const fitSuitability = useMemo(
-    () => (item ? getFitSuitability(item, profile) : null),
+    () => {
+      if (!item) return null;
+      const timer = startPerformanceTimer("clothes-detail.getFitSuitability");
+      const result = getFitSuitability(item, profile);
+      endPerformanceTimer(timer, { fitResult: result.fitResult });
+      return result;
+    },
     [item, profile]
   );
   const sizeRecommendation = useMemo(
-    () =>
-      item && hasSizeRecommendationSource
-        ? getRecommendedProductSize(item, profile)
-        : null,
+    () => {
+      if (!item || !hasSizeRecommendationSource) return null;
+      const timer = startPerformanceTimer("clothes-detail.getRecommendedProductSize");
+      const result = getRecommendedProductSize(item, profile);
+      endPerformanceTimer(timer, {
+        sizeRowCount: item.confirmedProduct?.productSizeGuide?.sizes?.length || 0,
+        recommendationCount: result.sizeRecommendations.length,
+      });
+      return result;
+    },
     [hasSizeRecommendationSource, item, profile]
   );
   const shouldShowRecommendedSizeCard = Boolean(
@@ -2182,11 +2234,25 @@ export default function ClothesDetailScreen() {
         {item && (
           <>
             <ExpoImage
-              source={getDisplayImageUri(item)}
+              source={displayImageUri}
               style={styles.heroImage}
               contentFit="cover"
               cachePolicy="memory-disk"
               recyclingKey={item.id}
+              onLoadStart={() => {
+                endPerformanceTimer(heroImageTimerRef.current, { restarted: true });
+                heroImageTimerRef.current = startPerformanceTimer(
+                  "clothes-detail.hero-image-load"
+                );
+              }}
+              onLoad={() => {
+                endPerformanceTimer(heroImageTimerRef.current);
+                heroImageTimerRef.current = null;
+              }}
+              onError={() => {
+                endPerformanceTimer(heroImageTimerRef.current, { failed: true });
+                heroImageTimerRef.current = null;
+              }}
             />
 
             <View style={styles.summaryCard}>
