@@ -1,4 +1,5 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import { normalizeSize } from "@/utils/sizeMatch";
 import { getUserProfile, saveUserProfile } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -74,9 +75,9 @@ export default function ProfileScreen() {
           setHeight(profile.height || "");
           setWeight(profile.weight || "");
           setBodyType(profile.bodyType || "보통");
-          setTopSize(profile.topSize || "");
-          setBottomSize(profile.bottomSize || "");
-          setShoeSize(profile.shoeSize || "");
+          setTopSize(normalizeSize(profile.topSize));
+          setBottomSize(normalizeSize(profile.bottomSize));
+          setShoeSize(normalizeSize(profile.shoeSize));
           setShoulderWidth(profile.shoulderWidth || "");
           setChestCircumference(profile.chestCircumference || "");
           setWaistCircumference(profile.waistCircumference || "");
@@ -92,15 +93,19 @@ export default function ProfileScreen() {
   );
 
   const handleSave = async () => {
+    const normalizedTopSize = normalizeSize(topSize);
+    const normalizedBottomSize = normalizeSize(bottomSize);
+    const normalizedShoeSize = normalizeSize(shoeSize);
+
     await saveUserProfile({
       gender,
       age,
       height,
       weight,
       bodyType,
-      topSize,
-      bottomSize,
-      shoeSize,
+      topSize: normalizedTopSize,
+      bottomSize: normalizedBottomSize,
+      shoeSize: normalizedShoeSize,
       shoulderWidth,
       chestCircumference,
       waistCircumference,
@@ -109,6 +114,10 @@ export default function ProfileScreen() {
       inseam,
       thighCircumference,
     });
+
+    setTopSize(normalizedTopSize);
+    setBottomSize(normalizedBottomSize);
+    setShoeSize(normalizedShoeSize);
 
     Alert.alert("저장 완료", "내 프로필 정보가 저장됐어요.");
   };
@@ -240,6 +249,22 @@ export default function ProfileScreen() {
                   autoCapitalize="characters"
                   style={styles.textInput}
                 />
+                <Pressable
+                  style={[
+                    styles.freeSizeButton,
+                    topSize === "FREE" && styles.freeSizeButtonActive,
+                  ]}
+                  onPress={() => setTopSize((current) => (current === "FREE" ? "" : "FREE"))}
+                >
+                  <Text
+                    style={[
+                      styles.freeSizeButtonText,
+                      topSize === "FREE" && styles.freeSizeButtonTextActive,
+                    ]}
+                  >
+                    FREE
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
@@ -253,6 +278,22 @@ export default function ProfileScreen() {
                   keyboardType="numeric"
                   style={styles.textInput}
                 />
+                <Pressable
+                  style={[
+                    styles.freeSizeButton,
+                    bottomSize === "FREE" && styles.freeSizeButtonActive,
+                  ]}
+                  onPress={() => setBottomSize((current) => (current === "FREE" ? "" : "FREE"))}
+                >
+                  <Text
+                    style={[
+                      styles.freeSizeButtonText,
+                      bottomSize === "FREE" && styles.freeSizeButtonTextActive,
+                    ]}
+                  >
+                    FREE
+                  </Text>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -268,7 +309,23 @@ export default function ProfileScreen() {
                   keyboardType="numeric"
                   style={styles.textInput}
                 />
-                <Text style={styles.unitText}>mm</Text>
+                {shoeSize !== "FREE" ? <Text style={styles.unitText}>mm</Text> : null}
+                <Pressable
+                  style={[
+                    styles.freeSizeButton,
+                    shoeSize === "FREE" && styles.freeSizeButtonActive,
+                  ]}
+                  onPress={() => setShoeSize((current) => (current === "FREE" ? "" : "FREE"))}
+                >
+                  <Text
+                    style={[
+                      styles.freeSizeButtonText,
+                      shoeSize === "FREE" && styles.freeSizeButtonTextActive,
+                    ]}
+                  >
+                    FREE
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
@@ -533,6 +590,24 @@ const styles = StyleSheet.create({
     color: "#8c8175",
     fontSize: 13,
     fontWeight: "600",
+  },
+  freeSizeButton: {
+    backgroundColor: "#f4eee7",
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
+    marginLeft: 5,
+  },
+  freeSizeButtonActive: {
+    backgroundColor: "#111",
+  },
+  freeSizeButtonText: {
+    color: "#8c6f47",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  freeSizeButtonTextActive: {
+    color: "#fff",
   },
   bodyTypeGrid: {
     flexDirection: "row",

@@ -349,6 +349,8 @@ const PRODUCT_SIZE_MEASUREMENT_LABELS: [keyof ProductSizeMeasurement, string][] 
 
 function normalizeSizeForCompare(size?: string) {
   const normalizedSize = (size || "").replace(/\s+/g, "").toUpperCase();
+  if (["FREE", "F", "ONESIZE", "OS"].includes(normalizedSize)) return "FREE";
+
   const letterSize = normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/)?.[0];
   const baseSize = letterSize || normalizedSize;
 
@@ -360,6 +362,8 @@ function normalizeSizeForCompare(size?: string) {
 
 function getBaseSizeForStorage(size: string) {
   const normalizedSize = size.replace(/\s+/g, "").toUpperCase();
+  if (["FREE", "F", "ONESIZE", "OS"].includes(normalizedSize)) return "FREE";
+
   const letterSize = normalizedSize.match(
     /(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/
   )?.[0];
@@ -368,6 +372,14 @@ function getBaseSizeForStorage(size: string) {
 }
 
 function getProductSizeDisplayName(sizeInfo: ProductSizeMeasurement) {
+  if (
+    [sizeInfo.size, sizeInfo.displaySize, sizeInfo.rawSize].some(
+      (size) => normalizeSizeForCompare(size) === "FREE"
+    )
+  ) {
+    return "FREE";
+  }
+
   return (sizeInfo.displaySize || sizeInfo.rawSize || sizeInfo.size).trim();
 }
 
@@ -1626,6 +1638,7 @@ function RecommendedSizeCard({
     ? doesProductSizeRowMatch(recommendedRow, item.size)
     : normalizeSizeForCompare(item.size) === normalizeSizeForCompare(result.recommendedSize);
   const alternatives = result.sizeRecommendations.slice(1, 3);
+  const isFreeRecommendation = normalizeSizeForCompare(result.recommendedSize) === "FREE";
 
   return (
     <View style={styles.sizeMatchCard}>
@@ -1649,6 +1662,12 @@ function RecommendedSizeCard({
           {reason}
         </Text>
       ))}
+
+      {isFreeRecommendation ? (
+        <Text style={styles.freeSizeAnalysisText}>
+          FREE 상품이므로 실측 기준으로 분석했습니다.
+        </Text>
+      ) : null}
 
       {!currentSizeMatches && item.size ? (
         <View style={styles.recommendedSizeNotice}>
@@ -2661,6 +2680,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "700",
     marginBottom: 6,
+  },
+
+  freeSizeAnalysisText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "800",
+    marginTop: 4,
   },
 
   recommendedSizeNotice: {

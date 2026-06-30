@@ -620,9 +620,13 @@ function parseProductSizeName(value) {
   if (INVALID_SIZE_NAME_KEYWORDS.some((keyword) => rawSize.includes(keyword))) return null;
 
   const normalizedRawSize = rawSize.toUpperCase();
-  const letterSize = normalizedRawSize.match(
-    /(?:^|[\s(/])((?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS))(?=$|[\s()/])/,
-  )?.[1];
+  const compactSize = normalizedRawSize.replace(/\s+/g, "");
+  const isFreeSize = ["FREE", "F", "ONESIZE", "OS"].includes(compactSize);
+  const letterSize = isFreeSize
+    ? "FREE"
+    : normalizedRawSize.match(
+        /(?:^|[\s(/])((?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS))(?=$|[\s()/])/,
+      )?.[1];
   const numericOnlySize = /^\d{1,3}$/.test(normalizedRawSize)
     ? normalizedRawSize
     : "";
@@ -646,7 +650,7 @@ function parseProductSizeName(value) {
   return {
     size,
     rawSize,
-    displaySize: rawSize,
+    displaySize: size === "FREE" ? "FREE" : rawSize,
     numericRange,
   };
 }

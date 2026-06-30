@@ -17,7 +17,7 @@ const TOP_LETTER_SIZE_VALUE: Record<string, number> = {
   XXXL: 115,
 };
 
-function normalizeSize(size?: string) {
+export function normalizeSize(size?: string) {
   const upperSize = String(size || "")
     .trim()
     .toUpperCase()
@@ -26,6 +26,8 @@ function normalizeSize(size?: string) {
     .replace(/LARGE/g, "L")
     .replace(/MEDIUM/g, "M")
     .replace(/SMALL/g, "S");
+
+  if (["FREE", "F", "ONESIZE", "OS"].includes(upperSize)) return "FREE";
 
   if (upperSize === "2XL") return "XXL";
   if (upperSize === "3XL") return "XXXL";
@@ -820,6 +822,14 @@ function getIntendedFitReason(fitResult: FitResult, intendedFit?: string) {
 }
 
 function getSizeDisplayName(measurement: ProductSizeMeasurement) {
+  if (
+    [measurement.size, measurement.displaySize, measurement.rawSize].some(
+      (size) => normalizeSize(size) === "FREE"
+    )
+  ) {
+    return "FREE";
+  }
+
   return measurement.displaySize || measurement.rawSize || measurement.size;
 }
 
@@ -1064,6 +1074,18 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
     return {
       status: "선택한 사이즈의 실측을 찾지 못했어요",
       description: `${itemSize}와 일치하는 상품 실측 행이 없어요. 상품 사이즈를 다시 선택하거나 실측을 직접 입력해주세요.`,
+      lengthResult: "unknown" as const,
+      widthResult: "unknown" as const,
+      fitResult: "unknown" as const,
+      measurementComparison,
+    };
+  }
+
+  if (normalizeSize(profileSize) === "FREE" || normalizeSize(itemSize) === "FREE") {
+    return {
+      status: "FREE 상품은 실측 정보가 필요해요",
+      description:
+        "FREE는 M이나 L로 환산하지 않아요. 상품 실측과 내 신체 치수를 기준으로만 핏을 판단할 수 있어요.",
       lengthResult: "unknown" as const,
       widthResult: "unknown" as const,
       fitResult: "unknown" as const,

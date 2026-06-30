@@ -1,3 +1,4 @@
+import { normalizeSize } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
 import type {
   AnalysisConfidence,
@@ -31,14 +32,20 @@ const EXTRACT_PRODUCT_URL = "http://192.168.219.104:3001/extract-product";
 const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const DEFAULT_SIZE = "사이즈 미입력";
-const TOP_SIZE_OPTIONS = ["S", "M", "L", "XL", "2XL", "3XL"];
-const BOTTOM_SIZE_OPTIONS = ["28", "29", "30", "31", "32", "33", "34", "36"];
-const SHOE_SIZE_OPTIONS = ["250", "255", "260", "265", "270", "275", "280", "285"];
+const TOP_SIZE_OPTIONS = ["FREE", "S", "M", "L", "XL", "2XL", "3XL"];
+const BOTTOM_SIZE_OPTIONS = ["FREE", "28", "29", "30", "31", "32", "33", "34", "36"];
+const SHOE_SIZE_OPTIONS = ["FREE", "250", "255", "260", "265", "270", "275", "280", "285"];
 const COMMON_SIZE_OPTIONS = [
   ...TOP_SIZE_OPTIONS,
   ...BOTTOM_SIZE_OPTIONS,
   ...SHOE_SIZE_OPTIONS,
 ].filter((value, index, array) => array.indexOf(value) === index);
+
+function normalizeClosetSize(size?: string) {
+  const value = size?.trim();
+  if (!value || value === DEFAULT_SIZE) return DEFAULT_SIZE;
+  return normalizeSize(value) || DEFAULT_SIZE;
+}
 const STYLE_TAG_OPTIONS = [
   "미니멀",
   "캐주얼",
@@ -387,7 +394,7 @@ async function saveAnalyzedClosetItem(
     season: seasons.join(", "),
     seasons,
     fit: analysis.fit || "핏 미분석",
-    size: size.trim() || DEFAULT_SIZE,
+    size: normalizeClosetSize(size),
     ...getAnalysisDetailFields(analysis),
     styleProfile: analysis.styleProfile || undefined,
     garmentProfile: analysis.garmentProfile || undefined,
@@ -643,7 +650,7 @@ export default function AddClothesScreen() {
         season: selectedSeasons.join(", "),
         seasons: selectedSeasons,
         fit: analysis.fit || "핏 분석 전",
-        size: selectedSize.trim() || DEFAULT_SIZE,
+        size: normalizeClosetSize(selectedSize),
         ...getAnalysisDetailFields(analysis),
         styleProfile: analysis.styleProfile || undefined,
         garmentProfile: analysis.garmentProfile || undefined,
