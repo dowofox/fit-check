@@ -197,7 +197,41 @@ export default function HomeScreen() {
         setWeatherLabel(nextWeatherLabel);
       }
 
+      async function refreshWeatherRecommendation(
+        items: ClosetItem[],
+        profile: Awaited<ReturnType<typeof getUserProfile>>,
+        dataKey: string
+      ) {
+        const weatherTimer = startPerformanceTimer("home.weather-background-refresh");
+        let weatherSource = "none";
+        let failed = false;
+
+        try {
+          const cachedWeather = await getCachedWeatherForRecommendation();
+          let currentWeather: OutfitRecommendationWeather | null = null;
+
+          try {
+            currentWeather = await getCurrentWeatherForRecommendation();
+          } catch {
+            currentWeather = null;
+          }
+
+          const finalWeather = currentWeather || cachedWeather;
+          weatherSource = currentWeather ? "current" : cachedWeather ? "cache" : "none";
+
+          if (finalWeather && isActive) {
+            applyRecommendation(items, profile, finalWeather, dataKey);
+          }
+        } catch {
+          failed = true;
+        } finally {
+          endPerformanceTimer(weatherTimer, { weatherSource, failed });
+        }
+      }
+
       async function loadDashboard() {
+        let initialRecommendationReady = false;
+
         try {
           const baseDataTimer = startPerformanceTimer("screen.home.base-data");
           const [nextClosetItems, nextSavedOutfits, nextProfile] = await Promise.all([
@@ -217,22 +251,11 @@ export default function HomeScreen() {
           setClosetItems(nextClosetItems);
           setSavedOutfits(nextSavedOutfits);
           applyRecommendation(nextClosetItems, nextProfile, null, dataKey);
+          initialRecommendationReady = true;
 
-          const cachedWeather = await getCachedWeatherForRecommendation();
-          let resolvedWeather: OutfitRecommendationWeather | null = null;
-
-          try {
-            resolvedWeather = await getCurrentWeatherForRecommendation();
-          } catch {
-            resolvedWeather = cachedWeather;
-          }
-
-          const finalWeather = resolvedWeather || cachedWeather;
-          if (finalWeather && isActive) {
-            applyRecommendation(nextClosetItems, nextProfile, finalWeather, dataKey);
-          }
+          void refreshWeatherRecommendation(nextClosetItems, nextProfile, dataKey);
         } finally {
-          endPerformanceTimer(screenTimer);
+          endPerformanceTimer(screenTimer, { initialRecommendationReady });
         }
       }
 
