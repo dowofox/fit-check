@@ -1,4 +1,5 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
+import { getDetailMaterialAdjustment } from "@/utils/outfitDetailMaterial";
 import { ClosetItem, GarmentProfile, UserProfile } from "@/utils/storage";
 
 export type OutfitRecommendation = {
@@ -1704,6 +1705,10 @@ function buildRecommendation(
   const styleSupport = getStyleSupportScore(items, reasons, warnings);
   const weather = getSeasonWeatherBaseScore(isSeasonMatched);
   const rotation = getRotationBreakdownScore(items, reasons);
+  const detailMaterialAdjustment = getDetailMaterialAdjustment(items, currentSeason);
+
+  reasons.unshift(...detailMaterialAdjustment.reasons);
+  warnings.unshift(...detailMaterialAdjustment.warnings);
 
   if (shoes) {
     reasons.push("신발까지 포함되어 코디 완성도는 높아요.");
@@ -1732,7 +1737,8 @@ function buildRecommendation(
     colorSupport +
     styleSupport +
     weather +
-    rotation;
+    rotation +
+    detailMaterialAdjustment.score;
   const score = applyScoreCaps(
     rawScore - warningPenalty,
     warnings,

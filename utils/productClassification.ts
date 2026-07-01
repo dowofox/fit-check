@@ -3,6 +3,7 @@ import type {
   MaterialComposition,
   ProductClassificationField,
 } from "@/utils/storage";
+import { PRODUCT_CLASSIFICATION_RULES } from "@/utils/productClassificationRules";
 
 export type ProductClassificationInput = {
   productName?: string;
@@ -78,103 +79,22 @@ function getKeywordClassification(
 ) {
   const officialMaterial = getOfficialMaterial(productName, materialComposition);
   const currentTags = currentItem?.styleTags;
-  let candidate: ClassificationCandidate = {};
-  let matchedLabel = "";
+  const matchedRule = PRODUCT_CLASSIFICATION_RULES.find((rule) =>
+    includesAny(productName, rule.keywords)
+  );
+  const candidate: ClassificationCandidate = matchedRule
+    ? {
+        ...matchedRule.attributes,
+        material: matchedRule.attributes.material || officialMaterial,
+        styleTags: matchedRule.attributes.styleTags
+          ? mergeStyleTags(matchedRule.attributes.styleTags, currentTags)
+          : undefined,
+      }
+    : officialMaterial
+      ? { material: officialMaterial }
+      : {};
 
-  if (includesAny(productName, ["니트 가디건", "knit cardigan"])) {
-    candidate = {
-      category: "아우터",
-      subCategory: "가디건",
-      detailCategory: "니트 가디건",
-      material: "니트",
-      styleTags: mergeStyleTags(["미니멀", "깔끔함"], currentTags),
-    };
-    matchedLabel = "니트 가디건";
-  } else if (includesAny(productName, ["데님 자켓", "데님 재킷", "denim jacket"])) {
-    candidate = {
-      category: "아우터",
-      subCategory: "자켓",
-      detailCategory: "데님 자켓",
-      material: "데님",
-      styleTags: mergeStyleTags(["캐주얼", "데일리"], currentTags),
-    };
-    matchedLabel = "데님 자켓";
-  } else if (includesAny(productName, ["데님 셔츠", "denim shirt"])) {
-    candidate = {
-      category: "상의",
-      subCategory: "셔츠",
-      detailCategory: "데님 셔츠",
-      material: "데님",
-      styleTags: mergeStyleTags(["캐주얼", "데일리"], currentTags),
-    };
-    matchedLabel = "데님 셔츠";
-  } else if (includesAny(productName, ["린넨 셔츠", "linen shirt"])) {
-    candidate = {
-      category: "상의",
-      subCategory: "셔츠",
-      detailCategory: "린넨 셔츠",
-      material: "린넨",
-      styleTags: mergeStyleTags(["미니멀", "데일리"], currentTags),
-    };
-    matchedLabel = "린넨 셔츠";
-  } else if (includesAny(productName, ["플란넬 셔츠", "flannel shirt"])) {
-    candidate = {
-      category: "상의",
-      subCategory: "셔츠",
-      detailCategory: "플란넬 셔츠",
-      material: "플란넬",
-      styleTags: mergeStyleTags(["캐주얼", "아메카지"], currentTags),
-    };
-    matchedLabel = "플란넬 셔츠";
-  } else if (includesAny(productName, ["옥스포드 셔츠", "oxford shirt"])) {
-    candidate = {
-      category: "상의",
-      subCategory: "셔츠",
-      detailCategory: "옥스포드 셔츠",
-      material: officialMaterial,
-      styleTags: mergeStyleTags(["미니멀", "깔끔함"], currentTags),
-    };
-    matchedLabel = "옥스포드 셔츠";
-  } else if (
-    includesAny(productName, [
-      "반팔 니트",
-      "반소매 니트",
-      "short sleeve knit",
-      "short sleeved knit",
-      "half sleeve knit",
-    ])
-  ) {
-    candidate = {
-      category: "상의",
-      subCategory: "니트",
-      detailCategory: "반팔 니트",
-      material: "니트",
-      styleTags: mergeStyleTags(["미니멀", "깔끔함"], currentTags),
-    };
-    matchedLabel = "반팔 니트";
-  } else if (includesAny(productName, ["데님 팬츠", "denim pants", "denim jeans", "청바지", "jeans"])) {
-    candidate = {
-      category: "하의",
-      subCategory: "팬츠",
-      detailCategory: "데님 팬츠",
-      material: "데님",
-      styleTags: mergeStyleTags(["캐주얼", "데일리"], currentTags),
-    };
-    matchedLabel = "데님 팬츠";
-  } else if (includesAny(productName, ["린넨 팬츠", "linen pants", "linen trousers"])) {
-    candidate = {
-      category: "하의",
-      subCategory: "팬츠",
-      detailCategory: "린넨 팬츠",
-      material: "린넨",
-      styleTags: mergeStyleTags(["미니멀", "데일리"], currentTags),
-    };
-    matchedLabel = "린넨 팬츠";
-  } else if (officialMaterial) {
-    candidate.material = officialMaterial;
-  }
-
-  return { candidate, matchedLabel };
+  return { candidate, matchedLabel: matchedRule?.label || "" };
 }
 
 export function inferProductAttributesFromConfirmedProduct({
