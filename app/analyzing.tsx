@@ -1,9 +1,8 @@
+import { API_ENDPOINTS } from "@/utils/api";
 import { getUserProfile, saveAnalysis } from "@/utils/storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-
-const ANALYZE_URL = "http://192.168.219.104:3001/analyze";
 
 export default function AnalyzingScreen() {
     const { imageUri } = useLocalSearchParams();
@@ -28,7 +27,7 @@ export default function AnalyzingScreen() {
                     reader.readAsDataURL(imageBlob);
                 });
 
-                const response = await fetch(ANALYZE_URL, {
+                const response = await fetch(API_ENDPOINTS.analyze, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/utils/api";
 import { normalizeSize } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
 import type {
@@ -27,8 +28,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const ANALYZE_CLOTHES_URL = "http://192.168.219.104:3001/analyze-clothes";
-const EXTRACT_PRODUCT_URL = "http://192.168.219.104:3001/extract-product";
 const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const DEFAULT_SIZE = "사이즈 미입력";
@@ -185,7 +184,7 @@ async function encodeImageUri(uri: string) {
 async function requestClothesAnalysis(uri: string) {
   const encodedImage = await encodeImageUri(uri);
 
-  const response = await fetch(ANALYZE_CLOTHES_URL, {
+  const response = await fetch(API_ENDPOINTS.analyzeClothes, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -500,7 +499,7 @@ export default function AddClothesScreen() {
       setIsExtractingProduct(true);
       resetAnalysisState();
 
-      const response = await fetch(EXTRACT_PRODUCT_URL, {
+      const response = await fetch(API_ENDPOINTS.extractProduct, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -549,7 +548,7 @@ export default function AddClothesScreen() {
 
       const encodedImage = await encodeImageUri(imageUri);
 
-      const response = await fetch(ANALYZE_CLOTHES_URL, {
+      const response = await fetch(API_ENDPOINTS.analyzeClothes, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

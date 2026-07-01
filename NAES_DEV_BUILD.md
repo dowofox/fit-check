@@ -62,10 +62,10 @@ npm run start:dev-client
 
 ## 로컬 API 연결 주의사항
 
-현재 앱 API 주소는 `http://192.168.219.104:3001`로 고정되어 있습니다.
+현재 앱 API 주소는 `utils/api.ts`의 `API_BASE_URL`에서 한 번만 관리합니다.
 
 - 개발 PC와 Android 기기가 같은 Wi-Fi에 연결되어야 합니다.
-- PC의 IP가 바뀌면 `app/analyzing.tsx`, `app/add-clothes.tsx`, `app/clothes-detail.tsx`의 주소도 변경해야 합니다.
+- PC의 IP가 바뀌면 `utils/api.ts`의 `API_BASE_URL`만 변경하면 됩니다.
 - Windows 방화벽에서 Node.js와 `3001` 포트 접근이 허용되어야 합니다.
 - Android Development Build에서 로컬 HTTP 서버를 쓸 수 있도록 cleartext 통신이 현재 허용되어 있습니다. Production 배포 전에는 HTTPS API로 전환하고 이 허용 설정을 제거해야 합니다.
 

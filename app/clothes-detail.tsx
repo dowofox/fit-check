@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/utils/api";
 import {
   getFitSuitability,
   getRecommendedProductSize,
@@ -37,8 +38,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const EXTRACT_PRODUCT_URL = "http://192.168.219.104:3001/extract-product";
 
 type EditableClosetFields = {
   category: string;
@@ -2036,7 +2035,7 @@ export default function ClothesDetailScreen() {
       setExtractErrorMessage("");
       setExtractedProduct(null);
 
-      const response = await fetch(EXTRACT_PRODUCT_URL, {
+      const response = await fetch(API_ENDPOINTS.extractProduct, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
