@@ -156,6 +156,13 @@ export type AnalysisQuality = {
   missingHints?: string[];
 };
 
+export type ProductClassificationField =
+  | "category"
+  | "subCategory"
+  | "detailCategory"
+  | "material"
+  | "styleTags";
+
 export type ClosetItem = {
   id: string;
   imageUri: string;
@@ -197,6 +204,7 @@ export type ClosetItem = {
   wearCount?: number;
   lastWornAt?: string;
   recommendationPreference?: "normal" | "prefer" | "less";
+  userEditedClassificationFields?: ProductClassificationField[];
   createdAt: string;
 };
 

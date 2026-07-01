@@ -1,5 +1,9 @@
 import { API_ENDPOINTS } from "@/utils/api";
 import {
+  getProductClassificationNotice,
+  inferProductAttributesFromConfirmedProduct,
+} from "@/utils/productClassification";
+import {
   getFitSuitability,
   getRecommendedProductSize,
   isAccessoryOrBagItem,
@@ -20,6 +24,7 @@ import {
   getUserProfile,
   ProductSizeGuide,
   ProductSizeMeasurement,
+  ProductClassificationField,
   ReferenceClothing,
   saveUserProfile,
   StyleProfile,
@@ -266,6 +271,26 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     matchTip: item.matchTip || "",
     avoidTip: item.avoidTip || "",
   };
+}
+
+function getUserEditedClassificationFields(
+  item: ClosetItem,
+  draft: EditableClosetFields
+) {
+  const editedFields = new Set<ProductClassificationField>(
+    item.userEditedClassificationFields || []
+  );
+
+  if (draft.category !== item.category) editedFields.add("category");
+  if (draft.subCategory !== (item.subCategory || "")) editedFields.add("subCategory");
+  if (draft.detailCategory !== (item.detailCategory || "")) {
+    editedFields.add("detailCategory");
+  }
+  if (JSON.stringify(draft.styleTags) !== JSON.stringify(getItemStyleTags(item))) {
+    editedFields.add("styleTags");
+  }
+
+  return [...editedFields];
 }
 
 function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDraft {
@@ -1881,10 +1906,12 @@ export default function ClothesDetailScreen() {
     if (!item) return;
 
     try {
+      const userEditedClassificationFields = getUserEditedClassificationFields(item, draft);
       const updatedCloset = await updateClosetItem(item.id, {
         ...draft,
         style: draft.styleTags[0] || draft.style,
         season: draft.seasons.join(", "),
+        userEditedClassificationFields,
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
@@ -1978,12 +2005,34 @@ export default function ClothesDetailScreen() {
         brand: confirmedBrand,
         productSizeGuide: normalizeProductSizeGuideForDisplay(confirmedProduct.productSizeGuide),
       };
+      const classification = inferProductAttributesFromConfirmedProduct({
+        productName: replacementConfirmedProduct.productName,
+        brand: replacementConfirmedProduct.brand,
+        materialComposition: replacementConfirmedProduct.materialComposition,
+        currentItem: item,
+      });
+      const classificationUpdates: Partial<ClosetItem> = {
+        ...(classification.category ? { category: classification.category } : {}),
+        ...(classification.subCategory ? { subCategory: classification.subCategory } : {}),
+        ...(classification.detailCategory
+          ? { detailCategory: classification.detailCategory }
+          : {}),
+        ...(classification.material ? { material: classification.material } : {}),
+        ...(classification.styleTags
+          ? {
+              styleTags: classification.styleTags,
+              style: classification.styleTags[0] || item.style,
+            }
+          : {}),
+      };
+      const classificationNotice = getProductClassificationNotice(classification, item);
       const updatedCloset = await updateClosetItem(item.id, {
         confirmedProduct: replacementConfirmedProduct,
         confirmedBrand,
         brand: confirmedBrand,
         brandConfidence: 100,
         ...(shouldSyncMaterial ? { material: confirmedMaterial } : {}),
+        ...classificationUpdates,
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
@@ -2002,10 +2051,18 @@ export default function ClothesDetailScreen() {
         setIsMeasurementFormOpen(true);
         Alert.alert(
           "상품 정보 저장 완료",
-          "상품 실측을 자동으로 찾지 못했어요. 직접 입력하면 핏 분석이 더 정확해져요."
+          [
+            classificationNotice,
+            "상품 실측을 자동으로 찾지 못했어요. 직접 입력하면 핏 분석이 더 정확해져요.",
+          ]
+            .filter(Boolean)
+            .join("\n\n")
         );
       } else {
-        Alert.alert("저장 완료", "확정 상품 정보가 저장됐어요.");
+        Alert.alert(
+          classificationNotice ? "상품 정보 보정 완료" : "저장 완료",
+          classificationNotice || "확정 상품 정보가 저장됐어요."
+        );
       }
     } catch (error) {
       console.error("확정 상품 저장 실패:", error);

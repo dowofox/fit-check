@@ -1,12 +1,18 @@
 import { API_ENDPOINTS } from "@/utils/api";
+import {
+  getProductClassificationNotice,
+  inferProductAttributesFromConfirmedProduct,
+} from "@/utils/productClassification";
 import { normalizeSize } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
 import type {
   AnalysisConfidence,
   AnalysisQuality,
+  ClosetItem,
   ConfirmedProduct,
   GarmentProfile,
   ProductCandidate,
+  ProductClassificationField,
   ProductSizeGuide,
   StyleProfile,
 } from "@/utils/storage";
@@ -415,6 +421,7 @@ export default function AddClothesScreen() {
   const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["데일리"]);
+  const [hasManuallyEditedStyleTags, setHasManuallyEditedStyleTags] = useState(false);
   const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
   const [selectedProductCandidate, setSelectedProductCandidate] = useState<ProductCandidate | null>(null);
   const [productUrlInput, setProductUrlInput] = useState("");
@@ -425,6 +432,7 @@ export default function AddClothesScreen() {
     setProgressText("");
     setSelectedSeasons(["사계절"]);
     setSelectedStyleTags(["데일리"]);
+    setHasManuallyEditedStyleTags(false);
     setSelectedSize(DEFAULT_SIZE);
     setSelectedProductCandidate(null);
   }
@@ -455,6 +463,7 @@ export default function AddClothesScreen() {
       setProgressText("");
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
+      setHasManuallyEditedStyleTags(false);
       setSelectedSize(DEFAULT_SIZE);
       setSelectedProductCandidate(null);
     }
@@ -482,6 +491,7 @@ export default function AddClothesScreen() {
       setProgressText("");
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
+      setHasManuallyEditedStyleTags(false);
       setSelectedSize(DEFAULT_SIZE);
       setSelectedProductCandidate(null);
     }
@@ -564,6 +574,7 @@ export default function AddClothesScreen() {
       setAnalysis(analysis);
       setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
       setSelectedStyleTags(normalizeStyleTags(analysis.styleTags, analysis.style));
+      setHasManuallyEditedStyleTags(false);
       setSelectedSize(DEFAULT_SIZE);
       setSelectedProductCandidate(null);
     } catch (error) {
@@ -633,7 +644,9 @@ export default function AddClothesScreen() {
         Boolean(confirmedMaterial) &&
         (!analysis.material?.trim() || analysis.material.trim() === "판단 어려움");
 
-      await saveClosetItem({
+      const userEditedClassificationFields: ProductClassificationField[] =
+        hasManuallyEditedStyleTags ? ["styleTags"] : [];
+      const initialItem: ClosetItem = {
         id: Date.now().toString(),
         imageUri,
         cleanImageUri,
@@ -666,10 +679,51 @@ export default function AddClothesScreen() {
             }
           : {}),
         ...(shouldApplyConfirmedMaterial ? { material: confirmedMaterial } : {}),
+        userEditedClassificationFields,
         createdAt: new Date().toISOString(),
-      });
+      };
+      const classification = confirmedProduct
+        ? inferProductAttributesFromConfirmedProduct({
+            productName: confirmedProduct.productName,
+            brand: confirmedProduct.brand,
+            materialComposition: confirmedProduct.materialComposition,
+            currentItem: initialItem,
+          })
+        : {};
+      const classificationUpdates: Partial<ClosetItem> = {
+        ...(classification.category ? { category: classification.category } : {}),
+        ...(classification.subCategory ? { subCategory: classification.subCategory } : {}),
+        ...(classification.detailCategory
+          ? { detailCategory: classification.detailCategory }
+          : {}),
+        ...(classification.material ? { material: classification.material } : {}),
+        ...(classification.styleTags
+          ? {
+              styleTags: classification.styleTags,
+              style: classification.styleTags[0] || initialItem.style,
+            }
+          : {}),
+      };
+      const finalItem: ClosetItem = {
+        ...initialItem,
+        ...classificationUpdates,
+      };
+      const classificationNotice = getProductClassificationNotice(
+        classification,
+        initialItem
+      );
 
-      router.replace("/closet");
+      await saveClosetItem(finalItem);
+
+      if (classificationNotice) {
+        Alert.alert(
+          "상품 정보 보정 완료",
+          classificationNotice,
+          [{ text: "확인", onPress: () => router.replace("/closet") }]
+        );
+      } else {
+        router.replace("/closet");
+      }
     } catch (error) {
       console.error("옷 저장 실패:", error);
       Alert.alert("저장 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
@@ -906,7 +960,10 @@ export default function AddClothesScreen() {
                   <Pressable
                     key={tag}
                     style={[styles.seasonChip, isActive && styles.seasonChipActive]}
-                    onPress={() => setSelectedStyleTags((currentTags) => toggleStyleTag(currentTags, tag))}
+                    onPress={() => {
+                      setHasManuallyEditedStyleTags(true);
+                      setSelectedStyleTags((currentTags) => toggleStyleTag(currentTags, tag));
+                    }}
                   >
                     <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
                       {tag}
