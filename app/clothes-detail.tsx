@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from "@/utils/api";
 import {
   getFitSuitability,
   getRecommendedProductSize,
+  isAccessoryOrBagItem,
   type SizeRecommendationResult,
 } from "@/utils/sizeMatch";
 import { openProductSearch } from "@/utils/productSearch";
@@ -546,9 +547,14 @@ const SHOE_MEASUREMENT_FIELDS: { key: ProductMeasurementField; label: string }[]
   { key: "footLength", label: "발길이" },
 ];
 
-function getMeasurementFields(category?: string) {
-  if (category?.includes("하의")) return BOTTOM_MEASUREMENT_FIELDS;
-  if (category?.includes("신발")) return SHOE_MEASUREMENT_FIELDS;
+function getMeasurementFields(item: ClosetItem) {
+  if (isAccessoryOrBagItem(item)) return [];
+  const categoryText = [item.category, item.subCategory, item.detailCategory]
+    .filter(Boolean)
+    .join(" ");
+
+  if (categoryText.includes("하의")) return BOTTOM_MEASUREMENT_FIELDS;
+  if (categoryText.includes("신발")) return SHOE_MEASUREMENT_FIELDS;
   return TOP_MEASUREMENT_FIELDS;
 }
 
@@ -736,6 +742,7 @@ function AnalysisQualityCard({ item }: { item: ClosetItem }) {
   const missingHints = quality?.missingHints || [];
   const needsManualSizeGuide =
     hasConfirmedProduct &&
+    !isAccessoryOrBagItem(item) &&
     getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).length === 0;
   const shouldShow =
     hasProductWarning ||
@@ -1135,14 +1142,21 @@ function ConfirmedProductCard({
 }) {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const productImageTimerRef = useRef<PerformanceTimer>(null);
+  const isAccessoryOrBag = isAccessoryOrBagItem(item);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
   const sizeGuideSummary = useMemo(
-    () => getProductSizeGuideSummary(confirmedProduct.productSizeGuide),
-    [confirmedProduct.productSizeGuide]
+    () =>
+      isAccessoryOrBag
+        ? ""
+        : getProductSizeGuideSummary(confirmedProduct.productSizeGuide),
+    [confirmedProduct.productSizeGuide, isAccessoryOrBag]
   );
   const sizeGuideRows = useMemo(
-    () => getValidProductSizeRows(confirmedProduct.productSizeGuide),
-    [confirmedProduct.productSizeGuide]
+    () =>
+      isAccessoryOrBag
+        ? []
+        : getValidProductSizeRows(confirmedProduct.productSizeGuide),
+    [confirmedProduct.productSizeGuide, isAccessoryOrBag]
   );
   const profileSize = getProfileSizeForItem(item, profile);
 
@@ -1247,6 +1261,14 @@ function ConfirmedProductCard({
         </View>
       ) : null}
 
+      {isAccessoryOrBag ? (
+        <View style={styles.confirmedProductSizeGuideBox}>
+          <Text style={styles.productReferenceReason}>
+            액세서리/가방은 의류 핏 분석 대상이 아니에요. 크기 정보는 추후 별도 지원 예정이에요.
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.confirmedProductActionRow}>
         {confirmedProduct.productUrl ? (
           <Pressable style={styles.confirmedProductPrimaryButton} onPress={onOpenUrl}>
@@ -1262,31 +1284,50 @@ function ConfirmedProductCard({
           <Feather name="edit-2" size={14} color="#8c6f47" />
           <Text style={styles.confirmedProductSecondaryButtonText}>확정 정보 수정</Text>
         </Pressable>
-        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenMeasurementForm}>
-          <Feather name="maximize" size={14} color="#8c6f47" />
-          <Text style={styles.confirmedProductSecondaryButtonText}>
-            {sizeGuideRows.length > 0 ? "실측 수정" : "실측 직접 입력"}
-          </Text>
-        </Pressable>
+        {!isAccessoryOrBag ? (
+          <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenMeasurementForm}>
+            <Feather name="maximize" size={14} color="#8c6f47" />
+            <Text style={styles.confirmedProductSecondaryButtonText}>
+              {sizeGuideRows.length > 0 ? "실측 수정" : "실측 직접 입력"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 }
 
 function ProductMeasurementForm({
-  category,
+  item,
   draft,
   onChange,
   onSave,
   onCancel,
 }: {
-  category?: string;
+  item: ClosetItem;
   draft: ProductMeasurementDraft;
   onChange: (field: keyof ProductMeasurementDraft, value: string) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
-  const fields = getMeasurementFields(category);
+  const isAccessoryOrBag = isAccessoryOrBagItem(item);
+  const fields = getMeasurementFields(item);
+
+  if (isAccessoryOrBag) {
+    return (
+      <View style={styles.confirmedProductFormCard}>
+        <Text style={styles.tipTitle}>상품 크기 정보</Text>
+        <Text style={styles.aiDetailSubtitle}>
+          액세서리/가방은 의류 핏 분석 대상이 아니에요. 크기 정보는 추후 별도 지원 예정이에요.
+        </Text>
+        <View style={styles.confirmedProductActionRow}>
+          <Pressable style={styles.confirmedProductSecondaryButton} onPress={onCancel}>
+            <Text style={styles.confirmedProductSecondaryButtonText}>닫기</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.confirmedProductFormCard}>
@@ -1902,7 +1943,7 @@ export default function ClothesDetailScreen() {
       setIsProductFormOpen(false);
       setIsProductUrlFormOpen(false);
 
-      if (options.openMeasurementForm) {
+      if (options.openMeasurementForm && !isAccessoryOrBagItem(updatedItem)) {
         setMeasurementDraft(getProductMeasurementDraft(updatedItem));
         setIsMeasurementFormOpen(true);
         Alert.alert(
@@ -1943,6 +1984,11 @@ export default function ClothesDetailScreen() {
   function handleOpenMeasurementForm() {
     if (!item?.confirmedProduct) return;
 
+    if (isAccessoryOrBagItem(item)) {
+      setIsMeasurementFormOpen(false);
+      return;
+    }
+
     setMeasurementDraft(getProductMeasurementDraft(item));
     setIsProductFormOpen(false);
     setIsProductUrlFormOpen(false);
@@ -1958,6 +2004,11 @@ export default function ClothesDetailScreen() {
 
   async function handleSaveProductMeasurement() {
     if (!item?.confirmedProduct) return;
+
+    if (isAccessoryOrBagItem(item)) {
+      setIsMeasurementFormOpen(false);
+      return;
+    }
 
     const measurement = buildProductSizeMeasurement(measurementDraft);
     if (!measurement) {
@@ -2144,7 +2195,7 @@ export default function ClothesDetailScreen() {
   }, [item]);
   const fitSuitability = useMemo(
     () => {
-      if (!item) return null;
+      if (!item || isAccessoryOrBagItem(item)) return null;
       const timer = startPerformanceTimer("clothes-detail.getFitSuitability");
       const result = getFitSuitability(item, profile);
       endPerformanceTimer(timer, { fitResult: result.fitResult });
@@ -2366,7 +2417,7 @@ export default function ClothesDetailScreen() {
 
             {!editMode && isMeasurementFormOpen && item.confirmedProduct && (
               <ProductMeasurementForm
-                category={item.category}
+                item={item}
                 draft={measurementDraft}
                 onChange={updateMeasurementDraft}
                 onSave={handleSaveProductMeasurement}

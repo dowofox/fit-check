@@ -252,6 +252,28 @@ function isUpperCategory(item: ClosetItem) {
   return item.category === "상의" || item.category === "아우터";
 }
 
+export function isAccessoryOrBagItem(
+  item: Pick<ClosetItem, "category" | "subCategory" | "detailCategory">
+) {
+  const categoryText = [item.category, item.subCategory, item.detailCategory]
+    .filter(Boolean)
+    .join(" ");
+
+  return [
+    "액세서리",
+    "악세서리",
+    "가방",
+    "백팩",
+    "크로스백",
+    "숄더백",
+    "토트백",
+    "메신저백",
+    "웨이스트백",
+    "클러치",
+    "파우치",
+  ].some((keyword) => categoryText.includes(keyword));
+}
+
 function getIntendedLengthOffset(intendedFit?: string) {
   if (intendedFit === "오버핏") return 3;
   if (intendedFit === "여유 있게") return 1.5;
@@ -944,6 +966,10 @@ export function getRecommendedProductSize(
   item: ClosetItem,
   profile?: UserProfile | null
 ): SizeRecommendationResult {
+  if (isAccessoryOrBagItem(item)) {
+    return { sizeRecommendations: [], missingFields: [] };
+  }
+
   if (!isBottomCategory(item) && !isUpperCategory(item)) {
     return { sizeRecommendations: [], missingFields: [] };
   }
@@ -1017,6 +1043,25 @@ function getFitStatus(fitResult: FitResult, intendedFit: string) {
 }
 
 export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null) {
+  if (isAccessoryOrBagItem(item)) {
+    return {
+      status: "의류 핏 분석 대상이 아니에요",
+      description:
+        "액세서리와 가방의 크기 정보는 의류 실측과 다른 기준이 필요해 추후 별도로 지원할 예정이에요.",
+      lengthResult: "unknown" as const,
+      widthResult: "unknown" as const,
+      fitResult: "unknown" as const,
+      measurementComparison: {
+        comparisons: [],
+        unavailableFields: [],
+        lengthResult: "unknown" as const,
+        widthResult: "unknown" as const,
+        fitResult: "unknown" as const,
+        description: "액세서리와 가방은 의류 실측 비교에서 제외돼요.",
+      },
+    };
+  }
+
   const intendedFit = item.intendedFit || "상관없음";
   const profileSize = getProfileSize(item, profile);
   const itemSize = item.size?.trim() || "";
