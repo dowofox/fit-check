@@ -1,6 +1,12 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { normalizeSize } from "@/utils/sizeMatch";
-import { getUserProfile, saveUserProfile } from "@/utils/storage";
+import {
+  ClosetItem,
+  getClosetItems,
+  getUserProfile,
+  ReferenceClothing,
+  saveUserProfile,
+} from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -8,17 +14,32 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 
 const genderOptions = ["남성", "여성"];
 const bodyTypeOptions = ["마름", "보통", "근육형", "통통"];
+const referenceClothingSlots: {
+  key: keyof ReferenceClothing;
+  label: string;
+}[] = [
+  { key: "topItemId", label: "상의" },
+  { key: "bottomItemId", label: "하의" },
+  { key: "outerItemId", label: "아우터" },
+  { key: "shoesItemId", label: "신발" },
+];
+
+function getClosetItemName(item?: ClosetItem) {
+  return item?.detailCategory || item?.subCategory || item?.category || "";
+}
 
 function MeasurementInput({
   label,
   value,
   onChangeText,
   placeholder,
+  description,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
+  description?: string;
 }) {
   return (
     <View style={styles.inputBox}>
@@ -33,8 +54,16 @@ function MeasurementInput({
         />
         <Text style={styles.unitText}>cm</Text>
       </View>
+      {description ? (
+        <Text style={styles.measurementInputDescription}>{description}</Text>
+      ) : null}
     </View>
   );
+}
+
+function parseOptionalMeasurement(value: string) {
+  const parsedValue = Number(value.replace(",", ".").trim());
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
 }
 
 export default function ProfileScreen() {
@@ -53,6 +82,9 @@ export default function ProfileScreen() {
   const [armLength, setArmLength] = useState("");
   const [inseam, setInseam] = useState("");
   const [thighCircumference, setThighCircumference] = useState("");
+  const [preferredPantsTotalLength, setPreferredPantsTotalLength] = useState("");
+  const [referenceClothing, setReferenceClothing] = useState<ReferenceClothing>({});
+  const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
   const measurementCount = [
     shoulderWidth,
@@ -62,12 +94,18 @@ export default function ProfileScreen() {
     armLength,
     inseam,
     thighCircumference,
+    preferredPantsTotalLength,
   ].filter(Boolean).length;
 
   useFocusEffect(
     useCallback(() => {
       const loadProfile = async () => {
-        const profile = await getUserProfile();
+        const [profile, savedClosetItems] = await Promise.all([
+          getUserProfile(),
+          getClosetItems(),
+        ]);
+
+        setClosetItems(savedClosetItems);
 
         if (profile) {
           setGender(profile.gender || "남성");
@@ -85,6 +123,14 @@ export default function ProfileScreen() {
           setArmLength(profile.armLength || "");
           setInseam(profile.inseam || "");
           setThighCircumference(profile.thighCircumference || "");
+          setPreferredPantsTotalLength(
+            profile.preferredPantsTotalLength !== undefined
+              ? String(profile.preferredPantsTotalLength)
+              : ""
+          );
+          setReferenceClothing(profile.referenceClothing || {});
+        } else {
+          setReferenceClothing({});
         }
       };
 
@@ -96,6 +142,9 @@ export default function ProfileScreen() {
     const normalizedTopSize = normalizeSize(topSize);
     const normalizedBottomSize = normalizeSize(bottomSize);
     const normalizedShoeSize = normalizeSize(shoeSize);
+    const normalizedPreferredPantsTotalLength = parseOptionalMeasurement(
+      preferredPantsTotalLength
+    );
 
     await saveUserProfile({
       gender,
@@ -113,11 +162,18 @@ export default function ProfileScreen() {
       armLength,
       inseam,
       thighCircumference,
+      preferredPantsTotalLength: normalizedPreferredPantsTotalLength,
+      referenceClothing,
     });
 
     setTopSize(normalizedTopSize);
     setBottomSize(normalizedBottomSize);
     setShoeSize(normalizedShoeSize);
+    setPreferredPantsTotalLength(
+      normalizedPreferredPantsTotalLength !== undefined
+        ? String(normalizedPreferredPantsTotalLength)
+        : ""
+    );
 
     Alert.alert("저장 완료", "내 프로필 정보가 저장됐어요.");
   };
@@ -148,6 +204,43 @@ export default function ProfileScreen() {
 
           <View style={styles.summaryIconCircle}>
             <Feather name="target" size={14} color="#111" />
+          </View>
+        </View>
+
+        <View style={styles.referenceClothingCard}>
+          <View style={styles.referenceClothingHeader}>
+            <View>
+              <Text style={styles.sectionEyebrow}>REFERENCE CLOTHING</Text>
+              <Text style={styles.sectionTitle}>내 기준 옷</Text>
+              <Text style={styles.referenceClothingDescription}>
+                옷 상세 화면에서 가장 잘 맞는 옷을 기준으로 설정할 수 있어요.
+              </Text>
+            </View>
+            <View style={styles.summaryIconCircle}>
+              <Feather name="bookmark" size={14} color="#111" />
+            </View>
+          </View>
+
+          <View style={styles.referenceClothingList}>
+            {referenceClothingSlots.map((slot) => {
+              const itemId = referenceClothing[slot.key];
+              const referenceItem = closetItems.find((item) => item.id === itemId);
+              const itemName = getClosetItemName(referenceItem);
+
+              return (
+                <View key={slot.key} style={styles.referenceClothingRow}>
+                  <Text style={styles.referenceClothingLabel}>{slot.label}</Text>
+                  <View style={styles.referenceClothingValueWrap}>
+                    <Text style={styles.referenceClothingValue} numberOfLines={1}>
+                      {itemName || (itemId ? "옷을 찾을 수 없어요" : "설정 전")}
+                    </Text>
+                    {referenceItem?.color ? (
+                      <Text style={styles.referenceClothingMeta}>{referenceItem.color}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -375,10 +468,11 @@ export default function ProfileScreen() {
               placeholder="61"
             />
             <MeasurementInput
-              label="인심"
+              label="다리 안쪽 길이(인심)"
               value={inseam}
               onChangeText={setInseam}
               placeholder="76"
+              description="가랑이 안쪽부터 발목까지의 길이입니다."
             />
           </View>
 
@@ -389,7 +483,13 @@ export default function ProfileScreen() {
               onChangeText={setThighCircumference}
               placeholder="56"
             />
-            <View style={styles.inputBoxPlaceholder} />
+            <MeasurementInput
+              label="평소 잘 맞는 바지 총장(cm)"
+              value={preferredPantsTotalLength}
+              onChangeText={setPreferredPantsTotalLength}
+              placeholder="104"
+              description="평소 가장 잘 맞는 바지의 총장을 입력해주세요."
+            />
           </View>
 
           {measurementCount > 0 ? (
@@ -492,6 +592,68 @@ const styles = StyleSheet.create({
     color: "#777064",
     fontSize: 12,
     fontWeight: "500",
+  },
+  measurementInputDescription: {
+    color: "#777064",
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: "500",
+    marginTop: 5,
+  },
+  referenceClothingCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    marginBottom: 10,
+  },
+  referenceClothingHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 10,
+  },
+  referenceClothingDescription: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  referenceClothingList: {
+    borderTopWidth: 1,
+    borderTopColor: "#EFE8DE",
+  },
+  referenceClothingRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFE8DE",
+  },
+  referenceClothingLabel: {
+    color: "#777064",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  referenceClothingValueWrap: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+  referenceClothingValue: {
+    maxWidth: "100%",
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  referenceClothingMeta: {
+    color: "#8C6F47",
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 2,
   },
   summaryIconCircle: {
     width: 28,

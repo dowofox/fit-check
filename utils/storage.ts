@@ -6,6 +6,13 @@ const PROFILE_KEY = "naes_profile";
 const CLOSET_KEY = "naes_closet";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 
+export type ReferenceClothing = {
+  topItemId?: string;
+  bottomItemId?: string;
+  outerItemId?: string;
+  shoesItemId?: string;
+};
+
 export type UserProfile = {
   gender?: string;
   age?: string;
@@ -22,6 +29,8 @@ export type UserProfile = {
   armLength?: string;
   inseam?: string;
   thighCircumference?: string;
+  preferredPantsTotalLength?: number;
+  referenceClothing?: ReferenceClothing;
 };
 
 export type ProductCandidate = {

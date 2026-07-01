@@ -20,6 +20,8 @@ import {
   getUserProfile,
   ProductSizeGuide,
   ProductSizeMeasurement,
+  ReferenceClothing,
+  saveUserProfile,
   StyleProfile,
   updateClosetItem,
   UserProfile,
@@ -95,6 +97,7 @@ type ExtractedProduct = ConfirmedProductDraft & {
   sizeGuideStatus?: string;
 };
 type RecommendationPreference = NonNullable<ClosetItem["recommendationPreference"]>;
+type ReferenceClothingKey = keyof ReferenceClothing;
 
 const EMPTY_CONFIRMED_PRODUCT_DRAFT: ConfirmedProductDraft = {
   brand: "",
@@ -118,6 +121,26 @@ const EMPTY_PRODUCT_MEASUREMENT_DRAFT: ProductMeasurementDraft = {
   hem: "",
   footLength: "",
 };
+
+function getReferenceClothingKey(item: ClosetItem): ReferenceClothingKey | null {
+  if (isAccessoryOrBagItem(item)) return null;
+  if (item.category === "상의") return "topItemId";
+  if (item.category === "하의") return "bottomItemId";
+  if (item.category === "아우터") return "outerItemId";
+  if (item.category === "신발") return "shoesItemId";
+  return null;
+}
+
+function getReferenceClothingCategoryLabel(key: ReferenceClothingKey) {
+  const labels: Record<ReferenceClothingKey, string> = {
+    topItemId: "상의",
+    bottomItemId: "하의",
+    outerItemId: "아우터",
+    shoesItemId: "신발",
+  };
+
+  return labels[key];
+}
 
 const EMPTY_DRAFT: EditableClosetFields = {
   category: "",
@@ -1774,6 +1797,7 @@ export default function ClothesDetailScreen() {
   const [extractErrorMessage, setExtractErrorMessage] = useState("");
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
   const [isSavingRecommendationPreference, setIsSavingRecommendationPreference] = useState(false);
+  const [isSavingReferenceClothing, setIsSavingReferenceClothing] = useState(false);
   const [isMeasurementFormOpen, setIsMeasurementFormOpen] = useState(false);
   const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
@@ -1899,6 +1923,36 @@ export default function ClothesDetailScreen() {
       Alert.alert("저장 실패", "추천 설정을 저장하지 못했어요. 다시 시도해주세요.");
     } finally {
       setIsSavingRecommendationPreference(false);
+    }
+  }
+
+  async function handleSetReferenceClothing() {
+    if (!item || isSavingReferenceClothing) return;
+
+    const referenceKey = getReferenceClothingKey(item);
+    if (!referenceKey) return;
+
+    const nextProfile: UserProfile = {
+      ...(profile || {}),
+      referenceClothing: {
+        ...(profile?.referenceClothing || {}),
+        [referenceKey]: item.id,
+      },
+    };
+
+    try {
+      setIsSavingReferenceClothing(true);
+      await saveUserProfile(nextProfile);
+      setProfile(nextProfile);
+      Alert.alert(
+        "기준 옷 설정 완료",
+        `이 옷을 ${getReferenceClothingCategoryLabel(referenceKey)} 기준 옷으로 저장했어요.`
+      );
+    } catch (error) {
+      console.error("기준 옷 저장 실패:", error);
+      Alert.alert("저장 실패", "기준 옷을 저장하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setIsSavingReferenceClothing(false);
     }
   }
 
@@ -2222,6 +2276,12 @@ export default function ClothesDetailScreen() {
       (sizeRecommendation.sizeRecommendations.length > 0 ||
         sizeRecommendation.missingFields.length > 0)
   );
+  const referenceClothingKey = item ? getReferenceClothingKey(item) : null;
+  const isCurrentReferenceClothing = Boolean(
+    item &&
+      referenceClothingKey &&
+      profile?.referenceClothing?.[referenceClothingKey] === item.id
+  );
 
   if (isLoaded && !item) {
     return (
@@ -2387,6 +2447,41 @@ export default function ClothesDetailScreen() {
                 </>
               )}
             </View>
+
+            {!editMode && referenceClothingKey ? (
+              <View style={styles.referenceClothingActionCard}>
+                <View style={styles.referenceClothingActionTextWrap}>
+                  <Text style={styles.tipTitle}>내 기준 옷</Text>
+                  <Text style={styles.aiDetailSubtitle}>
+                    가장 잘 맞는 옷을 기준으로 저장해두면 이후 핏 비교에 활용할 수 있어요.
+                  </Text>
+                </View>
+                <Pressable
+                  style={[
+                    styles.referenceClothingButton,
+                    isCurrentReferenceClothing && styles.referenceClothingButtonActive,
+                  ]}
+                  onPress={handleSetReferenceClothing}
+                  disabled={isSavingReferenceClothing || isCurrentReferenceClothing}
+                >
+                  <Feather
+                    name={isCurrentReferenceClothing ? "check" : "bookmark"}
+                    size={14}
+                    color={isCurrentReferenceClothing ? "#fff" : "#8c6f47"}
+                  />
+                  <Text
+                    style={[
+                      styles.referenceClothingButtonText,
+                      isCurrentReferenceClothing && styles.referenceClothingButtonTextActive,
+                    ]}
+                  >
+                    {isCurrentReferenceClothing
+                      ? "내 기준 옷으로 설정됨"
+                      : "내 기준 옷으로 설정"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             {!editMode && (
               <RecommendationPreferenceCard
@@ -2656,6 +2751,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f0eee9",
     marginBottom: 14,
+  },
+
+  referenceClothingActionCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    marginBottom: 14,
+    gap: 12,
+  },
+
+  referenceClothingActionTextWrap: {
+    gap: 4,
+  },
+
+  referenceClothingButton: {
+    minHeight: 42,
+    borderRadius: 15,
+    backgroundColor: "#F4EEE7",
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  referenceClothingButtonActive: {
+    backgroundColor: "#8c6f47",
+    borderColor: "#8c6f47",
+  },
+
+  referenceClothingButtonText: {
+    color: "#8c6f47",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  referenceClothingButtonTextActive: {
+    color: "#fff",
   },
 
   detailRow: {
