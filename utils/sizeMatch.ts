@@ -198,6 +198,10 @@ export type SizeRecommendationResult = {
   missingFields: string[];
 };
 
+export type SizeRecommendationContext = {
+  referenceItem?: ClosetItem | null;
+};
+
 type WidthAnalysis = {
   result: WidthResult;
   description: string;
@@ -878,10 +882,205 @@ function getNumericRangeReferenceBonus(
     : 0;
 }
 
+type ReferenceMeasurementKey =
+  | "totalLength"
+  | "shoulder"
+  | "chest"
+  | "sleeve"
+  | "waist"
+  | "hip"
+  | "thigh"
+  | "rise"
+  | "hem"
+  | "footLength";
+
+type ReferenceMeasurementComparison = {
+  key: ReferenceMeasurementKey;
+  referenceValue: number;
+  candidateValue: number;
+  difference: number;
+};
+
+type ReferenceSizeComparisonResult = {
+  score: number;
+  comparisons: ReferenceMeasurementComparison[];
+  reasons: string[];
+};
+
+const REFERENCE_MEASUREMENT_TOLERANCE: Record<ReferenceMeasurementKey, number> = {
+  totalLength: 6,
+  shoulder: 4,
+  chest: 8,
+  sleeve: 4,
+  waist: 5,
+  hip: 7,
+  thigh: 5,
+  rise: 4,
+  hem: 5,
+  footLength: 5,
+};
+
+const BOTTOM_REFERENCE_WEIGHTS: Partial<Record<ReferenceMeasurementKey, number>> = {
+  totalLength: 35,
+  waist: 25,
+  hip: 18,
+  thigh: 14,
+  rise: 5,
+  hem: 3,
+};
+
+const UPPER_REFERENCE_WEIGHTS: Partial<Record<ReferenceMeasurementKey, number>> = {
+  chest: 30,
+  shoulder: 25,
+  totalLength: 25,
+  sleeve: 20,
+};
+
+const SHOE_REFERENCE_WEIGHTS: Partial<Record<ReferenceMeasurementKey, number>> = {
+  footLength: 100,
+};
+
+const REFERENCE_FIELD_LABELS: Record<ReferenceMeasurementKey, string> = {
+  totalLength: "총장",
+  shoulder: "어깨",
+  chest: "가슴 단면",
+  sleeve: "소매 길이",
+  waist: "허리 단면",
+  hip: "엉덩이 단면",
+  thigh: "허벅지 단면",
+  rise: "밑위",
+  hem: "밑단",
+  footLength: "발길이",
+};
+
+function getReferenceWeights(item: ClosetItem) {
+  if (isBottomCategory(item)) return BOTTOM_REFERENCE_WEIGHTS;
+  if (isUpperCategory(item)) return UPPER_REFERENCE_WEIGHTS;
+  if (item.category === "?좊컻") return SHOE_REFERENCE_WEIGHTS;
+  return {};
+}
+
+function getReferenceFitOffset(item: ClosetItem, key: ReferenceMeasurementKey) {
+  const appliesToWidth =
+    (isUpperCategory(item) && (key === "shoulder" || key === "chest")) ||
+    (isBottomCategory(item) && (key === "waist" || key === "hip" || key === "thigh"));
+  if (!appliesToWidth) return 0;
+
+  const preference = getFitPreference(item.intendedFit);
+  if (preference === "relaxed") return 1.5;
+  if (preference === "oversized") return 3;
+  return 0;
+}
+
+function getReferenceProductMeasurement(referenceItem?: ClosetItem | null) {
+  if (!referenceItem?.size) return undefined;
+  return getCurrentProductMeasurement(referenceItem);
+}
+
+function getMeasurementValue(
+  measurement: ProductSizeMeasurement,
+  key: ReferenceMeasurementKey
+) {
+  const value = measurement[key];
+  return typeof value === "number" && value > 0 ? value : undefined;
+}
+
+function getReferenceDifferenceReason(
+  item: ClosetItem,
+  comparison: ReferenceMeasurementComparison
+) {
+  const label = REFERENCE_FIELD_LABELS[comparison.key];
+  const absoluteDifference = Math.abs(Number(comparison.difference.toFixed(1)));
+  const itemLabel = isBottomCategory(item)
+    ? "기준 바지"
+    : isUpperCategory(item)
+      ? "기준 옷"
+      : "기준 아이템";
+
+  if (absoluteDifference <= 0.4) {
+    return `${label}은 ${itemLabel}과 거의 비슷해요.`;
+  }
+
+  const direction = comparison.difference > 0 ? "길거나 넓어요" : "짧거나 작아요";
+  return `${itemLabel}보다 ${label}이 ${absoluteDifference}cm ${direction}.`;
+}
+
+function getReferenceComparison(
+  item: ClosetItem,
+  candidateMeasurement: ProductSizeMeasurement,
+  referenceItem?: ClosetItem | null
+): ReferenceSizeComparisonResult | null {
+  if (
+    !referenceItem ||
+    referenceItem.id === item.id ||
+    isAccessoryOrBagItem(item) ||
+    isAccessoryOrBagItem(referenceItem)
+  ) {
+    return null;
+  }
+
+  const referenceMeasurement = getReferenceProductMeasurement(referenceItem);
+  if (!referenceMeasurement) return null;
+
+  const weights = getReferenceWeights(item);
+  const comparisons: ReferenceMeasurementComparison[] = [];
+  let weightedScoreSum = 0;
+  let usedWeightSum = 0;
+
+  Object.entries(weights).forEach(([key, weight]) => {
+    const measurementKey = key as ReferenceMeasurementKey;
+    const candidateValue = getMeasurementValue(candidateMeasurement, measurementKey);
+    const referenceValue = getMeasurementValue(referenceMeasurement, measurementKey);
+
+    if (candidateValue === undefined || referenceValue === undefined || !weight) return;
+
+    const targetValue = referenceValue + getReferenceFitOffset(item, measurementKey);
+    const fieldScore = Math.max(
+      0,
+      100 -
+        (Math.abs(candidateValue - targetValue) /
+          REFERENCE_MEASUREMENT_TOLERANCE[measurementKey]) *
+          100
+    );
+
+    comparisons.push({
+      key: measurementKey,
+      referenceValue,
+      candidateValue,
+      difference: Number((candidateValue - referenceValue).toFixed(1)),
+    });
+    weightedScoreSum += fieldScore * weight;
+    usedWeightSum += weight;
+  });
+
+  if (comparisons.length === 0 || usedWeightSum <= 0) return null;
+
+  const sortedComparisons = [...comparisons].sort(
+    (first, second) =>
+      (weights[second.key] || 0) - (weights[first.key] || 0)
+  );
+
+  return {
+    score: Math.max(0, Math.min(100, Math.round(weightedScoreSum / usedWeightSum))),
+    comparisons,
+    reasons: sortedComparisons
+      .slice(0, 2)
+      .map((comparison) => getReferenceDifferenceReason(item, comparison)),
+  };
+}
+
+function uniqueReasons(reasons: string[]) {
+  return reasons.filter(
+    (reason, index, allReasons) => reason && allReasons.indexOf(reason) === index
+  );
+}
+
 function scoreSizeMeasurement(
   item: ClosetItem,
   measurement: ProductSizeMeasurement,
-  profile?: UserProfile | null
+  profile?: UserProfile | null,
+  context?: SizeRecommendationContext,
+  canUseProfileMeasurements = true
 ): Omit<SizeRecommendation, "rank"> {
   const productSizeGuide = item.confirmedProduct?.productSizeGuide;
   const measurementItem: ClosetItem = {
@@ -899,54 +1098,67 @@ function scoreSizeMeasurement(
   };
   const comparison = getMeasurementComparison(measurementItem, profile);
   const preference = getFitPreference(item.intendedFit);
+  const referenceComparison = getReferenceComparison(
+    item,
+    measurement,
+    context?.referenceItem
+  );
   let score = 0;
 
-  if (isBottomCategory(item)) {
-    score += getLengthScore(comparison.lengthResult, preference, 40);
-    score += getEaseScore(
-      getMeasurementDifference(comparison, "waist"),
-      getTargetEase("bottom", "waist", preference),
-      5,
-      24
-    );
-    score += getEaseScore(
-      getMeasurementDifference(comparison, "hip"),
-      getTargetEase("bottom", "hip", preference),
-      8,
-      16
-    );
-    score += getEaseScore(
-      getMeasurementDifference(comparison, "thigh"),
-      getTargetEase("bottom", "thigh", preference),
-      6,
-      12
-    );
-    score += typeof measurement.rise === "number" && measurement.rise > 0 ? 1.5 : 0;
-    score += typeof measurement.hem === "number" && measurement.hem > 0 ? 1.5 : 0;
-  } else {
-    score += getEaseScore(
-      getMeasurementDifference(comparison, "shoulder"),
-      getTargetEase("upper", "shoulder", preference),
-      6,
-      30
-    );
-    score += getLengthScore(comparison.lengthResult, preference, 28);
-    score += getEaseScore(
-      getMeasurementDifference(comparison, "chest"),
-      getTargetEase("upper", "chest", preference),
-      10,
-      22
-    );
-    score += getEaseScore(
-      getMeasurementDifference(comparison, "sleeve"),
-      getTargetEase("upper", "sleeve", preference),
-      5,
-      15
-    );
+  if (canUseProfileMeasurements) {
+    if (isBottomCategory(item)) {
+      score += getLengthScore(comparison.lengthResult, preference, 40);
+      score += getEaseScore(
+        getMeasurementDifference(comparison, "waist"),
+        getTargetEase("bottom", "waist", preference),
+        5,
+        24
+      );
+      score += getEaseScore(
+        getMeasurementDifference(comparison, "hip"),
+        getTargetEase("bottom", "hip", preference),
+        8,
+        16
+      );
+      score += getEaseScore(
+        getMeasurementDifference(comparison, "thigh"),
+        getTargetEase("bottom", "thigh", preference),
+        6,
+        12
+      );
+      score += typeof measurement.rise === "number" && measurement.rise > 0 ? 1.5 : 0;
+      score += typeof measurement.hem === "number" && measurement.hem > 0 ? 1.5 : 0;
+    } else {
+      score += getEaseScore(
+        getMeasurementDifference(comparison, "shoulder"),
+        getTargetEase("upper", "shoulder", preference),
+        6,
+        30
+      );
+      score += getLengthScore(comparison.lengthResult, preference, 28);
+      score += getEaseScore(
+        getMeasurementDifference(comparison, "chest"),
+        getTargetEase("upper", "chest", preference),
+        10,
+        22
+      );
+      score += getEaseScore(
+        getMeasurementDifference(comparison, "sleeve"),
+        getTargetEase("upper", "sleeve", preference),
+        5,
+        15
+      );
+    }
+
+    score += getFitPreferenceScore(comparison.fitResult, preference);
+    score += getNumericRangeReferenceBonus(item, measurement, profile);
   }
 
-  score += getFitPreferenceScore(comparison.fitResult, preference);
-  score += getNumericRangeReferenceBonus(item, measurement, profile);
+  if (referenceComparison) {
+    score = canUseProfileMeasurements
+      ? referenceComparison.score * 0.55 + score * 0.45
+      : referenceComparison.score;
+  }
 
   return {
     size: measurement.size,
@@ -955,16 +1167,18 @@ function scoreSizeMeasurement(
     fitResult: comparison.fitResult,
     lengthResult: comparison.lengthResult,
     widthResult: comparison.widthResult,
-    reasons: [
+    reasons: uniqueReasons([
+      ...(referenceComparison?.reasons || []),
       comparison.description,
       getIntendedFitReason(comparison.fitResult, item.intendedFit),
-    ].filter(Boolean),
+    ]),
   };
 }
 
 export function getRecommendedProductSize(
   item: ClosetItem,
-  profile?: UserProfile | null
+  profile?: UserProfile | null,
+  context?: SizeRecommendationContext
 ): SizeRecommendationResult {
   if (isAccessoryOrBagItem(item)) {
     return { sizeRecommendations: [], missingFields: [] };
@@ -975,10 +1189,6 @@ export function getRecommendedProductSize(
   }
 
   const missingFields = getRequiredProfileFields(item, profile);
-  if (missingFields.length > 0) {
-    return { sizeRecommendations: [], missingFields };
-  }
-
   const sizeRows = (item.confirmedProduct?.productSizeGuide?.sizes || []).filter(
     (measurement) =>
       Boolean(measurement.size) &&
@@ -992,8 +1202,19 @@ export function getRecommendedProductSize(
         measurement.thigh,
       ].some((value) => typeof value === "number" && value > 0)
   );
+  const hasReferenceComparison = sizeRows.some((measurement) =>
+    Boolean(getReferenceComparison(item, measurement, context?.referenceItem))
+  );
+
+  if (missingFields.length > 0 && !hasReferenceComparison) {
+    return { sizeRecommendations: [], missingFields };
+  }
+
+  const canUseProfileMeasurements = missingFields.length === 0;
   const scoredRows = sizeRows
-    .map((measurement) => scoreSizeMeasurement(item, measurement, profile))
+    .map((measurement) =>
+      scoreSizeMeasurement(item, measurement, profile, context, canUseProfileMeasurements)
+    )
     .sort((first, second) => second.score - first.score)
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
   const recommended = scoredRows[0];
@@ -1002,7 +1223,7 @@ export function getRecommendedProductSize(
     recommendedSize: recommended?.size,
     recommendedDisplaySize: recommended?.displaySize || recommended?.size,
     sizeRecommendations: scoredRows,
-    missingFields: [],
+    missingFields: hasReferenceComparison ? [] : missingFields,
   };
 }
 

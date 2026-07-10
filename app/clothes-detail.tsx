@@ -1809,6 +1809,7 @@ function RecommendedSizeCard({
 export default function ClothesDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [item, setItem] = useState<ClosetItem | null>(null);
+  const [referenceItem, setReferenceItem] = useState<ClosetItem | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -1838,9 +1839,18 @@ export default function ClothesDetailScreen() {
           getUserProfile(),
         ]);
         const selectedItem = closetItems.find((closetItem) => closetItem.id === id);
+        const referenceKey = selectedItem ? getReferenceClothingKey(selectedItem) : null;
+        const referenceItemId = referenceKey
+          ? userProfile?.referenceClothing?.[referenceKey]
+          : undefined;
+        const selectedReferenceItem =
+          referenceItemId && referenceItemId !== selectedItem?.id
+            ? closetItems.find((closetItem) => closetItem.id === referenceItemId)
+            : null;
 
         setProfile(userProfile);
         setItem(selectedItem || null);
+        setReferenceItem(selectedReferenceItem || null);
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
           setConfirmedProductDraft(getConfirmedProductDraft(selectedItem));
@@ -1971,6 +1981,7 @@ export default function ClothesDetailScreen() {
       setIsSavingReferenceClothing(true);
       await saveUserProfile(nextProfile);
       setProfile(nextProfile);
+      setReferenceItem(null);
       Alert.alert(
         "기준 옷 설정 완료",
         `이 옷을 ${getReferenceClothingCategoryLabel(referenceKey)} 기준 옷으로 저장했어요.`
@@ -2318,14 +2329,15 @@ export default function ClothesDetailScreen() {
     () => {
       if (!item || !hasSizeRecommendationSource) return null;
       const timer = startPerformanceTimer("clothes-detail.getRecommendedProductSize");
-      const result = getRecommendedProductSize(item, profile);
+      const result = getRecommendedProductSize(item, profile, { referenceItem });
       endPerformanceTimer(timer, {
         sizeRowCount: item.confirmedProduct?.productSizeGuide?.sizes?.length || 0,
+        hasReferenceItem: Boolean(referenceItem),
         recommendationCount: result.sizeRecommendations.length,
       });
       return result;
     },
-    [hasSizeRecommendationSource, item, profile]
+    [hasSizeRecommendationSource, item, profile, referenceItem]
   );
   const shouldShowRecommendedSizeCard = Boolean(
     hasSizeRecommendationSource &&
