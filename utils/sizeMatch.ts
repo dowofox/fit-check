@@ -256,6 +256,78 @@ function isUpperCategory(item: ClosetItem) {
   return item.category === "상의" || item.category === "아우터";
 }
 
+type SleeveType = "sleeveless" | "short" | "elbow" | "threeQuarter" | "long" | "unknown";
+
+const SLEEVE_TYPE_KEYWORDS: Record<Exclude<SleeveType, "unknown">, string[]> = {
+  sleeveless: [
+    "민소매",
+    "슬리브리스",
+    "나시",
+    "탱크탑",
+    "베스트",
+    "sleeveless",
+    "tank top",
+  ],
+  short: [
+    "반팔",
+    "숏슬리브",
+    "숏 슬리브",
+    "short sleeve",
+    "short-sleeve",
+    "하프 슬리브",
+    "half sleeve",
+  ],
+  elbow: ["5부", "오부", "팔꿈치", "elbow sleeve"],
+  threeQuarter: ["7부", "칠부", "three quarter", "3/4 sleeve"],
+  long: ["긴팔", "롱슬리브", "롱 슬리브", "long sleeve", "long-sleeve"],
+};
+
+function getSleeveTypeSourceText(item: ClosetItem) {
+  return [
+    item.detailCategory,
+    item.subCategory,
+    item.category,
+    item.confirmedProduct?.productName,
+    item.inferredProductName,
+    item.styleProfile?.sleeveLength,
+    item.description,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function includesSleeveKeyword(sourceText: string, sleeveType: Exclude<SleeveType, "unknown">) {
+  return SLEEVE_TYPE_KEYWORDS[sleeveType].some((keyword) =>
+    sourceText.includes(keyword.toLowerCase())
+  );
+}
+
+function getSleeveType(item: ClosetItem): SleeveType {
+  const sourceText = getSleeveTypeSourceText(item);
+
+  if (includesSleeveKeyword(sourceText, "sleeveless")) return "sleeveless";
+  if (includesSleeveKeyword(sourceText, "short")) return "short";
+  if (includesSleeveKeyword(sourceText, "threeQuarter")) return "threeQuarter";
+  if (includesSleeveKeyword(sourceText, "elbow")) return "elbow";
+  if (includesSleeveKeyword(sourceText, "long")) return "long";
+
+  return "unknown";
+}
+
+function shouldCompareUserSleeve(item: ClosetItem) {
+  return isUpperCategory(item) && getSleeveType(item) === "long";
+}
+
+function shouldCompareReferenceSleeve(item: ClosetItem, referenceItem?: ClosetItem | null) {
+  if (!referenceItem || !isUpperCategory(item) || !isUpperCategory(referenceItem)) return false;
+
+  const itemSleeveType = getSleeveType(item);
+  const referenceSleeveType = getSleeveType(referenceItem);
+
+  return itemSleeveType !== "unknown" && itemSleeveType === referenceSleeveType;
+}
+
 export function isAccessoryOrBagItem(
   item: Pick<ClosetItem, "category" | "subCategory" | "detailCategory">
 ) {
@@ -400,7 +472,7 @@ function getSleeveDescription(
   item: ClosetItem,
   comparisons: MeasurementComparison[]
 ) {
-  if (!isUpperCategory(item)) return "";
+  if (!shouldCompareUserSleeve(item)) return "";
 
   const sleeveComparison = comparisons.find((comparison) => comparison.key === "sleeve");
   if (!sleeveComparison) return "";
@@ -656,8 +728,11 @@ export function getMeasurementComparison(
 
   const comparisons: MeasurementComparison[] = [];
   const unavailableFields: string[] = [];
+  const canCompareUserSleeve = shouldCompareUserSleeve(item);
 
   COMPARISON_FIELDS.forEach(({ key, productKey, label }) => {
+    if (key === "sleeve" && !canCompareUserSleeve) return;
+
     const userValue = comparableUserMeasurements[key];
     const garmentValue = garmentMeasurement[productKey];
 
@@ -753,7 +828,7 @@ function getRequiredProfileFields(item: ClosetItem, profile?: UserProfile | null
       !parseMeasurement(profile?.shoulderWidth) ? "어깨너비" : "",
       !parseMeasurement(profile?.chestCircumference) ? "가슴둘레" : "",
       !parseMeasurement(profile?.height) ? "키" : "",
-      !parseMeasurement(profile?.armLength) ? "팔 길이" : "",
+      shouldCompareUserSleeve(item) && !parseMeasurement(profile?.armLength) ? "팔 길이" : "",
     ].filter(Boolean);
   }
 
@@ -1029,6 +1104,13 @@ function getReferenceComparison(
 
   Object.entries(weights).forEach(([key, weight]) => {
     const measurementKey = key as ReferenceMeasurementKey;
+    if (
+      measurementKey === "sleeve" &&
+      !shouldCompareReferenceSleeve(item, referenceItem)
+    ) {
+      return;
+    }
+
     const candidateValue = getMeasurementValue(candidateMeasurement, measurementKey);
     const referenceValue = getMeasurementValue(referenceMeasurement, measurementKey);
 
@@ -1142,12 +1224,14 @@ function scoreSizeMeasurement(
         10,
         22
       );
-      score += getEaseScore(
-        getMeasurementDifference(comparison, "sleeve"),
-        getTargetEase("upper", "sleeve", preference),
-        5,
-        15
-      );
+      score += shouldCompareUserSleeve(item)
+        ? getEaseScore(
+            getMeasurementDifference(comparison, "sleeve"),
+            getTargetEase("upper", "sleeve", preference),
+            5,
+            15
+          )
+        : 15;
     }
 
     score += getFitPreferenceScore(comparison.fitResult, preference);
