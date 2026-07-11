@@ -209,7 +209,7 @@ type WidthAnalysis = {
   chestDescription?: string;
 };
 
-function parseMeasurement(value?: string) {
+function parseMeasurement(value?: string | number) {
   const parsedValue = Number(String(value || "").replace(",", ".").trim());
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
 }
@@ -356,68 +356,168 @@ function getIntendedLengthOffset(intendedFit?: string) {
   return 0;
 }
 
-function getBottomLengthAnalysis(
+type BottomLengthReference =
+  | {
+      source: "reference_clothing" | "preferred_pants_total_length" | "body_estimate";
+      targetLength: number;
+      descriptionBasis: string;
+    }
+  | null;
+
+type BottomLengthAnalysis = {
+  result: LengthResult;
+  description: string;
+  reference: BottomLengthReference;
+  difference?: number;
+};
+
+function getValidMeasurementValue(value?: number) {
+  return typeof value === "number" && value > 0 ? value : undefined;
+}
+
+function getBottomReferenceMeasurement(context?: SizeRecommendationContext) {
+  const referenceItem = context?.referenceItem;
+  if (!referenceItem || !isBottomCategory(referenceItem)) return undefined;
+
+  return getReferenceProductMeasurement(referenceItem);
+}
+
+function getBottomLengthReference(
   item: ClosetItem,
   garmentMeasurement: ProductSizeMeasurement,
-  profile?: UserProfile | null
-): { result: LengthResult; description: string } {
-  if (!isBottomCategory(item) || typeof garmentMeasurement.totalLength !== "number") {
-    return { result: "unknown", description: "" };
+  profile?: UserProfile | null,
+  context?: SizeRecommendationContext
+): BottomLengthReference {
+  if (!isBottomCategory(item)) return null;
+
+  const referenceTotalLength = getValidMeasurementValue(
+    getBottomReferenceMeasurement(context)?.totalLength
+  );
+  if (referenceTotalLength !== undefined) {
+    return {
+      source: "reference_clothing",
+      targetLength: referenceTotalLength,
+      descriptionBasis: "기준 바지 총장",
+    };
+  }
+
+  const preferredPantsTotalLength = parseMeasurement(profile?.preferredPantsTotalLength);
+  if (preferredPantsTotalLength !== undefined) {
+    return {
+      source: "preferred_pants_total_length",
+      targetLength: preferredPantsTotalLength,
+      descriptionBasis: "평소 잘 맞는 바지 총장",
+    };
   }
 
   const userInseam = parseMeasurement(profile?.inseam);
   const userHeight = parseMeasurement(profile?.height);
   const intendedOffset = getIntendedLengthOffset(item.intendedFit);
-  let difference: number | undefined;
-  let comparisonBasis = "";
 
   if (
     userInseam !== undefined &&
     typeof garmentMeasurement.rise === "number" &&
     garmentMeasurement.rise > 0
   ) {
-    const estimatedGarmentInseam = garmentMeasurement.totalLength - garmentMeasurement.rise;
-    difference = estimatedGarmentInseam - userInseam - intendedOffset;
-    comparisonBasis = "내 인심";
-  } else if (userHeight !== undefined) {
-    const estimatedRegularLength = userHeight * 0.59;
-    difference = garmentMeasurement.totalLength - estimatedRegularLength - intendedOffset;
-    comparisonBasis = "내 키";
-  }
-
-  if (difference === undefined) {
     return {
-      result: "unknown",
-      description: "총장은 확인됐지만 키 또는 인심 정보가 없어 길이감을 정확히 비교하기 어려워요.",
+      source: "body_estimate",
+      targetLength: userInseam + garmentMeasurement.rise + intendedOffset,
+      descriptionBasis: "내 인심",
     };
   }
 
-  const roundedDifference = Math.abs(Number(difference.toFixed(1)));
+  if (userHeight !== undefined) {
+    return {
+      source: "body_estimate",
+      targetLength: userHeight * 0.59 + intendedOffset,
+      descriptionBasis: "내 키",
+    };
+  }
+
+  return null;
+}
+
+function getBottomLengthReason(reference: BottomLengthReference, difference: number) {
+  if (!reference) return "";
+
+  const absoluteDifference = Math.abs(Number(difference.toFixed(1)));
+  if (absoluteDifference <= 0.4) {
+    return `${reference.descriptionBasis}과 거의 같아요.`;
+  }
+
+  return difference < 0
+    ? `${reference.descriptionBasis}보다 총장이 ${absoluteDifference}cm 짧아요.`
+    : `${reference.descriptionBasis}보다 총장이 ${absoluteDifference}cm 길어요.`;
+}
+
+function getBottomLengthScoreFromDifference(difference: number, maxScore: number) {
+  return maxScore * Math.max(0, 1 - Math.abs(difference) / 7);
+}
+
+function hasBottomLengthReferenceInput(
+  profile?: UserProfile | null,
+  context?: SizeRecommendationContext
+) {
+  return (
+    getValidMeasurementValue(getBottomReferenceMeasurement(context)?.totalLength) !== undefined ||
+    parseMeasurement(profile?.preferredPantsTotalLength) !== undefined
+  );
+}
+
+function getBottomLengthAnalysis(
+  item: ClosetItem,
+  garmentMeasurement: ProductSizeMeasurement,
+  profile?: UserProfile | null,
+  context?: SizeRecommendationContext
+): BottomLengthAnalysis {
+  if (!isBottomCategory(item) || typeof garmentMeasurement.totalLength !== "number") {
+    return { result: "unknown", description: "", reference: null };
+  }
+
+  const reference = getBottomLengthReference(item, garmentMeasurement, profile, context);
+  if (!reference) {
+    return {
+      result: "unknown",
+      description: "총장은 확인되지만 기준 옷 총장, 평소 바지 총장, 키 또는 인심 정보가 없어 길이감을 정확히 비교하기 어려워요.",
+      reference: null,
+    };
+  }
+
+  const difference = garmentMeasurement.totalLength - reference.targetLength;
+  const lengthReason = getBottomLengthReason(reference, difference);
 
   if (difference < -4) {
     return {
       result: "short",
-      description: `총장이 ${comparisonBasis} 기준보다 약 ${roundedDifference}cm 짧아 발목이 드러나는 짧은 길이감일 수 있어요.`,
+      description: `${lengthReason} 발목이 드러나는 짧은 길이감일 수 있어요.`,
+      reference,
+      difference,
     };
   }
 
   if (difference <= 3) {
     return {
       result: "regular",
-      description: `총장이 ${comparisonBasis} 기준과 비슷해 자연스럽게 떨어지는 기본 길이감이에요.`,
+      description: `${lengthReason} 자연스럽게 떨어지는 기본 길이감이에요.`,
+      reference,
+      difference,
     };
   }
 
   if (difference <= 7) {
     return {
       result: "long",
-      description: `총장이 ${comparisonBasis} 대비 약 ${roundedDifference}cm 길어 발등에 살짝 쌓이는 길이감이에요.`,
+      description: `${lengthReason} 발등에 살짝 쌓이는 길이감이에요.`,
+      reference,
+      difference,
     };
   }
 
   return {
     result: "tooLong",
-    description: `총장이 ${comparisonBasis} 대비 약 ${roundedDifference}cm 길어 밑단이 많이 쌓이거나 수선이 필요할 수 있어요.`,
+    description: `${lengthReason} 밑단이 많이 쌓이거나 수선이 필요할 수 있어요.`,
+    reference,
+    difference,
   };
 }
 
@@ -709,7 +809,8 @@ const COMPARISON_FIELDS: {
 
 export function getMeasurementComparison(
   item: ClosetItem,
-  profile?: UserProfile | null
+  profile?: UserProfile | null,
+  context?: SizeRecommendationContext
 ): MeasurementComparisonResult {
   const garmentMeasurement = getCurrentProductMeasurement(item);
   const userMeasurements = getUserFitMeasurements(profile);
@@ -755,7 +856,7 @@ export function getMeasurementComparison(
   });
 
   const lengthAnalysis = isBottomCategory(item)
-    ? getBottomLengthAnalysis(item, garmentMeasurement, profile)
+    ? getBottomLengthAnalysis(item, garmentMeasurement, profile, context)
     : getUpperLengthAnalysis(item, garmentMeasurement, profile);
   const widthAnalysis = getWidthAnalysis(item, comparisons);
   const fitResult = isUpperCategory(item)
@@ -811,13 +912,21 @@ function getFitPreference(intendedFit?: string): FitPreference {
   return "regular";
 }
 
-function getRequiredProfileFields(item: ClosetItem, profile?: UserProfile | null) {
+function getRequiredProfileFields(
+  item: ClosetItem,
+  profile?: UserProfile | null,
+  context?: SizeRecommendationContext
+) {
   if (isBottomCategory(item)) {
+    const hasLengthReference = hasBottomLengthReferenceInput(profile, context);
+
     return [
       !parseMeasurement(profile?.waistCircumference) ? "허리둘레" : "",
       !parseMeasurement(profile?.hipCircumference) ? "엉덩이둘레" : "",
       !parseMeasurement(profile?.thighCircumference) ? "허벅지둘레" : "",
-      !parseMeasurement(profile?.inseam) && !parseMeasurement(profile?.height)
+      !hasLengthReference &&
+      !parseMeasurement(profile?.inseam) &&
+      !parseMeasurement(profile?.height)
         ? "인심 또는 키"
         : "",
     ].filter(Boolean);
@@ -1178,7 +1287,7 @@ function scoreSizeMeasurement(
         }
       : item.confirmedProduct,
   };
-  const comparison = getMeasurementComparison(measurementItem, profile);
+  const comparison = getMeasurementComparison(measurementItem, profile, context);
   const preference = getFitPreference(item.intendedFit);
   const referenceComparison = getReferenceComparison(
     item,
@@ -1189,7 +1298,20 @@ function scoreSizeMeasurement(
 
   if (canUseProfileMeasurements) {
     if (isBottomCategory(item)) {
-      score += getLengthScore(comparison.lengthResult, preference, 40);
+      const bottomLengthReference = getBottomLengthReference(
+        item,
+        measurement,
+        profile,
+        context
+      );
+      const bottomLengthDifference =
+        bottomLengthReference && typeof measurement.totalLength === "number"
+          ? measurement.totalLength - bottomLengthReference.targetLength
+          : undefined;
+
+      score += bottomLengthDifference !== undefined
+        ? getBottomLengthScoreFromDifference(bottomLengthDifference, 40)
+        : getLengthScore(comparison.lengthResult, preference, 40);
       score += getEaseScore(
         getMeasurementDifference(comparison, "waist"),
         getTargetEase("bottom", "waist", preference),
@@ -1272,7 +1394,7 @@ export function getRecommendedProductSize(
     return { sizeRecommendations: [], missingFields: [] };
   }
 
-  const missingFields = getRequiredProfileFields(item, profile);
+  const missingFields = getRequiredProfileFields(item, profile, context);
   const sizeRows = (item.confirmedProduct?.productSizeGuide?.sizes || []).filter(
     (measurement) =>
       Boolean(measurement.size) &&
