@@ -256,6 +256,10 @@ function isUpperCategory(item: ClosetItem) {
   return item.category === "상의" || item.category === "아우터";
 }
 
+function isShoeCategory(item: ClosetItem) {
+  return item.category === "신발";
+}
+
 type SleeveType = "sleeveless" | "short" | "elbow" | "threeQuarter" | "long" | "unknown";
 
 const SLEEVE_TYPE_KEYWORDS: Record<Exclude<SleeveType, "unknown">, string[]> = {
@@ -1120,10 +1124,6 @@ const UPPER_REFERENCE_WEIGHTS: Partial<Record<ReferenceMeasurementKey, number>> 
   sleeve: 20,
 };
 
-const SHOE_REFERENCE_WEIGHTS: Partial<Record<ReferenceMeasurementKey, number>> = {
-  footLength: 100,
-};
-
 const REFERENCE_FIELD_LABELS: Record<ReferenceMeasurementKey, string> = {
   totalLength: "총장",
   shoulder: "어깨",
@@ -1140,7 +1140,6 @@ const REFERENCE_FIELD_LABELS: Record<ReferenceMeasurementKey, string> = {
 function getReferenceWeights(item: ClosetItem) {
   if (isBottomCategory(item)) return BOTTOM_REFERENCE_WEIGHTS;
   if (isUpperCategory(item)) return UPPER_REFERENCE_WEIGHTS;
-  if (item.category === "?좊컻") return SHOE_REFERENCE_WEIGHTS;
   return {};
 }
 
@@ -1386,7 +1385,7 @@ export function getRecommendedProductSize(
   profile?: UserProfile | null,
   context?: SizeRecommendationContext
 ): SizeRecommendationResult {
-  if (isAccessoryOrBagItem(item)) {
+  if (isAccessoryOrBagItem(item) || isShoeCategory(item)) {
     return { sizeRecommendations: [], missingFields: [] };
   }
 
@@ -1485,6 +1484,25 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
         widthResult: "unknown" as const,
         fitResult: "unknown" as const,
         description: "액세서리와 가방은 의류 실측 비교에서 제외돼요.",
+      },
+    };
+  }
+
+  if (isShoeCategory(item)) {
+    return {
+      status: "신발 사이즈는 직접 확인해주세요",
+      description:
+        "신발은 브랜드와 모델별 착화감 차이가 커서 자동 사이즈 추천 대신 상품 사이즈표를 직접 참고하는 방식으로 유지해요.",
+      lengthResult: "unknown" as const,
+      widthResult: "unknown" as const,
+      fitResult: "unknown" as const,
+      measurementComparison: {
+        comparisons: [],
+        unavailableFields: [],
+        lengthResult: "unknown" as const,
+        widthResult: "unknown" as const,
+        fitResult: "unknown" as const,
+        description: "신발은 자동 핏 비교에서 제외돼요.",
       },
     };
   }

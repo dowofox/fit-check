@@ -2458,7 +2458,7 @@ export default function ClothesDetailScreen() {
   }, [item]);
   const fitSuitability = useMemo(
     () => {
-      if (!item || isAccessoryOrBagItem(item)) return null;
+      if (!item || isAccessoryOrBagItem(item) || item.category === "신발") return null;
       const timer = startPerformanceTimer("clothes-detail.getFitSuitability");
       const result = getFitSuitability(item, profile);
       endPerformanceTimer(timer, { fitResult: result.fitResult });
