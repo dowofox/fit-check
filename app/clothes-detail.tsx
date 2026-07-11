@@ -680,7 +680,9 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value || "분석 전"}</Text>
+      <View style={styles.detailValueWrap}>
+        <Text style={styles.detailValue}>{value || "분석 전"}</Text>
+      </View>
     </View>
   );
 }
@@ -1245,9 +1247,13 @@ function ConfirmedProductCard({
         ) : null}
 
         <View style={styles.confirmedProductInfoText}>
-          <Text style={styles.productReferenceBrand}>{confirmedProduct.brand}</Text>
-          <Text style={styles.productReferenceName}>{confirmedProduct.productName}</Text>
-          {meta ? <Text style={styles.productReferenceReason}>{meta}</Text> : null}
+          <Text style={styles.productReferenceBrand} numberOfLines={2} ellipsizeMode="tail">
+            {confirmedProduct.brand}
+          </Text>
+          <Text style={styles.productReferenceName} numberOfLines={2} ellipsizeMode="tail">
+            {confirmedProduct.productName}
+          </Text>
+          {meta ? <Text style={styles.productReferenceReason} numberOfLines={2}>{meta}</Text> : null}
           {sizeGuideSummary ? (
             <View style={styles.confirmedProductSizeGuideBox}>
               <View style={styles.confirmedProductSizeGuideHeader}>
@@ -2435,10 +2441,10 @@ export default function ClothesDetailScreen() {
             />
 
             <View style={styles.summaryCard}>
-              <Text style={styles.itemTitle}>
+              <Text style={styles.itemTitle} numberOfLines={2} ellipsizeMode="tail">
                 {item.detailCategory || item.subCategory || item.category}
               </Text>
-              <Text style={styles.itemSubtitle}>
+              <Text style={styles.itemSubtitle} numberOfLines={2} ellipsizeMode="tail">
                 {item.category}{item.color ? ` · ${item.color}` : ""}
               </Text>
             </View>
@@ -2802,14 +2808,18 @@ const styles = StyleSheet.create({
   itemTitle: {
     color: "#fff",
     fontSize: 27,
+    lineHeight: 32,
     fontWeight: "900",
     marginBottom: 6,
+    flexShrink: 1,
   },
 
   itemSubtitle: {
     color: "#d8d2ca",
     fontSize: 15,
+    lineHeight: 21,
     fontWeight: "800",
+    flexShrink: 1,
   },
 
   infoCard: {
@@ -2866,7 +2876,7 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 13,
     borderBottomWidth: 1,
     borderBottomColor: "#eee7dd",
@@ -2876,12 +2886,23 @@ const styles = StyleSheet.create({
     color: "#8a8178",
     fontSize: 14,
     fontWeight: "900",
+    flexShrink: 0,
+    marginRight: 12,
+  },
+
+  detailValueWrap: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "flex-end",
   },
 
   detailValue: {
     color: "#111",
     fontSize: 15,
+    lineHeight: 21,
     fontWeight: "900",
+    flexShrink: 1,
+    textAlign: "right",
   },
 
   editRow: {
@@ -2901,6 +2922,8 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 15,
     fontWeight: "800",
+    width: "100%",
+    minWidth: 0,
   },
 
   chipWrap: {
@@ -3082,8 +3105,10 @@ const styles = StyleSheet.create({
   aiDetailSubtitle: {
     color: "#8a8178",
     fontSize: 12,
+    lineHeight: 18,
     fontWeight: "700",
     marginTop: 2,
+    flexShrink: 1,
   },
 
   aiDetailGrid: {
@@ -3184,15 +3209,19 @@ const styles = StyleSheet.create({
   productReferenceBrand: {
     color: "#8c6f47",
     fontSize: 13,
+    lineHeight: 18,
     fontWeight: "900",
     marginBottom: 4,
+    flexShrink: 1,
   },
 
   productReferenceName: {
     color: "#111",
     fontSize: 16,
+    lineHeight: 22,
     fontWeight: "900",
     marginBottom: 7,
+    flexShrink: 1,
   },
 
   productReferenceReason: {
@@ -3200,6 +3229,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     fontWeight: "700",
+    flexShrink: 1,
   },
 
   productReferenceConfidence: {
@@ -3224,6 +3254,7 @@ const styles = StyleSheet.create({
 
   confirmedProductInfoText: {
     flex: 1,
+    minWidth: 0,
   },
 
   confirmedProductSizeGuideBox: {
@@ -3245,6 +3276,7 @@ const styles = StyleSheet.create({
 
   confirmedProductSizeGuideTextWrap: {
     flex: 1,
+    minWidth: 0,
   },
 
   confirmedProductSizeGuideTitle: {
@@ -3259,11 +3291,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "800",
+    flexShrink: 1,
   },
 
   sizeGuideToggleButton: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 0,
     gap: 4,
     backgroundColor: "#fff",
     borderRadius: 999,
@@ -3462,6 +3496,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    maxWidth: "100%",
+    flexShrink: 1,
     gap: 6,
     backgroundColor: "#111",
     borderRadius: 999,
@@ -3473,12 +3509,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "900",
+    flexShrink: 1,
+    textAlign: "center",
+    lineHeight: 17,
   },
 
   confirmedProductSecondaryButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    maxWidth: "100%",
+    flexShrink: 1,
     gap: 6,
     backgroundColor: "#f4eee7",
     borderRadius: 999,
@@ -3492,6 +3533,9 @@ const styles = StyleSheet.create({
     color: "#8c6f47",
     fontSize: 12,
     fontWeight: "900",
+    flexShrink: 1,
+    textAlign: "center",
+    lineHeight: 17,
   },
 
   productExtractNotice: {
@@ -3593,6 +3637,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 9,
     marginBottom: 10,
+    minWidth: 0,
   },
 
   tipIconCircle: {
@@ -3602,12 +3647,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0e7dc",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
 
   tipTitle: {
     color: "#111",
     fontSize: 16,
     fontWeight: "900",
+    lineHeight: 22,
+    flexShrink: 1,
   },
 
   sizeMatchStatus: {
