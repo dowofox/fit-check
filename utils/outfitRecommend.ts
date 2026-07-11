@@ -1841,6 +1841,43 @@ function getCoreOutfitKey(recommendation: OutfitRecommendation) {
   return [topId, bottomId, shoeId].join("-");
 }
 
+function getItemCombinationKey(recommendation: OutfitRecommendation) {
+  return getSortedItemIds(recommendation.items).join("|");
+}
+
+function stripAlternatives(recommendation: OutfitRecommendation): OutfitRecommendation {
+  return {
+    ...recommendation,
+    alternativeCount: 0,
+    alternatives: [],
+  };
+}
+
+function getAlternativeRecommendations(
+  baseRecommendation: OutfitRecommendation,
+  recommendations: OutfitRecommendation[]
+) {
+  const baseCoreKey = getCoreOutfitKey(baseRecommendation);
+  const baseItemKey = getItemCombinationKey(baseRecommendation);
+  const usedItemKeys = new Set<string>();
+  const alternatives: OutfitRecommendation[] = [];
+
+  for (const recommendation of recommendations) {
+    const itemKey = getItemCombinationKey(recommendation);
+
+    if (itemKey === baseItemKey) continue;
+    if (getCoreOutfitKey(recommendation) === baseCoreKey) continue;
+    if (usedItemKeys.has(itemKey)) continue;
+
+    usedItemKeys.add(itemKey);
+    alternatives.push(stripAlternatives(recommendation));
+
+    if (alternatives.length >= 3) break;
+  }
+
+  return alternatives;
+}
+
 function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation[]) {
   const recommendationMap = new Map<string, OutfitRecommendation[]>();
 
@@ -1851,17 +1888,16 @@ function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation
     recommendationMap.set(coreKey, [...currentRecommendations, recommendation]);
   });
 
+  const sortedRecommendations = [...recommendations].sort(compareRecommendations);
+
   return Array.from(recommendationMap.values()).map((coreRecommendations) => {
-    const [bestRecommendation, ...alternatives] = [...coreRecommendations].sort(compareRecommendations);
+    const [bestRecommendation] = [...coreRecommendations].sort(compareRecommendations);
+    const alternatives = getAlternativeRecommendations(bestRecommendation, sortedRecommendations);
 
     return {
       ...bestRecommendation,
-      alternativeCount: Math.max(coreRecommendations.length - 1, 0),
-      alternatives: alternatives.slice(0, 3).map((alternative) => ({
-        ...alternative,
-        alternativeCount: 0,
-        alternatives: [],
-      })),
+      alternativeCount: alternatives.length,
+      alternatives,
     };
   });
 }
