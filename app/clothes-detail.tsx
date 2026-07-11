@@ -677,14 +677,52 @@ function MultiChipGroup({
 }
 
 function DetailRow({ label, value }: { label: string; value?: string }) {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue || ["판단 어려움", "추정 없음", "확정 없음", "없음"].includes(normalizedValue)) {
+    return null;
+  }
+
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
       <View style={styles.detailValueWrap}>
-        <Text style={styles.detailValue}>{value || "분석 전"}</Text>
+        <Text style={styles.detailValue}>{normalizedValue}</Text>
       </View>
     </View>
   );
+}
+
+function getDisplayBrand(item: ClosetItem) {
+  return (
+    item.confirmedProduct?.brand?.trim() ||
+    item.confirmedBrand?.trim() ||
+    item.brand?.trim() ||
+    ""
+  );
+}
+
+function getDisplayTitle(item: ClosetItem) {
+  return (
+    item.confirmedProduct?.productName?.trim() ||
+    item.detailCategory?.trim() ||
+    item.subCategory?.trim() ||
+    item.category
+  );
+}
+
+function getDisplayMaterial(item: ClosetItem) {
+  const material =
+    item.confirmedProduct?.materialComposition?.summary?.trim() ||
+    item.material?.trim() ||
+    "";
+
+  return material && material !== "판단 어려움" ? material : "";
+}
+
+function getDisplayStyleText(item: ClosetItem) {
+  const tags = getItemStyleTags(item).filter(Boolean).slice(0, 3);
+  if (tags.length > 0) return tags.join(", ");
+  return item.style?.trim() || "";
 }
 
 function getBooleanLabel(value?: boolean) {
@@ -845,6 +883,103 @@ function AnalysisQualityCard({ item }: { item: ClosetItem }) {
         <Text style={styles.analysisQualityText}>
           추가 사진 힌트: {missingHints.length > 0 ? missingHints.join(", ") : "라벨, 뒷면, 전체 실루엣"}
         </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function AnalysisActionNoticeCard({ item }: { item: ClosetItem }) {
+  const hasProductWarning = hasLowProductConfidence(item);
+  const hasConfirmedProduct = Boolean(item.confirmedProduct);
+  const quality = item.analysisQuality;
+  const missingHints = quality?.missingHints || [];
+  const needsManualSizeGuide =
+    hasConfirmedProduct &&
+    !isAccessoryOrBagItem(item) &&
+    getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).length === 0;
+  const hasImageActionWarning =
+    Boolean(quality?.needsMorePhotos) ||
+    quality?.imageQuality === "dark" ||
+    quality?.imageQuality === "blurred" ||
+    quality?.imageQuality === "partial";
+
+  const notices = [
+    hasProductWarning
+      ? "실제 상품 식별이 확실하지 않아요. 상품 링크로 확정하면 더 정확한 추천을 받을 수 있어요."
+      : "",
+    needsManualSizeGuide
+      ? "상품 실측을 찾지 못했어요. 직접 입력하면 사이즈 추천이 더 정확해져요."
+      : "",
+    hasImageActionWarning
+      ? `사진 상태가 ${getImageQualityLabel(quality?.imageQuality)}이라 분석이 제한될 수 있어요. ${
+          missingHints.length > 0
+            ? `${missingHints.join(", ")} 사진을 추가하면 더 정확해져요.`
+            : "전체 실루엣이나 라벨 사진이 있으면 더 정확해져요."
+        }`
+      : "",
+  ].filter(Boolean);
+
+  if (notices.length === 0) return null;
+
+  return (
+    <View style={styles.analysisActionNoticeCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="alert-circle" size={16} color="#8c6f47" />
+        </View>
+        <View style={styles.tipHeaderText}>
+          <Text style={styles.tipTitle}>확인하면 더 좋아요</Text>
+          <Text style={styles.aiDetailSubtitle}>추천 정확도를 높이는 데 필요한 항목만 보여드려요.</Text>
+        </View>
+      </View>
+
+      {notices.map((notice, index) => (
+        <Text key={`analysis-action-${index}`} style={styles.analysisQualityText}>
+          {notice}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+function AiAnalysisAccordion({
+  item,
+  isOpen,
+  onToggle,
+}: {
+  item: ClosetItem;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const hasContent = Boolean(
+    item.analysisQuality ||
+      item.analysisWarnings?.length ||
+      item.garmentProfile ||
+      item.styleProfile ||
+      getAiAnalysisRows(item).length
+  );
+
+  if (!hasContent) return null;
+
+  return (
+    <View style={styles.aiAnalysisAccordionCard}>
+      <Pressable style={styles.aiAnalysisToggle} onPress={onToggle}>
+        <View style={styles.tipHeaderText}>
+          <Text style={styles.tipTitle}>AI 분석 정보</Text>
+          <Text style={styles.aiDetailSubtitle}>
+            추천 엔진이 참고하는 내부 분석값이에요. 필요할 때만 펼쳐서 확인하세요.
+          </Text>
+        </View>
+        <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={20} color="#8c6f47" />
+      </Pressable>
+
+      {isOpen ? (
+        <View style={styles.aiAnalysisContent}>
+          <AiDetailCard item={item} />
+          <AnalysisQualityCard item={item} />
+          <GarmentProfileCard item={item} />
+          <StyleProfileCard item={item} />
+        </View>
       ) : null}
     </View>
   );
@@ -1722,7 +1857,7 @@ function getAlternativeSizeSummary(
   if (recommendation.lengthResult === "short") return "길이가 짧게 느껴질 수 있어요.";
   if (recommendation.lengthResult === "tooLong") return "길이가 많이 쌓일 수 있어요.";
   if (recommendation.widthResult === "oversized") return "품이 크게 느껴질 수 있어요.";
-  return `내 실측 기준 적합도는 ${recommendation.score}점이에요.`;
+  return "내 실측 기준으로 무난하게 입기 좋은 후보예요.";
 }
 
 function RecommendedSizeCard({
@@ -1776,7 +1911,6 @@ function RecommendedSizeCard({
         <Text style={styles.recommendedSizeValue}>
           {result.recommendedDisplaySize || result.recommendedSize}
         </Text>
-        <Text style={styles.recommendedSizeScore}>{recommended.score}점</Text>
       </View>
 
       {recommended.reasons.slice(0, 2).map((reason, index) => (
@@ -1831,6 +1965,7 @@ export default function ClothesDetailScreen() {
   const [isSavingRecommendationPreference, setIsSavingRecommendationPreference] = useState(false);
   const [isSavingReferenceClothing, setIsSavingReferenceClothing] = useState(false);
   const [isMeasurementFormOpen, setIsMeasurementFormOpen] = useState(false);
+  const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
   );
@@ -2442,10 +2577,10 @@ export default function ClothesDetailScreen() {
 
             <View style={styles.summaryCard}>
               <Text style={styles.itemTitle} numberOfLines={2} ellipsizeMode="tail">
-                {item.detailCategory || item.subCategory || item.category}
+                {getDisplayTitle(item)}
               </Text>
               <Text style={styles.itemSubtitle} numberOfLines={2} ellipsizeMode="tail">
-                {item.category}{item.color ? ` · ${item.color}` : ""}
+                {[getDisplayBrand(item), item.category, item.color].filter(Boolean).join(" · ")}
               </Text>
             </View>
 
@@ -2509,13 +2644,13 @@ export default function ClothesDetailScreen() {
                 </>
               ) : (
                 <>
-                  <DetailRow label="종류" value={item.category} />
-                  <DetailRow label="기본 종류" value={item.subCategory} />
+                  <DetailRow label="카테고리" value={item.category} />
                   <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
+                  <DetailRow label="브랜드" value={getDisplayBrand(item)} />
                   <DetailRow label="색상" value={item.color} />
-                  <DetailRow label="스타일" value={item.style} />
-                  <DetailRow label="스타일 태그" value={getItemStyleTags(item).map((tag) => `#${tag}`).join(" ")} />
+                  <DetailRow label="소재" value={getDisplayMaterial(item)} />
                   <DetailRow label="계절" value={getItemSeasons(item).join(", ")} />
+                  <DetailRow label="스타일" value={getDisplayStyleText(item)} />
                   <DetailRow label="핏" value={item.fit} />
                   <DetailRow label="사이즈" value={item.size || "사이즈 미입력"} />
                   <DetailRow label="착용 의도" value={item.intendedFit || "상관없음"} />
@@ -2566,12 +2701,7 @@ export default function ClothesDetailScreen() {
               />
             )}
 
-            {!editMode && <AiDetailCard item={item} />}
-
-            {!editMode && <AnalysisQualityCard item={item} />}
-
-            {!editMode && <GarmentProfileCard item={item} />}
-            {!editMode && <StyleProfileCard item={item} />}
+            {!editMode && <AnalysisActionNoticeCard item={item} />}
 
             {!editMode && item.confirmedProduct && (
               <ConfirmedProductCard
@@ -2647,8 +2777,6 @@ export default function ClothesDetailScreen() {
               />
             )}
 
-            {!editMode && <MatchingItemSearchCard item={item} />}
-
             {editMode ? (
               <>
                 <TipEditCard
@@ -2688,6 +2816,16 @@ export default function ClothesDetailScreen() {
                   text={item.avoidTip}
                 />
               </>
+            )}
+
+            {!editMode && <MatchingItemSearchCard item={item} />}
+
+            {!editMode && (
+              <AiAnalysisAccordion
+                item={item}
+                isOpen={isAiAnalysisOpen}
+                onToggle={() => setIsAiAnalysisOpen((current) => !current)}
+              />
             )}
           </>
         )}
@@ -3151,12 +3289,40 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  analysisActionNoticeCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
   analysisQualityText: {
     color: "#625a51",
     fontSize: 13,
     lineHeight: 20,
     fontWeight: "800",
     marginTop: 6,
+  },
+
+  aiAnalysisAccordionCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  aiAnalysisToggle: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+
+  aiAnalysisContent: {
+    marginTop: 14,
   },
 
   styleProfileCard: {
