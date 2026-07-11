@@ -410,7 +410,7 @@ function RecommendationCard({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.alternativeItemList}
               >
-                {getDisplayItems(alternative.items, 3).map((item) => (
+                {getDisplayItems(alternative.items).map((item) => (
                   <Pressable
                     key={item.id}
                     style={styles.alternativeItemCard}
@@ -975,7 +975,7 @@ const styles = StyleSheet.create({
   },
   alternativeItemList: {
     gap: 8,
-    paddingRight: 2,
+    paddingRight: 14,
     marginBottom: 10,
   },
   alternativeItemCard: {
