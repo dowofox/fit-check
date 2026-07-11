@@ -1,7 +1,9 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import {
   getOutfitRecommendationResult,
+  MIN_DISPLAY_RECOMMENDATION_SCORE,
   OutfitRecommendation,
+  OutfitRecommendationResult,
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { openProductSearch } from "@/utils/productSearch";
@@ -41,13 +43,20 @@ import {
 
 const DEFAULT_EMPTY_MESSAGE = {
   title: "추천 가능한 조합이 부족해요",
-  text: "상의, 하의, 신발을 저장했는지 확인해주세요. 현재 계절과 맞지 않는 옷은 추천 후보에서 제외됩니다.",
+  text: "상의와 하의를 등록하면 코디를 추천할 수 있어요.",
 };
 
 const SAVED_ONLY_EMPTY_MESSAGE = {
   title: "새로운 추천 조합이 없어요",
-  text: "저장한 코디와 겹치지 않는 조합을 만들려면 옷을 더 추가해보세요.",
+  text: "추천 가능한 조합을 이미 저장했어요. 옷을 더 추가하면 새로운 코디를 만들 수 있어요.",
 };
+
+const BELOW_QUALITY_EMPTY_MESSAGE = {
+  title: "추천할 만한 조합이 아직 부족해요",
+  text: "현재 옷으로는 충분히 잘 맞는 조합을 찾지 못했어요. 다른 색상이나 실루엣의 옷을 추가해보세요.",
+};
+
+const SHOES_GUIDE_TEXT = "신발을 등록하면 완성도 높은 코디를 추천할 수 있어요.";
 
 const GRADE_LABELS: Record<OutfitRecommendation["grade"], string> = {
   S: "완성도 높은 추천",
@@ -122,6 +131,45 @@ function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) 
     firstSortedIds.length === secondSortedIds.length &&
     firstSortedIds.every((id, index) => id === secondSortedIds[index])
   );
+}
+
+function getCategoryCount(items: ClosetItem[], category: string) {
+  return items.filter((item) => item.category === category).length;
+}
+
+function getMissingCoreCategoryText(missingCategories?: string[]) {
+  if (!missingCategories?.length) return DEFAULT_EMPTY_MESSAGE.text;
+
+  return `${missingCategories.join(", ")}를 추가해주세요. 상의와 하의가 있어야 코디를 추천할 수 있어요.`;
+}
+
+function getEmptyMessage(
+  result: OutfitRecommendationResult,
+  items: ClosetItem[]
+) {
+  if (result.emptyReason === "missing_core_category") {
+    return {
+      title: "추천에 필요한 옷이 부족해요",
+      text: getMissingCoreCategoryText(result.missingCategories),
+    };
+  }
+
+  if (result.emptyReason === "below_quality_threshold") {
+    const hasShoes = getCategoryCount(items, "신발") > 0;
+
+    return {
+      ...BELOW_QUALITY_EMPTY_MESSAGE,
+      text: hasShoes
+        ? `${BELOW_QUALITY_EMPTY_MESSAGE.text} 추천 기준은 ${MIN_DISPLAY_RECOMMENDATION_SCORE}점 이상이에요.`
+        : `${BELOW_QUALITY_EMPTY_MESSAGE.text} ${SHOES_GUIDE_TEXT}`,
+    };
+  }
+
+  if (result.emptyReason === "saved_combinations_exhausted") {
+    return SAVED_ONLY_EMPTY_MESSAGE;
+  }
+
+  return DEFAULT_EMPTY_MESSAGE;
 }
 
 function isRecommendationSameAsSelected(
@@ -568,11 +616,7 @@ export default function OutfitRecommendScreen() {
 
     setRecommendations(nextRecommendations);
     setShoppingRecommendations(getRecommendedShoppingItems(items));
-    setEmptyMessage(
-      recommendationResult.hasAnyRecommendation && nextRecommendations.length === 0
-        ? SAVED_ONLY_EMPTY_MESSAGE
-        : DEFAULT_EMPTY_MESSAGE
-    );
+    setEmptyMessage(getEmptyMessage(recommendationResult, items));
     setIsLoaded(true);
   }, [
     selectedItemIdsParam,
@@ -650,6 +694,13 @@ export default function OutfitRecommendScreen() {
             </View>
             <Text style={styles.emptyTitle}>{emptyMessage.title}</Text>
             <Text style={styles.emptyText}>{emptyMessage.text}</Text>
+            <Pressable
+              style={styles.emptyActionButton}
+              onPress={() => router.push("/add-clothes")}
+            >
+              <Feather name="plus" size={16} color={colors.card} />
+              <Text style={styles.emptyActionButtonText}>옷 추가하기</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.listArea}>
@@ -1168,6 +1219,21 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: "700",
     textAlign: "center",
+  },
+  emptyActionButton: {
+    marginTop: 18,
+    backgroundColor: colors.point,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  emptyActionButtonText: {
+    color: colors.card,
+    fontSize: 14,
+    fontWeight: "800",
   },
   shoppingSection: {
     marginTop: 22,

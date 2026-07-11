@@ -38,7 +38,14 @@ export type OutfitRecommendation = {
 export type OutfitRecommendationResult = {
   recommendations: OutfitRecommendation[];
   hasAnyRecommendation: boolean;
+  emptyReason?: OutfitRecommendationEmptyReason;
+  missingCategories?: string[];
 };
+
+export type OutfitRecommendationEmptyReason =
+  | "missing_core_category"
+  | "below_quality_threshold"
+  | "saved_combinations_exhausted";
 
 export type OutfitRecommendationWeather = {
   temperature?: number;
@@ -49,6 +56,8 @@ export type OutfitRecommendationWeather = {
 export type OutfitRecommendationOptions = {
   weather?: OutfitRecommendationWeather | null;
 };
+
+export const MIN_DISPLAY_RECOMMENDATION_SCORE = 70;
 
 export type ShoeRecommendation = {
   shoe: ClosetItem;
@@ -1845,6 +1854,14 @@ function getItemCombinationKey(recommendation: OutfitRecommendation) {
   return getSortedItemIds(recommendation.items).join("|");
 }
 
+function isDisplayableRecommendation(recommendation: OutfitRecommendation) {
+  return recommendation.score >= MIN_DISPLAY_RECOMMENDATION_SCORE;
+}
+
+function filterDisplayableRecommendations(recommendations: OutfitRecommendation[]) {
+  return recommendations.filter(isDisplayableRecommendation);
+}
+
 function stripAlternatives(recommendation: OutfitRecommendation): OutfitRecommendation {
   return {
     ...recommendation,
@@ -1863,6 +1880,8 @@ function getAlternativeRecommendations(
   const alternatives: OutfitRecommendation[] = [];
 
   for (const recommendation of recommendations) {
+    if (!isDisplayableRecommendation(recommendation)) continue;
+
     const itemKey = getItemCombinationKey(recommendation);
 
     if (itemKey === baseItemKey) continue;
@@ -1959,6 +1978,40 @@ function excludeSavedCombinations(recommendations: OutfitRecommendation[], saved
       isSameItemCombination(savedItemIds, itemIds)
     );
   });
+}
+
+function getMissingCoreCategories(items: ClosetItem[]) {
+  const missingCategories: string[] = [];
+
+  if (byCategory(items, "상의").length === 0) missingCategories.push("상의");
+  if (byCategory(items, "하의").length === 0) missingCategories.push("하의");
+
+  return missingCategories;
+}
+
+function getEmptyReason({
+  items,
+  recommendationCandidates,
+  displayableRecommendations,
+  recommendations,
+  savedOutfitItemIds,
+}: {
+  items: ClosetItem[];
+  recommendationCandidates: OutfitRecommendation[];
+  displayableRecommendations: OutfitRecommendation[];
+  recommendations: OutfitRecommendation[];
+  savedOutfitItemIds: string[][];
+}): OutfitRecommendationEmptyReason | undefined {
+  if (recommendations.length > 0) return undefined;
+
+  const missingCategories = getMissingCoreCategories(items);
+  if (missingCategories.length > 0) return "missing_core_category";
+  if (displayableRecommendations.length > 0 && savedOutfitItemIds.length > 0) {
+    return "saved_combinations_exhausted";
+  }
+  if (recommendationCandidates.length > 0) return "below_quality_threshold";
+
+  return "missing_core_category";
 }
 
 function getOutfitColorsWithoutShoes(outfitItems: ClosetItem[]) {
@@ -2110,8 +2163,11 @@ function selectRecommendations(
   recommendations: OutfitRecommendation[],
   savedOutfitItemIds: string[][] = []
 ) {
-  const sortedRecommendations = getBestRecommendationByCoreOutfit(
+  const displayableRecommendations = filterDisplayableRecommendations(
     excludeSavedCombinations(recommendations, savedOutfitItemIds)
+  );
+  const sortedRecommendations = getBestRecommendationByCoreOutfit(
+    displayableRecommendations
   )
     .sort(compareRecommendations);
 
@@ -2162,9 +2218,19 @@ export function getOutfitRecommendationResult(
   const recommendations = savedOutfitItemIds.length > 0
     ? selectRecommendations(recommendationCandidates, savedOutfitItemIds)
     : allRecommendations;
+  const displayableRecommendations = filterDisplayableRecommendations(recommendationCandidates);
+  const missingCategories = getMissingCoreCategories(items);
 
   return {
     recommendations,
     hasAnyRecommendation: allRecommendations.length > 0,
+    emptyReason: getEmptyReason({
+      items,
+      recommendationCandidates,
+      displayableRecommendations,
+      recommendations,
+      savedOutfitItemIds,
+    }),
+    missingCategories: missingCategories.length > 0 ? missingCategories : undefined,
   };
 }
