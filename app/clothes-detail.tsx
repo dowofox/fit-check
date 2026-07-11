@@ -724,7 +724,7 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
         <View style={styles.tipIconCircle}>
           <Feather name="cpu" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>AI 상세 분석</Text>
           <Text style={styles.aiDetailSubtitle}>명확한 로고/텍스트가 있을 때만 브랜드를 확정해요.</Text>
         </View>
@@ -810,7 +810,7 @@ function AnalysisQualityCard({ item }: { item: ClosetItem }) {
         <View style={styles.tipIconCircle}>
           <Feather name="alert-triangle" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>분석 검증</Text>
           <Text style={styles.aiDetailSubtitle}>확실하지 않은 값은 보수적으로 저장했어요.</Text>
         </View>
@@ -897,7 +897,7 @@ function StyleProfileCard({ item }: { item: ClosetItem }) {
         <View style={styles.tipIconCircle}>
           <Feather name="sliders" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>스타일 프로필</Text>
           <Text style={styles.aiDetailSubtitle}>코디 추천과 쇼핑 검색에 활용할 옷의 스타일 기준이에요.</Text>
         </View>
@@ -988,7 +988,7 @@ function GarmentProfileCard({ item }: { item: ClosetItem }) {
         <View style={styles.tipIconCircle}>
           <Feather name="maximize-2" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>의류 인상 프로필</Text>
           <Text style={styles.aiDetailSubtitle}>
             사진에서 보이는 옷의 실루엣, 부피감, 소재 느낌을 추정한 값이에요.{"\n"}
@@ -1075,7 +1075,7 @@ function MatchingItemSearchCard({ item }: { item: ClosetItem }) {
         <View style={styles.tipIconCircle}>
           <Feather name="shopping-bag" size={16} color="#8c6f47" />
         </View>
-        <View style={styles.matchingSearchHeaderText}>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>이 옷에 어울리는 아이템</Text>
           <Text style={styles.aiDetailSubtitle}>
             선택한 참고 상품과 어울릴 만한 아이템을 쇼핑몰에서 찾아볼 수 있어요.
@@ -1135,7 +1135,7 @@ function RecommendationPreferenceCard({
         <View style={styles.tipIconCircle}>
           <Feather name="sliders" size={16} color="#8c6f47" />
         </View>
-        <View style={styles.recommendationPreferenceHeaderText}>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>추천 조절</Text>
           <Text style={styles.aiDetailSubtitle}>
             이 설정은 코디 추천에서 이 옷이 나오는 빈도를 조절해요.
@@ -1216,7 +1216,7 @@ function ConfirmedProductCard({
         <View style={styles.tipIconCircle}>
           <Feather name="check-circle" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>확정 상품</Text>
           <Text style={styles.aiDetailSubtitle}>사용자가 직접 확인해서 저장한 실제 상품 정보예요.</Text>
         </View>
@@ -1389,7 +1389,7 @@ function ProductMeasurementForm({
         <View style={styles.tipIconCircle}>
           <Feather name="maximize" size={16} color="#8c6f47" />
         </View>
-        <View style={styles.measurementFormHeaderText}>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>상품 실측 직접 입력</Text>
           <Text style={styles.aiDetailSubtitle}>
             상품 페이지의 실측표를 cm 단위로 입력해주세요. 같은 사이즈는 기존 값이 수정돼요.
@@ -1451,7 +1451,7 @@ function ConfirmedProductForm({
         <View style={styles.tipIconCircle}>
           <Feather name="edit-3" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>직접 입력해서 확정</Text>
           <Text style={styles.aiDetailSubtitle}>실제 쇼핑몰에서 확인한 상품 정보를 저장해요.</Text>
         </View>
@@ -1500,7 +1500,7 @@ function ProductUrlConfirmCard({
         <View style={styles.tipIconCircle}>
           <Feather name="link" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>상품 URL로 확정</Text>
           <Text style={styles.aiDetailSubtitle}>상품 페이지 링크를 붙여넣으면 정보를 자동으로 가져와요.</Text>
         </View>
@@ -1596,7 +1596,7 @@ function ProductReferenceCard({ item }: { item: ClosetItem }) {
         <View style={styles.tipIconCircle}>
           <Feather name="bookmark" size={16} color="#8c6f47" />
         </View>
-        <View>
+        <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>참고 상품</Text>
           <Text style={styles.aiDetailSubtitle}>실제 상품 확정이 아닌 검색 바로가기예요.</Text>
         </View>
@@ -3109,6 +3109,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 2,
     flexShrink: 1,
+    width: "100%",
   },
 
   aiDetailGrid: {
@@ -3634,9 +3635,16 @@ const styles = StyleSheet.create({
 
   tipHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 9,
     marginBottom: 10,
+    minWidth: 0,
+  },
+
+  tipHeaderText: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     minWidth: 0,
   },
 
