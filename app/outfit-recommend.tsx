@@ -1,10 +1,18 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
-import { getOutfitRecommendationResult, OutfitRecommendation } from "@/utils/outfitRecommend";
+import {
+  getOutfitRecommendationResult,
+  OutfitRecommendation,
+  OutfitRecommendationWeather,
+} from "@/utils/outfitRecommend";
 import { openProductSearch } from "@/utils/productSearch";
 import {
   getRecommendedShoppingItems,
   RecommendedShoppingItem,
 } from "@/utils/shoppingRecommend";
+import {
+  getSavedOutfitItemIds,
+  toRecommendationInputItems,
+} from "@/utils/recommendationInput";
 import {
   ClosetItem,
   getClosetItems,
@@ -13,9 +21,13 @@ import {
   saveOutfit,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
+import {
+  getCachedWeatherForRecommendation,
+  getCurrentWeatherForRecommendation,
+} from "@/utils/weather";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { router, Stack } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
@@ -57,6 +69,51 @@ function getSortedItemIds(items: ClosetItem[]) {
   return items.map((item) => item.id).sort();
 }
 
+function parseParamValue(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseNumberParam(value?: string | string[]) {
+  const parsed = Number(parseParamValue(value));
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseSelectedItemIds(value?: string | string[]) {
+  return (parseParamValue(value) || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+function getWeatherFromParams(params: {
+  weatherTemperature?: string | string[];
+  weatherCondition?: string | string[];
+  weatherRainChance?: string | string[];
+}): OutfitRecommendationWeather | null {
+  const temperature = parseNumberParam(params.weatherTemperature);
+  const rainChance = parseNumberParam(params.weatherRainChance);
+  const condition = parseParamValue(params.weatherCondition);
+
+  if (temperature === undefined && rainChance === undefined && !condition) return null;
+
+  return {
+    temperature,
+    condition: condition || undefined,
+    rainChance,
+  };
+}
+
+async function getWeatherForRecommendation(
+  paramsWeather: OutfitRecommendationWeather | null
+) {
+  if (paramsWeather && typeof paramsWeather.temperature === "number") return paramsWeather;
+
+  const cachedWeather = await getCachedWeatherForRecommendation();
+  if (cachedWeather) return cachedWeather;
+
+  return getCurrentWeatherForRecommendation();
+}
+
 function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) {
   const firstSortedIds = [...firstItemIds].sort();
   const secondSortedIds = [...secondItemIds].sort();
@@ -65,6 +122,38 @@ function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) 
     firstSortedIds.length === secondSortedIds.length &&
     firstSortedIds.every((id, index) => id === secondSortedIds[index])
   );
+}
+
+function isRecommendationSameAsSelected(
+  recommendation: OutfitRecommendation,
+  selectedItemIds: string[]
+) {
+  if (selectedItemIds.length === 0) return false;
+  return isSameItemCombination(getSortedItemIds(recommendation.items), selectedItemIds);
+}
+
+function isSavedSelectedCombination(savedOutfitItemIds: string[][], selectedItemIds: string[]) {
+  return savedOutfitItemIds.some((itemIds) => isSameItemCombination(itemIds, selectedItemIds));
+}
+
+function moveSelectedRecommendationFirst(
+  recommendations: OutfitRecommendation[],
+  selectedItemIds: string[]
+) {
+  if (selectedItemIds.length === 0) return recommendations;
+
+  const selectedIndex = recommendations.findIndex((recommendation) =>
+    isRecommendationSameAsSelected(recommendation, selectedItemIds)
+  );
+
+  if (selectedIndex <= 0) return recommendations;
+
+  const selectedRecommendation = recommendations[selectedIndex];
+  return [
+    selectedRecommendation,
+    ...recommendations.slice(0, selectedIndex),
+    ...recommendations.slice(selectedIndex + 1),
+  ];
 }
 
 function getDefaultOutfitName(date: Date) {
@@ -402,6 +491,18 @@ function ShoppingRecommendationSection({ items }: { items: RecommendedShoppingIt
 }
 
 export default function OutfitRecommendScreen() {
+  const params = useLocalSearchParams<{
+    source?: string;
+    selectedItemIds?: string;
+    weatherTemperature?: string;
+    weatherCondition?: string;
+    weatherRainChance?: string;
+  }>();
+  const sourceParam = parseParamValue(params.source);
+  const selectedItemIdsParam = parseParamValue(params.selectedItemIds);
+  const weatherTemperatureParam = parseParamValue(params.weatherTemperature);
+  const weatherConditionParam = parseParamValue(params.weatherCondition);
+  const weatherRainChanceParam = parseParamValue(params.weatherRainChance);
   const [recommendations, setRecommendations] = useState<OutfitRecommendation[]>([]);
   const [shoppingRecommendations, setShoppingRecommendations] = useState<RecommendedShoppingItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -410,28 +511,76 @@ export default function OutfitRecommendScreen() {
   const loadRecommendations = useCallback(async () => {
     setIsLoaded(false);
 
+    const source = sourceParam;
+    const selectedItemIds = source === "home"
+      ? parseSelectedItemIds(selectedItemIdsParam)
+      : [];
+    const paramsWeather = source === "home"
+      ? getWeatherFromParams({
+          weatherTemperature: weatherTemperatureParam,
+          weatherCondition: weatherConditionParam,
+          weatherRainChance: weatherRainChanceParam,
+        })
+      : null;
     const [items, profile, savedOutfits] = await Promise.all([
       getClosetItems(),
       getUserProfile(),
       getSavedOutfits(),
     ]);
-    const savedOutfitItemIds = savedOutfits.map((outfit) => outfit.itemIds);
+    const recommendationItems = toRecommendationInputItems(items);
+    const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits);
+    const weather = await getWeatherForRecommendation(paramsWeather);
     const recommendationResult = getOutfitRecommendationResult(
-      items,
+      recommendationItems,
       profile,
       undefined,
-      savedOutfitItemIds
+      savedOutfitItemIds,
+      weather ? { weather } : undefined
+    );
+    let nextRecommendations = moveSelectedRecommendationFirst(
+      recommendationResult.recommendations,
+      selectedItemIds
     );
 
-    setRecommendations(recommendationResult.recommendations);
+    if (
+      source === "home" &&
+      selectedItemIds.length > 0 &&
+      !nextRecommendations.some((recommendation) =>
+        isRecommendationSameAsSelected(recommendation, selectedItemIds)
+      ) &&
+      !isSavedSelectedCombination(savedOutfitItemIds, selectedItemIds)
+    ) {
+      const allRecommendationResult = getOutfitRecommendationResult(
+        recommendationItems,
+        profile,
+        undefined,
+        [],
+        weather ? { weather } : undefined
+      );
+      const selectedRecommendation = allRecommendationResult.recommendations.find(
+        (recommendation) => isRecommendationSameAsSelected(recommendation, selectedItemIds)
+      );
+
+      if (selectedRecommendation) {
+        nextRecommendations = [selectedRecommendation, ...nextRecommendations];
+      }
+    }
+
+    setRecommendations(nextRecommendations);
     setShoppingRecommendations(getRecommendedShoppingItems(items));
     setEmptyMessage(
-      recommendationResult.hasAnyRecommendation && recommendationResult.recommendations.length === 0
+      recommendationResult.hasAnyRecommendation && nextRecommendations.length === 0
         ? SAVED_ONLY_EMPTY_MESSAGE
         : DEFAULT_EMPTY_MESSAGE
     );
     setIsLoaded(true);
-  }, []);
+  }, [
+    selectedItemIdsParam,
+    sourceParam,
+    weatherConditionParam,
+    weatherRainChanceParam,
+    weatherTemperatureParam,
+  ]);
 
   async function handleSaveOutfit(recommendation: OutfitRecommendation) {
     const itemIds = getSortedItemIds(recommendation.items);

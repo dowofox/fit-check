@@ -11,6 +11,11 @@ import {
   logPerformanceMetric,
   startPerformanceTimer,
 } from "@/utils/performance";
+import {
+  getRecommendationDataKey,
+  getSavedOutfitItemIds,
+  toRecommendationInputItems,
+} from "@/utils/recommendationInput";
 import { ClosetItem, getClosetItems, getSavedOutfits, getUserProfile, SavedOutfit } from "@/utils/storage";
 import { colors, typography } from "@/utils/theme";
 import {
@@ -37,60 +42,8 @@ type HomeRecommendationCache = {
   key: string;
   recommendations: OutfitRecommendation[];
   weatherLabel: string | null;
+  weather: OutfitRecommendationWeather | null;
 };
-
-function toHomeRecommendationItem(item: ClosetItem): ClosetItem {
-  const materialSummary = item.confirmedProduct?.materialComposition?.summary;
-  const confirmedProduct = item.confirmedProduct
-    ? {
-        brand: item.confirmedProduct.brand,
-        productName: item.confirmedProduct.productName,
-        confirmedAt: item.confirmedProduct.confirmedAt,
-        materialComposition: materialSummary
-          ? { summary: materialSummary, source: item.confirmedProduct.materialComposition?.source }
-          : undefined,
-      }
-    : undefined;
-
-  return {
-    id: item.id,
-    imageUri: item.imageUri,
-    cleanImageUri: item.cleanImageUri,
-    category: item.category,
-    subCategory: item.subCategory,
-    detailCategory: item.detailCategory,
-    color: item.color,
-    style: item.style,
-    styleTags: item.styleTags,
-    season: item.season,
-    seasons: item.seasons,
-    fit: item.fit,
-    size: item.size,
-    intendedFit: item.intendedFit,
-    brand: item.brand,
-    confirmedBrand: item.confirmedBrand,
-    graphicDetected: item.graphicDetected,
-    graphicType: item.graphicType,
-    graphicSize: item.graphicSize,
-    material: materialSummary || item.material,
-    pattern: item.pattern,
-    confirmedProduct,
-    styleProfile: item.styleProfile,
-    garmentProfile: item.garmentProfile,
-    description: item.description,
-    recommendationPreference: item.recommendationPreference,
-    wearCount: item.wearCount,
-    lastWornAt: item.lastWornAt,
-    createdAt: item.createdAt,
-  };
-}
-
-function getRecommendationDataKey(
-  items: ClosetItem[],
-  profile: Awaited<ReturnType<typeof getUserProfile>>
-) {
-  return JSON.stringify({ items, profile });
-}
 
 function getWeatherKey(weather: OutfitRecommendationWeather) {
   return [
@@ -121,7 +74,28 @@ function getItemImageUri(item: ClosetItem) {
   return item.cleanImageUri || item.imageUri;
 }
 
-function RecommendationLookbookCard({ recommendation }: { recommendation: OutfitRecommendation }) {
+function getRecommendationRouteParams(
+  recommendation?: OutfitRecommendation,
+  weather?: OutfitRecommendationWeather | null
+) {
+  return {
+    source: "home",
+    selectedItemIds: recommendation?.items.map((item) => item.id).join(",") || "",
+    weatherTemperature:
+      typeof weather?.temperature === "number" ? String(weather.temperature) : "",
+    weatherCondition: weather?.condition || "",
+    weatherRainChance:
+      typeof weather?.rainChance === "number" ? String(weather.rainChance) : "",
+  };
+}
+
+function RecommendationLookbookCard({
+  recommendation,
+  weather,
+}: {
+  recommendation: OutfitRecommendation;
+  weather: OutfitRecommendationWeather | null;
+}) {
   const coreItems = getCoreItems(recommendation);
   const top = recommendation.items.find((item) => item.category === "상의");
   const bottom = recommendation.items.find((item) => item.category === "하의");
@@ -130,7 +104,12 @@ function RecommendationLookbookCard({ recommendation }: { recommendation: Outfit
   return (
     <Pressable
       style={styles.recommendCard}
-      onPress={() => router.push("/outfit-recommend")}
+      onPress={() =>
+        router.push({
+          pathname: "/outfit-recommend",
+          params: getRecommendationRouteParams(recommendation, weather),
+        })
+      }
     >
       <View style={styles.lookbookImage}>
         <View style={styles.lookbookModelWrap}>
@@ -182,6 +161,8 @@ export default function HomeScreen() {
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [todayRecommendations, setTodayRecommendations] = useState<OutfitRecommendation[]>([]);
   const [weatherLabel, setWeatherLabel] = useState<string | null>(null);
+  const [currentRecommendationWeather, setCurrentRecommendationWeather] =
+    useState<OutfitRecommendationWeather | null>(null);
   const initialRecommendationCacheRef = useRef<HomeRecommendationCache | null>(null);
   const weatherRecommendationCacheRef = useRef<HomeRecommendationCache | null>(null);
   const recommendationExecutionCountRef = useRef({ initial: 0, weather: 0 });
@@ -196,7 +177,8 @@ export default function HomeScreen() {
         items: ClosetItem[],
         profile: Awaited<ReturnType<typeof getUserProfile>>,
         weather: OutfitRecommendationWeather | null,
-        dataKey: string
+        dataKey: string,
+        savedOutfitItemIds: string[][]
       ) {
         const kind = weather ? "weather" : "initial";
         const cacheRef = weather
@@ -221,7 +203,7 @@ export default function HomeScreen() {
           items,
           profile,
           undefined,
-          [],
+          savedOutfitItemIds,
           weather ? { weather } : undefined
         );
         const recommendations = recommendationResult.recommendations.slice(0, 5);
@@ -231,6 +213,7 @@ export default function HomeScreen() {
           key: cacheKey,
           recommendations,
           weatherLabel: nextWeatherLabel,
+          weather,
         };
         endPerformanceTimer(recommendationTimer, {
           closetItemCount: items.length,
@@ -242,13 +225,15 @@ export default function HomeScreen() {
 
         setTodayRecommendations(recommendations);
         setWeatherLabel(nextWeatherLabel);
+        setCurrentRecommendationWeather(weather);
         return true;
       }
 
       async function refreshWeatherRecommendation(
         items: ClosetItem[],
         profile: Awaited<ReturnType<typeof getUserProfile>>,
-        dataKey: string
+        dataKey: string,
+        savedOutfitItemIds: string[][]
       ) {
         const weatherTimer = startPerformanceTimer("home.weather-background-refresh");
         let weatherSource = "none";
@@ -264,7 +249,13 @@ export default function HomeScreen() {
           try {
             cachedWeather = await getCachedWeatherForRecommendation();
             if (cachedWeather && isActive) {
-              cachedWeatherApplied = applyRecommendation(items, profile, cachedWeather, dataKey);
+              cachedWeatherApplied = applyRecommendation(
+                items,
+                profile,
+                cachedWeather,
+                dataKey,
+                savedOutfitItemIds
+              );
               weatherSource = "cache";
             }
           } finally {
@@ -281,7 +272,13 @@ export default function HomeScreen() {
           try {
             currentWeather = await getCurrentWeatherForRecommendation();
             if (currentWeather && isActive) {
-              liveWeatherApplied = applyRecommendation(items, profile, currentWeather, dataKey);
+              liveWeatherApplied = applyRecommendation(
+                items,
+                profile,
+                currentWeather,
+                dataKey,
+                savedOutfitItemIds
+              );
               weatherSource = "current";
             }
           } catch {
@@ -316,8 +313,13 @@ export default function HomeScreen() {
 
           if (!isActive) return;
 
-          const recommendationItems = nextClosetItems.map(toHomeRecommendationItem);
-          const dataKey = getRecommendationDataKey(recommendationItems, nextProfile);
+          const recommendationItems = toRecommendationInputItems(nextClosetItems);
+          const savedOutfitItemIds = getSavedOutfitItemIds(nextSavedOutfits);
+          const dataKey = getRecommendationDataKey(
+            recommendationItems,
+            nextProfile,
+            savedOutfitItemIds
+          );
           logPerformanceMetric("home.lightweight-recommendation-data", {
             itemCount: recommendationItems.length,
             serializedCharacters: dataKey.length,
@@ -328,10 +330,21 @@ export default function HomeScreen() {
 
           setClosetItems(nextClosetItems);
           setSavedOutfits(nextSavedOutfits);
-          applyRecommendation(recommendationItems, nextProfile, null, dataKey);
+          applyRecommendation(
+            recommendationItems,
+            nextProfile,
+            null,
+            dataKey,
+            savedOutfitItemIds
+          );
           initialRecommendationReady = true;
 
-          void refreshWeatherRecommendation(recommendationItems, nextProfile, dataKey);
+          void refreshWeatherRecommendation(
+            recommendationItems,
+            nextProfile,
+            dataKey,
+            savedOutfitItemIds
+          );
         } finally {
           endPerformanceTimer(screenTimer, { initialRecommendationReady });
           endPerformanceTimer(initialRenderTimer, { initialRecommendationReady });
@@ -428,7 +441,18 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>오늘의 추천 코디</Text>
               {weatherLabel ? <Text style={styles.weatherBasisText}>{weatherLabel}</Text> : null}
             </View>
-            <Pressable style={styles.moreWrap} onPress={() => router.push("/outfit-recommend")}>
+            <Pressable
+              style={styles.moreWrap}
+              onPress={() =>
+                router.push({
+                  pathname: "/outfit-recommend",
+                  params: getRecommendationRouteParams(
+                    todayRecommendations[0],
+                    currentRecommendationWeather
+                  ),
+                })
+              }
+            >
               <Text style={styles.moreText}>추천 더보기</Text>
               <Feather name="chevron-right" size={14} color={colors.point} />
             </Pressable>
@@ -441,7 +465,11 @@ export default function HomeScreen() {
               contentContainerStyle={styles.recommendCarousel}
             >
               {todayRecommendations.map((recommendation) => (
-                <RecommendationLookbookCard key={recommendation.id} recommendation={recommendation} />
+                <RecommendationLookbookCard
+                  key={recommendation.id}
+                  recommendation={recommendation}
+                  weather={currentRecommendationWeather}
+                />
               ))}
             </ScrollView>
           ) : (
