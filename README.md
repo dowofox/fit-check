@@ -1,52 +1,76 @@
-# Welcome to your Expo app 👋
+# NAES
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+NAES는 내 옷장을 기반으로 오늘 입을 코디와 새 옷의 핏을 추천하는 앱입니다.
 
-## Get started
+상품 링크에서 공식 상품 정보와 실측을 가져오고, 내 옷장과 신체 정보를 함께 활용해 더 현실적인 코디와 사이즈 판단을 돕습니다.
 
-NAES 전용 Android Development Build 설정과 실행 방법은 [NAES_DEV_BUILD.md](./NAES_DEV_BUILD.md)를 참고하세요.
+## 기능 소개
 
-1. Install dependencies
+- 상품 링크 등록: 공식 상품명, 브랜드, 이미지, 소재, 실측표를 가져와 옷장에 저장합니다.
+- 사진 등록: 링크가 없는 옷을 빠르게 등록합니다.
+- 내 옷장: 등록한 옷을 카테고리와 상세 분류 기준으로 관리합니다.
+- 오늘의 추천 코디: 내 옷장과 현재 조건을 바탕으로 입을 만한 조합을 제안합니다.
+- 기준 옷: 평소 잘 맞는 옷을 기준으로 새 상품의 실측을 비교합니다.
+- 실측 기반 사이즈 추천: 상품 실측과 내 신체 치수를 비교해 추천 사이즈를 안내합니다.
+- 저장 코디: 마음에 드는 코디를 저장하고 다시 확인합니다.
 
-   ```bash
-   npm install
-   ```
+## 개발 철학
 
-2. Start the app
+NAES는 AI 분석 결과를 보여주는 앱이 아닙니다.
 
-   ```bash
-   npx expo start
-   ```
+AI는 추천을 잘하기 위해 내부적으로 분석하고, 사용자는 결과만 봅니다.
 
-In the output, you'll find options to open the app in a
+따라서 화면은 항상 다음 기준을 따른다.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- 결과 중심
+- 불필요한 점수 숨김
+- confidence와 내부 breakdown 숨김
+- 사용자가 바로 이해할 수 있는 이유와 행동 제공
+- 새 기능보다 기존 화면 단순화 우선
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 현재 개발 단계
 
-## Get a fresh project
+현재 NAES는 상품 링크 등록과 옷장 기반 추천을 중심으로 개발 중입니다.
 
-When you're ready, run:
+기본 등록 방식은 상품 링크 등록입니다. 사진 등록은 링크가 없는 옷을 빠르게 추가하는 보조 흐름입니다.
+
+Android Development Build 설정과 실행 방법은 [NAES_DEV_BUILD.md](./NAES_DEV_BUILD.md)를 참고하세요.
+
+## 로드맵
+
+우선순위는 [ROADMAP.md](./ROADMAP.md)에서 관리합니다.
+
+작업은 항상 P0의 가장 위 항목부터 하나씩 진행합니다.
+
+여러 기능을 한 번에 구현하지 않습니다.
+
+## 개발 시작
+
+의존성을 설치합니다.
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+개발 서버를 실행합니다.
 
-## Learn more
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Development Build로 실행할 때는 다음 명령을 사용합니다.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npx expo start --dev-client
+```
 
-## Join the community
+## 작업 규칙
 
-Join our community of developers creating universal apps.
+Codex 작업 규칙은 [AGENTS.md](./AGENTS.md)를 따릅니다.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+작업 완료 후에는 항상 다음을 실행합니다.
+
+```bash
+npm run lint
+npx tsc --noEmit
+```
