@@ -712,12 +712,12 @@ function getDisplayTitle(item: ClosetItem) {
 }
 
 function getDisplayMaterial(item: ClosetItem) {
-  const material =
-    item.confirmedProduct?.materialComposition?.summary?.trim() ||
-    item.material?.trim() ||
-    "";
+  const officialMaterial = item.confirmedProduct?.materialComposition?.summary?.trim();
+  if (officialMaterial) return `${officialMaterial} (공식 소재)`;
 
-  return material && material !== "판단 어려움" ? material : "";
+  const material = item.material?.trim() || "";
+
+  return material && material !== "판단 어려움" ? `${material} (사진/입력 기준)` : "";
 }
 
 function getDisplayStyleText(item: ClosetItem) {
@@ -898,6 +898,8 @@ function AnalysisActionNoticeCard({ item }: { item: ClosetItem }) {
     hasConfirmedProduct &&
     !isAccessoryOrBagItem(item) &&
     getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).length === 0;
+  const needsMaterialCheck =
+    hasConfirmedProduct && !item.confirmedProduct?.materialComposition?.summary?.trim();
   const hasImageActionWarning =
     Boolean(quality?.needsMorePhotos) ||
     quality?.imageQuality === "dark" ||
@@ -910,6 +912,9 @@ function AnalysisActionNoticeCard({ item }: { item: ClosetItem }) {
       : "",
     needsManualSizeGuide
       ? "상품 실측을 찾지 못했어요. 직접 입력하면 사이즈 추천이 더 정확해져요."
+      : "",
+    needsMaterialCheck
+      ? "공식 소재를 자동으로 찾지 못했어요. 현재는 사진/입력 소재만 참고해요."
       : "",
     hasImageActionWarning
       ? `사진 상태가 ${getImageQualityLabel(quality?.imageQuality)}이라 분석이 제한될 수 있어요. ${
@@ -1330,6 +1335,7 @@ function ConfirmedProductCard({
   const productImageTimerRef = useRef<PerformanceTimer>(null);
   const isAccessoryOrBag = isAccessoryOrBagItem(item);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
+  const materialSummary = confirmedProduct.materialComposition?.summary?.trim();
   const sizeGuideSummary = useMemo(
     () =>
       isAccessoryOrBag
@@ -1390,6 +1396,11 @@ function ConfirmedProductCard({
             {confirmedProduct.productName}
           </Text>
           {meta ? <Text style={styles.productReferenceReason} numberOfLines={2}>{meta}</Text> : null}
+          {materialSummary ? (
+            <Text style={styles.productReferenceReason} numberOfLines={3}>
+              공식 소재: {materialSummary}
+            </Text>
+          ) : null}
           {sizeGuideSummary ? (
             <View style={styles.confirmedProductSizeGuideBox}>
               <View style={styles.confirmedProductSizeGuideHeader}>
