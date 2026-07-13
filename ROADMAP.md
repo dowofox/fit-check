@@ -42,4 +42,5 @@
 - `npm run lint`를 통과한다.
 - `npx tsc --noEmit`을 통과한다.
 - 로컬 커밋을 만들고 SHA를 보고한다.
-- 사용자가 승인하기 전에는 `origin/main`에 push하지 않는다.
+- 검증이 모두 통과하면 `origin/main`에 자동 push한다.
+- 문제가 있거나 작업 범위가 모호하면 push하지 않고 사용자에게 먼저 묻는다.
