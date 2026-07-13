@@ -198,7 +198,7 @@ export default function ProfileScreen() {
             <Text style={styles.summaryText}>
               {hasStyleSizes
                 ? `상의 ${topSize || "-"} · 하의 ${bottomSize || "-"} · 신발 ${shoeSize || "-"}`
-                : "프로필을 채우면 추천 정확도가 올라가요"}
+                : "프로필을 채우면 코디와 사이즈 추천이 더 자연스러워져요"}
             </Text>
           </View>
 
@@ -248,7 +248,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionEyebrow}>STYLE PROFILE</Text>
           <Text style={styles.sectionTitle}>기본 정보</Text>
           <Text style={styles.sectionDescription}>
-            프로필 정보를 저장하면 이후 코디 분석에서 나이, 체형, 핏과 비율 평가에 함께 반영됩니다.
+            평소 입는 사이즈와 간단한 체형 정보를 저장해두면 코디와 사이즈 안내에 활용돼요.
           </Text>
 
           <Text style={styles.inputLabel}>성별</Text>
@@ -494,7 +494,7 @@ export default function ProfileScreen() {
 
           {measurementCount > 0 ? (
             <Text style={styles.measurementCountText}>
-              상세 치수 {measurementCount}개가 저장 대상에 포함돼요.
+              상세 치수 {measurementCount}개를 바탕으로 사이즈 안내를 더 세밀하게 볼 수 있어요.
             </Text>
           ) : null}
         </View>
@@ -504,7 +504,7 @@ export default function ProfileScreen() {
             <Feather name="lock" size={14} color="#111" />
           </View>
           <Text style={styles.infoText}>
-            입력한 정보는 내 기기 안에 저장됩니다. AI 분석 요청 시 개인화 기준으로 함께 사용됩니다.
+            입력한 정보는 내 기기 안에 저장되고, 코디와 사이즈 추천 기준으로만 사용돼요.
           </Text>
         </View>
 
