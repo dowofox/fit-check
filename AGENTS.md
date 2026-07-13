@@ -72,6 +72,12 @@ npm run lint
 npx tsc --noEmit
 ```
 
+추천 로직을 수정한 작업에서는 다음 회귀 테스트도 실행한다.
+
+```bash
+npm run test:outfit
+```
+
 ## Git
 
 항상 다음 순서를 따른다.
