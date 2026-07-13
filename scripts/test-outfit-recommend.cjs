@@ -35,6 +35,7 @@ const {
   getOutfitRecommendationResult,
   MIN_DISPLAY_RECOMMENDATION_SCORE,
 } = require("../utils/outfitRecommend.ts");
+const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -252,4 +253,23 @@ test("저장한 전체 아이템 조합은 새 추천과 다른 버전에서 제
       assert.notEqual(itemKey(alternative), savedKey);
     });
   });
+});
+
+test("사용자가 수정한 소재는 공식 상품 소재보다 우선한다", () => {
+  const item = createItem("top-material", "상의", {
+    material: "린넨 혼방",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "테스트 셔츠",
+      confirmedAt: createdAt,
+      materialComposition: {
+        summary: "면 100%",
+        items: [{ name: "면", percentage: 100 }],
+        source: "official",
+      },
+    },
+    userEditedClassificationFields: ["material"],
+  });
+
+  assert.equal(getResolvedItemMaterial(item), "린넨 혼방");
 });

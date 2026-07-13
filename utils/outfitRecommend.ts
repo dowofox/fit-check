@@ -1,5 +1,6 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
 import { getDetailMaterialAdjustment } from "@/utils/outfitDetailMaterial";
+import { getResolvedItemMaterial } from "@/utils/productClassification";
 import { ClosetItem, GarmentProfile, UserProfile } from "@/utils/storage";
 
 export type OutfitRecommendation = {
@@ -937,8 +938,7 @@ type ResolvedGarmentProfile = {
 };
 
 function getGarmentSearchText(item: ClosetItem) {
-  const resolvedMaterial =
-    item.confirmedProduct?.materialComposition?.summary || item.material;
+  const resolvedMaterial = getResolvedItemMaterial(item);
 
   return [
     item.category,

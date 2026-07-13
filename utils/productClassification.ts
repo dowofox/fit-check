@@ -24,6 +24,15 @@ export type ProductClassificationResult = {
 
 type ClassificationCandidate = Omit<ProductClassificationResult, "confidence" | "reasons">;
 
+export function getResolvedItemMaterial(item: ClosetItem) {
+  const userEditedMaterial = item.userEditedClassificationFields?.includes("material");
+  const itemMaterial = item.material?.trim();
+
+  if (userEditedMaterial && itemMaterial) return itemMaterial;
+
+  return item.confirmedProduct?.materialComposition?.summary?.trim() || itemMaterial || "";
+}
+
 function normalizeSearchText(value?: string) {
   return (value || "")
     .toLowerCase()

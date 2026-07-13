@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "@/utils/api";
 import {
+  getResolvedItemMaterial,
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
@@ -52,6 +53,7 @@ type EditableClosetFields = {
   subCategory: string;
   detailCategory: string;
   color: string;
+  material: string;
   style: string;
   styleTags: string[];
   seasons: string[];
@@ -152,6 +154,7 @@ const EMPTY_DRAFT: EditableClosetFields = {
   subCategory: "",
   detailCategory: "",
   color: "",
+  material: "",
   style: "",
   styleTags: ["데일리"],
   seasons: ["사계절"],
@@ -185,6 +188,18 @@ const STYLE_OPTIONS = [
   "유니섹스",
   "기타",
 ];
+
+const CATEGORY_OPTIONS = ["상의", "하의", "아우터", "신발", "액세서리", "기타"];
+const TOP_SIZE_OPTIONS = ["FREE", "S", "M", "L", "XL", "2XL", "3XL"];
+const BOTTOM_SIZE_OPTIONS = ["FREE", "28", "29", "30", "31", "32", "33", "34", "36"];
+const SHOE_SIZE_OPTIONS = ["FREE", "250", "255", "260", "265", "270", "275", "280", "285"];
+
+function getSizeOptions(category: string) {
+  if (category === "상의" || category === "아우터") return TOP_SIZE_OPTIONS;
+  if (category === "하의") return BOTTOM_SIZE_OPTIONS;
+  if (category === "신발") return SHOE_SIZE_OPTIONS;
+  return [];
+}
 
 const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
 const SHOW_INTERNAL_AI_ANALYSIS = false;
@@ -262,6 +277,7 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     subCategory: item.subCategory || "",
     detailCategory: item.detailCategory || "",
     color: item.color || "",
+    material: item.material || "",
     style: item.style || "",
     styleTags: getItemStyleTags(item),
     seasons: getItemSeasons(item),
@@ -287,6 +303,7 @@ function getUserEditedClassificationFields(
   if (draft.detailCategory !== (item.detailCategory || "")) {
     editedFields.add("detailCategory");
   }
+  if (draft.material !== (item.material || "")) editedFields.add("material");
   if (JSON.stringify(draft.styleTags) !== JSON.stringify(getItemStyleTags(item))) {
     editedFields.add("styleTags");
   }
@@ -736,14 +753,20 @@ function getDisplayTitle(item: ClosetItem) {
 }
 
 function getDisplayMaterial(item: ClosetItem) {
+  const resolvedMaterial = getResolvedItemMaterial(item);
+
+  if (item.userEditedClassificationFields?.includes("material")) {
+    return resolvedMaterial ? `${resolvedMaterial} (직접 수정)` : "";
+  }
+
   const officialMaterial = getMaterialCompositionSummary(
     item.confirmedProduct?.materialComposition
   );
   if (officialMaterial) return `${officialMaterial} (공식 소재)`;
 
-  const material = item.material?.trim() || "";
-
-  return material && material !== "판단 어려움" ? `${material} (사진/입력 기준)` : "";
+  return resolvedMaterial && resolvedMaterial !== "판단 어려움"
+    ? `${resolvedMaterial} (사진/입력 기준)`
+    : "";
 }
 
 function getDisplayStyleText(item: ClosetItem) {
@@ -2214,6 +2237,7 @@ export default function ClothesDetailScreen() {
         item.confirmedProduct?.materialComposition?.summary?.trim() || "";
       const shouldSyncMaterial =
         Boolean(confirmedMaterial) &&
+        !item.userEditedClassificationFields?.includes("material") &&
         (!currentMaterial ||
           currentMaterial === "판단 어려움" ||
           currentMaterial === previousConfirmedMaterial);
@@ -2653,10 +2677,17 @@ export default function ClothesDetailScreen() {
             <View style={styles.infoCard}>
               {editMode ? (
                 <>
-                  <EditRow
+                  <View style={styles.editPriorityNotice}>
+                    <Feather name="check-circle" size={15} color="#8c6f47" />
+                    <Text style={styles.editPriorityNoticeText}>
+                      직접 수정한 정보는 상품 링크나 사진 분석보다 우선 적용돼요.
+                    </Text>
+                  </View>
+                  <ChipGroup
                     label="종류"
                     value={draft.category}
-                    onChangeText={(value) => updateDraft("category", value)}
+                    options={CATEGORY_OPTIONS}
+                    onSelect={(value) => updateDraft("category", value)}
                   />
                   <EditRow
                     label="기본 종류"
@@ -2672,6 +2703,11 @@ export default function ClothesDetailScreen() {
                     label="색상"
                     value={draft.color}
                     onChangeText={(value) => updateDraft("color", value)}
+                  />
+                  <EditRow
+                    label="소재"
+                    value={draft.material}
+                    onChangeText={(value) => updateDraft("material", value)}
                   />
                   <ChipGroup
                     label="스타일"
@@ -2696,8 +2732,16 @@ export default function ClothesDetailScreen() {
                     value={draft.fit}
                     onChangeText={(value) => updateDraft("fit", value)}
                   />
+                  {getSizeOptions(draft.category).length > 0 ? (
+                    <ChipGroup
+                      label="사이즈"
+                      value={draft.size}
+                      options={getSizeOptions(draft.category)}
+                      onSelect={(value) => updateDraft("size", value)}
+                    />
+                  ) : null}
                   <EditRow
-                    label="사이즈"
+                    label={getSizeOptions(draft.category).length > 0 ? "사이즈 직접 입력" : "사이즈"}
                     value={draft.size}
                     onChangeText={(value) => updateDraft("size", value)}
                   />
@@ -3132,6 +3176,26 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     width: "100%",
     minWidth: 0,
+  },
+
+  editPriorityNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#f4eee7",
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+
+  editPriorityNoticeText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
   },
 
   chipWrap: {

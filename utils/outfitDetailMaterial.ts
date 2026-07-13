@@ -4,6 +4,7 @@ import {
   type OutfitItemMatcher,
   type OutfitRuleCondition,
 } from "@/utils/outfitDetailMaterialRules";
+import { getResolvedItemMaterial } from "@/utils/productClassification";
 import type { ClosetItem } from "@/utils/storage";
 
 export type DetailMaterialAdjustment = {
@@ -17,8 +18,7 @@ function getItemText(item: ClosetItem) {
     item.category,
     item.subCategory,
     item.detailCategory,
-    item.material,
-    item.confirmedProduct?.materialComposition?.summary,
+    getResolvedItemMaterial(item),
     item.fit,
     ...(item.styleTags || []),
   ]
@@ -78,10 +78,7 @@ function conditionMatches(
 }
 
 function getMaterialText(item: ClosetItem) {
-  return [item.material, item.confirmedProduct?.materialComposition?.summary]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  return getResolvedItemMaterial(item).toLowerCase();
 }
 
 function pushUnique(values: string[], value?: string) {
