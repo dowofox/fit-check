@@ -4,7 +4,10 @@ import PantsIcon from "@/assets/icons/pants.svg";
 import ShirtIcon from "@/assets/icons/shirt.svg";
 import ShoeIcon from "@/assets/icons/sneakers.svg";
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
-import { getOutfitRecommendationResult } from "@/utils/outfitRecommend";
+import {
+  getOutfitDisplayReasons,
+  getOutfitRecommendationResult,
+} from "@/utils/outfitRecommend";
 import type { OutfitRecommendation, OutfitRecommendationWeather } from "@/utils/outfitRecommend";
 import {
   endPerformanceTimer,
@@ -100,6 +103,7 @@ function RecommendationLookbookCard({
   const top = recommendation.items.find((item) => item.category === "상의");
   const bottom = recommendation.items.find((item) => item.category === "하의");
   const shoes = recommendation.items.find((item) => item.category === "신발");
+  const reasonSummary = getOutfitDisplayReasons(recommendation.reasons, 2).join(" ");
 
   return (
     <Pressable
@@ -144,6 +148,12 @@ function RecommendationLookbookCard({
           .map(getItemShortLabel)
           .join(" + ")}
       </Text>
+
+      {reasonSummary ? (
+        <Text style={styles.recommendReason} numberOfLines={3}>
+          {reasonSummary}
+        </Text>
+      ) : null}
 
       <View style={styles.recommendTagRow}>
         {recommendation.tags.slice(0, 2).map((tag) => (
@@ -748,6 +758,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "600",
     marginBottom: 6,
+  },
+  recommendReason: {
+    minHeight: 42,
+    color: colors.subText,
+    fontSize: 9,
+    lineHeight: 14,
+    fontWeight: "600",
+    marginBottom: 7,
   },
   recommendTagRow: {
     flexDirection: "row",

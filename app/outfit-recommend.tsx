@@ -1,5 +1,6 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import {
+  getOutfitDisplayReasons,
   getOutfitRecommendationResult,
   OutfitRecommendation,
   OutfitRecommendationResult,
@@ -379,7 +380,8 @@ function RecommendationCard({
   const [isAlternativeOpen, setIsAlternativeOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const alternatives = recommendation.alternatives || [];
-  const previewReasons = recommendation.reasons.slice(0, 2);
+  const displayReasons = getOutfitDisplayReasons(recommendation.reasons, 3);
+  const previewReasons = displayReasons.slice(0, 2);
   const sockRecommendation = recommendation.sockRecommendation;
 
   return (
@@ -443,7 +445,7 @@ function RecommendationCard({
               style={styles.noteHeaderIcon}
             />
           </View>
-          {(isDetailOpen ? recommendation.reasons : previewReasons).map((reason) => (
+          {(isDetailOpen ? displayReasons : previewReasons).map((reason) => (
             <Text key={reason} style={styles.noteText}>- {reason}</Text>
           ))}
 

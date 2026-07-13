@@ -42,6 +42,53 @@ export type OutfitRecommendationResult = {
   missingCategories?: string[];
 };
 
+const DISPLAY_REASON_GROUPS = [
+  /상황|데이트|깔끔한 상황|편안한 상황|데일리 상황/,
+  /오늘|기온|날씨|비나 눈|예보|계절/,
+  /실루엣|핏|볼륨|비율|기장|상체|하체/,
+  /색|무채색|베이직 컬러|밝은 톤/,
+  /스타일|무드|캐주얼|포멀|미니멀/,
+  /신발|아우터|액세서리|완성도/,
+];
+
+const INTERNAL_REASON_PATTERNS = [
+  /AI/,
+  /사진상/,
+  /추정값/,
+  /분석값/,
+  /보수적으로 판단/,
+  /상품 실측을 기준/,
+  /한 아이템은 상품 실측/,
+  /실측이 없어/,
+  /점수/,
+  /추천 후보에서 제외/,
+];
+
+export function getOutfitDisplayReasons(reasons: string[], limit = 3) {
+  if (limit <= 0) return [];
+
+  const candidates = reasons.filter(
+    (reason, index, allReasons) =>
+      Boolean(reason?.trim()) &&
+      allReasons.indexOf(reason) === index &&
+      !INTERNAL_REASON_PATTERNS.some((pattern) => pattern.test(reason))
+  );
+  const selected: string[] = [];
+
+  DISPLAY_REASON_GROUPS.forEach((pattern) => {
+    const matchedReason = candidates.find(
+      (reason) => !selected.includes(reason) && pattern.test(reason)
+    );
+    if (matchedReason && selected.length < limit) selected.push(matchedReason);
+  });
+
+  candidates.forEach((reason) => {
+    if (selected.length < limit && !selected.includes(reason)) selected.push(reason);
+  });
+
+  return selected.slice(0, limit);
+}
+
 export type OutfitRecommendationEmptyReason =
   | "missing_core_category"
   | "below_quality_threshold"
