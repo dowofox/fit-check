@@ -247,6 +247,31 @@ function normalizeStyleTags(styleTags?: string[], style?: string) {
   return ["데일리"];
 }
 
+function getMaterialPreviewText(materialComposition?: ConfirmedProduct["materialComposition"]) {
+  const summary = materialComposition?.summary?.trim();
+  if (!summary) return "";
+
+  const totalPercentage = materialComposition?.items?.reduce(
+    (total, item) =>
+      typeof item.percentage === "number" ? total + item.percentage : total,
+    0
+  );
+
+  if (typeof totalPercentage === "number" && totalPercentage > 105) {
+    return "소재 정보 확인 필요";
+  }
+
+  return summary;
+}
+
+function getSizeGuidePreviewText(product?: ExtractedProduct | null) {
+  if (!product) return "";
+
+  return product.productSizeGuide?.sizes?.length
+    ? "상품 실측표를 찾았어요."
+    : "상품 실측표는 찾지 못했어요. 등록 후 직접 입력할 수 있어요.";
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -412,7 +437,7 @@ async function saveAnalyzedClosetItem(
 
 export default function AddClothesScreen() {
   const insets = useSafeAreaInsets();
-  const [addMode, setAddMode] = useState<AddMode>("photo");
+  const [addMode, setAddMode] = useState<AddMode>("link");
   const [imageUri, setImageUri] = useState("");
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -422,9 +447,14 @@ export default function AddClothesScreen() {
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["데일리"]);
   const [hasManuallyEditedStyleTags, setHasManuallyEditedStyleTags] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedDetailCategory, setSelectedDetailCategory] = useState("");
+  const [manuallyEditedClassificationFields, setManuallyEditedClassificationFields] =
+    useState<ProductClassificationField[]>([]);
   const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
   const [selectedProductCandidate, setSelectedProductCandidate] = useState<ProductCandidate | null>(null);
   const [productUrlInput, setProductUrlInput] = useState("");
+  const [productUrlError, setProductUrlError] = useState("");
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
 
   function resetAnalysisState() {
@@ -433,6 +463,9 @@ export default function AddClothesScreen() {
     setSelectedSeasons(["사계절"]);
     setSelectedStyleTags(["데일리"]);
     setHasManuallyEditedStyleTags(false);
+    setSelectedCategory("");
+    setSelectedDetailCategory("");
+    setManuallyEditedClassificationFields([]);
     setSelectedSize(DEFAULT_SIZE);
     setSelectedProductCandidate(null);
   }
@@ -442,7 +475,14 @@ export default function AddClothesScreen() {
     setImageUri("");
     setSelectedImages([]);
     setExtractedProduct(null);
+    setProductUrlError("");
     resetAnalysisState();
+  }
+
+  function markClassificationFieldAsEdited(field: ProductClassificationField) {
+    setManuallyEditedClassificationFields((currentFields) =>
+      currentFields.includes(field) ? currentFields : [...currentFields, field]
+    );
   }
 
   async function pickImage() {
@@ -464,6 +504,9 @@ export default function AddClothesScreen() {
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
       setHasManuallyEditedStyleTags(false);
+      setSelectedCategory("");
+      setSelectedDetailCategory("");
+      setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
       setSelectedProductCandidate(null);
     }
@@ -492,6 +535,9 @@ export default function AddClothesScreen() {
       setSelectedSeasons(["사계절"]);
       setSelectedStyleTags(["데일리"]);
       setHasManuallyEditedStyleTags(false);
+      setSelectedCategory("");
+      setSelectedDetailCategory("");
+      setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
       setSelectedProductCandidate(null);
     }
@@ -501,12 +547,18 @@ export default function AddClothesScreen() {
     const productUrl = productUrlInput.trim();
 
     if (!productUrl) {
-      Alert.alert("URL 확인", "상품 URL을 입력해주세요.");
+      setProductUrlError("상품 링크를 입력해주세요.");
       return;
     }
 
+    if (isExtractingProduct) return;
+
     try {
       setIsExtractingProduct(true);
+      setProductUrlError("");
+      setExtractedProduct(null);
+      setImageUri("");
+      setSelectedImages([]);
       resetAnalysisState();
 
       const response = await fetch(API_ENDPOINTS.extractProduct, {
@@ -527,19 +579,17 @@ export default function AddClothesScreen() {
         setExtractedProduct(null);
         setImageUri("");
         setSelectedImages([]);
-        Alert.alert(
-          "상품 이미지 없음",
-          "상품 이미지를 가져오지 못했어요. 사진으로 추가해주세요."
-        );
+        setProductUrlError("상품 이미지를 가져오지 못했어요. 링크를 다시 확인하거나 사진으로 빠르게 등록해주세요.");
         return;
       }
 
       setExtractedProduct(product);
+      setProductUrlInput(product.productUrl || productUrl);
       setImageUri(product.productImageUrl);
       setSelectedImages([{ uri: product.productImageUrl }]);
     } catch (error) {
       console.error("상품 정보 추출 실패:", error);
-      Alert.alert("상품 정보 추출 실패", "상품 정보를 가져오지 못했어요. URL을 확인하거나 사진으로 추가해주세요.");
+      setProductUrlError("상품 정보를 자동으로 가져오지 못했어요. 링크를 다시 확인하거나 사진으로 빠르게 등록해주세요.");
     } finally {
       setIsExtractingProduct(false);
     }
@@ -572,6 +622,13 @@ export default function AddClothesScreen() {
       const analysis = await response.json();
 
       setAnalysis(analysis);
+      setSelectedCategory(analysis.category || "기타");
+      setSelectedDetailCategory(
+        generalizeBrandTerms(
+          analysis.detailCategory || analysis.subCategory,
+          "상세 분류 전"
+        )
+      );
       setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
       setSelectedStyleTags(normalizeStyleTags(analysis.styleTags, analysis.style));
       setHasManuallyEditedStyleTags(false);
@@ -644,16 +701,18 @@ export default function AddClothesScreen() {
         Boolean(confirmedMaterial) &&
         (!analysis.material?.trim() || analysis.material.trim() === "판단 어려움");
 
-      const userEditedClassificationFields: ProductClassificationField[] =
-        hasManuallyEditedStyleTags ? ["styleTags"] : [];
+      const userEditedClassificationFields: ProductClassificationField[] = [
+        ...manuallyEditedClassificationFields,
+        ...(hasManuallyEditedStyleTags ? (["styleTags"] as ProductClassificationField[]) : []),
+      ];
       const initialItem: ClosetItem = {
         id: Date.now().toString(),
         imageUri,
         cleanImageUri,
-        category: analysis.category || "기타",
+        category: selectedCategory || analysis.category || "기타",
         subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
         detailCategory: generalizeBrandTerms(
-          analysis.detailCategory || analysis.subCategory,
+          selectedDetailCategory || analysis.detailCategory || analysis.subCategory,
           "상세 분류 전"
         ),
         color: analysis.color || "색상 분석 전",
@@ -753,24 +812,55 @@ export default function AddClothesScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.modeSwitchCard}>
+        <View style={styles.linkHeroCard}>
+          <View style={styles.recommendedBadge}>
+            <Feather name="check" size={12} color="#8c6f47" />
+            <Text style={styles.recommendedBadgeText}>가장 정확해요</Text>
+          </View>
+          <Text style={styles.linkHeroTitle}>상품 링크로 정확하게 등록</Text>
+          <Text style={styles.linkHeroText}>
+            상품 링크를 붙여넣으면 공식 상품명, 브랜드, 이미지, 소재와 실측표를 가져와 더 정확한 코디와 사이즈 추천에 활용해요.
+          </Text>
+        </View>
+
+        <View style={styles.modeSelectionList}>
           <Pressable
-            style={[styles.modeSwitchButton, addMode === "photo" && styles.modeSwitchButtonActive]}
-            onPress={() => switchAddMode("photo")}
-          >
-            <Feather name="camera" size={16} color={addMode === "photo" ? "#fff" : "#8c6f47"} />
-            <Text style={[styles.modeSwitchText, addMode === "photo" && styles.modeSwitchTextActive]}>
-              사진으로 추가
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.modeSwitchButton, addMode === "link" && styles.modeSwitchButtonActive]}
+            style={[
+              styles.modeOptionCard,
+              styles.modeOptionCardPrimary,
+              addMode === "link" && styles.modeOptionCardActive,
+            ]}
             onPress={() => switchAddMode("link")}
           >
-            <Feather name="link" size={16} color={addMode === "link" ? "#fff" : "#8c6f47"} />
-            <Text style={[styles.modeSwitchText, addMode === "link" && styles.modeSwitchTextActive]}>
-              상품 링크로 추가
-            </Text>
+            <View style={styles.modeOptionIcon}>
+              <Feather name="link" size={18} color="#8c6f47" />
+            </View>
+            <View style={styles.modeOptionTextWrap}>
+              <View style={styles.modeOptionTitleRow}>
+                <Text style={styles.modeOptionTitle}>상품 링크로 추가</Text>
+                <Text style={styles.modeOptionBadge}>추천</Text>
+              </View>
+              <Text style={styles.modeOptionDescription}>
+                공식 상품 정보와 실측표를 가져와요.
+              </Text>
+            </View>
+            {addMode === "link" ? <Feather name="check-circle" size={18} color="#8c6f47" /> : null}
+          </Pressable>
+
+          <Pressable
+            style={[styles.modeOptionCard, addMode === "photo" && styles.modeOptionCardActive]}
+            onPress={() => switchAddMode("photo")}
+          >
+            <View style={styles.modeOptionIcon}>
+              <Feather name="camera" size={18} color="#8c6f47" />
+            </View>
+            <View style={styles.modeOptionTextWrap}>
+              <Text style={styles.modeOptionTitle}>사진으로 빠르게 추가</Text>
+              <Text style={styles.modeOptionDescription}>
+                링크가 없는 옷을 사진으로 간단히 등록해요.
+              </Text>
+            </View>
+            {addMode === "photo" ? <Feather name="check-circle" size={18} color="#8c6f47" /> : null}
           </Pressable>
         </View>
 
@@ -786,7 +876,7 @@ export default function AddClothesScreen() {
               </View>
               <Text style={styles.uploadTitle}>옷 사진 선택</Text>
               <Text style={styles.uploadText}>
-                단일 옷 사진을 선택해주세요. AI가 종류, 색상, 스타일을 자동 분석해요.
+                사진으로는 종류, 색상 등 기본 정보를 빠르게 등록해요. 정확한 실측과 소재 정보는 상품 링크가 더 정확해요.
               </Text>
             </>
           )}
@@ -831,9 +921,9 @@ export default function AddClothesScreen() {
                 <Feather name="link" size={24} color="#8c6f47" />
               </View>
               <View style={styles.linkAddHeaderText}>
-                <Text style={styles.uploadTitle}>상품 링크로 추가</Text>
-                <Text style={styles.uploadText}>
-                  상품 URL을 붙여넣으면 대표 이미지와 상품 정보를 가져와요.
+                <Text style={styles.uploadTitle}>상품 정보 불러오기</Text>
+                <Text style={styles.linkAddDescription}>
+                  무신사 등 일부 쇼핑몰 링크는 상품 정보를 자동으로 가져오지 못할 수 있어요.
                 </Text>
               </View>
             </View>
@@ -841,15 +931,24 @@ export default function AddClothesScreen() {
             <TextInput
               style={styles.linkInput}
               value={productUrlInput}
-              onChangeText={setProductUrlInput}
-              placeholder="상품 URL을 붙여넣어주세요"
+              onChangeText={(value) => {
+                setProductUrlInput(value);
+                setProductUrlError("");
+              }}
+              placeholder="무신사 등 상품 링크를 붙여넣어 주세요"
               placeholderTextColor="#b2aaa1"
               autoCapitalize="none"
               autoCorrect={false}
             />
+            <Text style={styles.linkSupportText}>
+              상품 페이지 URL을 길게 눌러 붙여넣거나 공유 링크를 붙여넣어 주세요.
+            </Text>
 
             <Pressable
-              style={styles.linkExtractButton}
+              style={[
+                styles.linkExtractButton,
+                isExtractingProduct && styles.linkExtractButtonDisabled,
+              ]}
               onPress={extractProductFromUrl}
               disabled={isExtractingProduct}
             >
@@ -863,25 +962,47 @@ export default function AddClothesScreen() {
               </Text>
             </Pressable>
 
+            {productUrlError ? (
+              <View style={styles.linkErrorBox}>
+                <Text style={styles.linkErrorText}>{productUrlError}</Text>
+                <Pressable style={styles.linkFallbackButton} onPress={() => switchAddMode("photo")}>
+                  <Text style={styles.linkFallbackButtonText}>사진으로 빠르게 등록</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             {extractedProduct && (
               <View style={styles.extractedProductCard}>
                 {extractedProduct.productImageUrl ? (
                   <Image source={{ uri: extractedProduct.productImageUrl }} style={styles.linkPreviewImage} />
                 ) : null}
-                <Text style={styles.linkProductBrand} numberOfLines={1}>
-                  {extractedProduct.brand || "브랜드 정보 없음"}
-                </Text>
-                <Text style={styles.linkProductName} numberOfLines={2}>
-                  {extractedProduct.productName || "상품명 정보 없음"}
-                </Text>
-                <Text style={styles.linkProductUrl} numberOfLines={2}>
-                  {extractedProduct.productUrl}
-                </Text>
-                {!extractedProduct.productSizeGuide?.sizes?.length ? (
-                  <Text style={styles.linkProductUrl}>
-                    실측 자동 추출 실패: 저장 후 옷 상세에서 실측을 직접 입력할 수 있어요.
+                <View style={styles.linkPreviewBody}>
+                  <Text style={styles.linkProductBrand} numberOfLines={1}>
+                    {extractedProduct.brand || "브랜드 정보 없음"}
                   </Text>
-                ) : null}
+                  <Text style={styles.linkProductName} numberOfLines={2}>
+                    {extractedProduct.productName || "상품명 정보 없음"}
+                  </Text>
+
+                  <View style={styles.linkPreviewMetaList}>
+                    <Text style={styles.linkPreviewMetaText}>
+                      쇼핑몰: {extractedProduct.mallName || "확인 필요"}
+                    </Text>
+                    <Text style={styles.linkPreviewMetaText}>
+                      가격: {extractedProduct.price || "확인 필요"}
+                    </Text>
+                    <Text style={styles.linkPreviewMetaText}>
+                      소재: {getMaterialPreviewText(extractedProduct.materialComposition) || "확인 필요"}
+                    </Text>
+                    <Text style={styles.linkPreviewMetaText}>
+                      {getSizeGuidePreviewText(extractedProduct)}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.linkProductUrl} numberOfLines={1}>
+                    {extractedProduct.productUrl}
+                  </Text>
+                </View>
               </View>
             )}
           </View>
@@ -893,6 +1014,30 @@ export default function AddClothesScreen() {
             <Text style={styles.analysisText}>
               {analysis.detailCategory || analysis.subCategory || analysis.category || "옷 종류 분석 전"}
             </Text>
+
+            <Text style={styles.seasonLabel}>카테고리</Text>
+            <TextInput
+              style={styles.sizeInput}
+              value={selectedCategory}
+              onChangeText={(value) => {
+                setSelectedCategory(value);
+                markClassificationFieldAsEdited("category");
+              }}
+              placeholder="상의 / 하의 / 신발 / 아우터 / 액세서리"
+              placeholderTextColor="#777064"
+            />
+
+            <Text style={styles.seasonLabel}>상세 종류</Text>
+            <TextInput
+              style={styles.sizeInput}
+              value={selectedDetailCategory}
+              onChangeText={(value) => {
+                setSelectedDetailCategory(value);
+                markClassificationFieldAsEdited("detailCategory");
+              }}
+              placeholder="예: 데님 셔츠, 와이드 슬랙스"
+              placeholderTextColor="#777064"
+            />
 
             <Text style={styles.seasonLabel}>비슷한 상품 예시</Text>
             <Pressable
@@ -1038,7 +1183,13 @@ export default function AddClothesScreen() {
             <>
               <Feather name="save" size={18} color="#fff" />
               <Text style={styles.primaryButtonText}>
-                {analysis ? "선택한 정보로 저장" : selectedImages.length > 1 ? "선택한 사진 AI 분석하기" : "AI 분석하기"}
+                {analysis
+                  ? "선택한 정보로 저장"
+                  : addMode === "link"
+                    ? "상품 이미지 분석하고 등록 정보 확인"
+                    : selectedImages.length > 1
+                      ? "선택한 사진 AI 분석하기"
+                      : "AI 분석하기"}
               </Text>
             </>
           )}
@@ -1085,6 +1236,104 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     marginTop: 2,
+  },
+  linkHeroCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 18,
+    marginBottom: 12,
+  },
+  recommendedBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#f4eee7",
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    marginBottom: 10,
+  },
+  recommendedBadgeText: {
+    color: "#8c6f47",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  linkHeroTitle: {
+    color: "#111",
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: "900",
+  },
+  linkHeroText: {
+    color: "#777064",
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "600",
+    marginTop: 8,
+  },
+  modeSelectionList: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  modeOptionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 14,
+  },
+  modeOptionCardPrimary: {
+    paddingVertical: 16,
+  },
+  modeOptionCardActive: {
+    borderColor: "#8c6f47",
+    backgroundColor: "#fbf8f3",
+  },
+  modeOptionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: "#f4eee7",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  modeOptionTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  modeOptionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  modeOptionTitle: {
+    color: "#111",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  modeOptionBadge: {
+    color: "#8c6f47",
+    fontSize: 10,
+    fontWeight: "900",
+    backgroundColor: "#f4eee7",
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+  },
+  modeOptionDescription: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 4,
   },
   modeSwitchCard: {
     flexDirection: "row",
@@ -1190,6 +1439,14 @@ const styles = StyleSheet.create({
   },
   linkAddHeaderText: {
     flex: 1,
+    minWidth: 0,
+  },
+  linkAddDescription: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 5,
   },
   linkInput: {
     backgroundColor: "#f7f2eb",
@@ -1211,10 +1468,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  linkExtractButtonDisabled: {
+    opacity: 0.65,
+  },
   linkExtractButtonText: {
     color: "#fff",
     fontSize: 13,
     fontWeight: "800",
+  },
+  linkSupportText: {
+    color: "#777064",
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
+    marginTop: -4,
+  },
+  linkErrorBox: {
+    backgroundColor: "#fff7ed",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#f1d4b3",
+    padding: 12,
+    gap: 10,
+  },
+  linkErrorText: {
+    color: "#b45309",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  linkFallbackButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+  },
+  linkFallbackButtonText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "900",
   },
   extractedProductCard: {
     backgroundColor: "#faf8f5",
@@ -1222,36 +1517,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e8ded2",
     overflow: "hidden",
-    paddingBottom: 12,
   },
   linkPreviewImage: {
     width: "100%",
     height: 210,
     resizeMode: "cover",
     backgroundColor: "#f4eee7",
-    marginBottom: 12,
+  },
+  linkPreviewBody: {
+    padding: 12,
+    gap: 6,
   },
   linkProductBrand: {
     color: "#8c6f47",
     fontSize: 12,
     fontWeight: "800",
-    paddingHorizontal: 12,
-    marginBottom: 4,
   },
   linkProductName: {
     color: "#111",
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "800",
-    paddingHorizontal: 12,
-    marginBottom: 6,
   },
   linkProductUrl: {
     color: "#777064",
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
-    paddingHorizontal: 12,
+  },
+  linkPreviewMetaList: {
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  linkPreviewMetaText: {
+    color: "#625a51",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
   },
   selectedListCard: {
     backgroundColor: "#fff",
