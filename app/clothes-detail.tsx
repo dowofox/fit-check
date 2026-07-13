@@ -923,10 +923,6 @@ function AnalysisActionNoticeCard({ item }: { item: ClosetItem }) {
   const hasConfirmedProduct = Boolean(item.confirmedProduct);
   const quality = item.analysisQuality;
   const missingHints = quality?.missingHints || [];
-  const needsManualSizeGuide =
-    hasConfirmedProduct &&
-    !isAccessoryOrBagItem(item) &&
-    getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).length === 0;
   const needsMaterialCheck =
     hasConfirmedProduct && !item.confirmedProduct?.materialComposition?.summary?.trim();
   const hasImageActionWarning =
@@ -938,9 +934,6 @@ function AnalysisActionNoticeCard({ item }: { item: ClosetItem }) {
   const notices = [
     hasProductWarning
       ? "실제 상품 식별이 확실하지 않아요. 상품 링크로 확정하면 더 정확한 추천을 받을 수 있어요."
-      : "",
-    needsManualSizeGuide
-      ? "상품 실측을 찾지 못했어요. 직접 입력하면 사이즈 추천이 더 정확해져요."
       : "",
     needsMaterialCheck
       ? "공식 소재를 자동으로 찾지 못했어요. 현재는 사진/입력 소재만 참고해요."
@@ -1904,12 +1897,35 @@ function getAlternativeSizeSummary(
 function RecommendedSizeCard({
   item,
   result,
+  onOpenMeasurementForm,
 }: {
   item: ClosetItem;
   result: SizeRecommendationResult;
+  onOpenMeasurementForm: () => void;
 }) {
   const displayedRecommendations = result.sizeRecommendations.slice(0, 3);
   const recommended = displayedRecommendations[0];
+
+  if (result.blockedReason === "missing_product_measurements") {
+    return (
+      <View style={styles.sizeMatchCard}>
+        <View style={styles.tipHeader}>
+          <View style={styles.tipIconCircle}>
+            <Feather name="sliders" size={16} color="#8c6f47" />
+          </View>
+          <Text style={styles.tipTitle}>상품 실측이 필요해요</Text>
+        </View>
+        <Text style={styles.tipText}>
+          {result.missingProductFields?.join(", ") || "주요 실측"} 값이 부족해 추천
+          사이즈를 추측하지 않았어요.
+        </Text>
+        <Pressable style={styles.sizeRecommendationActionButton} onPress={onOpenMeasurementForm}>
+          <Text style={styles.sizeRecommendationActionButtonText}>실측 직접 입력</Text>
+          <Feather name="chevron-right" size={15} color="#fff" />
+        </Pressable>
+      </View>
+    );
+  }
 
   if (result.missingFields.length > 0) {
     return (
@@ -1921,8 +1937,16 @@ function RecommendedSizeCard({
           <Text style={styles.tipTitle}>내 체형 기준 추천 사이즈</Text>
         </View>
         <Text style={styles.tipText}>
-          추천 사이즈를 계산하려면 {result.missingFields.join(", ")} 정보를 입력해주세요.
+          내 프로필에 {result.missingFields.join(", ")} 정보를 입력하면 상품 실측과
+          비교할 수 있어요.
         </Text>
+        <Pressable
+          style={styles.sizeRecommendationActionButton}
+          onPress={() => router.push("/profile")}
+        >
+          <Text style={styles.sizeRecommendationActionButtonText}>프로필 입력하기</Text>
+          <Feather name="chevron-right" size={15} color="#fff" />
+        </Pressable>
       </View>
     );
   }
@@ -2474,12 +2498,12 @@ export default function ClothesDetailScreen() {
     }
   }
 
-  const hasSizeRecommendationSource = useMemo(
+  const hasSizeRecommendationContext = useMemo(
     () =>
       Boolean(
         item &&
           (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
-          item.confirmedProduct?.productSizeGuide?.sizes?.some(hasProductSizeMeasurements)
+          item.confirmedProduct
       ),
     [item]
   );
@@ -2509,7 +2533,7 @@ export default function ClothesDetailScreen() {
   );
   const sizeRecommendation = useMemo(
     () => {
-      if (!item || !hasSizeRecommendationSource) return null;
+      if (!item || !hasSizeRecommendationContext) return null;
       const timer = startPerformanceTimer("clothes-detail.getRecommendedProductSize");
       const result = getRecommendedProductSize(item, profile, { referenceItem });
       endPerformanceTimer(timer, {
@@ -2519,13 +2543,14 @@ export default function ClothesDetailScreen() {
       });
       return result;
     },
-    [hasSizeRecommendationSource, item, profile, referenceItem]
+    [hasSizeRecommendationContext, item, profile, referenceItem]
   );
   const shouldShowRecommendedSizeCard = Boolean(
-    hasSizeRecommendationSource &&
+    hasSizeRecommendationContext &&
       sizeRecommendation &&
       (sizeRecommendation.sizeRecommendations.length > 0 ||
-        sizeRecommendation.missingFields.length > 0)
+        sizeRecommendation.missingFields.length > 0 ||
+        sizeRecommendation.blockedReason === "missing_product_measurements")
   );
   const referenceClothingKey = item ? getReferenceClothingKey(item) : null;
   const isCurrentReferenceClothing = Boolean(
@@ -2767,7 +2792,11 @@ export default function ClothesDetailScreen() {
             )}
 
             {!editMode && shouldShowRecommendedSizeCard && sizeRecommendation && (
-              <RecommendedSizeCard item={item} result={sizeRecommendation} />
+              <RecommendedSizeCard
+                item={item}
+                result={sizeRecommendation}
+                onOpenMeasurementForm={handleOpenMeasurementForm}
+              />
             )}
 
             {!editMode && fitSuitability && (
@@ -3289,6 +3318,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
     flexShrink: 1,
     width: "100%",
+  },
+  sizeRecommendationActionButton: {
+    alignSelf: "flex-start",
+    minHeight: 40,
+    borderRadius: 14,
+    backgroundColor: "#111",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    marginTop: 12,
+  },
+  sizeRecommendationActionButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "800",
   },
 
   aiDetailGrid: {

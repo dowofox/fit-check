@@ -196,6 +196,10 @@ export type SizeRecommendationResult = {
   recommendedDisplaySize?: string;
   sizeRecommendations: SizeRecommendation[];
   missingFields: string[];
+  missingProductFields?: string[];
+  blockedReason?:
+    | "missing_profile_measurements"
+    | "missing_product_measurements";
 };
 
 export type SizeRecommendationContext = {
@@ -1168,6 +1172,63 @@ function getMeasurementValue(
   return typeof value === "number" && value > 0 ? value : undefined;
 }
 
+function getRequiredProductMeasurementLabels(item: ClosetItem) {
+  if (isBottomCategory(item)) {
+    return ["총장", "허리 단면", "엉덩이 또는 허벅지 단면"];
+  }
+
+  if (isUpperCategory(item)) {
+    return ["총장", "어깨", "가슴 단면"];
+  }
+
+  return [];
+}
+
+function getMissingProductMeasurementFields(
+  item: ClosetItem,
+  measurement?: ProductSizeMeasurement
+) {
+  if (!measurement) return getRequiredProductMeasurementLabels(item);
+
+  if (isBottomCategory(item)) {
+    return [
+      getMeasurementValue(measurement, "totalLength") ? "" : "총장",
+      getMeasurementValue(measurement, "waist") ? "" : "허리 단면",
+      getMeasurementValue(measurement, "hip") || getMeasurementValue(measurement, "thigh")
+        ? ""
+        : "엉덩이 또는 허벅지 단면",
+    ].filter(Boolean);
+  }
+
+  if (isUpperCategory(item)) {
+    return [
+      getMeasurementValue(measurement, "totalLength") ? "" : "총장",
+      getMeasurementValue(measurement, "shoulder") ? "" : "어깨",
+      getMeasurementValue(measurement, "chest") ? "" : "가슴 단면",
+    ].filter(Boolean);
+  }
+
+  return [];
+}
+
+function hasReliableProductMeasurements(
+  item: ClosetItem,
+  measurement?: ProductSizeMeasurement
+) {
+  return getMissingProductMeasurementFields(item, measurement).length === 0;
+}
+
+function getClosestMissingProductFields(
+  item: ClosetItem,
+  measurements: ProductSizeMeasurement[]
+) {
+  if (measurements.length === 0) return getRequiredProductMeasurementLabels(item);
+
+  return measurements
+    .map((measurement) => getMissingProductMeasurementFields(item, measurement))
+    .sort((first, second) => first.length - second.length)[0];
+}
+
 function getReferenceDifferenceReason(
   item: ClosetItem,
   comparison: ReferenceMeasurementComparison
@@ -1204,6 +1265,12 @@ function getReferenceComparison(
 
   const referenceMeasurement = getReferenceProductMeasurement(referenceItem);
   if (!referenceMeasurement) return null;
+  if (
+    !hasReliableProductMeasurements(item, candidateMeasurement) ||
+    !hasReliableProductMeasurements(referenceItem, referenceMeasurement)
+  ) {
+    return null;
+  }
 
   const weights = getReferenceWeights(item);
   const comparisons: ReferenceMeasurementComparison[] = [];
@@ -1374,8 +1441,12 @@ function scoreSizeMeasurement(
     widthResult: comparison.widthResult,
     reasons: uniqueReasons([
       ...(referenceComparison?.reasons || []),
-      comparison.description,
-      getIntendedFitReason(comparison.fitResult, item.intendedFit),
+      ...(canUseProfileMeasurements
+        ? [
+            comparison.description,
+            getIntendedFitReason(comparison.fitResult, item.intendedFit),
+          ]
+        : []),
     ]),
   };
 }
@@ -1407,16 +1478,33 @@ export function getRecommendedProductSize(
         measurement.thigh,
       ].some((value) => typeof value === "number" && value > 0)
   );
-  const hasReferenceComparison = sizeRows.some((measurement) =>
+  const reliableSizeRows = sizeRows.filter((measurement) =>
+    hasReliableProductMeasurements(item, measurement)
+  );
+
+  if (reliableSizeRows.length === 0) {
+    return {
+      sizeRecommendations: [],
+      missingFields: [],
+      missingProductFields: getClosestMissingProductFields(item, sizeRows),
+      blockedReason: "missing_product_measurements",
+    };
+  }
+
+  const hasReferenceComparison = reliableSizeRows.some((measurement) =>
     Boolean(getReferenceComparison(item, measurement, context?.referenceItem))
   );
 
   if (missingFields.length > 0 && !hasReferenceComparison) {
-    return { sizeRecommendations: [], missingFields };
+    return {
+      sizeRecommendations: [],
+      missingFields,
+      blockedReason: "missing_profile_measurements",
+    };
   }
 
   const canUseProfileMeasurements = missingFields.length === 0;
-  const scoredRows = sizeRows
+  const scoredRows = reliableSizeRows
     .map((measurement) =>
       scoreSizeMeasurement(item, measurement, profile, context, canUseProfileMeasurements)
     )
@@ -1528,6 +1616,33 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
   }
 
   if (currentProductMeasurement) {
+    const missingProductFields = getMissingProductMeasurementFields(
+      item,
+      currentProductMeasurement
+    );
+    if (missingProductFields.length > 0) {
+      return {
+        status: "상품 실측이 더 필요해요",
+        description: `${missingProductFields.join(", ")} 정보가 부족해 현재 사이즈의 핏을 추측하지 않았어요. 상품 실측을 직접 입력하면 비교할 수 있어요.`,
+        lengthResult: "unknown" as const,
+        widthResult: "unknown" as const,
+        fitResult: "unknown" as const,
+        measurementComparison,
+      };
+    }
+
+    const missingProfileFields = getRequiredProfileFields(item, profile);
+    if (missingProfileFields.length > 0) {
+      return {
+        status: "내 신체 치수가 더 필요해요",
+        description: `내 프로필에 ${missingProfileFields.join(", ")} 정보를 입력하면 이 상품의 실측과 비교할 수 있어요.`,
+        lengthResult: "unknown" as const,
+        widthResult: "unknown" as const,
+        fitResult: "unknown" as const,
+        measurementComparison,
+      };
+    }
+
     const profileSizeMatchesRange = isSizeWithinNumericRange(
       profileSize,
       currentProductMeasurement.numericRange
