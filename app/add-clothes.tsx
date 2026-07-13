@@ -158,7 +158,73 @@ type ExtractedProduct = {
   sizeGuideStatus?: string;
   mallName?: string;
   price?: string;
+  extractionStatus?: "complete" | "missing_image";
+  missingFields?: string[];
 };
+
+type ProductLinkFailureKind =
+  | "invalid_link"
+  | "unsupported_shop"
+  | "connection"
+  | "missing_image"
+  | "unknown";
+
+type ProductLinkFailure = {
+  kind: ProductLinkFailureKind;
+  title: string;
+  message: string;
+};
+
+type ProductExtractionErrorResponse = {
+  error?: string;
+  message?: string;
+};
+
+function getProductLinkFailure(
+  errorCode?: string,
+  status?: number
+): ProductLinkFailure {
+  if (
+    status === 400 ||
+    [
+      "product_url_required",
+      "invalid_product_url",
+      "unsupported_product_url_protocol",
+    ].includes(errorCode || "")
+  ) {
+    return {
+      kind: "invalid_link",
+      title: "링크를 확인해주세요",
+      message: "상품 페이지의 전체 주소를 다시 붙여넣어 주세요.",
+    };
+  }
+
+  if (status === 422 || errorCode === "product_information_not_found") {
+    return {
+      kind: "unsupported_shop",
+      title: "이 쇼핑몰은 자동 등록이 어려워요",
+      message: "등록에 필요한 상품 정보를 찾지 못했어요. 사진으로 빠르게 등록할 수 있어요.",
+    };
+  }
+
+  if (
+    ["product_page_unreachable", "product_page_timeout"].includes(errorCode || "") ||
+    status === 502 ||
+    status === 504
+  ) {
+    return {
+      kind: "connection",
+      title: "상품 페이지에 연결하지 못했어요",
+      message: "네트워크 상태를 확인한 뒤 다시 시도하거나 사진으로 등록해주세요.",
+    };
+  }
+
+  return {
+    kind: "unknown",
+    title: "상품 정보를 가져오지 못했어요",
+    message: "잠시 후 다시 시도하거나 사진으로 빠르게 등록해주세요.",
+  };
+}
 
 function getImageDataFromDataUrl(dataUrl: string): EncodedImage {
   const [header, base64] = dataUrl.split(",");
@@ -453,7 +519,7 @@ export default function AddClothesScreen() {
     useState<ProductClassificationField[]>([]);
   const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
   const [productUrlInput, setProductUrlInput] = useState("");
-  const [productUrlError, setProductUrlError] = useState("");
+  const [productLinkFailure, setProductLinkFailure] = useState<ProductLinkFailure | null>(null);
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
 
   function resetAnalysisState() {
@@ -473,7 +539,15 @@ export default function AddClothesScreen() {
     setImageUri("");
     setSelectedImages([]);
     setExtractedProduct(null);
-    setProductUrlError("");
+    setProductLinkFailure(null);
+    resetAnalysisState();
+  }
+
+  function switchToPhotoFallback() {
+    setAddMode("photo");
+    setImageUri("");
+    setSelectedImages([]);
+    setProductLinkFailure(null);
     resetAnalysisState();
   }
 
@@ -486,8 +560,8 @@ export default function AddClothesScreen() {
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      selectionLimit: 0,
+      allowsMultipleSelection: !extractedProduct,
+      selectionLimit: extractedProduct ? 1 : 0,
       quality: 0.8,
     });
 
@@ -496,7 +570,6 @@ export default function AddClothesScreen() {
 
       setSelectedImages(images);
       setImageUri(images[0]?.uri || "");
-      setExtractedProduct(null);
       setAnalysis(null);
       setProgressText("");
       setSelectedSeasons(["사계절"]);
@@ -526,7 +599,6 @@ export default function AddClothesScreen() {
 
       setSelectedImages([nextImage]);
       setImageUri(nextImage.uri);
-      setExtractedProduct(null);
       setAnalysis(null);
       setProgressText("");
       setSelectedSeasons(["사계절"]);
@@ -543,7 +615,7 @@ export default function AddClothesScreen() {
     const productUrl = productUrlInput.trim();
 
     if (!productUrl) {
-      setProductUrlError("상품 링크를 입력해주세요.");
+      setProductLinkFailure(getProductLinkFailure("product_url_required", 400));
       return;
     }
 
@@ -551,7 +623,7 @@ export default function AddClothesScreen() {
 
     try {
       setIsExtractingProduct(true);
-      setProductUrlError("");
+      setProductLinkFailure(null);
       setExtractedProduct(null);
       setImageUri("");
       setSelectedImages([]);
@@ -566,16 +638,22 @@ export default function AddClothesScreen() {
       });
 
       if (!response.ok) {
-        throw new Error(`Extract product failed: ${response.status}`);
+        const errorResponse = (await response.json().catch(() => ({}))) as ProductExtractionErrorResponse;
+        setProductLinkFailure(getProductLinkFailure(errorResponse.error, response.status));
+        return;
       }
 
       const product = (await response.json()) as ExtractedProduct;
 
       if (!product.productImageUrl) {
-        setExtractedProduct(null);
+        setExtractedProduct(product);
         setImageUri("");
         setSelectedImages([]);
-        setProductUrlError("상품 이미지를 가져오지 못했어요. 링크를 다시 확인하거나 사진으로 빠르게 등록해주세요.");
+        setProductLinkFailure({
+          kind: "missing_image",
+          title: "상품 이미지만 가져오지 못했어요",
+          message: "상품 정보는 유지했어요. 옷 사진을 추가하면 링크 정보와 함께 등록할 수 있어요.",
+        });
         return;
       }
 
@@ -585,7 +663,7 @@ export default function AddClothesScreen() {
       setSelectedImages([{ uri: product.productImageUrl }]);
     } catch (error) {
       console.error("상품 정보 추출 실패:", error);
-      setProductUrlError("상품 정보를 자동으로 가져오지 못했어요. 링크를 다시 확인하거나 사진으로 빠르게 등록해주세요.");
+      setProductLinkFailure(getProductLinkFailure("product_page_unreachable"));
     } finally {
       setIsExtractingProduct(false);
     }
@@ -860,6 +938,14 @@ export default function AddClothesScreen() {
 
         {addMode === "photo" && (
           <>
+        {extractedProduct ? (
+          <View style={styles.linkFallbackNotice}>
+            <Feather name="check-circle" size={17} color="#8c6f47" />
+            <Text style={styles.linkFallbackNoticeText}>
+              가져온 상품 정보는 유지됐어요. 옷 사진을 추가하면 함께 저장해요.
+            </Text>
+          </View>
+        ) : null}
         <Pressable style={styles.uploadCard} onPress={pickImage}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -927,7 +1013,7 @@ export default function AddClothesScreen() {
               value={productUrlInput}
               onChangeText={(value) => {
                 setProductUrlInput(value);
-                setProductUrlError("");
+                setProductLinkFailure(null);
               }}
               placeholder="무신사 등 상품 링크를 붙여넣어 주세요"
               placeholderTextColor="#b2aaa1"
@@ -956,11 +1042,19 @@ export default function AddClothesScreen() {
               </Text>
             </Pressable>
 
-            {productUrlError ? (
+            {productLinkFailure ? (
               <View style={styles.linkErrorBox}>
-                <Text style={styles.linkErrorText}>{productUrlError}</Text>
-                <Pressable style={styles.linkFallbackButton} onPress={() => switchAddMode("photo")}>
-                  <Text style={styles.linkFallbackButtonText}>사진으로 빠르게 등록</Text>
+                <View style={styles.linkErrorHeader}>
+                  <Feather name="alert-circle" size={17} color="#b45309" />
+                  <Text style={styles.linkErrorTitle}>{productLinkFailure.title}</Text>
+                </View>
+                <Text style={styles.linkErrorText}>{productLinkFailure.message}</Text>
+                <Pressable style={styles.linkFallbackButton} onPress={switchToPhotoFallback}>
+                  <Text style={styles.linkFallbackButtonText}>
+                    {productLinkFailure.kind === "missing_image"
+                      ? "사진을 추가해 계속"
+                      : "사진으로 빠르게 등록"}
+                  </Text>
                 </Pressable>
               </View>
             ) : null}
@@ -1435,6 +1529,19 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
   },
+  linkErrorHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  linkErrorTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: "#8a3f08",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "900",
+  },
   linkErrorText: {
     color: "#b45309",
     fontSize: 12,
@@ -1454,6 +1561,25 @@ const styles = StyleSheet.create({
     color: "#8c6f47",
     fontSize: 12,
     fontWeight: "900",
+  },
+  linkFallbackNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#f4eee7",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 12,
+    marginBottom: 12,
+  },
+  linkFallbackNoticeText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#625a51",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
   },
   extractedProductCard: {
     backgroundColor: "#faf8f5",

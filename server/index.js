@@ -2406,13 +2406,22 @@ ${profileText}
   }
 });
 
+function sendProductExtractionError(res, status, code, message) {
+  return res.status(status).json({ error: code, message });
+}
+
 app.post("/extract-product", async (req, res) => {
   try {
     const { url } = req.body;
     const productUrl = typeof url === "string" ? url.trim() : "";
 
     if (!productUrl) {
-      return res.status(400).json({ error: "product url is required" });
+      return sendProductExtractionError(
+        res,
+        400,
+        "product_url_required",
+        "상품 링크가 필요합니다."
+      );
     }
 
     let parsedUrl;
@@ -2420,11 +2429,21 @@ app.post("/extract-product", async (req, res) => {
     try {
       parsedUrl = new URL(productUrl);
     } catch {
-      return res.status(400).json({ error: "invalid product url" });
+      return sendProductExtractionError(
+        res,
+        400,
+        "invalid_product_url",
+        "올바른 상품 링크가 아닙니다."
+      );
     }
 
     if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-      return res.status(400).json({ error: "unsupported product url protocol" });
+      return sendProductExtractionError(
+        res,
+        400,
+        "unsupported_product_url_protocol",
+        "HTTP 또는 HTTPS 상품 링크만 지원합니다."
+      );
     }
 
     const controller = new AbortController();
@@ -2442,7 +2461,12 @@ app.post("/extract-product", async (req, res) => {
       });
 
       if (!response.ok) {
-        return res.status(502).json({ error: `failed to fetch product page: ${response.status}` });
+        return sendProductExtractionError(
+          res,
+          502,
+          "product_page_unreachable",
+          `상품 페이지를 불러오지 못했습니다. (${response.status})`
+        );
       }
 
       const finalProductUrl = (() => {
@@ -2553,7 +2577,12 @@ app.post("/extract-product", async (req, res) => {
       const extractedProductName = cleanProductName(rawProductName);
 
       if (!extractedBrand || !extractedProductName) {
-        return res.status(422).json({ error: "product information not found" });
+        return sendProductExtractionError(
+          res,
+          422,
+          "product_information_not_found",
+          "이 상품 페이지에서 등록에 필요한 정보를 찾지 못했습니다."
+        );
       }
 
       if (process.env.NODE_ENV !== "production" && rawProductName !== extractedProductName) {
@@ -2571,6 +2600,8 @@ app.post("/extract-product", async (req, res) => {
         productSizeGuide,
         materialComposition,
         sizeGuideStatus: productSizeGuideResult.sizeGuideStatus,
+        extractionStatus: productImageUrl ? "complete" : "missing_image",
+        missingFields: productImageUrl ? [] : ["productImageUrl"],
         ...(isProductSizeGuideDebugEnabled
           ? { sizeGuideImageCandidates: productSizeGuideResult.sizeGuideImageCandidates || [] }
           : {}),
@@ -2584,7 +2615,30 @@ app.post("/extract-product", async (req, res) => {
     }
   } catch (error) {
     console.error("[extract-product] error:", error);
-    return res.status(500).json({ error: "extract product failed" });
+    if (error?.name === "AbortError") {
+      return sendProductExtractionError(
+        res,
+        504,
+        "product_page_timeout",
+        "상품 페이지 응답 시간이 너무 길어 중단했습니다."
+      );
+    }
+
+    if (error instanceof TypeError) {
+      return sendProductExtractionError(
+        res,
+        502,
+        "product_page_unreachable",
+        "상품 페이지에 연결하지 못했습니다."
+      );
+    }
+
+    return sendProductExtractionError(
+      res,
+      500,
+      "product_extraction_failed",
+      "상품 정보를 처리하지 못했습니다."
+    );
   }
 });
 
