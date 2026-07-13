@@ -1,7 +1,6 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import {
   getOutfitRecommendationResult,
-  MIN_DISPLAY_RECOMMENDATION_SCORE,
   OutfitRecommendation,
   OutfitRecommendationResult,
   OutfitRecommendationWeather,
@@ -160,7 +159,7 @@ function getEmptyMessage(
     return {
       ...BELOW_QUALITY_EMPTY_MESSAGE,
       text: hasShoes
-        ? `${BELOW_QUALITY_EMPTY_MESSAGE.text} 추천 기준은 ${MIN_DISPLAY_RECOMMENDATION_SCORE}점 이상이에요.`
+        ? `${BELOW_QUALITY_EMPTY_MESSAGE.text} 더 자연스럽게 맞는 아이템을 추가하면 추천이 좋아져요.`
         : `${BELOW_QUALITY_EMPTY_MESSAGE.text} ${SHOES_GUIDE_TEXT}`,
     };
   }
@@ -270,7 +269,7 @@ function RecommendationCard({
         </View>
 
         <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>{recommendation.grade} {recommendation.score}점</Text>
+          <Text style={styles.scoreText}>{recommendation.grade}</Text>
           <Text style={styles.scoreGradeLabel}>{GRADE_LABELS[recommendation.grade]}</Text>
         </View>
       </View>
@@ -327,16 +326,6 @@ function RecommendationCard({
             </View>
           ) : null}
 
-          {isDetailOpen ? (
-            <View style={styles.compactBreakdownBox}>
-              <Text style={styles.breakdownText}>
-                실루엣 {recommendation.breakdown.silhouette} · 핏 균형 {recommendation.breakdown.wearFit} · 포인트 {recommendation.breakdown.pointBalance} · 색상 {recommendation.breakdown.colorSupport} · 스타일 {recommendation.breakdown.styleSupport} · 계절/날씨 {recommendation.breakdown.weather} · 회전율 {recommendation.breakdown.rotation}
-              </Text>
-              {recommendation.penalty ? (
-                <Text style={styles.penaltyText}>경고 감점 -{recommendation.penalty}</Text>
-              ) : null}
-            </View>
-          ) : null}
         </Pressable>
       ) : null}
 
@@ -398,7 +387,7 @@ function RecommendationCard({
               <View style={styles.alternativeHeader}>
                 <Text style={styles.alternativeEyebrow}>VERSION {alternativeIndex + 1}</Text>
                 <Text style={styles.alternativeTitle}>
-                  {alternative.grade} · {GRADE_LABELS[alternative.grade]} · {alternative.score}점
+                  {alternative.grade} · {GRADE_LABELS[alternative.grade]}
                 </Text>
                 <Text style={styles.alternativeSummary}>
                   {getCategorySummary(alternative.items)}
