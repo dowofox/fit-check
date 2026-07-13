@@ -158,7 +158,8 @@ type ExtractedProduct = {
   sizeGuideStatus?: string;
   mallName?: string;
   price?: string;
-  extractionStatus?: "complete" | "missing_image";
+  extractionStatus?: "complete" | "partial" | "missing_image";
+  extractionSource?: "musinsa" | "structured_metadata";
   missingFields?: string[];
 };
 
@@ -1065,6 +1066,14 @@ export default function AddClothesScreen() {
                   <Image source={{ uri: extractedProduct.productImageUrl }} style={styles.linkPreviewImage} />
                 ) : null}
                 <View style={styles.linkPreviewBody}>
+                  {extractedProduct.extractionStatus === "partial" ? (
+                    <View style={styles.partialExtractionNotice}>
+                      <Feather name="info" size={14} color="#8c6f47" />
+                      <Text style={styles.partialExtractionNoticeText}>
+                        일부 공식 정보만 확인했어요. 비어 있는 정보는 저장 후 옷 상세에서 수정할 수 있어요.
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text style={styles.linkProductBrand} numberOfLines={1}>
                     {extractedProduct.brand || "브랜드 정보 없음"}
                   </Text>
@@ -1597,6 +1606,24 @@ const styles = StyleSheet.create({
   linkPreviewBody: {
     padding: 12,
     gap: 6,
+  },
+  partialExtractionNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+    backgroundColor: "#f4eee7",
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+  },
+  partialExtractionNoticeText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
   },
   linkProductBrand: {
     color: "#8c6f47",

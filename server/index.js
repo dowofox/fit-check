@@ -519,6 +519,89 @@ function extractTitle(html) {
   return titleMatch?.[1] ? decodeHtmlEntities(titleMatch[1]) : "";
 }
 
+function getSchemaTypes(value) {
+  const schemaType = value?.["@type"];
+  return (Array.isArray(schemaType) ? schemaType : [schemaType])
+    .filter((type) => typeof type === "string")
+    .map((type) => type.toLowerCase());
+}
+
+function findStructuredProduct(value, depth = 0) {
+  if (!value || depth > 8) return undefined;
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const product = findStructuredProduct(entry, depth + 1);
+      if (product) return product;
+    }
+    return undefined;
+  }
+
+  if (typeof value !== "object") return undefined;
+  if (getSchemaTypes(value).includes("product")) return value;
+
+  for (const nestedValue of Object.values(value)) {
+    const product = findStructuredProduct(nestedValue, depth + 1);
+    if (product) return product;
+  }
+
+  return undefined;
+}
+
+function getStructuredProductData(html) {
+  const jsonScripts = extractJsonDataFromScripts(html, true).filter(
+    (script) => script.source === "json-script"
+  );
+
+  for (const script of jsonScripts) {
+    const product = findStructuredProduct(script.data);
+    if (!product) continue;
+
+    const brandValue = product.brand;
+    const brand =
+      typeof brandValue === "string"
+        ? brandValue
+        : typeof brandValue?.name === "string"
+          ? brandValue.name
+          : "";
+    const imageValue = Array.isArray(product.image) ? product.image[0] : product.image;
+    const image =
+      typeof imageValue === "string"
+        ? imageValue
+        : typeof imageValue?.url === "string"
+          ? imageValue.url
+          : "";
+    const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
+
+    return {
+      name: typeof product.name === "string" ? product.name.trim() : "",
+      brand: brand.trim(),
+      image: image.trim(),
+      price:
+        typeof offers?.price === "string" || typeof offers?.price === "number"
+          ? String(offers.price)
+          : "",
+    };
+  }
+
+  return undefined;
+}
+
+function hasProductPageEvidence(html, structuredProduct, isMusinsa) {
+  if (isMusinsa || structuredProduct) return true;
+
+  const ogType = extractMetaContent(html, ["og:type"]);
+  if (ogType.toLowerCase().includes("product")) return true;
+
+  return Boolean(
+    extractMetaContent(html, [
+      "product:name",
+      "product:price:amount",
+      "product:product_link",
+    ])
+  );
+}
+
 function inferMallName(productUrl, html) {
   const siteName = extractMetaContent(html, ["og:site_name", "twitter:site"]);
   if (siteName) return siteName;
@@ -2482,6 +2565,16 @@ app.post("/extract-product", async (req, res) => {
       const html = await response.text();
       const isMusinsa = isMusinsaProductUrl(finalProductUrl);
       const productId = isMusinsa ? extractMusinsaProductId(finalProductUrl) : "";
+      const structuredProduct = getStructuredProductData(html);
+
+      if (!hasProductPageEvidence(html, structuredProduct, Boolean(isMusinsa && productId))) {
+        return sendProductExtractionError(
+          res,
+          422,
+          "unsupported_product_page",
+          "상품 정보가 확인되는 쇼핑 페이지 링크만 자동 등록할 수 있습니다."
+        );
+      }
 
       if (process.env.NODE_ENV !== "production" && process.env.DEBUG_SIZE_GUIDE === "true") {
         console.log("[extract-product] resolved product url", {
@@ -2493,24 +2586,28 @@ app.post("/extract-product", async (req, res) => {
 
       const mallName = inferMallName(finalProductUrl, html);
       const title = cleanProductTitle(extractTitle(html), mallName);
-      const brand = extractMetaContent(html, [
-        "product:brand",
-        "og:brand",
-        "twitter:label1",
-        "brand",
-      ]);
+      const brand =
+        extractMetaContent(html, [
+          "product:brand",
+          "og:brand",
+          "twitter:label1",
+          "brand",
+        ]) || structuredProduct?.brand || "";
       const productName = extractMetaContent(html, [
         "product:name",
         "og:description",
       ]);
-      const price = extractPrice(html);
+      const price = extractPrice(html) || structuredProduct?.price || "";
       const productImageMeta = extractMetaContentWithDebug(html, [
         "og:image",
         "twitter:image",
         "image",
         "og:image:secure_url",
       ]);
-      const productImageUrl = resolveProductImageUrl(productImageMeta.value, finalProductUrl);
+      const productImageUrl = resolveProductImageUrl(
+        productImageMeta.value || structuredProduct?.image || "",
+        finalProductUrl
+      );
       let materialComposition =
         isMusinsa && productId
           ? await fetchMusinsaMaterialComposition(productId, finalProductUrl)
@@ -2572,11 +2669,11 @@ app.post("/extract-product", async (req, res) => {
         : undefined;
       logProductSizeGuideExtraction(productSizeGuideResult);
 
-      const extractedBrand = brand || mallName || "";
-      const rawProductName = title || productName || "";
+      const extractedBrand = brand;
+      const rawProductName = structuredProduct?.name || title || productName || "";
       const extractedProductName = cleanProductName(rawProductName);
 
-      if (!extractedBrand || !extractedProductName) {
+      if (!extractedProductName) {
         return sendProductExtractionError(
           res,
           422,
@@ -2592,6 +2689,16 @@ app.post("/extract-product", async (req, res) => {
         });
       }
 
+      const missingFields = [
+        !extractedBrand ? "brand" : "",
+        !productImageUrl ? "productImageUrl" : "",
+        !materialComposition ? "materialComposition" : "",
+      ].filter(Boolean);
+      const extractionStatus = !productImageUrl
+        ? "missing_image"
+        : missingFields.length > 0
+          ? "partial"
+          : "complete";
       const extractedProduct = {
         brand: extractedBrand,
         productName: extractedProductName,
@@ -2600,8 +2707,9 @@ app.post("/extract-product", async (req, res) => {
         productSizeGuide,
         materialComposition,
         sizeGuideStatus: productSizeGuideResult.sizeGuideStatus,
-        extractionStatus: productImageUrl ? "complete" : "missing_image",
-        missingFields: productImageUrl ? [] : ["productImageUrl"],
+        extractionStatus,
+        extractionSource: isMusinsa ? "musinsa" : "structured_metadata",
+        missingFields,
         ...(isProductSizeGuideDebugEnabled
           ? { sizeGuideImageCandidates: productSizeGuideResult.sizeGuideImageCandidates || [] }
           : {}),
