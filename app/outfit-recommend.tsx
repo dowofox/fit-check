@@ -58,13 +58,6 @@ const BELOW_QUALITY_EMPTY_MESSAGE = {
 
 const SHOES_GUIDE_TEXT = "신발을 등록하면 완성도 높은 코디를 추천할 수 있어요.";
 
-const GRADE_LABELS: Record<OutfitRecommendation["grade"], string> = {
-  S: "완성도 높은 추천",
-  A: "좋은 추천",
-  B: "무난한 추천",
-  C: "참고용",
-  D: "비추천",
-};
 const SITUATION_OPTIONS = [
   { id: "all", label: "전체", keywords: [] },
   {
@@ -400,10 +393,6 @@ function RecommendationCard({
           </Text>
         </View>
 
-        <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>{recommendation.grade}</Text>
-          <Text style={styles.scoreGradeLabel}>{GRADE_LABELS[recommendation.grade]}</Text>
-        </View>
       </View>
 
       <View style={styles.itemShowcase}>
@@ -519,7 +508,7 @@ function RecommendationCard({
               <View style={styles.alternativeHeader}>
                 <Text style={styles.alternativeEyebrow}>VERSION {alternativeIndex + 1}</Text>
                 <Text style={styles.alternativeTitle}>
-                  {alternative.grade} · {GRADE_LABELS[alternative.grade]}
+                  {alternative.title}
                 </Text>
                 <Text style={styles.alternativeSummary}>
                   {getCategorySummary(alternative.items)}
@@ -1020,34 +1009,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     marginTop: 5,
-  },
-  scoreBadge: {
-    minWidth: 88,
-    minHeight: 42,
-    borderRadius: 14,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  scoreText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  scoreGradeLabel: {
-    color: colors.subText,
-    fontSize: 9,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  scoreUnit: {
-    color: colors.inactiveTab,
-    fontSize: 10,
-    fontWeight: "900",
   },
   breakdownBox: {
     backgroundColor: colors.softCard,

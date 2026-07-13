@@ -89,15 +89,14 @@ function SavedOutfitCard({
   return (
     <View style={styles.outfitCard}>
       <View style={styles.cardHeader}>
-        <View>
+        <View style={styles.cardHeaderText}>
           <Text style={styles.cardEyebrow}>SAVED OUTFIT</Text>
           <Text style={styles.cardTitle}>{outfitName}</Text>
-          <Text style={styles.cardSubTitle}>{outfit.grade} 등급</Text>
+          <Text style={styles.cardSubTitle}>아이템 {outfit.items.length}개</Text>
         </View>
 
-        <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>{outfit.score}</Text>
-          <Text style={styles.scoreUnit}>점</Text>
+        <View style={styles.savedStatusIcon}>
+          <Feather name="bookmark" size={17} color="#8c6f47" />
         </View>
       </View>
 
@@ -490,6 +489,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: 4,
   },
+  cardHeaderText: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
+  },
   cardTitle: {
     color: "#111",
     fontSize: 21,
@@ -501,23 +505,13 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 4,
   },
-  scoreBadge: {
-    minWidth: 64,
-    height: 64,
+  savedStatusIcon: {
+    width: 38,
+    height: 38,
     borderRadius: 999,
-    backgroundColor: "#111",
+    backgroundColor: "#f4eee7",
     alignItems: "center",
     justifyContent: "center",
-  },
-  scoreText: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "900",
-  },
-  scoreUnit: {
-    color: "#d8d2ca",
-    fontSize: 10,
-    fontWeight: "900",
   },
   itemList: {
     gap: 10,
