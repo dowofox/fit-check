@@ -693,6 +693,30 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   );
 }
 
+function getMaterialCompositionSummary(
+  materialComposition?: ConfirmedProduct["materialComposition"]
+) {
+  const summary = materialComposition?.summary?.trim();
+  if (!summary) return "";
+
+  const items = materialComposition?.items || [];
+  const totalPercentage = items.reduce(
+    (total, item) =>
+      typeof item.percentage === "number" ? total + item.percentage : total,
+    0
+  );
+
+  if (totalPercentage <= 100.5) return summary;
+
+  const materialNames = items
+    .map((item) => item.name?.trim())
+    .filter((name): name is string => Boolean(name));
+
+  return materialNames.length > 0
+    ? `${Array.from(new Set(materialNames)).join(", ")} (혼용률 확인 필요)`
+    : "소재 혼용률 확인 필요";
+}
+
 function getDisplayBrand(item: ClosetItem) {
   return (
     item.confirmedProduct?.brand?.trim() ||
@@ -712,7 +736,9 @@ function getDisplayTitle(item: ClosetItem) {
 }
 
 function getDisplayMaterial(item: ClosetItem) {
-  const officialMaterial = item.confirmedProduct?.materialComposition?.summary?.trim();
+  const officialMaterial = getMaterialCompositionSummary(
+    item.confirmedProduct?.materialComposition
+  );
   if (officialMaterial) return `${officialMaterial} (공식 소재)`;
 
   const material = item.material?.trim() || "";
@@ -733,6 +759,9 @@ function getBooleanLabel(value?: boolean) {
 function getAiAnalysisRows(item: ClosetItem) {
   const confirmedBrand =
     item.confirmedProduct?.brand?.trim() || item.confirmedBrand?.trim() || "";
+  const officialMaterial = getMaterialCompositionSummary(
+    item.confirmedProduct?.materialComposition
+  );
 
   return [
     { label: "확정 브랜드", value: confirmedBrand || "확정 없음" },
@@ -748,7 +777,7 @@ function getAiAnalysisRows(item: ClosetItem) {
     {
       label: "소재",
       value:
-        item.confirmedProduct?.materialComposition?.summary ||
+        officialMaterial ||
         item.material ||
         "판단 어려움",
     },
@@ -1335,7 +1364,7 @@ function ConfirmedProductCard({
   const productImageTimerRef = useRef<PerformanceTimer>(null);
   const isAccessoryOrBag = isAccessoryOrBagItem(item);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
-  const materialSummary = confirmedProduct.materialComposition?.summary?.trim();
+  const materialSummary = getMaterialCompositionSummary(confirmedProduct.materialComposition);
   const sizeGuideSummary = useMemo(
     () =>
       isAccessoryOrBag

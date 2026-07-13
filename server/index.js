@@ -1024,6 +1024,51 @@ function normalizeMaterialPercentage(value) {
     : null;
 }
 
+function getMaterialPercentageTotal(items) {
+  return items.reduce(
+    (total, item) => (
+      typeof item.percentage === "number" ? total + item.percentage : total
+    ),
+    0,
+  );
+}
+
+function findHundredPercentMaterialSubset(items) {
+  const percentageItems = items.filter((item) => typeof item.percentage === "number");
+  if (percentageItems.length > 12) return null;
+
+  const maxMask = 1 << percentageItems.length;
+
+  for (let mask = 1; mask < maxMask; mask += 1) {
+    const subset = percentageItems.filter((_, index) => mask & (1 << index));
+    const total = getMaterialPercentageTotal(subset);
+
+    if (total >= 99.5 && total <= 100.5) return subset;
+  }
+
+  return null;
+}
+
+function sanitizeMaterialCompositionItems(items) {
+  const percentageItems = items.filter((item) => typeof item.percentage === "number");
+  const total = getMaterialPercentageTotal(items);
+
+  if (percentageItems.length <= 1 || total <= 100.5) return items;
+
+  const hundredPercentSubset = findHundredPercentMaterialSubset(items);
+  if (hundredPercentSubset) return hundredPercentSubset;
+
+  logMaterialExtraction("invalid-percentage-total", {
+    total,
+    items,
+  });
+
+  return items.map((item) => ({
+    ...item,
+    percentage: null,
+  }));
+}
+
 function buildMaterialComposition(items, source) {
   const uniqueItems = [];
 
@@ -1045,14 +1090,15 @@ function buildMaterialComposition(items, source) {
   }
 
   if (uniqueItems.length === 0) return undefined;
+  const sanitizedItems = sanitizeMaterialCompositionItems(uniqueItems);
 
   return {
-    summary: uniqueItems
+    summary: sanitizedItems
       .map((item) =>
         item.percentage == null ? item.name : `${item.name} ${item.percentage}%`,
       )
       .join(", "),
-    items: uniqueItems,
+    items: sanitizedItems,
     source,
   };
 }
