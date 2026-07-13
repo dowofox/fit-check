@@ -70,21 +70,25 @@ const SITUATION_OPTIONS = [
     id: "date",
     label: "데이트",
     keywords: ["데이트", "깔끔", "미니멀", "댄디", "포멀", "러블리", "페미닌", "로퍼", "니트", "셔츠"],
+    reason: "데이트 상황에 어울리도록 깔끔하고 부드러운 인상의 아이템을 우선했어요.",
   },
   {
     id: "clean",
     label: "깔끔한",
     keywords: ["깔끔", "미니멀", "포멀", "댄디", "모던", "클래식", "셔츠", "슬랙스", "로퍼", "더비"],
+    reason: "깔끔한 상황에 맞게 단정한 소재와 미니멀한 조합을 우선했어요.",
   },
   {
     id: "daily",
     label: "데일리",
     keywords: ["데일리", "캐주얼", "편안", "청바지", "데님", "스니커즈", "티셔츠"],
+    reason: "데일리로 입기 좋은 편안한 카테고리와 무난한 조합을 우선했어요.",
   },
   {
     id: "relaxed",
     label: "편안한",
     keywords: ["편안", "캐주얼", "후드", "맨투맨", "와이드", "조거", "스니커즈"],
+    reason: "편안한 상황에 맞게 여유로운 실루엣과 캐주얼한 아이템을 우선했어요.",
   },
 ] as const;
 type SituationId = (typeof SITUATION_OPTIONS)[number]["id"];
@@ -113,17 +117,86 @@ function getRecommendationSearchText(recommendation: OutfitRecommendation) {
     .toLowerCase();
 }
 
-function filterRecommendationsBySituation(
+function getRecommendationGrade(score: number): OutfitRecommendation["grade"] {
+  if (score >= 92) return "S";
+  if (score >= 82) return "A";
+  if (score >= 70) return "B";
+  if (score >= 55) return "C";
+  return "D";
+}
+
+function getSituationMatchScore(
+  recommendation: OutfitRecommendation,
+  keywords: readonly string[]
+) {
+  const searchText = getRecommendationSearchText(recommendation);
+
+  return keywords.reduce((score, keyword) => {
+    const normalizedKeyword = keyword.toLowerCase();
+    const matches = searchText.split(normalizedKeyword).length - 1;
+
+    return score + matches;
+  }, 0);
+}
+
+function applySituationRecommendationScoring(
   recommendations: OutfitRecommendation[],
   situationId: SituationId
 ) {
   const situation = SITUATION_OPTIONS.find((option) => option.id === situationId);
   if (!situation || situation.id === "all") return recommendations;
 
-  return recommendations.filter((recommendation) => {
-    const searchText = getRecommendationSearchText(recommendation);
-    return situation.keywords.some((keyword) => searchText.includes(keyword.toLowerCase()));
+  const scoredRecommendations: (OutfitRecommendation & { situationMatchScore: number })[] = [];
+
+  recommendations.forEach((recommendation) => {
+    const situationMatchScore = getSituationMatchScore(recommendation, situation.keywords);
+    if (situationMatchScore <= 0) return;
+
+    const adjustedScore = Math.min(100, recommendation.score + Math.min(10, situationMatchScore * 2));
+    const situationReason = situation.reason;
+    const reasons = recommendation.reasons.includes(situationReason)
+      ? recommendation.reasons
+      : [situationReason, ...recommendation.reasons];
+    const alternatives = (recommendation.alternatives || [])
+      .map((alternative) => {
+        const alternativeMatchScore = getSituationMatchScore(
+          alternative,
+          situation.keywords
+        );
+        if (alternativeMatchScore <= 0) return null;
+
+        const alternativeScore = Math.min(
+          100,
+          alternative.score + Math.min(10, alternativeMatchScore * 2)
+        );
+
+        return {
+          ...alternative,
+          score: alternativeScore,
+          grade: getRecommendationGrade(alternativeScore),
+          tags: Array.from(new Set([situation.label, ...alternative.tags])).slice(0, 3),
+        };
+      })
+      .filter((alternative): alternative is OutfitRecommendation => Boolean(alternative));
+
+    scoredRecommendations.push({
+      ...recommendation,
+      score: adjustedScore,
+      grade: getRecommendationGrade(adjustedScore),
+      reasons,
+      tags: Array.from(new Set([situation.label, ...recommendation.tags])).slice(0, 3),
+      alternatives,
+      alternativeCount: alternatives.length,
+      situationMatchScore,
+    });
   });
+
+  return scoredRecommendations
+    .sort((first, second) =>
+      second.situationMatchScore - first.situationMatchScore ||
+      second.score - first.score
+    )
+    .map(({ situationMatchScore, ...recommendation }) => recommendation);
 }
 
 function getItemImageUri(item: ClosetItem) {
@@ -661,7 +734,7 @@ export default function OutfitRecommendScreen() {
       }
     }
 
-    const situationRecommendations = filterRecommendationsBySituation(
+    const situationRecommendations = applySituationRecommendationScoring(
       nextRecommendations,
       selectedSituation
     );
