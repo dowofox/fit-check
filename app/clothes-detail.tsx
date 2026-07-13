@@ -187,6 +187,7 @@ const STYLE_OPTIONS = [
 ];
 
 const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
+const SHOW_INTERNAL_AI_ANALYSIS = false;
 const RECOMMENDATION_PREFERENCE_OPTIONS: {
   value: RecommendationPreference;
   label: string;
@@ -2820,7 +2821,7 @@ export default function ClothesDetailScreen() {
 
             {!editMode && <MatchingItemSearchCard item={item} />}
 
-            {!editMode && (
+            {!editMode && SHOW_INTERNAL_AI_ANALYSIS && (
               <AiAnalysisAccordion
                 item={item}
                 isOpen={isAiAnalysisOpen}
