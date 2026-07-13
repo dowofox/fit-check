@@ -64,9 +64,66 @@ const GRADE_LABELS: Record<OutfitRecommendation["grade"], string> = {
   C: "참고용",
   D: "비추천",
 };
+const SITUATION_OPTIONS = [
+  { id: "all", label: "전체", keywords: [] },
+  {
+    id: "date",
+    label: "데이트",
+    keywords: ["데이트", "깔끔", "미니멀", "댄디", "포멀", "러블리", "페미닌", "로퍼", "니트", "셔츠"],
+  },
+  {
+    id: "clean",
+    label: "깔끔한",
+    keywords: ["깔끔", "미니멀", "포멀", "댄디", "모던", "클래식", "셔츠", "슬랙스", "로퍼", "더비"],
+  },
+  {
+    id: "daily",
+    label: "데일리",
+    keywords: ["데일리", "캐주얼", "편안", "청바지", "데님", "스니커즈", "티셔츠"],
+  },
+  {
+    id: "relaxed",
+    label: "편안한",
+    keywords: ["편안", "캐주얼", "후드", "맨투맨", "와이드", "조거", "스니커즈"],
+  },
+] as const;
+type SituationId = (typeof SITUATION_OPTIONS)[number]["id"];
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
+}
+
+function getRecommendationSearchText(recommendation: OutfitRecommendation) {
+  return [
+    recommendation.title,
+    ...recommendation.tags,
+    ...recommendation.reasons,
+    ...recommendation.items.flatMap((item) => [
+      item.category,
+      item.subCategory,
+      item.detailCategory,
+      item.style,
+      ...(item.styleTags || []),
+      item.material,
+      item.color,
+    ]),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function filterRecommendationsBySituation(
+  recommendations: OutfitRecommendation[],
+  situationId: SituationId
+) {
+  const situation = SITUATION_OPTIONS.find((option) => option.id === situationId);
+  if (!situation || situation.id === "all") return recommendations;
+
+  return recommendations.filter((recommendation) => {
+    const searchText = getRecommendationSearchText(recommendation);
+    return situation.keywords.some((keyword) => searchText.includes(keyword.toLowerCase()));
+  });
 }
 
 function getItemImageUri(item: ClosetItem) {
@@ -544,6 +601,7 @@ export default function OutfitRecommendScreen() {
   const [shoppingRecommendations, setShoppingRecommendations] = useState<RecommendedShoppingItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
+  const [selectedSituation, setSelectedSituation] = useState<SituationId>("all");
 
   const loadRecommendations = useCallback(async () => {
     setIsLoaded(false);
@@ -603,12 +661,25 @@ export default function OutfitRecommendScreen() {
       }
     }
 
-    setRecommendations(nextRecommendations);
+    const situationRecommendations = filterRecommendationsBySituation(
+      nextRecommendations,
+      selectedSituation
+    );
+
+    setRecommendations(situationRecommendations);
     setShoppingRecommendations(getRecommendedShoppingItems(items));
-    setEmptyMessage(getEmptyMessage(recommendationResult, items));
+    setEmptyMessage(
+      nextRecommendations.length > 0 && situationRecommendations.length === 0
+        ? {
+            title: "상황에 맞는 추천이 아직 부족해요",
+            text: "현재 옷장에서는 선택한 상황에 자연스럽게 맞는 코디를 찾지 못했어요. 다른 스타일의 옷을 추가해보세요.",
+          }
+        : getEmptyMessage(recommendationResult, items)
+    );
     setIsLoaded(true);
   }, [
     selectedItemIdsParam,
+    selectedSituation,
     sourceParam,
     weatherConditionParam,
     weatherRainChanceParam,
@@ -675,6 +746,33 @@ export default function OutfitRecommendScreen() {
             <Feather name="bookmark" size={17} color={colors.text} />
           </Pressable>
         </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.situationFilterRow}
+        >
+          {SITUATION_OPTIONS.map((option) => {
+            const isActive = selectedSituation === option.id;
+
+            return (
+              <Pressable
+                key={option.id}
+                style={[styles.situationChip, isActive && styles.situationChipActive]}
+                onPress={() => setSelectedSituation(option.id)}
+              >
+                <Text
+                  style={[
+                    styles.situationChipText,
+                    isActive && styles.situationChipTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         {isLoaded && recommendations.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -750,6 +848,33 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900",
     textAlign: "center",
+  },
+  situationFilterRow: {
+    gap: 8,
+    paddingRight: 14,
+    marginBottom: 14,
+  },
+  situationChip: {
+    minHeight: 34,
+    borderRadius: 999,
+    backgroundColor: colors.softCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  situationChipActive: {
+    backgroundColor: colors.text,
+    borderColor: colors.text,
+  },
+  situationChipText: {
+    color: colors.subText,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  situationChipTextActive: {
+    color: colors.card,
   },
   listArea: {
     gap: 14,
