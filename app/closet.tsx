@@ -53,6 +53,7 @@ export default function ClosetScreen() {
     const { category } = useLocalSearchParams<{ category?: string }>();
     const [items, setItems] = useState<ClosetItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("전체");
+    const [selectedDetailCategory, setSelectedDetailCategory] = useState("전체");
 
     useFocusEffect(
         useCallback(() => {
@@ -60,6 +61,7 @@ export default function ClosetScreen() {
 
             if (typeof category === "string") {
                 setSelectedCategory(category);
+                setSelectedDetailCategory("전체");
             }
         }, [category])
     );
@@ -71,9 +73,22 @@ export default function ClosetScreen() {
         endPerformanceTimer(timer, { itemCount: closetItems.length });
     }
 
-    const filteredItems = selectedCategory === "전체"
+    const categoryItems = selectedCategory === "전체"
         ? items
         : items.filter((item) => item.category === selectedCategory);
+    const detailFilters = [
+        "전체",
+        ...Array.from(new Set(
+            categoryItems
+                .map((item) => item.detailCategory || item.subCategory)
+                .filter((detail): detail is string => Boolean(detail?.trim()))
+        )),
+    ];
+    const filteredItems = selectedDetailCategory === "전체"
+        ? categoryItems
+        : categoryItems.filter(
+            (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
+        );
 
     function handleDeleteItem(id: string) {
         Alert.alert(
@@ -143,7 +158,10 @@ export default function ClosetScreen() {
                                     <Pressable
                                         key={filter}
                                         style={[styles.filterChip, isActive && styles.filterChipActive]}
-                                        onPress={() => setSelectedCategory(filter)}
+                                        onPress={() => {
+                                            setSelectedCategory(filter);
+                                            setSelectedDetailCategory("전체");
+                                        }}
                                     >
                                         <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
                                             {filter}
@@ -153,10 +171,44 @@ export default function ClosetScreen() {
                             })}
                         </ScrollView>
 
+                        {selectedCategory !== "전체" && detailFilters.length > 1 ? (
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.detailFilterRow}
+                            >
+                                {detailFilters.map((filter) => {
+                                    const isActive = selectedDetailCategory === filter;
+
+                                    return (
+                                        <Pressable
+                                            key={filter}
+                                            style={[
+                                                styles.detailFilterChip,
+                                                isActive && styles.detailFilterChipActive,
+                                            ]}
+                                            onPress={() => setSelectedDetailCategory(filter)}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.detailFilterText,
+                                                    isActive && styles.detailFilterTextActive,
+                                                ]}
+                                            >
+                                                {filter}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
+                        ) : null}
+
                         <Text style={styles.countText}>
                             {selectedCategory === "전체"
                                 ? `전체 ${items.length}개`
-                                : `${selectedCategory} ${filteredItems.length}개`}
+                                : selectedDetailCategory === "전체"
+                                    ? `${selectedCategory} ${filteredItems.length}개`
+                                    : `${selectedDetailCategory} ${filteredItems.length}개`}
                         </Text>
 
                         <View style={styles.closetGrid}>
@@ -310,6 +362,32 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
     filterTextActive: {
+        color: colors.card,
+    },
+    detailFilterRow: {
+        gap: 8,
+        paddingRight: 18,
+        marginTop: -8,
+        marginBottom: 16,
+    },
+    detailFilterChip: {
+        backgroundColor: colors.softCard,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 999,
+        paddingVertical: 7,
+        paddingHorizontal: 13,
+    },
+    detailFilterChipActive: {
+        backgroundColor: colors.point,
+        borderColor: colors.point,
+    },
+    detailFilterText: {
+        color: colors.subText,
+        fontSize: 12,
+        fontWeight: "700",
+    },
+    detailFilterTextActive: {
         color: colors.card,
     },
     countText: {
