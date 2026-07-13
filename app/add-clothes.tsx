@@ -452,7 +452,6 @@ export default function AddClothesScreen() {
   const [manuallyEditedClassificationFields, setManuallyEditedClassificationFields] =
     useState<ProductClassificationField[]>([]);
   const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
-  const [selectedProductCandidate, setSelectedProductCandidate] = useState<ProductCandidate | null>(null);
   const [productUrlInput, setProductUrlInput] = useState("");
   const [productUrlError, setProductUrlError] = useState("");
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
@@ -467,7 +466,6 @@ export default function AddClothesScreen() {
     setSelectedDetailCategory("");
     setManuallyEditedClassificationFields([]);
     setSelectedSize(DEFAULT_SIZE);
-    setSelectedProductCandidate(null);
   }
 
   function switchAddMode(nextMode: AddMode) {
@@ -508,7 +506,6 @@ export default function AddClothesScreen() {
       setSelectedDetailCategory("");
       setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
-      setSelectedProductCandidate(null);
     }
   }
 
@@ -539,7 +536,6 @@ export default function AddClothesScreen() {
       setSelectedDetailCategory("");
       setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
-      setSelectedProductCandidate(null);
     }
   }
 
@@ -633,7 +629,6 @@ export default function AddClothesScreen() {
       setSelectedStyleTags(normalizeStyleTags(analysis.styleTags, analysis.style));
       setHasManuallyEditedStyleTags(false);
       setSelectedSize(DEFAULT_SIZE);
-      setSelectedProductCandidate(null);
     } catch (error) {
       console.error("옷 분석 실패:", error);
       Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
@@ -728,7 +723,6 @@ export default function AddClothesScreen() {
         description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
         matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
         avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
-        selectedProductCandidate: selectedProductCandidate || undefined,
         confirmedProduct,
         ...(confirmedProductBrand
           ? {
@@ -1010,9 +1004,16 @@ export default function AddClothesScreen() {
 
         {analysis && (
           <View style={styles.analysisCard}>
-            <Text style={styles.analysisTitle}>AI 분석 결과</Text>
+            <Text style={styles.analysisTitle}>
+              {addMode === "photo" ? "빠른 등록 정보" : "등록 정보 확인"}
+            </Text>
             <Text style={styles.analysisText}>
               {analysis.detailCategory || analysis.subCategory || analysis.category || "옷 종류 분석 전"}
+            </Text>
+            <Text style={styles.analysisSummaryText}>
+              {addMode === "photo"
+                ? "사진 등록은 종류, 색상, 계절, 스타일 같은 기본 정보만 빠르게 확인해요. 실측과 공식 소재가 필요하면 상품 링크 등록을 사용해주세요."
+                : "공식 상품 정보는 위 미리보기를 기준으로 저장돼요. 아래 기본 정보와 보유 사이즈만 확인해주세요."}
             </Text>
 
             <Text style={styles.seasonLabel}>카테고리</Text>
@@ -1038,63 +1039,6 @@ export default function AddClothesScreen() {
               placeholder="예: 데님 셔츠, 와이드 슬랙스"
               placeholderTextColor="#777064"
             />
-
-            <Text style={styles.seasonLabel}>비슷한 상품 예시</Text>
-            <Pressable
-              style={[
-                styles.productCandidateCard,
-                !selectedProductCandidate && styles.productCandidateCardActive,
-              ]}
-              onPress={() => setSelectedProductCandidate(null)}
-            >
-              <View style={styles.productCandidateHeader}>
-                <Text style={styles.productCandidateTitle}>선택 안 함</Text>
-                {!selectedProductCandidate && (
-                  <Feather name="check-circle" size={16} color="#8c6f47" />
-                )}
-              </View>
-              <Text style={styles.productCandidateReason}>
-                브랜드나 상품명을 참고용으로 저장하지 않아요.
-              </Text>
-            </Pressable>
-
-            {analysis.productCandidates?.length ? (
-              <View style={styles.productCandidateList}>
-                {analysis.productCandidates.map((candidate, index) => {
-                  const isActive =
-                    selectedProductCandidate?.brand === candidate.brand &&
-                    selectedProductCandidate?.productName === candidate.productName;
-
-                  return (
-                    <Pressable
-                      key={`${candidate.brand}-${candidate.productName}-${index}`}
-                      style={[
-                        styles.productCandidateCard,
-                        isActive && styles.productCandidateCardActive,
-                      ]}
-                      onPress={() => setSelectedProductCandidate(candidate)}
-                    >
-                      <View style={styles.productCandidateHeader}>
-                        <Text style={styles.productCandidateTitle} numberOfLines={1}>
-                          {candidate.brand}
-                        </Text>
-                        {isActive && <Feather name="check-circle" size={16} color="#8c6f47" />}
-                      </View>
-                      <Text style={styles.productCandidateName} numberOfLines={1}>
-                        {candidate.productName}
-                      </Text>
-                      <Text style={styles.productCandidateReason} numberOfLines={2}>
-                        {candidate.reason}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              <Text style={styles.analysisHint}>
-                확실한 참고 상품 후보가 없으면 표시하지 않아요.
-              </Text>
-            )}
 
             <Text style={styles.seasonLabel}>스타일 태그</Text>
             <View style={styles.seasonChipRow}>
@@ -1622,55 +1566,14 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 18,
     fontWeight: "800",
-    marginBottom: 16,
-  },
-  productCandidateList: {
-    gap: 8,
     marginBottom: 8,
   },
-  productCandidateCard: {
-    backgroundColor: "#f4eee7",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e8ded2",
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-  },
-  productCandidateCardActive: {
-    backgroundColor: "#fff",
-    borderColor: "#8c6f47",
-  },
-  productCandidateHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  productCandidateTitle: {
-    flex: 1,
-    color: "#111",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  productCandidateName: {
-    color: "#111",
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  productCandidateReason: {
+  analysisSummaryText: {
     color: "#777064",
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "600",
-    marginTop: 5,
-  },
-  productCandidateConfidence: {
-    color: "#8c6f47",
-    fontSize: 11,
-    fontWeight: "800",
-    marginTop: 6,
+    marginBottom: 14,
   },
   seasonLabel: {
     color: "#111",
