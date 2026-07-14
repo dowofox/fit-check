@@ -381,6 +381,49 @@ async function main() {
       "옥스포드 셔츠"
     );
 
+    const balloonPantsTarget = getProductAnalysisTarget({
+      productName: "워시드 벌룬 와이드 팬츠",
+      productCategory: "Apparel > Bottoms > Pants",
+    });
+    assert.equal(balloonPantsTarget.category, "하의");
+    assert.equal(balloonPantsTarget.subCategory, "팬츠");
+    assert.equal(balloonPantsTarget.detailCategory, "벌룬 팬츠");
+    assert.equal(
+      getProductAnalysisTarget({ productName: "Balloon Fit Pants" }).detailCategory,
+      "벌룬 팬츠"
+    );
+
+    const barrelDenimTarget = getProductAnalysisTarget({
+      productName: "배럴 레그 데님 팬츠",
+    });
+    assert.equal(barrelDenimTarget.detailCategory, "배럴 팬츠");
+    assert.equal(barrelDenimTarget.material, "데님");
+    assert.equal(
+      getProductAnalysisTarget({ productName: "커브드 코튼 팬츠" }).detailCategory,
+      "커브드 팬츠"
+    );
+
+    const balloonSleeveTarget = getProductAnalysisTarget({
+      productName: "벌룬 소매 블라우스",
+      productCategory: "Apparel > Tops > Blouses",
+    });
+    assert.equal(balloonSleeveTarget.category, "상의");
+    assert.equal(balloonSleeveTarget.detailCategory, "블라우스");
+
+    const protectedBalloonClassification = inferProductAttributesFromConfirmedProduct({
+      productName: "벌룬 와이드 팬츠",
+      currentItem: {
+        id: "protected-bottom",
+        imageUri: "file:///protected-bottom.png",
+        category: "하의",
+        subCategory: "팬츠",
+        detailCategory: "사용자 지정 팬츠",
+        userEditedClassificationFields: ["detailCategory"],
+        createdAt,
+      },
+    });
+    assert.equal(protectedBalloonClassification.detailCategory, undefined);
+
     const pleatedSkirtTarget = getProductAnalysisTarget({
       productName: "PLEATED MIDI SKIRT",
       productCategory: "Apparel > Bottoms > Skirts",

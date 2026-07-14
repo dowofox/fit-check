@@ -138,6 +138,49 @@ const WIDE_FITS = ["와이드", "와이드핏", "스트레이트", "레귤러", 
 const SLIM_FITS = ["슬림", "슬림핏", "타이트"];
 const OVERSIZED_FITS = ["오버핏", "루즈", "루즈핏"];
 const UNIVERSAL_SEASONS = ["사계절", "전체"];
+const STRONG_COLD_WEATHER_KEYWORDS = [
+  "패딩",
+  "puffer",
+  "구스 다운",
+  "구스다운",
+  "덕 다운",
+  "덕다운",
+  "다운 패딩",
+  "다운패딩",
+  "다운 자켓",
+  "다운 재킷",
+  "다운 점퍼",
+  "다운 베스트",
+  "down jacket",
+  "down parka",
+  "down vest",
+  "플리스",
+  "후리스",
+  "fleece",
+  "기모",
+  "보아",
+  "무스탕",
+  "shearling",
+  "방한",
+  "발열",
+  "충전재",
+  "헤비 니트",
+  "헤비니트",
+  "heavy knit",
+  "헤비 코듀로이",
+  "헤비코듀로이",
+  "heavy corduroy",
+  "두꺼운 울",
+  "두꺼운울",
+  "퍼 안감",
+  "퍼안감",
+  "퍼 부츠",
+  "퍼부츠",
+  "faux fur",
+  "fur lining",
+  "fur boots",
+];
+const COLD_WEATHER_OUTER_KEYWORDS = ["코트", "coat"];
 const styleGroupCache = new Map<string, string[] | undefined>();
 const basicColorCache = new Map<string, boolean>();
 
@@ -161,6 +204,16 @@ function hasTrustedSeasonSource(item: ClosetItem) {
   return (
     getItemSeasons(item).length > 0 &&
     ["user", "official_product", "rule"].includes(item.seasonSource || "")
+  );
+}
+
+function hasUserConfirmedSeason(item: ClosetItem) {
+  const isUserEdited = item.userEditedClassificationFields?.includes("season") === true;
+
+  return (
+    getItemSeasons(item).length > 0 &&
+    item.seasonNeedsReview !== true &&
+    (item.seasonSource === "user" || isUserEdited)
   );
 }
 
@@ -590,11 +643,34 @@ function getItemSearchText(item: ClosetItem) {
   ].filter(Boolean).join(" ");
 }
 
-function isThickOuterItem(item: ClosetItem) {
-  const thickKeywords = ["패딩", "코트", "울", "플리스", "무스탕", "두꺼운", "퍼", "기모"];
-  const itemText = getItemSearchText(item);
+function getTemperatureSafetySearchText(item: ClosetItem) {
+  return [
+    item.confirmedProduct?.productName,
+    item.category,
+    item.subCategory,
+    item.detailCategory,
+    item.description,
+    getResolvedItemMaterial(item),
+    item.pattern,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .replace(/다운타운/g, "")
+    .replace(/기모노/g, "")
+    .replace(/퍼플/g, "");
+}
 
-  return item.category === "아우터" && thickKeywords.some((keyword) => itemText.includes(keyword));
+function hasStrongColdWeatherTrait(item: ClosetItem) {
+  const itemText = getTemperatureSafetySearchText(item);
+  const isColdWeatherOuter =
+    item.category === "아우터" &&
+    COLD_WEATHER_OUTER_KEYWORDS.some((keyword) => itemText.includes(keyword));
+
+  return (
+    isColdWeatherOuter ||
+    STRONG_COLD_WEATHER_KEYWORDS.some((keyword) => itemText.includes(keyword))
+  );
 }
 
 function isSummerLightItem(item: ClosetItem) {
@@ -607,14 +683,16 @@ function isSummerLightItem(item: ClosetItem) {
 function isWeatherCandidate(item: ClosetItem, weather?: OutfitRecommendationWeather | null) {
   if (!weather || typeof weather.temperature !== "number") return true;
 
+  if (hasUserConfirmedSeason(item)) return true;
+
   const temperature = weather.temperature;
 
   if (temperature >= 24) {
-    return !hasSpecificSeason(item, "겨울") && !isThickOuterItem(item);
+    return !hasSpecificSeason(item, "겨울") && !hasStrongColdWeatherTrait(item);
   }
 
   if (temperature >= 18) {
-    return !isThickOuterItem(item);
+    return !hasStrongColdWeatherTrait(item);
   }
 
   if (temperature <= 10) {
@@ -630,7 +708,14 @@ function getSeasonMatchedItems(
   weather?: OutfitRecommendationWeather | null,
   strictSeasonFilter = true
 ) {
-  if (!strictSeasonFilter) return items;
+  if (!strictSeasonFilter) {
+    return items.filter((item) => {
+      const isUserConfirmedMismatch =
+        hasUserConfirmedSeason(item) && !isSeasonCandidate(item, currentSeason);
+
+      return !isUserConfirmedMismatch && isWeatherCandidate(item, weather);
+    });
+  }
 
   return items.filter((item) =>
     isSeasonCandidate(item, currentSeason) &&
@@ -2072,7 +2157,7 @@ function getEmptyReason({
   }
   if (recommendationCandidates.length > 0) return "below_quality_threshold";
 
-  return "missing_core_category";
+  return "below_quality_threshold";
 }
 
 function getOutfitColorsWithoutShoes(outfitItems: ClosetItem[]) {

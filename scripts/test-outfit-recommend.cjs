@@ -44,6 +44,7 @@ const {
   matchSavedOutfitsWithCloset,
 } = require("../utils/savedOutfitIntegrity.ts");
 const {
+  getRecommendationDataKey,
   getSavedOutfitItemIds,
   toRecommendationInputItems,
 } = require("../utils/recommendationInput.ts");
@@ -294,6 +295,154 @@ test("현재 계절과 맞지 않는 아이템은 충분한 계절 후보가 있
   assert.ok(result.recommendations.length > 0);
   result.recommendations.forEach((recommendation) => {
     assert.equal(recommendation.items.some((item) => item.id === winterTop.id), false);
+  });
+});
+
+test("사용자가 겨울로 확정한 옷은 여름 fallback 후보로 복원하지 않는다", () => {
+  const userWinterTop = createItem("user-winter-top", "상의", {
+    detailCategory: "겨울용 상의",
+    seasons: ["겨울"],
+    season: "겨울",
+    seasonSource: "user",
+    seasonNeedsReview: false,
+    userEditedClassificationFields: ["season"],
+  });
+  const wardrobe = [
+    userWinterTop,
+    ...createWardrobe().filter((item) => item.category !== "상의"),
+  ];
+  const result = getOutfitRecommendationResult(wardrobe, null, "여름", [], {
+    weather: summerWeather,
+  });
+
+  assert.equal(result.recommendations.length, 0);
+  assert.equal(result.hasAnyRecommendation, false);
+});
+
+test("사용자 확정 다계절과 사계절을 현재 계절에 맞게 적용한다", () => {
+  const baseItems = createWardrobe().filter((item) => item.category !== "상의");
+  const transitionalTop = createItem("user-transitional-top", "상의", {
+    seasons: ["봄", "가을"],
+    season: "봄, 가을",
+    seasonSource: "user",
+    seasonNeedsReview: false,
+    userEditedClassificationFields: ["season"],
+  });
+  const allSeasonTop = createItem("user-all-season-top", "상의", {
+    seasons: ["사계절"],
+    season: "사계절",
+    seasonSource: "user",
+    seasonNeedsReview: false,
+    userEditedClassificationFields: ["season"],
+  });
+
+  assert.equal(
+    getOutfitRecommendationResult([transitionalTop, ...baseItems], null, "여름")
+      .hasAnyRecommendation,
+    false
+  );
+  assert.equal(
+    getOutfitRecommendationResult([allSeasonTop, ...baseItems], null, "여름")
+      .recommendations.length > 0,
+    true
+  );
+});
+
+test("사용자 여름 확정값과 경량 계절 메타데이터를 그대로 보존한다", () => {
+  const userSummerTop = createItem("user-summer-top", "상의", {
+    seasons: ["여름"],
+    season: "여름",
+    seasonSource: "user",
+    seasonNeedsReview: false,
+    userEditedClassificationFields: ["season"],
+  });
+  const lightweightItem = toRecommendationInputItems([userSummerTop])[0];
+
+  assert.deepEqual(lightweightItem.seasons, userSummerTop.seasons);
+  assert.equal(lightweightItem.seasonSource, userSummerTop.seasonSource);
+  assert.equal(lightweightItem.seasonNeedsReview, userSummerTop.seasonNeedsReview);
+  assert.deepEqual(lightweightItem.userEditedClassificationFields, ["season"]);
+  const summerDataKey = getRecommendationDataKey([lightweightItem], null);
+  const winterDataKey = getRecommendationDataKey(
+    [
+      {
+        ...lightweightItem,
+        season: "겨울",
+        seasons: ["겨울"],
+      },
+    ],
+    null
+  );
+  assert.notEqual(summerDataKey, winterDataKey);
+  assert.equal(
+    getOutfitRecommendationResult(
+      [lightweightItem, ...createWardrobe().filter((item) => item.category !== "상의")],
+      null,
+      "여름"
+    ).recommendations.length > 0,
+    true
+  );
+});
+
+test("미확정 기모 팬츠는 고온 날씨 후보에서 제외한다", () => {
+  const brushedPants = createItem("unconfirmed-brushed-pants", "하의", {
+    detailCategory: "기모 와이드 팬츠",
+    material: "기모 안감",
+    seasons: [],
+    season: "",
+    seasonSource: "photo_ai",
+    seasonNeedsReview: true,
+  });
+  const wardrobe = [
+    ...createWardrobe().filter((item) => item.category !== "하의"),
+    brushedPants,
+  ];
+  const result = getOutfitRecommendationResult(wardrobe, null, "여름", [], {
+    weather: { temperature: 28, condition: "맑음", rainChance: 0 },
+  });
+
+  result.recommendations.forEach((recommendation) => {
+    assert.equal(
+      recommendation.items.some((item) => item.id === brushedPants.id),
+      false
+    );
+  });
+  assert.equal(result.hasAnyRecommendation, false);
+});
+
+test("보온 키워드의 일부가 포함된 여름 상의를 고온 방한복으로 오인하지 않는다", () => {
+  const ambiguousSummerTops = [
+    createItem("downtown-top", "상의", {
+      detailCategory: "다운타운 그래픽 반팔 티셔츠",
+      seasons: [],
+      season: "",
+      seasonSource: "photo_ai",
+      seasonNeedsReview: true,
+    }),
+    createItem("kimono-top", "상의", {
+      detailCategory: "기모노 반팔 블라우스",
+      seasons: [],
+      season: "",
+      seasonSource: "photo_ai",
+      seasonNeedsReview: true,
+    }),
+    createItem("wool-blend-top", "상의", {
+      detailCategory: "울 혼방 반팔 티셔츠",
+      material: "면 95%, 울 5%",
+      seasons: [],
+      season: "",
+      seasonSource: "photo_ai",
+      seasonNeedsReview: true,
+    }),
+  ];
+  const baseItems = createWardrobe().filter((item) => item.category !== "상의");
+
+  ambiguousSummerTops.forEach((top) => {
+    const result = getOutfitRecommendationResult([top, ...baseItems], null, "여름", [], {
+      weather: { temperature: 28, condition: "맑음", rainChance: 0 },
+    });
+
+    assert.equal(result.recommendations.length > 0, true, top.detailCategory);
   });
 });
 

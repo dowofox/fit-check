@@ -80,8 +80,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     season: registration.seasons.join(", "),
     seasons: registration.seasons,
     seasonSource: item.seasonSource,
-    seasonNeedsReview:
-      reviewFields.includes("season"),
+    seasonNeedsReview: item.seasonNeedsReview ?? reviewFields.includes("season"),
     fit: getReliableValue(item.fit),
     size: item.size,
     intendedFit: item.intendedFit,
@@ -99,6 +98,9 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     recommendationPreference: item.recommendationPreference,
     wearCount: item.wearCount,
     lastWornAt: item.lastWornAt,
+    userEditedClassificationFields: item.userEditedClassificationFields?.filter(
+      (field) => field === "season"
+    ),
     createdAt: item.createdAt,
   };
 }
