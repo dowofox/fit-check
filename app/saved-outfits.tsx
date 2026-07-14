@@ -2,11 +2,14 @@ import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
 import { getShoeRecommendationsForOutfit } from "@/utils/outfitRecommend";
 import {
+  matchSavedOutfitsWithCloset,
+  type SavedOutfitWithItems,
+} from "@/utils/savedOutfitIntegrity";
+import {
   ClosetItem,
   deleteSavedOutfit,
   getClosetItems,
   getSavedOutfits,
-  SavedOutfit,
   updateSavedOutfit,
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
@@ -22,10 +25,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-type SavedOutfitWithItems = SavedOutfit & {
-  items: ClosetItem[];
-};
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
@@ -43,15 +42,6 @@ function getDefaultOutfitName(createdAt: string) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `코디 ${year}.${month}.${day}`;
-}
-
-function matchSavedOutfits(savedOutfits: SavedOutfit[], closetItems: ClosetItem[]) {
-  return savedOutfits.map((outfit) => ({
-    ...outfit,
-    items: outfit.itemIds
-      .map((itemId) => closetItems.find((item) => item.id === itemId))
-      .filter((item): item is ClosetItem => Boolean(item)),
-  }));
 }
 
 function SavedOutfitCard({
@@ -92,13 +82,27 @@ function SavedOutfitCard({
         <View style={styles.cardHeaderText}>
           <Text style={styles.cardEyebrow}>SAVED OUTFIT</Text>
           <Text style={styles.cardTitle}>{outfitName}</Text>
-          <Text style={styles.cardSubTitle}>아이템 {outfit.items.length}개</Text>
+          <Text style={styles.cardSubTitle}>
+            아이템 {outfit.items.length}개
+            {outfit.missingItemIds.length > 0
+              ? ` · 찾을 수 없는 옷 ${outfit.missingItemIds.length}개`
+              : ""}
+          </Text>
         </View>
 
         <View style={styles.savedStatusIcon}>
           <Feather name="bookmark" size={17} color="#8c6f47" />
         </View>
       </View>
+
+      {outfit.missingItemIds.length > 0 ? (
+        <View style={styles.missingItemNotice}>
+          <Feather name="alert-circle" size={16} color="#b45309" />
+          <Text style={styles.missingItemNoticeText}>
+            옷장에서 삭제된 아이템이 있어 저장 당시 코디를 전부 보여줄 수 없어요.
+          </Text>
+        </View>
+      ) : null}
 
       {isEditing ? (
         <View style={styles.editBox}>
@@ -299,7 +303,7 @@ export default function SavedOutfitsScreen() {
     ]);
 
     setClosetItems(closetItems);
-    setSavedOutfits(matchSavedOutfits(outfits, closetItems));
+    setSavedOutfits(matchSavedOutfitsWithCloset(outfits, closetItems));
     setIsLoaded(true);
   }
 
@@ -313,7 +317,7 @@ export default function SavedOutfitsScreen() {
           const updatedOutfits = await deleteSavedOutfit(id);
           const closetItems = await getClosetItems();
           setClosetItems(closetItems);
-          setSavedOutfits(matchSavedOutfits(updatedOutfits, closetItems));
+          setSavedOutfits(matchSavedOutfitsWithCloset(updatedOutfits, closetItems));
         },
       },
     ]);
@@ -323,7 +327,7 @@ export default function SavedOutfitsScreen() {
     const updatedOutfits = await updateSavedOutfit(id, { name, memo });
     const closetItems = await getClosetItems();
     setClosetItems(closetItems);
-    setSavedOutfits(matchSavedOutfits(updatedOutfits, closetItems));
+    setSavedOutfits(matchSavedOutfitsWithCloset(updatedOutfits, closetItems));
   }
 
   useFocusEffect(
@@ -514,6 +518,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#f4eee7",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  missingItemNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+    backgroundColor: "#fff7ed",
+    padding: 12,
+    marginBottom: 14,
+  },
+
+  missingItemNoticeText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#92400e",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   itemList: {
     gap: 10,

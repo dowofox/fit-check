@@ -36,6 +36,7 @@ const {
   MIN_DISPLAY_RECOMMENDATION_SCORE,
 } = require("../utils/outfitRecommend.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
+const { matchSavedOutfitsWithCloset } = require("../utils/savedOutfitIntegrity.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -272,4 +273,25 @@ test("사용자가 수정한 소재는 공식 상품 소재보다 우선한다",
   });
 
   assert.equal(getResolvedItemMaterial(item), "린넨 혼방");
+});
+
+test("저장 코디는 삭제된 옷 ID를 누락 상태로 구분한다", () => {
+  const wardrobe = createWardrobe();
+  const savedOutfit = {
+    id: "saved-outfit",
+    itemIds: [wardrobe[0].id, "deleted-item", wardrobe[1].id],
+    score: 80,
+    grade: "B",
+    reasons: [],
+    warnings: [],
+    createdAt,
+  };
+
+  const [matchedOutfit] = matchSavedOutfitsWithCloset([savedOutfit], wardrobe);
+
+  assert.deepEqual(
+    matchedOutfit.items.map((item) => item.id),
+    [wardrobe[0].id, wardrobe[1].id]
+  );
+  assert.deepEqual(matchedOutfit.missingItemIds, ["deleted-item"]);
 });
