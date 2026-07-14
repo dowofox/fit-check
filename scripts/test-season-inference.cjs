@@ -118,4 +118,28 @@ test("공식 계절 키워드를 품목별로 구분한다", () => {
     inferSeasonsFromOfficialProduct({ productName: "코듀로이 와이드 팬츠" }).seasons,
     ["가을", "겨울"]
   );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "스트랩 샌들" }).seasons,
+    ["여름"]
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "첼시 부츠" }).seasons,
+    ["가을", "겨울"]
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "밀짚모자" }).seasons,
+    ["여름"]
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "울 비니" }).seasons,
+    ["가을", "겨울"]
+  );
+  assert.equal(
+    inferSeasonsFromOfficialProduct({ productName: "부츠컷 데님 팬츠" }),
+    null
+  );
+  assert.equal(
+    inferSeasonsFromOfficialProduct({ productName: "레더 크로스백" }),
+    null
+  );
 });

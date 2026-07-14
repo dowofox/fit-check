@@ -9,6 +9,7 @@ const OFFICIAL_SEASON_RULES: Array<{
   id: string;
   keywords: string[];
   keywordGroups?: string[][];
+  excludedKeywords?: string[];
   seasons: string[];
 }> = [
   {
@@ -46,6 +47,25 @@ const OFFICIAL_SEASON_RULES: Array<{
     seasons: ["여름"],
   },
   {
+    id: "summer-footwear",
+    keywords: ["샌들", "슬리퍼", "쪼리", "크록스", "sandal", "slides", "flip flop"],
+    seasons: ["여름"],
+  },
+  {
+    id: "summer-accessory",
+    keywords: [
+      "밀짚모자",
+      "밀짚 모자",
+      "라피아 햇",
+      "라피아 모자",
+      "선캡",
+      "비치 햇",
+      "straw hat",
+      "sun visor",
+    ],
+    seasons: ["여름"],
+  },
+  {
     id: "winter-bottom",
     keywords: [
       "기모 팬츠",
@@ -77,6 +97,43 @@ const OFFICIAL_SEASON_RULES: Array<{
   {
     id: "warm-material",
     keywords: ["기모", "헤비", "울", "모 ", "wool", "캐시미어", "플리스", "후리스", "fleece"],
+    seasons: ["가을", "겨울"],
+  },
+  {
+    id: "winter-footwear",
+    keywords: [
+      "부츠",
+      "첼시부츠",
+      "첼시 부츠",
+      "앵클부츠",
+      "앵클 부츠",
+      "롱부츠",
+      "롱 부츠",
+      "워커",
+      "방한화",
+      "스노우 부츠",
+      "boots",
+      "chelsea boots",
+      "snow boots",
+    ],
+    excludedKeywords: ["부츠컷", "bootcut", "boot cut"],
+    seasons: ["가을", "겨울"],
+  },
+  {
+    id: "winter-accessory",
+    keywords: [
+      "비니",
+      "귀마개",
+      "방한",
+      "머플러",
+      "목도리",
+      "겨울 장갑",
+      "바라클라바",
+      "beanie",
+      "earmuff",
+      "winter gloves",
+      "balaclava",
+    ],
     seasons: ["가을", "겨울"],
   },
   {
@@ -148,10 +205,13 @@ export function inferSeasonsFromOfficialProduct({
 
   const matchedRule = OFFICIAL_SEASON_RULES.find(
     (rule) =>
-      rule.keywords.some((keyword) => searchText.includes(keyword.toLowerCase())) ||
-      (rule.keywordGroups || []).some((keywords) =>
-        keywords.every((keyword) => searchText.includes(keyword.toLowerCase()))
-      )
+      !(rule.excludedKeywords || []).some((keyword) =>
+        searchText.includes(keyword.toLowerCase())
+      ) &&
+      (rule.keywords.some((keyword) => searchText.includes(keyword.toLowerCase())) ||
+        (rule.keywordGroups || []).some((keywords) =>
+          keywords.every((keyword) => searchText.includes(keyword.toLowerCase()))
+        ))
   );
   if (!matchedRule) return null;
 
