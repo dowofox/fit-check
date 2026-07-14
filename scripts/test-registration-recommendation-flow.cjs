@@ -73,6 +73,10 @@ const {
   getOutfitRecommendationResult,
 } = require("../utils/outfitRecommend.ts");
 const {
+  applyProductTargetTrustPolicy,
+  normalizeProductAnalysisContext,
+} = require("../server/productAnalysisContext.js");
+const {
   getClosetItemReviewFields,
   normalizeClosetRegistrationBasics,
 } = require("../utils/closetRegistration.ts");
@@ -317,6 +321,55 @@ async function main() {
       getProductAnalysisTarget({ productName: "WHATEVER DAILY ITEM" }).category,
       undefined
     );
+
+    const normalizedPantsContext = normalizeProductAnalysisContext({
+      productName: "TWO TUCK WIDE PANTS",
+      category: "하의",
+      subCategory: "팬츠",
+      detailCategory: "팬츠",
+    });
+    const mismatchedPhotoAnalysis = applyProductTargetTrustPolicy(
+      normalizedPantsContext,
+      {
+        category: "아우터",
+        subCategory: "자켓",
+        detailCategory: "테일러드 재킷",
+        color: "블랙",
+        seasons: ["겨울"],
+        fit: "오버핏",
+        graphicDetected: true,
+        analysisQuality: { imageQuality: "good", missingHints: [] },
+      }
+    );
+    assert.equal(mismatchedPhotoAnalysis.targetMismatch, true);
+    assert.equal(mismatchedPhotoAnalysis.analysis.category, "하의");
+    assert.equal(mismatchedPhotoAnalysis.analysis.color, "색상 확인 필요");
+    assert.deepEqual(mismatchedPhotoAnalysis.analysis.seasons, []);
+    assert.equal(mismatchedPhotoAnalysis.analysis.fit, "핏 분석 전");
+    assert.equal(mismatchedPhotoAnalysis.analysis.graphicDetected, false);
+    assert.match(
+      mismatchedPhotoAnalysis.analysis.analysisWarnings[0],
+      /주상품을 명확히 구분하지 못해/
+    );
+    assert.equal(mismatchedPhotoAnalysis.analysis.analysisQuality.needsMorePhotos, true);
+    assert.ok(
+      mismatchedPhotoAnalysis.analysis.analysisQuality.missingHints.includes(
+        "주상품 단독 사진"
+      )
+    );
+
+    const matchingPhotoAnalysis = {
+      category: "하의",
+      color: "네이비",
+      seasons: ["봄", "가을"],
+      fit: "와이드",
+    };
+    const trustedPhotoAnalysis = applyProductTargetTrustPolicy(
+      normalizedPantsContext,
+      matchingPhotoAnalysis
+    );
+    assert.equal(trustedPhotoAnalysis.targetMismatch, false);
+    assert.equal(trustedPhotoAnalysis.analysis, matchingPhotoAnalysis);
 
     const confirmedProduct = {
       brand: product.brand,
