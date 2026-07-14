@@ -563,11 +563,19 @@ function getStructuredProductData(html) {
           : typeof imageValue?.contentUrl === "string"
             ? imageValue.contentUrl
             : "";
+    const colorValue = Array.isArray(product.color) ? product.color[0] : product.color;
+    const color =
+      typeof colorValue === "string"
+        ? colorValue
+        : typeof colorValue?.name === "string"
+          ? colorValue.name
+          : "";
     const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
 
     return {
       name: typeof product.name === "string" ? product.name.trim() : "",
       brand: brand.trim(),
+      color: color.trim(),
       image: image.trim(),
       price:
         typeof offers?.price === "string" || typeof offers?.price === "number"
@@ -2646,6 +2654,10 @@ app.post("/extract-product", async (req, res) => {
         "product:name",
         "og:description",
       ]);
+      const productColor =
+        structuredProduct?.color ||
+        extractMetaContent(html, ["product:color", "og:color", "color"]) ||
+        "";
       const price = extractPrice(html) || structuredProduct?.price || "";
       const productImageMeta = extractMetaContentWithDebug(html, [
         "og:image",
@@ -2758,6 +2770,7 @@ app.post("/extract-product", async (req, res) => {
       const extractedProduct = {
         brand: extractedBrand,
         productName: extractedProductName,
+        productColor,
         productUrl: finalProductUrl,
         productImageUrl,
         productSizeGuide,
@@ -3091,7 +3104,7 @@ ${getProductAnalysisInstruction(normalizedProductContext)}
       category: normalizedProductContext?.category || parsed.category || "기타",
       subCategory: sanitizedSubCategory,
       detailCategory: sanitizedDetailCategory,
-      color: parsed.color || "색상 분석 전",
+      color: normalizedProductContext?.color || parsed.color || "색상 분석 전",
       style: styleTags[0] || parsed.style || "스타일 분석 전",
       styleTags,
       season: seasons.join(", "),

@@ -172,6 +172,7 @@ const fixtureServer = http.createServer((request, response) => {
       "@type":"Product",
       "name":"린넨 데일리 셔츠",
       "brand":{"@type":"Brand","name":"NAES"},
+      "color":"아이보리",
       "image":"/images/linen-shirt.jpg",
       "offers":{"@type":"Offer","price":"59000"}
     }</script>
@@ -255,6 +256,7 @@ async function main() {
     assert.equal(response.status, 200);
     assert.equal(product.productName, "린넨 데일리 셔츠");
     assert.equal(product.brand, "NAES");
+    assert.equal(product.productColor, "아이보리");
     assert.equal(product.materialComposition.summary, "린넨 55%, 면 45%");
 
     const pantsTarget = getProductAnalysisTarget({
@@ -327,6 +329,7 @@ async function main() {
       category: "하의",
       subCategory: "팬츠",
       detailCategory: "팬츠",
+      color: "네이비",
     });
     const mismatchedPhotoAnalysis = applyProductTargetTrustPolicy(
       normalizedPantsContext,
@@ -343,7 +346,7 @@ async function main() {
     );
     assert.equal(mismatchedPhotoAnalysis.targetMismatch, true);
     assert.equal(mismatchedPhotoAnalysis.analysis.category, "하의");
-    assert.equal(mismatchedPhotoAnalysis.analysis.color, "색상 확인 필요");
+    assert.equal(mismatchedPhotoAnalysis.analysis.color, "네이비");
     assert.deepEqual(mismatchedPhotoAnalysis.analysis.seasons, []);
     assert.equal(mismatchedPhotoAnalysis.analysis.fit, "핏 분석 전");
     assert.equal(mismatchedPhotoAnalysis.analysis.graphicDetected, false);
@@ -374,6 +377,7 @@ async function main() {
     const confirmedProduct = {
       brand: product.brand,
       productName: product.productName,
+      productColor: product.productColor,
       productUrl: product.productUrl,
       productImageUrl: product.productImageUrl,
       materialComposition: product.materialComposition,
@@ -414,6 +418,7 @@ async function main() {
     const savedCloset = await getClosetItems();
     const savedTop = savedCloset.find((item) => item.id === linkedTop.id);
     assert.equal(savedTop.confirmedProduct.productName, "린넨 데일리 셔츠");
+    assert.equal(savedTop.confirmedProduct.productColor, "아이보리");
     assert.equal(savedTop.detailCategory, "린넨 셔츠");
     const beforeSeasonCorrection = getOutfitRecommendationResult(
       toRecommendationInputItems(savedCloset),

@@ -26,6 +26,7 @@ function normalizeProductAnalysisContext(context) {
   const normalized = {
     productName: normalizeText(context.productName),
     brand: normalizeText(context.brand, 80),
+    color: normalizeText(context.color, 80),
     category: category && PRODUCT_ANALYSIS_CATEGORIES.has(category) ? category : undefined,
     subCategory: normalizeText(context.subCategory, 80),
     detailCategory: normalizeText(context.detailCategory, 100),
@@ -80,7 +81,7 @@ function applyProductTargetTrustPolicy(context, analysis) {
       category: context.category,
       subCategory: context.subCategory || "분류 확인 필요",
       detailCategory: context.detailCategory || context.subCategory || "상세 분류 확인 필요",
-      color: "색상 확인 필요",
+      color: context.color || "색상 확인 필요",
       style: context.styleTags?.[0] || "스타일 분석 전",
       styleTags: context.styleTags || [],
       season: "",

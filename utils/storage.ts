@@ -77,6 +77,7 @@ export type MaterialComposition = {
 export type ConfirmedProduct = {
   brand: string;
   productName: string;
+  productColor?: string;
   productUrl?: string;
   productImageUrl?: string;
   productSizeGuide?: ProductSizeGuide;
@@ -187,6 +188,7 @@ export type ProductClassificationField =
   | "category"
   | "subCategory"
   | "detailCategory"
+  | "color"
   | "material"
   | "styleTags"
   | "season";

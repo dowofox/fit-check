@@ -168,6 +168,7 @@ type AddMode = "photo" | "link" | "manual";
 type ExtractedProduct = {
   brand?: string;
   productName?: string;
+  productColor?: string;
   productUrl: string;
   productImageUrl?: string;
   productSizeGuide?: ProductSizeGuide;
@@ -277,6 +278,7 @@ async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | 
     ? getProductAnalysisTarget({
         productName: product.productName,
         brand: product.brand,
+        productColor: product.productColor,
         materialComposition: product.materialComposition,
       })
     : undefined;
@@ -385,6 +387,7 @@ function buildConfirmedProductFromExtractedProduct(product: ExtractedProduct): C
   return {
     brand: product.brand || "",
     productName: product.productName || "",
+    productColor: product.productColor,
     productUrl: product.productUrl,
     productImageUrl: product.productImageUrl,
     productSizeGuide: product.productSizeGuide,
@@ -413,7 +416,7 @@ function createProductFallbackAnalysis(product: ExtractedProduct): ClothesAnalys
     category: classification.category || "기타",
     subCategory: classification.subCategory || "분류 확인 필요",
     detailCategory: classification.detailCategory || "상세 종류 확인 필요",
-    color: "색상 확인 필요",
+    color: product.productColor || "색상 확인 필요",
     style: styleTags[0],
     styleTags,
     season: seasonInference?.seasons.join(", ") || "",
@@ -1451,7 +1454,10 @@ export default function AddClothesScreen() {
             <TextInput
               style={styles.sizeInput}
               value={selectedColor}
-              onChangeText={setSelectedColor}
+              onChangeText={(value) => {
+                setSelectedColor(value);
+                markClassificationFieldAsEdited("color");
+              }}
               placeholder="예: 블랙, 화이트, 데님"
               placeholderTextColor="#777064"
             />

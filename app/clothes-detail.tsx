@@ -87,6 +87,7 @@ type EditableClosetFields = {
 type ConfirmedProductDraft = {
   brand: string;
   productName: string;
+  productColor?: string;
   productUrl: string;
   productImageUrl: string;
   productSizeGuide?: ProductSizeGuide;
@@ -308,6 +309,7 @@ function getUserEditedClassificationFields(
   if (draft.detailCategory !== (item.detailCategory || "")) {
     editedFields.add("detailCategory");
   }
+  if (draft.color !== (item.color || "")) editedFields.add("color");
   if (draft.material !== (item.material || "")) editedFields.add("material");
   if (JSON.stringify(draft.styleTags) !== JSON.stringify(getItemStyleTags(item))) {
     editedFields.add("styleTags");
@@ -325,6 +327,7 @@ function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDra
   return {
     brand: confirmedProduct?.brand || "",
     productName: confirmedProduct?.productName || "",
+    productColor: confirmedProduct?.productColor,
     productUrl: confirmedProduct?.productUrl || "",
     productImageUrl: confirmedProduct?.productImageUrl || "",
     productSizeGuide: confirmedProduct?.productSizeGuide,
@@ -346,6 +349,7 @@ function buildConfirmedProductFromDraft(
   return {
     brand,
     productName,
+    productColor: draft.productColor?.trim() || undefined,
     productUrl: draft.productUrl.trim(),
     productImageUrl: draft.productImageUrl.trim(),
     productSizeGuide: options.includeProductSizeGuide
@@ -2313,6 +2317,7 @@ export default function ClothesDetailScreen() {
 
     try {
       const confirmedBrand = confirmedProduct.brand.trim();
+      const confirmedColor = confirmedProduct.productColor?.trim();
       const confirmedMaterial = confirmedProduct.materialComposition?.summary?.trim();
       const currentMaterial = item.material?.trim() || "";
       const previousConfirmedMaterial =
@@ -2323,6 +2328,9 @@ export default function ClothesDetailScreen() {
         (!currentMaterial ||
           currentMaterial === "판단 어려움" ||
           currentMaterial === previousConfirmedMaterial);
+      const shouldSyncColor =
+        Boolean(confirmedColor) &&
+        !item.userEditedClassificationFields?.includes("color");
       const replacementConfirmedProduct: ConfirmedProduct = {
         ...confirmedProduct,
         brand: confirmedBrand,
@@ -2365,6 +2373,7 @@ export default function ClothesDetailScreen() {
         confirmedBrand,
         brand: confirmedBrand,
         brandConfidence: 100,
+        ...(shouldSyncColor ? { color: confirmedColor } : {}),
         ...(shouldSyncMaterial ? { material: confirmedMaterial } : {}),
         ...classificationUpdates,
       });
@@ -2592,6 +2601,7 @@ export default function ClothesDetailScreen() {
       const nextDraft: ConfirmedProductDraft = {
         brand: result.brand || "",
         productName: result.productName || "",
+        productColor: result.productColor,
         productUrl: result.productUrl || productUrl,
         productImageUrl: result.productImageUrl || "",
         productSizeGuide: result.productSizeGuide,

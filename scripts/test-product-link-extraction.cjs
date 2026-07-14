@@ -48,11 +48,13 @@ const fixtureServer = http.createServer((request, response) => {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
       <meta property="og:image" content="/images/shirt-full-look.jpg">
+      <meta property="product:color" content="블랙">
       <script type="application/ld+json">{
         "@context":"https://schema.org",
         "@type":"Product",
         "name":"린넨 데일리 셔츠",
         "brand":{"@type":"Brand","name":"NAES"},
+        "color":"아이보리",
         "image":"/images/shirt-product.jpg",
         "offers":{"@type":"Offer","price":"59000"}
       }</script>
@@ -64,6 +66,7 @@ const fixtureServer = http.createServer((request, response) => {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
       <meta property="og:image" content="/images/meta-shirt.jpg">
+      <meta property="product:color" content="네이비">
       <script type="application/ld+json">{
         "@context":"https://schema.org",
         "@type":"Product",
@@ -146,6 +149,7 @@ async function main() {
     assert.equal(complete.response.status, 200);
     assert.equal(complete.body.productName, "린넨 데일리 셔츠");
     assert.equal(complete.body.brand, "NAES");
+    assert.equal(complete.body.productColor, "아이보리");
     assert.equal(
       complete.body.productImageUrl,
       `http://127.0.0.1:${fixturePort}/images/shirt-product.jpg`
@@ -162,6 +166,7 @@ async function main() {
 
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
+    assert.equal(metaImageFallback.body.productColor, "네이비");
     assert.equal(
       metaImageFallback.body.productImageUrl,
       `http://127.0.0.1:${fixturePort}/images/meta-shirt.jpg`

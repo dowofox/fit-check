@@ -11,6 +11,7 @@ import {
 export type ProductClassificationInput = {
   productName?: string;
   brand?: string;
+  productColor?: string;
   materialComposition?: MaterialComposition;
   currentItem?: ClosetItem;
 };
@@ -28,6 +29,7 @@ export type ProductClassificationResult = {
 export type ProductAnalysisTarget = {
   productName?: string;
   brand?: string;
+  color?: string;
   category?: string;
   subCategory?: string;
   detailCategory?: string;
@@ -39,13 +41,14 @@ export type ProductAnalysisShape = {
   category?: string;
   subCategory?: string;
   detailCategory?: string;
+  color?: string;
   material?: string;
   style?: string;
   styleTags?: string[];
 };
 
 type ClassificationCandidate = Omit<ProductClassificationResult, "confidence" | "reasons">;
-type ProductAttributeField = Exclude<ProductClassificationField, "season">;
+type ProductAttributeField = Exclude<ProductClassificationField, "season" | "color">;
 
 export function getResolvedItemMaterial(item: ClosetItem) {
   const userEditedMaterial = item.userEditedClassificationFields?.includes("material");
@@ -214,10 +217,12 @@ export function getProductAnalysisTarget(
   const classification = inferProductAttributesFromConfirmedProduct(input);
   const productName = input.productName?.trim() || undefined;
   const brand = input.brand?.trim() || undefined;
+  const color = input.productColor?.trim() || undefined;
 
   return {
     productName,
     brand,
+    color,
     category: classification.category,
     subCategory: classification.subCategory,
     detailCategory: classification.detailCategory,
@@ -241,6 +246,7 @@ export function applyProductAnalysisTarget<T extends ProductAnalysisShape>(
     ...(target.category ? { category: target.category } : {}),
     ...(target.subCategory ? { subCategory: target.subCategory } : {}),
     ...(target.detailCategory ? { detailCategory: target.detailCategory } : {}),
+    ...(target.color ? { color: target.color } : {}),
     ...(target.material ? { material: target.material } : {}),
     ...(styleTags?.length
       ? {
