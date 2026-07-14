@@ -48,6 +48,7 @@ const fixtureServer = http.createServer((request, response) => {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
       <meta property="og:image" content="/images/shirt-full-look.jpg">
+      <meta property="product:brand" content="WRONG META BRAND">
       <meta property="product:category" content="Outerwear">
       <meta property="product:color" content="블랙">
       <script type="application/ld+json">{
@@ -81,11 +82,25 @@ const fixtureServer = http.createServer((request, response) => {
 
   if (request.url === "/partial") {
     response.end(`<!doctype html><html><head>
+      <meta name="twitter:label1" content="브랜드">
       <script type="application/ld+json">{
         "@context":"https://schema.org",
         "@type":"Product",
         "name":"데일리 티셔츠",
         "image":"/images/tshirt.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
+  if (request.url === "/meta-brand") {
+    response.end(`<!doctype html><html><head>
+      <meta property="product:brand" content="META BRAND">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"메타 브랜드 티셔츠",
+        "image":"/images/meta-brand-shirt.jpg"
       }</script>
     </head><body></body></html>`);
     return;
@@ -195,6 +210,10 @@ async function main() {
     assert.ok(partial.body.missingFields.includes("brand"));
     assert.ok(partial.body.missingFields.includes("materialComposition"));
 
+    const metaBrand = await extract("/meta-brand");
+    assert.equal(metaBrand.response.status, 200);
+    assert.equal(metaBrand.body.brand, "META BRAND");
+
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
     assert.equal(metaImageFallback.body.productColor, "네이비");
@@ -231,7 +250,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 8개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 9개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);

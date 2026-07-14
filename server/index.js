@@ -723,6 +723,13 @@ function normalizeProductSizeNumber(value) {
   return Number.isFinite(normalized) ? normalized : undefined;
 }
 
+function normalizeExtractedBrand(value) {
+  const brand = String(value || "").replace(/\s+/g, " ").trim();
+
+  if (/^(?:brand|브랜드|maker|제조사)$/i.test(brand)) return "";
+  return brand;
+}
+
 const FLAT_MEASUREMENT_KEYS = new Set(["chest", "waist", "hip", "thigh"]);
 
 function normalizeProductSizeMeasurementValue(label, measurementKey, value) {
@@ -2702,12 +2709,10 @@ app.post("/extract-product", async (req, res) => {
       const mallName = inferMallName(finalProductUrl, html);
       const title = cleanProductTitle(extractTitle(html), mallName);
       const brand =
-        extractMetaContent(html, [
-          "product:brand",
-          "og:brand",
-          "twitter:label1",
-          "brand",
-        ]) || structuredProduct?.brand || "";
+        normalizeExtractedBrand(structuredProduct?.brand) ||
+        normalizeExtractedBrand(
+          extractMetaContent(html, ["product:brand", "og:brand", "brand"])
+        );
       const productName = extractMetaContent(html, [
         "product:name",
         "og:description",
