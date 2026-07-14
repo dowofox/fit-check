@@ -1248,6 +1248,16 @@ const MATERIAL_CONTEXT_KEYWORDS = [
   "안감",
   "충전재",
 ];
+const EXCLUDED_MATERIAL_PATH_KEYWORDS = [
+  ...EXCLUDED_SIZE_PATH_KEYWORDS,
+  "itemlistelement",
+  "related",
+  "recommend",
+  "similar",
+  "carousel",
+  "crosssell",
+  "upsell",
+];
 
 function isMaterialExtractionDebugEnabled() {
   return process.env.DEBUG_MATERIAL_EXTRACTION === "true";
@@ -1498,6 +1508,13 @@ function isMaterialCandidateKey(key) {
   );
 }
 
+function isExcludedMaterialPath(value) {
+  const normalizedValue = String(value || "").toLowerCase();
+  return EXCLUDED_MATERIAL_PATH_KEYWORDS.some((keyword) =>
+    normalizedValue.includes(keyword.toLowerCase()),
+  );
+}
+
 function findMaterialCompositionInJson(
   value,
   source,
@@ -1505,7 +1522,7 @@ function findMaterialCompositionInJson(
   path = "$",
   debugSource = "json",
 ) {
-  if (!value || depth > 9) return undefined;
+  if (!value || depth > 9 || isExcludedMaterialPath(path)) return undefined;
 
   if (Array.isArray(value)) {
     for (const [index, child] of value.slice(0, 100).entries()) {
@@ -1562,7 +1579,7 @@ function findMaterialCompositionInJson(
   }
 
   for (const [key, child] of Object.entries(value)) {
-    if (isExcludedSizePathKey(key) || !child || typeof child !== "object") continue;
+    if (isExcludedMaterialPath(key) || !child || typeof child !== "object") continue;
 
     const found = findMaterialCompositionInJson(
       child,

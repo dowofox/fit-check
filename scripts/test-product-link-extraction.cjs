@@ -139,6 +139,31 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/related-material-fallback") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"ItemList",
+        "itemListElement":[{
+          "@type":"Product",
+          "name":"추천 울 니트",
+          "material":"울 100%",
+          "image":"/images/related-knit.jpg"
+        }]
+      }</script>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"코튼 와이드 팬츠",
+        "url":"/related-material-fallback",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "category":"Pants",
+        "image":"/images/main-cotton-pants.jpg"
+      }</script>
+    </head><body><dl><dt>소재</dt><dd>면 100%</dd></dl></body></html>`);
+    return;
+  }
+
   if (["/multi-color", "/multi-color-no-meta"].includes(request.url)) {
     const selectedColorMeta = request.url === "/multi-color"
       ? '<meta property="product:color" content="Navy">'
@@ -285,6 +310,11 @@ async function main() {
       `http://127.0.0.1:${fixturePort}/images/main-pants.jpg`
     );
 
+    const relatedMaterialFallback = await extract("/related-material-fallback");
+    assert.equal(relatedMaterialFallback.response.status, 200);
+    assert.equal(relatedMaterialFallback.body.productName, "코튼 와이드 팬츠");
+    assert.equal(relatedMaterialFallback.body.materialComposition.summary, "면 100%");
+
     const multiColor = await extract("/multi-color");
     assert.equal(multiColor.response.status, 200);
     assert.equal(multiColor.body.productColor, "Navy");
@@ -316,7 +346,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 12개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 13개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
