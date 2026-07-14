@@ -211,11 +211,19 @@ function normalizeSearchText(values: Array<string | undefined>) {
     .trim();
 }
 
+const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
+
 function getMaterialText(materialComposition?: MaterialComposition) {
-  return [
-    materialComposition?.summary,
-    ...(materialComposition?.items || []).map((item) => item.name),
-  ]
+  const materialItems = materialComposition?.items || [];
+  if (materialItems.length === 0) return materialComposition?.summary || "";
+
+  return materialItems
+    .filter(
+      (item) =>
+        item.percentage == null ||
+        item.percentage >= MIN_SEASONAL_MATERIAL_PERCENTAGE,
+    )
+    .map((item) => item.name)
     .filter(Boolean)
     .join(" ");
 }

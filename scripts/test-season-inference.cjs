@@ -145,6 +145,47 @@ test("공식 계절 키워드를 품목별로 구분한다", () => {
   );
 });
 
+test("소량 혼방 소재 하나로 계절을 과하게 확정하지 않는다", () => {
+  const minorWool = {
+    summary: "면 95%, 울 5%",
+    items: [
+      { name: "면", percentage: 95 },
+      { name: "울", percentage: 5 },
+    ],
+    source: "official",
+  };
+  const substantialWool = {
+    summary: "폴리에스터 60%, 울 40%",
+    items: [
+      { name: "폴리에스터", percentage: 60 },
+      { name: "울", percentage: 40 },
+    ],
+    source: "official",
+  };
+
+  assert.equal(
+    inferSeasonsFromOfficialProduct({
+      productName: "베이직 와이드 팬츠",
+      materialComposition: minorWool,
+    }),
+    null
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({
+      productName: "베이직 와이드 팬츠",
+      materialComposition: substantialWool,
+    }).seasons,
+    ["가을", "겨울"]
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({
+      productName: "울 블렌드 와이드 팬츠",
+      materialComposition: minorWool,
+    }).seasons,
+    ["가을", "겨울"]
+  );
+});
+
 test("대표 품목은 사진 분석과 공식 상품 보정에서 같은 계절을 반환한다", () => {
   const cases = [
     { category: "상의", name: "반팔 니트" },
