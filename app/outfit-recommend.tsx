@@ -4,9 +4,9 @@ import {
   getOutfitDisplayReasons,
   getOutfitRecommendationResult,
   OutfitRecommendation,
-  OutfitRecommendationResult,
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
+import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import { openProductSearch } from "@/utils/productSearch";
 import {
   getRecommendedShoppingItems,
@@ -41,22 +41,7 @@ import {
   View,
 } from "react-native";
 
-const DEFAULT_EMPTY_MESSAGE = {
-  title: "추천 가능한 조합이 부족해요",
-  text: "상의와 하의를 등록하면 코디를 추천할 수 있어요.",
-};
-
-const SAVED_ONLY_EMPTY_MESSAGE = {
-  title: "새로운 추천 조합이 없어요",
-  text: "추천 가능한 조합을 이미 저장했어요. 옷을 더 추가하면 새로운 코디를 만들 수 있어요.",
-};
-
-const BELOW_QUALITY_EMPTY_MESSAGE = {
-  title: "추천할 만한 조합이 아직 부족해요",
-  text: "현재 옷으로는 충분히 잘 맞는 조합을 찾지 못했어요. 다른 색상이나 실루엣의 옷을 추가해보세요.",
-};
-
-const SHOES_GUIDE_TEXT = "신발을 등록하면 완성도 높은 코디를 추천할 수 있어요.";
+const DEFAULT_EMPTY_MESSAGE = getOutfitRecommendationEmptyContent({});
 
 const SITUATION_OPTIONS = [
   { id: "all", label: "전체", keywords: [] },
@@ -250,45 +235,6 @@ function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) 
     firstSortedIds.length === secondSortedIds.length &&
     firstSortedIds.every((id, index) => id === secondSortedIds[index])
   );
-}
-
-function getCategoryCount(items: ClosetItem[], category: string) {
-  return items.filter((item) => item.category === category).length;
-}
-
-function getMissingCoreCategoryText(missingCategories?: string[]) {
-  if (!missingCategories?.length) return DEFAULT_EMPTY_MESSAGE.text;
-
-  return `${missingCategories.join(", ")}를 추가해주세요. 상의와 하의가 있어야 코디를 추천할 수 있어요.`;
-}
-
-function getEmptyMessage(
-  result: OutfitRecommendationResult,
-  items: ClosetItem[]
-) {
-  if (result.emptyReason === "missing_core_category") {
-    return {
-      title: "추천에 필요한 옷이 부족해요",
-      text: getMissingCoreCategoryText(result.missingCategories),
-    };
-  }
-
-  if (result.emptyReason === "below_quality_threshold") {
-    const hasShoes = getCategoryCount(items, "신발") > 0;
-
-    return {
-      ...BELOW_QUALITY_EMPTY_MESSAGE,
-      text: hasShoes
-        ? `${BELOW_QUALITY_EMPTY_MESSAGE.text} 더 자연스럽게 맞는 아이템을 추가하면 추천이 좋아져요.`
-        : `${BELOW_QUALITY_EMPTY_MESSAGE.text} ${SHOES_GUIDE_TEXT}`,
-    };
-  }
-
-  if (result.emptyReason === "saved_combinations_exhausted") {
-    return SAVED_ONLY_EMPTY_MESSAGE;
-  }
-
-  return DEFAULT_EMPTY_MESSAGE;
 }
 
 function isRecommendationSameAsSelected(
@@ -770,7 +716,7 @@ export default function OutfitRecommendScreen() {
             title: "상황에 맞는 추천이 아직 부족해요",
             text: "현재 옷장에서는 선택한 상황에 자연스럽게 맞는 코디를 찾지 못했어요. 다른 스타일의 옷을 추가해보세요.",
           }
-        : getEmptyMessage(recommendationResult, items)
+        : getOutfitRecommendationEmptyContent(recommendationResult, items)
     );
     setIsLoaded(true);
   }, [

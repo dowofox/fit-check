@@ -14,6 +14,7 @@ import type {
   OutfitRecommendationEmptyReason,
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
+import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import {
   endPerformanceTimer,
   logPerformanceMetric,
@@ -54,42 +55,9 @@ type HomeRecommendationCache = {
 };
 
 type HomeRecommendationEmptyState = {
-  reason?: OutfitRecommendationEmptyReason;
+  emptyReason?: OutfitRecommendationEmptyReason;
   missingCategories?: string[];
 };
-
-function getHomeRecommendationEmptyContent({
-  reason,
-  missingCategories,
-}: HomeRecommendationEmptyState) {
-  if (reason === "missing_core_category") {
-    const missingText = missingCategories?.join("와 ") || "상의와 하의";
-
-    return {
-      title: "추천에 필요한 옷이 부족해요",
-      text: `${missingText}를 추가하면 코디를 추천할 수 있어요.`,
-    };
-  }
-
-  if (reason === "below_quality_threshold") {
-    return {
-      title: "추천할 만한 조합이 아직 부족해요",
-      text: "다른 색상이나 실루엣의 옷을 추가하면 더 좋은 조합을 찾을 수 있어요.",
-    };
-  }
-
-  if (reason === "saved_combinations_exhausted") {
-    return {
-      title: "새로운 추천 조합이 없어요",
-      text: "추천 가능한 조합을 이미 저장했어요. 옷을 더 추가하면 새로운 코디를 만들 수 있어요.",
-    };
-  }
-
-  return {
-    title: "오늘의 추천을 준비하지 못했어요",
-    text: "상의와 하의를 조금 더 등록하면 추천이 정교해져요.",
-  };
-}
 
 function getWeatherKey(weather: OutfitRecommendationWeather) {
   return [
@@ -277,7 +245,7 @@ export default function HomeScreen() {
 
         setTodayRecommendations(recommendations);
         setRecommendationEmptyState({
-          reason: recommendationResult.emptyReason,
+          emptyReason: recommendationResult.emptyReason,
           missingCategories: recommendationResult.missingCategories,
         });
         setWeatherLabel(nextWeatherLabel);
@@ -429,8 +397,9 @@ export default function HomeScreen() {
     }
   }
 
-  const recommendationEmptyContent = getHomeRecommendationEmptyContent(
-    recommendationEmptyState
+  const recommendationEmptyContent = getOutfitRecommendationEmptyContent(
+    recommendationEmptyState,
+    closetItems
   );
 
   return (

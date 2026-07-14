@@ -35,6 +35,9 @@ const {
   getOutfitRecommendationResult,
   MIN_DISPLAY_RECOMMENDATION_SCORE,
 } = require("../utils/outfitRecommend.ts");
+const {
+  getOutfitRecommendationEmptyContent,
+} = require("../utils/outfitRecommendationEmptyState.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
 const {
   getSavedOutfitUsageCount,
@@ -198,6 +201,82 @@ test("같은 입력과 날씨는 홈과 추천 화면에 같은 순서의 결과
   );
 
   assert.deepEqual(recommendationKeys(homeResult), recommendationKeys(recommendationScreenResult));
+  assert.equal(homeResult.emptyReason, recommendationScreenResult.emptyReason);
+  assert.deepEqual(
+    getOutfitRecommendationEmptyContent(homeResult, wardrobe),
+    getOutfitRecommendationEmptyContent(recommendationScreenResult, wardrobe)
+  );
+});
+
+test("필수 카테고리 부족은 홈과 추천 화면에서 같은 빈 상태 안내를 사용한다", () => {
+  const wardrobe = createWardrobe().filter((item) => item.category !== "상의");
+  const result = getOutfitRecommendationResult(wardrobe, null, "여름");
+  const content = getOutfitRecommendationEmptyContent(result, wardrobe);
+
+  assert.equal(result.emptyReason, "missing_core_category");
+  assert.deepEqual(result.missingCategories, ["상의"]);
+  assert.equal(content.title, "추천에 필요한 옷이 부족해요");
+  assert.match(content.text, /상의를 추가/);
+});
+
+test("추천 가능한 조합을 모두 저장하면 낮은 품질 조합 대신 저장 소진 상태를 사용한다", () => {
+  const wardrobe = [
+    createItem("saved-top", "상의"),
+    createItem("saved-bottom", "하의"),
+    createItem("saved-shoes", "신발"),
+  ];
+  const initialResult = getOutfitRecommendationResult(wardrobe, null, "여름");
+
+  assert.ok(initialResult.recommendations.length > 0);
+  const savedItemIds = initialResult.recommendations.map((recommendation) =>
+    recommendation.items.map((item) => item.id)
+  );
+  const result = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    savedItemIds
+  );
+  const content = getOutfitRecommendationEmptyContent(result, wardrobe);
+
+  assert.equal(result.recommendations.length, 0);
+  assert.equal(result.emptyReason, "saved_combinations_exhausted");
+  assert.equal(content.title, "새로운 추천 조합이 없어요");
+});
+
+test("날씨 보정 뒤에도 기준 미달 조합은 홈 추천으로 복원하지 않는다", () => {
+  const wardrobe = [
+    createItem("hot-weather-winter-top", "상의", {
+      detailCategory: "울 니트",
+      material: "울",
+      seasons: ["겨울"],
+      season: "겨울",
+    }),
+    createItem("hot-weather-winter-bottom", "하의", {
+      detailCategory: "기모 팬츠",
+      material: "기모",
+      seasons: ["겨울"],
+      season: "겨울",
+    }),
+  ];
+  const result = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    {
+      weather: {
+        temperature: 32,
+        condition: "맑음",
+        rainChance: 0,
+      },
+    }
+  );
+  const content = getOutfitRecommendationEmptyContent(result, wardrobe);
+
+  assert.equal(result.recommendations.length, 0);
+  assert.equal(result.emptyReason, "below_quality_threshold");
+  assert.equal(content.title, "추천할 만한 조합이 아직 부족해요");
 });
 
 test("현재 계절과 맞지 않는 아이템은 충분한 계절 후보가 있을 때 제외된다", () => {
