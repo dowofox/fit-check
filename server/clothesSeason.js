@@ -258,6 +258,18 @@ function buildEvidenceText(input) {
     .toLowerCase();
 }
 
+function includesSeasonKeyword(text, keyword) {
+  const normalizedKeyword = keyword.toLowerCase();
+  if (/^[가-힣]$/.test(normalizedKeyword)) {
+    return text
+      .split(/[\s,/%()[\]{}·:;]+/)
+      .filter(Boolean)
+      .includes(normalizedKeyword);
+  }
+
+  return text.includes(normalizedKeyword);
+}
+
 function findEvidenceRule(input) {
   const evidenceText = buildEvidenceText(input);
   const category = String(input.category || "");
@@ -267,9 +279,9 @@ function findEvidenceRule(input) {
     .find(
       (rule) =>
         (!rule.categories || rule.categories.includes(category)) &&
-        (rule.keywords.some((keyword) => evidenceText.includes(keyword.toLowerCase())) ||
+        (rule.keywords.some((keyword) => includesSeasonKeyword(evidenceText, keyword)) ||
           (rule.keywordGroups || []).some((keywords) =>
-            keywords.every((keyword) => evidenceText.includes(keyword.toLowerCase()))
+            keywords.every((keyword) => includesSeasonKeyword(evidenceText, keyword))
           ))
     );
 }

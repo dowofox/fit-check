@@ -194,6 +194,23 @@ test("소량 혼방 소재 하나로 계절을 과하게 확정하지 않는다"
   );
 });
 
+test("공식 상품명의 울트라를 울 소재로 오인하지 않는다", () => {
+  assert.equal(
+    inferSeasonsFromOfficialProduct({ productName: "울트라 스트레치 팬츠" }),
+    null
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({
+      productName: "베이직 니트",
+      materialComposition: {
+        summary: "울 100%",
+        items: [{ name: "울", percentage: 100 }],
+      },
+    })?.seasons,
+    ["가을", "겨울"]
+  );
+});
+
 test("대표 품목은 사진 분석과 공식 상품 보정에서 같은 계절을 반환한다", () => {
   const cases = [
     { category: "상의", name: "반팔 니트" },

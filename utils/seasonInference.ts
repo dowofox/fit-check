@@ -233,6 +233,18 @@ function getMaterialText(materialComposition?: MaterialComposition) {
     .join(" ");
 }
 
+function includesSeasonKeyword(text: string, keyword: string) {
+  const normalizedKeyword = keyword.toLowerCase();
+  if (/^[가-힣]$/.test(normalizedKeyword)) {
+    return text
+      .split(/[\s,/%()[\]{}·:;]+/)
+      .filter(Boolean)
+      .includes(normalizedKeyword);
+  }
+
+  return text.includes(normalizedKeyword);
+}
+
 export function inferSeasonsFromOfficialProduct({
   productName,
   materialComposition,
@@ -253,11 +265,11 @@ export function inferSeasonsFromOfficialProduct({
   const matchedRule = OFFICIAL_SEASON_RULES.find(
     (rule) =>
       !(rule.excludedKeywords || []).some((keyword) =>
-        searchText.includes(keyword.toLowerCase())
+        includesSeasonKeyword(searchText, keyword)
       ) &&
-      (rule.keywords.some((keyword) => searchText.includes(keyword.toLowerCase())) ||
+      (rule.keywords.some((keyword) => includesSeasonKeyword(searchText, keyword)) ||
         (rule.keywordGroups || []).some((keywords) =>
-          keywords.every((keyword) => searchText.includes(keyword.toLowerCase()))
+          keywords.every((keyword) => includesSeasonKeyword(searchText, keyword))
         ))
   );
   if (!matchedRule) return null;
