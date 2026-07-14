@@ -65,6 +65,8 @@ const {
   updateClosetItem,
 } = require("../utils/storage.ts");
 const {
+  applyProductAnalysisTarget,
+  getProductAnalysisTarget,
   inferProductAttributesFromConfirmedProduct,
 } = require("../utils/productClassification.ts");
 const {
@@ -250,6 +252,33 @@ async function main() {
     assert.equal(product.productName, "린넨 데일리 셔츠");
     assert.equal(product.brand, "NAES");
     assert.equal(product.materialComposition.summary, "린넨 55%, 면 45%");
+
+    const pantsTarget = getProductAnalysisTarget({
+      productName: "TWO TUCK WIDE PANTS",
+      brand: "NAES",
+    });
+    assert.equal(pantsTarget.category, "하의");
+    assert.equal(pantsTarget.subCategory, "팬츠");
+    assert.equal(pantsTarget.detailCategory, "팬츠");
+    assert.deepEqual(
+      applyProductAnalysisTarget(
+        {
+          category: "아우터",
+          subCategory: "자켓",
+          detailCategory: "테일러드 재킷",
+          color: "블랙",
+          styleTags: ["포멀"],
+        },
+        pantsTarget
+      ),
+      {
+        category: "하의",
+        subCategory: "팬츠",
+        detailCategory: "팬츠",
+        color: "블랙",
+        styleTags: ["포멀"],
+      }
+    );
 
     const confirmedProduct = {
       brand: product.brand,

@@ -22,6 +22,25 @@ export type ProductClassificationResult = {
   reasons?: string[];
 };
 
+export type ProductAnalysisTarget = {
+  productName?: string;
+  brand?: string;
+  category?: string;
+  subCategory?: string;
+  detailCategory?: string;
+  material?: string;
+  styleTags?: string[];
+};
+
+export type ProductAnalysisShape = {
+  category?: string;
+  subCategory?: string;
+  detailCategory?: string;
+  material?: string;
+  style?: string;
+  styleTags?: string[];
+};
+
 type ClassificationCandidate = Omit<ProductClassificationResult, "confidence" | "reasons">;
 type ProductAttributeField = Exclude<ProductClassificationField, "season">;
 
@@ -159,6 +178,49 @@ export function inferProductAttributesFromConfirmedProduct({
     ...result,
     confidence: matchedLabel ? 95 : 80,
     reasons,
+  };
+}
+
+export function getProductAnalysisTarget(
+  input: ProductClassificationInput
+): ProductAnalysisTarget {
+  const classification = inferProductAttributesFromConfirmedProduct(input);
+  const productName = input.productName?.trim() || undefined;
+  const brand = input.brand?.trim() || undefined;
+
+  return {
+    productName,
+    brand,
+    category: classification.category,
+    subCategory: classification.subCategory,
+    detailCategory: classification.detailCategory,
+    material: classification.material,
+    styleTags: classification.styleTags,
+  };
+}
+
+export function applyProductAnalysisTarget<T extends ProductAnalysisShape>(
+  analysis: T,
+  target?: ProductAnalysisTarget
+): T {
+  if (!target) return analysis;
+
+  const styleTags = target.styleTags?.length
+    ? mergeStyleTags(target.styleTags, analysis.styleTags)
+    : undefined;
+
+  return {
+    ...analysis,
+    ...(target.category ? { category: target.category } : {}),
+    ...(target.subCategory ? { subCategory: target.subCategory } : {}),
+    ...(target.detailCategory ? { detailCategory: target.detailCategory } : {}),
+    ...(target.material ? { material: target.material } : {}),
+    ...(styleTags?.length
+      ? {
+          styleTags,
+          style: styleTags[0] || analysis.style,
+        }
+      : {}),
   };
 }
 

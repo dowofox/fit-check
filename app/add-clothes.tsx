@@ -5,6 +5,8 @@ import {
   normalizeClosetSeasons,
 } from "@/utils/closetRegistration";
 import {
+  applyProductAnalysisTarget,
+  getProductAnalysisTarget,
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
@@ -269,8 +271,15 @@ async function encodeImageUri(uri: string) {
   });
 }
 
-async function requestClothesAnalysis(uri: string) {
+async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | null) {
   const encodedImage = await encodeImageUri(uri);
+  const productContext = product
+    ? getProductAnalysisTarget({
+        productName: product.productName,
+        brand: product.brand,
+        materialComposition: product.materialComposition,
+      })
+    : undefined;
 
   const response = await fetch(API_ENDPOINTS.analyzeClothes, {
     method: "POST",
@@ -280,6 +289,7 @@ async function requestClothesAnalysis(uri: string) {
     body: JSON.stringify({
       image: encodedImage.base64,
       imageMimeType: encodedImage.mimeType,
+      ...(productContext ? { productContext } : {}),
     }),
   });
 
@@ -289,7 +299,7 @@ async function requestClothesAnalysis(uri: string) {
 
   const analysis = await response.json();
 
-  return analysis as ClothesAnalysis;
+  return applyProductAnalysisTarget(analysis as ClothesAnalysis, productContext);
 }
 
 function toggleSeason(currentSeasons: string[], season: string) {
@@ -818,7 +828,7 @@ export default function AddClothesScreen() {
 
     try {
       setIsSaving(true);
-      const nextAnalysis = await requestClothesAnalysis(imageUri);
+      const nextAnalysis = await requestClothesAnalysis(imageUri, extractedProduct);
       applyAnalysisToForm({ ...nextAnalysis, source: "image" });
     } catch (error) {
       console.error("옷 분석 실패:", error);

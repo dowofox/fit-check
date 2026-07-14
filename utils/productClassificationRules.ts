@@ -425,6 +425,17 @@ export const PRODUCT_CLASSIFICATION_RULES: ProductClassificationRule[] = [
     },
   },
   {
+    id: "generic-pants",
+    group: "하의",
+    label: "팬츠",
+    keywords: ["팬츠", "바지", "pants", "trousers"],
+    attributes: {
+      category: "하의",
+      subCategory: "팬츠",
+      detailCategory: "팬츠",
+    },
+  },
+  {
     id: "running-shoes",
     group: "신발",
     label: "러닝화",
