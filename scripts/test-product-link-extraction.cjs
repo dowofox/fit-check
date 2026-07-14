@@ -91,6 +91,34 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/related-first") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"ItemList",
+        "itemListElement":[{
+          "@type":"Product",
+          "name":"추천 레더 재킷",
+          "brand":{"@type":"Brand","name":"OTHER"},
+          "category":"Outerwear",
+          "image":"/images/related-jacket.jpg"
+        }]
+      }</script>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"투턱 와이드 팬츠",
+        "url":"/related-first",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "category":"Pants",
+        "color":"Navy",
+        "image":"/images/main-pants.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (["/size-flat", "/size-circumference", "/size-generic"].includes(request.url)) {
     const waistHeader = request.url === "/size-flat"
       ? "허리단면"
@@ -175,6 +203,16 @@ async function main() {
       `http://127.0.0.1:${fixturePort}/images/meta-shirt.jpg`
     );
 
+    const relatedFirst = await extract("/related-first");
+    assert.equal(relatedFirst.response.status, 200);
+    assert.equal(relatedFirst.body.productName, "투턱 와이드 팬츠");
+    assert.equal(relatedFirst.body.brand, "NAES");
+    assert.equal(relatedFirst.body.productCategory, "Pants");
+    assert.equal(
+      relatedFirst.body.productImageUrl,
+      `http://127.0.0.1:${fixturePort}/images/main-pants.jpg`
+    );
+
     const flatSize = await extract("/size-flat");
     const circumferenceSize = await extract("/size-circumference");
     const genericSize = await extract("/size-generic");
@@ -193,7 +231,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 7개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 8개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);

@@ -516,36 +516,84 @@ function getSchemaTypes(value) {
     .map((type) => type.toLowerCase());
 }
 
-function findStructuredProduct(value, depth = 0) {
-  if (!value || depth > 8) return undefined;
+function collectStructuredProducts(value, depth = 0, path = [], products = []) {
+  if (!value || depth > 8) return products;
 
   if (Array.isArray(value)) {
-    for (const entry of value) {
-      const product = findStructuredProduct(entry, depth + 1);
-      if (product) return product;
-    }
-    return undefined;
+    value.forEach((entry) => collectStructuredProducts(entry, depth + 1, path, products));
+    return products;
   }
 
-  if (typeof value !== "object") return undefined;
-  if (getSchemaTypes(value).includes("product")) return value;
-
-  for (const nestedValue of Object.values(value)) {
-    const product = findStructuredProduct(nestedValue, depth + 1);
-    if (product) return product;
+  if (typeof value !== "object") return products;
+  if (getSchemaTypes(value).includes("product")) {
+    products.push({ product: value, depth, path });
+    return products;
   }
 
-  return undefined;
+  Object.entries(value).forEach(([key, nestedValue]) => {
+    collectStructuredProducts(nestedValue, depth + 1, [...path, key], products);
+  });
+
+  return products;
 }
 
-function getStructuredProductData(html) {
+function normalizeComparableProductUrl(value, baseUrl) {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  try {
+    const url = new URL(value, baseUrl);
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return value.trim().replace(/\/$/, "");
+  }
+}
+
+function scoreStructuredProductCandidate(candidate, productUrl) {
+  const { product, depth, path } = candidate;
+  const normalizedPath = path.join(".").toLowerCase();
+  const candidateUrl = normalizeComparableProductUrl(
+    typeof product.url === "string" ? product.url : product["@id"],
+    productUrl
+  );
+  const currentUrl = normalizeComparableProductUrl(productUrl, productUrl);
+  let score = 0;
+
+  if (depth === 0) score += 100;
+  if (normalizedPath.includes("@graph")) score += 60;
+  if (normalizedPath.includes("mainentity")) score += 80;
+  if (
+    ["itemlistelement", "related", "recommend", "similar", "carousel"].some((key) =>
+      normalizedPath.includes(key)
+    )
+  ) {
+    score -= 120;
+  }
+  if (candidateUrl && currentUrl && candidateUrl === currentUrl) score += 140;
+  if (typeof product.name === "string" && product.name.trim()) score += 20;
+  if (product.image) score += 10;
+  if (product.brand) score += 5;
+  if (product.offers) score += 5;
+
+  return score;
+}
+
+function getStructuredProductData(html, productUrl) {
   const jsonScripts = extractJsonDataFromScripts(html, true).filter(
     (script) => script.source === "json-script"
   );
 
-  for (const script of jsonScripts) {
-    const product = findStructuredProduct(script.data);
-    if (!product) continue;
+  const candidates = jsonScripts.flatMap((script) =>
+    collectStructuredProducts(script.data)
+  );
+  const selectedCandidate = candidates.sort(
+    (first, second) =>
+      scoreStructuredProductCandidate(second, productUrl) -
+      scoreStructuredProductCandidate(first, productUrl)
+  )[0];
+  const product = selectedCandidate?.product;
+
+  if (product) {
 
     const brandValue = product.brand;
     const brand =
@@ -2632,7 +2680,7 @@ app.post("/extract-product", async (req, res) => {
       const html = await response.text();
       const isMusinsa = isMusinsaProductUrl(finalProductUrl);
       const productId = isMusinsa ? extractMusinsaProductId(finalProductUrl) : "";
-      const structuredProduct = getStructuredProductData(html);
+      const structuredProduct = getStructuredProductData(html, finalProductUrl);
 
       if (!hasProductPageEvidence(html, structuredProduct, Boolean(isMusinsa && productId))) {
         return sendProductExtractionError(
