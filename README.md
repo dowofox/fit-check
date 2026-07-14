@@ -71,6 +71,14 @@ Development Build로 실행할 때는 다음 명령을 사용합니다.
 npx expo start --dev-client
 ```
 
+상품 링크의 실측표 자동 추출은 서버에서 기본으로 활성화됩니다. 로컬 테스트 등에서 원격 실측 조회를 의도적으로 끄려면 아래처럼 설정합니다.
+
+```env
+ENABLE_PRODUCT_SIZE_GUIDE=false
+```
+
+추출 실패는 상품 등록을 막지 않으며, 앱에서 상품을 저장한 뒤 실측을 직접 입력할 수 있습니다.
+
 ## 작업 규칙
 
 Codex 작업 규칙은 [AGENTS.md](./AGENTS.md)를 따릅니다.

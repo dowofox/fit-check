@@ -3,6 +3,7 @@ import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
+import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import { normalizeSize } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
 import type {
@@ -334,9 +335,10 @@ function getMaterialPreviewText(materialComposition?: ConfirmedProduct["material
 function getSizeGuidePreviewText(product?: ExtractedProduct | null) {
   if (!product) return "";
 
-  return product.productSizeGuide?.sizes?.length
-    ? "상품 실측표를 찾았어요."
-    : "상품 실측표는 찾지 못했어요. 등록 후 직접 입력할 수 있어요.";
+  return getProductSizeGuideStatusMessage(
+    product.sizeGuideStatus,
+    Boolean(product.productSizeGuide?.sizes?.length)
+  );
 }
 
 function escapeRegExp(value: string) {
@@ -413,6 +415,12 @@ function getSizeOptions(category?: string) {
   if (category?.includes("신발")) return SHOE_SIZE_OPTIONS;
 
   return COMMON_SIZE_OPTIONS;
+}
+
+function supportsProductMeasurements(category?: string) {
+  return ["상의", "하의", "아우터", "신발"].some((value) =>
+    category?.includes(value)
+  );
 }
 
 async function saveCleanImageToFile(base64?: string | null) {
@@ -847,7 +855,29 @@ export default function AddClothesScreen() {
 
       await saveClosetItem(finalItem);
 
-      if (classificationNotice) {
+      const needsManualSizeGuide =
+        Boolean(confirmedProduct) &&
+        supportsProductMeasurements(finalItem.category) &&
+        !confirmedProduct?.productSizeGuide?.sizes?.length;
+
+      if (needsManualSizeGuide) {
+        const sizeGuideNotice = getProductSizeGuideStatusMessage(
+          extractedProduct?.sizeGuideStatus
+        );
+        const message = [classificationNotice, sizeGuideNotice].filter(Boolean).join("\n\n");
+
+        Alert.alert("옷 저장 완료", message, [
+          { text: "나중에", onPress: () => router.replace("/closet") },
+          {
+            text: "실측 입력",
+            onPress: () =>
+              router.replace({
+                pathname: "/clothes-detail",
+                params: { id: finalItem.id, openMeasurement: "1" },
+              }),
+          },
+        ]);
+      } else if (classificationNotice) {
         Alert.alert(
           "상품 정보 보정 완료",
           classificationNotice,

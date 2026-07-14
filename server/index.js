@@ -2625,7 +2625,9 @@ app.post("/extract-product", async (req, res) => {
           summary: materialComposition.summary,
         });
       }
-      const isProductSizeGuideEnabled = process.env.ENABLE_PRODUCT_SIZE_GUIDE === "true";
+      // Product size extraction is on by default. Set the flag to "false" only
+      // when a local or test environment intentionally needs to skip remote lookup.
+      const isProductSizeGuideEnabled = process.env.ENABLE_PRODUCT_SIZE_GUIDE !== "false";
       const isProductSizeGuideDebugEnabled = process.env.DEBUG_SIZE_GUIDE === "true";
       let productSizeGuideResult = {
         productSizeGuide: undefined,

@@ -4,6 +4,7 @@ import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
+import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import {
   getFitSuitability,
   getRecommendedProductSize,
@@ -1732,7 +1733,7 @@ function ProductUrlConfirmCard({
           </Text>
           {getValidProductSizeRows(preview.productSizeGuide).length === 0 ? (
             <Text style={styles.productExtractNoticeText}>
-              실측 자동 추출 실패: 상품을 확정하면 실측 직접 입력 화면으로 이어져요.
+              {getProductSizeGuideStatusMessage(preview.sizeGuideStatus)}
             </Text>
           ) : null}
           <Pressable style={styles.confirmedProductPrimaryButton} onPress={onConfirm}>
@@ -2035,7 +2036,10 @@ function RecommendedSizeCard({
 }
 
 export default function ClothesDetailScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, openMeasurement } = useLocalSearchParams<{
+    id?: string;
+    openMeasurement?: string;
+  }>();
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [referenceItem, setReferenceItem] = useState<ClosetItem | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -2058,6 +2062,7 @@ export default function ClothesDetailScreen() {
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
   );
   const heroImageTimerRef = useRef<PerformanceTimer>(null);
+  const shouldOpenMeasurementRef = useRef(openMeasurement === "1");
 
   useFocusEffect(
     useCallback(() => {
@@ -2083,6 +2088,16 @@ export default function ClothesDetailScreen() {
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
           setConfirmedProductDraft(getConfirmedProductDraft(selectedItem));
+
+          if (
+            shouldOpenMeasurementRef.current &&
+            selectedItem.confirmedProduct &&
+            !isAccessoryOrBagItem(selectedItem)
+          ) {
+            setMeasurementDraft(getProductMeasurementDraft(selectedItem));
+            setIsMeasurementFormOpen(true);
+            shouldOpenMeasurementRef.current = false;
+          }
         }
         setIsLoaded(true);
         endPerformanceTimer(timer, {
