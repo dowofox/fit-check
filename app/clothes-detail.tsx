@@ -2440,6 +2440,16 @@ export default function ClothesDetailScreen() {
     setIsProductFormOpen(true);
   }
 
+  function handleOpenManualProductForm() {
+    setConfirmedProductDraft({
+      ...EMPTY_CONFIRMED_PRODUCT_DRAFT,
+      productUrl: productUrlInput.trim(),
+    });
+    setExtractedProduct(null);
+    setIsProductUrlFormOpen(false);
+    setIsProductFormOpen(true);
+  }
+
   function handleOpenMeasurementForm() {
     if (!item?.confirmedProduct) return;
 
@@ -3074,7 +3084,7 @@ export default function ClothesDetailScreen() {
                 <ProductConfirmActionCard
                   hasCandidate={Boolean(item.selectedProductCandidate)}
                   onConfirmCandidate={handleConfirmSelectedProductCandidate}
-                  onOpenManualForm={handleOpenConfirmedProductForm}
+                  onOpenManualForm={handleOpenManualProductForm}
                   onOpenUrlForm={handleOpenProductUrlForm}
                 />
               </>
@@ -3089,7 +3099,7 @@ export default function ClothesDetailScreen() {
                 onChangeUrl={setProductUrlInput}
                 onExtract={handleExtractProductFromUrl}
                 onConfirm={handleConfirmExtractedProduct}
-                onOpenManualForm={handleOpenConfirmedProductForm}
+                onOpenManualForm={handleOpenManualProductForm}
                 onCancel={handleCancelProductUrlForm}
               />
             )}
