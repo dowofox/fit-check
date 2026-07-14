@@ -358,6 +358,28 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-free-aliases") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <meta property="og:image" content="/images/free-top.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"프리사이즈 니트",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/free-top.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>가슴단면</th></tr>
+        <tr><td>FREE SIZE</td><td>68</td><td>55</td></tr>
+        <tr><td>ONE-SIZE</td><td>69</td><td>56</td></tr>
+        <tr><td>O/S</td><td>70</td><td>57</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   response.end(`<!doctype html><html><head>
     <meta property="og:title" content="패션 뉴스">
     <meta property="og:image" content="/news.jpg">
@@ -518,11 +540,17 @@ async function main() {
     assert.equal(genericMeasurement.waist, 41);
     assert.equal(genericMeasurement.hip, 52);
 
+    const freeAliases = await extract("/size-free-aliases");
+    assert.deepEqual(
+      freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
+      ["FREE", "FREE", "FREE"]
+    );
+
     const unsupported = await extract("/article");
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 21개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 22개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);

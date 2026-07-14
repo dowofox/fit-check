@@ -47,9 +47,18 @@ const INVALID_PRODUCT_SIZE_KEYWORDS = [
   "브랜드",
 ];
 
+function isFreeSizeAlias(size?: string) {
+  const compactSize = (size || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s/_-]+/g, "");
+
+  return ["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactSize);
+}
+
 export function normalizeProductSizeForCompare(size?: string) {
   const normalizedSize = (size || "").replace(/\s+/g, "").toUpperCase();
-  if (["FREE", "F", "ONESIZE", "OS"].includes(normalizedSize)) return "FREE";
+  if (isFreeSizeAlias(size)) return "FREE";
 
   const letterSize = normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/)?.[0];
   const baseSize = letterSize || normalizedSize;
@@ -62,7 +71,7 @@ export function normalizeProductSizeForCompare(size?: string) {
 
 function getBaseSizeForStorage(size: string) {
   const normalizedSize = size.replace(/\s+/g, "").toUpperCase();
-  if (["FREE", "F", "ONESIZE", "OS"].includes(normalizedSize)) return "FREE";
+  if (isFreeSizeAlias(size)) return "FREE";
 
   return (
     normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/)?.[0] ||

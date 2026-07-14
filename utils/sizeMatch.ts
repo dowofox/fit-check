@@ -26,8 +26,11 @@ export function normalizeSize(size?: string) {
     .replace(/LARGE/g, "L")
     .replace(/MEDIUM/g, "M")
     .replace(/SMALL/g, "S");
+  const compactFreeSize = upperSize.replace(/[-_/]+/g, "");
 
-  if (["FREE", "F", "ONESIZE", "OS"].includes(upperSize)) return "FREE";
+  if (["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactFreeSize)) {
+    return "FREE";
+  }
 
   if (upperSize === "2XL") return "XXL";
   if (upperSize === "3XL") return "XXXL";
