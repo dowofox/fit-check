@@ -31,7 +31,10 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
   module._compile(result.outputText, filename);
 };
 
-const { getRecommendedProductSize } = require("../utils/sizeMatch.ts");
+const {
+  getFitSuitability,
+  getRecommendedProductSize,
+} = require("../utils/sizeMatch.ts");
 const {
   buildProductSizeMeasurement,
   getValidProductSizeRows,
@@ -248,4 +251,43 @@ test("기존 실측표의 잘못된 값은 숨기고 같은 사이즈 입력은 
   assert.equal(nextRows.length, 1);
   assert.equal(nextRows[0].size, "XXL");
   assert.equal(nextRows[0].totalLength, 74);
+});
+
+test("현재 사이즈 적합도는 부족한 정보에 맞는 차단 이유를 반환한다", () => {
+  const profile = {
+    height: "175",
+    shoulderWidth: "47",
+    chestCircumference: "100",
+    armLength: "60",
+  };
+  const itemWithoutSize = createItem(
+    "no-size",
+    "상의",
+    [{ size: "L", totalLength: 70, shoulder: 48, chest: 55, sleeve: 61 }],
+    { size: "" }
+  );
+  const itemWithoutMatchingRow = createItem(
+    "no-row",
+    "상의",
+    [{ size: "M", totalLength: 68, shoulder: 46, chest: 52, sleeve: 59 }],
+    { size: "XL" }
+  );
+
+  assert.equal(
+    getFitSuitability(itemWithoutSize, profile).blockedReason,
+    "missing_item_size"
+  );
+  assert.equal(
+    getFitSuitability(itemWithoutMatchingRow, profile).blockedReason,
+    "unmatched_item_size"
+  );
+  assert.equal(
+    getFitSuitability(
+      createItem("profile-needed", "상의", [
+        { size: "M", totalLength: 68, shoulder: 46, chest: 52, sleeve: 59 },
+      ]),
+      null
+    ).blockedReason,
+    "missing_profile_measurements"
+  );
 });

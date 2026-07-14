@@ -22,6 +22,7 @@ import {
   getFitSuitability,
   getRecommendedProductSize,
   isAccessoryOrBagItem,
+  type FitSuitabilityResult,
   type SizeRecommendationResult,
 } from "@/utils/sizeMatch";
 import { openProductSearch } from "@/utils/productSearch";
@@ -1889,6 +1890,60 @@ function RecommendedSizeCard({
   );
 }
 
+function FitSuitabilityCard({
+  item,
+  result,
+  onEditItem,
+  onOpenMeasurementForm,
+  onOpenProductUrlForm,
+}: {
+  item: ClosetItem;
+  result: FitSuitabilityResult;
+  onEditItem: () => void;
+  onOpenMeasurementForm: () => void;
+  onOpenProductUrlForm: () => void;
+}) {
+  const action = (() => {
+    if (result.blockedReason === "missing_item_size") {
+      return { label: "상품 사이즈 선택", onPress: onEditItem };
+    }
+
+    if (result.blockedReason === "missing_profile_measurements") {
+      return { label: "프로필 입력하기", onPress: () => router.push("/profile") };
+    }
+
+    if (
+      result.blockedReason === "missing_product_measurements" ||
+      result.blockedReason === "unmatched_item_size"
+    ) {
+      return item.confirmedProduct
+        ? { label: "실측 직접 입력", onPress: onOpenMeasurementForm }
+        : { label: "상품 링크 등록", onPress: onOpenProductUrlForm };
+    }
+
+    return null;
+  })();
+
+  return (
+    <View style={styles.sizeMatchCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="check-square" size={16} color="#8c6f47" />
+        </View>
+        <Text style={styles.tipTitle}>내 사이즈 적합도</Text>
+      </View>
+      <Text style={styles.sizeMatchStatus}>{result.status}</Text>
+      <Text style={styles.tipText}>{result.description}</Text>
+      {action ? (
+        <Pressable style={styles.sizeRecommendationActionButton} onPress={action.onPress}>
+          <Text style={styles.sizeRecommendationActionButtonText}>{action.label}</Text>
+          <Feather name="chevron-right" size={15} color="#fff" />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export default function ClothesDetailScreen() {
   const { id, openMeasurement } = useLocalSearchParams<{
     id?: string;
@@ -2509,6 +2564,13 @@ export default function ClothesDetailScreen() {
         sizeRecommendation.missingFields.length > 0 ||
         sizeRecommendation.blockedReason === "missing_product_measurements")
   );
+  const shouldShowFitSuitabilityCard = Boolean(
+    fitSuitability &&
+      !(
+        sizeRecommendation?.blockedReason === "missing_product_measurements" ||
+        sizeRecommendation?.blockedReason === "missing_profile_measurements"
+      )
+  );
   const referenceClothingKey = item ? getReferenceClothingKey(item) : null;
   const recommendationReviewFields = item
     ? normalizeClosetRegistrationBasics({
@@ -2818,18 +2880,15 @@ export default function ClothesDetailScreen() {
               />
             )}
 
-            {!editMode && fitSuitability && (
-              <View style={styles.sizeMatchCard}>
-                <View style={styles.tipHeader}>
-                  <View style={styles.tipIconCircle}>
-                    <Feather name="check-square" size={16} color="#8c6f47" />
-                  </View>
-                  <Text style={styles.tipTitle}>내 사이즈 적합도</Text>
-                </View>
-                <Text style={styles.sizeMatchStatus}>{fitSuitability.status}</Text>
-                <Text style={styles.tipText}>{fitSuitability.description}</Text>
-              </View>
-            )}
+            {!editMode && shouldShowFitSuitabilityCard && fitSuitability ? (
+              <FitSuitabilityCard
+                item={item}
+                result={fitSuitability}
+                onEditItem={handleEdit}
+                onOpenMeasurementForm={handleOpenMeasurementForm}
+                onOpenProductUrlForm={handleOpenProductUrlForm}
+              />
+            ) : null}
 
             {!editMode && !item.confirmedProduct && (
               <>

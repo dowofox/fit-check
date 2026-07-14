@@ -206,6 +206,22 @@ export type SizeRecommendationContext = {
   referenceItem?: ClosetItem | null;
 };
 
+export type FitSuitabilityBlockedReason =
+  | "missing_item_size"
+  | "missing_profile_measurements"
+  | "missing_product_measurements"
+  | "unmatched_item_size";
+
+export type FitSuitabilityResult = {
+  status: string;
+  description: string;
+  lengthResult: LengthResult;
+  widthResult: WidthResult;
+  fitResult: FitResult;
+  measurementComparison: MeasurementComparisonResult;
+  blockedReason?: FitSuitabilityBlockedReason;
+};
+
 type WidthAnalysis = {
   result: WidthResult;
   description: string;
@@ -1556,7 +1572,10 @@ function getFitStatus(fitResult: FitResult, intendedFit: string) {
   return statuses[fitResult];
 }
 
-export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null) {
+export function getFitSuitability(
+  item: ClosetItem,
+  profile?: UserProfile | null
+): FitSuitabilityResult {
   if (isAccessoryOrBagItem(item)) {
     return {
       status: "의류 핏 분석 대상이 아니에요",
@@ -1612,6 +1631,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
       widthResult: "unknown" as const,
       fitResult: "unknown" as const,
       measurementComparison,
+      blockedReason: "missing_item_size",
     };
   }
 
@@ -1628,6 +1648,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
         widthResult: "unknown" as const,
         fitResult: "unknown" as const,
         measurementComparison,
+        blockedReason: "missing_product_measurements",
       };
     }
 
@@ -1640,6 +1661,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
         widthResult: "unknown" as const,
         fitResult: "unknown" as const,
         measurementComparison,
+        blockedReason: "missing_profile_measurements",
       };
     }
 
@@ -1683,6 +1705,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
       widthResult: "unknown" as const,
       fitResult: "unknown" as const,
       measurementComparison,
+      blockedReason: "unmatched_item_size",
     };
   }
 
@@ -1695,6 +1718,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
       widthResult: "unknown" as const,
       fitResult: "unknown" as const,
       measurementComparison,
+      blockedReason: "missing_product_measurements",
     };
   }
 
@@ -1709,6 +1733,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
       widthResult: "unknown" as const,
       fitResult: "unknown" as const,
       measurementComparison,
+      blockedReason: "missing_profile_measurements",
     };
   }
 
@@ -1720,6 +1745,7 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
       widthResult: "unknown" as const,
       fitResult: "unknown" as const,
       measurementComparison,
+      blockedReason: "missing_product_measurements",
     };
   }
 
@@ -1737,5 +1763,6 @@ export function getFitSuitability(item: ClosetItem, profile?: UserProfile | null
     widthResult: "unknown" as const,
     fitResult: "unknown" as const,
     measurementComparison,
+    blockedReason: "missing_product_measurements",
   };
 }
