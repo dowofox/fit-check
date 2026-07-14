@@ -650,6 +650,21 @@ function normalizeProductSizeNumber(value) {
   return Number.isFinite(normalized) ? normalized : undefined;
 }
 
+const FLAT_MEASUREMENT_KEYS = new Set(["chest", "waist", "hip", "thigh"]);
+
+function normalizeProductSizeMeasurementValue(label, measurementKey, value) {
+  const normalizedValue = normalizeProductSizeNumber(value);
+  if (normalizedValue === undefined) return undefined;
+
+  const normalizedLabel = String(label || "").toLowerCase().replace(/\s+/g, "");
+  const isExplicitCircumference =
+    FLAT_MEASUREMENT_KEYS.has(measurementKey) &&
+    !normalizedLabel.includes("단면") &&
+    (normalizedLabel.includes("둘레") || normalizedLabel.includes("circumference"));
+
+  return isExplicitCircumference ? normalizedValue / 2 : normalizedValue;
+}
+
 function getProductSizeValue(row, keys) {
   for (const key of keys) {
     if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
@@ -778,22 +793,48 @@ function normalizeProductSizeMeasurement(row) {
 
   return {
     ...parsedSize,
-    totalLength: normalizeProductSizeNumber(
-      getProductSizeValue(row, ["totalLength", "length", "총장", "기장", "옷길이"]),
+    totalLength: getNormalizedProductSizeValue(
+      row,
+      ["totalLength", "length", "총장", "기장", "옷길이"],
+      "totalLength",
     ),
-    shoulder: normalizeProductSizeNumber(getProductSizeValue(row, ["shoulder", "어깨", "어깨너비"])),
-    chest: normalizeProductSizeNumber(getProductSizeValue(row, ["chest", "bust", "가슴", "가슴단면"])),
-    sleeve: normalizeProductSizeNumber(getProductSizeValue(row, ["sleeve", "arm", "소매", "소매길이"])),
-    waist: normalizeProductSizeNumber(getProductSizeValue(row, ["waist", "허리", "허리단면"])),
-    hip: normalizeProductSizeNumber(
-      getProductSizeValue(row, ["hip", "엉덩이", "엉덩이단면", "힙"]),
+    shoulder: getNormalizedProductSizeValue(
+      row,
+      ["shoulder", "어깨", "어깨너비"],
+      "shoulder",
     ),
-    thigh: normalizeProductSizeNumber(
-      getProductSizeValue(row, ["thigh", "허벅지", "허벅지단면"]),
+    chest: getNormalizedProductSizeValue(
+      row,
+      ["chest", "bust", "가슴", "가슴단면", "가슴둘레", "chestCircumference"],
+      "chest",
     ),
-    rise: normalizeProductSizeNumber(getProductSizeValue(row, ["rise", "밑위", "밑위길이"])),
-    hem: normalizeProductSizeNumber(getProductSizeValue(row, ["hem", "밑단", "밑단단면"])),
-    footLength: normalizeProductSizeNumber(getProductSizeValue(row, ["footLength", "발길이", "발 길이"])),
+    sleeve: getNormalizedProductSizeValue(
+      row,
+      ["sleeve", "arm", "소매", "소매길이"],
+      "sleeve",
+    ),
+    waist: getNormalizedProductSizeValue(
+      row,
+      ["waist", "허리", "허리단면", "허리둘레", "waistCircumference"],
+      "waist",
+    ),
+    hip: getNormalizedProductSizeValue(
+      row,
+      ["hip", "엉덩이", "엉덩이단면", "힙", "엉덩이둘레", "hipCircumference"],
+      "hip",
+    ),
+    thigh: getNormalizedProductSizeValue(
+      row,
+      ["thigh", "허벅지", "허벅지단면", "허벅지둘레", "thighCircumference"],
+      "thigh",
+    ),
+    rise: getNormalizedProductSizeValue(row, ["rise", "밑위", "밑위길이"], "rise"),
+    hem: getNormalizedProductSizeValue(row, ["hem", "밑단", "밑단단면"], "hem"),
+    footLength: getNormalizedProductSizeValue(
+      row,
+      ["footLength", "발길이", "발 길이"],
+      "footLength",
+    ),
   };
 }
 
@@ -823,7 +864,9 @@ function normalizeNestedSizeMeasurement(row) {
         "title",
       ]);
       const key = getSizeMeasurementKey(String(label || ""));
-      const value = normalizeProductSizeNumber(
+      const value = normalizeProductSizeMeasurementValue(
+        label,
+        key,
         getProductSizeValue(entry, ["value", "measurement", "sizeValue", "val", "content"]),
       );
 
@@ -1425,6 +1468,15 @@ function extractMaterialCompositionFromProductInfo(html) {
   return undefined;
 }
 
+function getNormalizedProductSizeValue(row, keys, measurementKey) {
+  for (const key of keys) {
+    if (row[key] === undefined || row[key] === null || row[key] === "") continue;
+    return normalizeProductSizeMeasurementValue(key, measurementKey, row[key]);
+  }
+
+  return undefined;
+}
+
 function extractMaterialCompositionFromVisibleText(html) {
   const visibleText = stripHtml(
     html
@@ -1603,7 +1655,8 @@ function extractProductSizeGuideFromTables(html) {
 
     if (headerIndex < 0) continue;
 
-    const headers = rows[headerIndex].map((cell) => getSizeMeasurementKey(cell));
+    const headerLabels = rows[headerIndex];
+    const headers = headerLabels.map((cell) => getSizeMeasurementKey(cell));
     const sizeRows = rows
       .slice(headerIndex + 1)
       .map((cells) => {
@@ -1611,7 +1664,11 @@ function extractProductSizeGuideFromTables(html) {
 
         cells.forEach((cell, index) => {
           const key = headers[index];
-          if (key) row[key] = cell;
+          if (!key) return;
+
+          row[key] = key === "size"
+            ? cell
+            : normalizeProductSizeMeasurementValue(headerLabels[index], key, cell);
         });
 
         return normalizeProductSizeMeasurement(row);
