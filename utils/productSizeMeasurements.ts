@@ -140,7 +140,18 @@ function isValidProductSizeName(size?: string) {
 }
 
 function parsePositiveMeasurement(value: string | number | undefined) {
-  const parsedValue = Number(String(value ?? "").replace(",", ".").trim());
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : undefined;
+  }
+
+  const trimmedValue = String(value ?? "").trim();
+  if (!trimmedValue || /^[-–—−]\s*\d/.test(trimmedValue)) return undefined;
+
+  const decimalNormalized = trimmedValue.replace(/(\d),(\d{1,2})(?!\d)/g, "$1.$2");
+  const numericTokens = decimalNormalized.match(/\d+(?:\.\d+)?/g) || [];
+  if (numericTokens.length !== 1) return undefined;
+
+  const parsedValue = Number(numericTokens[0]);
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
 }
 
