@@ -32,6 +32,11 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const { getRecommendedProductSize } = require("../utils/sizeMatch.ts");
+const {
+  buildProductSizeMeasurement,
+  getValidProductSizeRows,
+  upsertProductSizeMeasurement,
+} = require("../utils/productSizeMeasurements.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -165,4 +170,82 @@ test("프로필 실측이 부족해도 같은 카테고리 기준 옷 실측으�
   assert.equal(result.recommendedSize, "L");
   assert.deepEqual(result.missingFields, []);
   assert.match(result.sizeRecommendations[0].reasons.join(" "), /기준 옷/);
+});
+
+test("실측 직접 입력은 양수인 유한값만 저장하고 빈 행을 거부한다", () => {
+  const validMeasurement = buildProductSizeMeasurement({
+    size: "XL(33~34)",
+    totalLength: "104,5",
+    shoulder: "-1",
+    chest: "not-a-number",
+    sleeve: "0",
+    waist: "42",
+    hip: "",
+    thigh: "",
+    rise: "",
+    hem: "",
+    footLength: "",
+  });
+  const emptyMeasurement = buildProductSizeMeasurement({
+    size: "L",
+    totalLength: "0",
+    shoulder: "-1",
+    chest: "",
+    sleeve: "",
+    waist: "",
+    hip: "",
+    thigh: "",
+    rise: "",
+    hem: "",
+    footLength: "",
+  });
+
+  assert.deepEqual(validMeasurement, {
+    size: "XL",
+    rawSize: "XL(33~34)",
+    displaySize: "XL(33~34)",
+    numericRange: { min: 33, max: 34 },
+    totalLength: 104.5,
+    shoulder: undefined,
+    chest: undefined,
+    sleeve: undefined,
+    waist: 42,
+    hip: undefined,
+    thigh: undefined,
+    rise: undefined,
+    hem: undefined,
+    footLength: undefined,
+  });
+  assert.equal(emptyMeasurement, null);
+});
+
+test("기존 실측표의 잘못된 값은 숨기고 같은 사이즈 입력은 한 행으로 교체한다", () => {
+  const rows = getValidProductSizeRows({
+    unit: "cm",
+    sizes: [
+      { size: "무신사 단독", totalLength: 100 },
+      { size: "M", totalLength: Number.NaN, chest: 0 },
+      { size: "2XL", totalLength: 72, chest: 58 },
+    ],
+  });
+  const replacement = buildProductSizeMeasurement({
+    size: "XXL",
+    totalLength: "74",
+    shoulder: "",
+    chest: "60",
+    sleeve: "",
+    waist: "",
+    hip: "",
+    thigh: "",
+    rise: "",
+    hem: "",
+    footLength: "",
+  });
+
+  assert.equal(rows.length, 1);
+  assert.ok(replacement);
+  const nextRows = upsertProductSizeMeasurement(rows, replacement);
+  assert.equal(nextRows.length, 1);
+  assert.equal(nextRows[0].size, "XXL");
+  assert.equal(nextRows[0].totalLength, 74);
 });

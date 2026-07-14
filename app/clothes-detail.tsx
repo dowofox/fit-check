@@ -10,6 +10,15 @@ import {
 } from "@/utils/productClassification";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import {
+  buildProductSizeMeasurement,
+  doesProductSizeRowMatch,
+  getProductSizeDisplayName,
+  getValidProductSizeRows,
+  normalizeProductSizeForCompare,
+  type ProductMeasurementDraft,
+  upsertProductSizeMeasurement,
+} from "@/utils/productSizeMeasurements";
+import {
   getFitSuitability,
   getRecommendedProductSize,
   isAccessoryOrBagItem,
@@ -80,20 +89,6 @@ type ConfirmedProductDraft = {
   materialComposition?: ConfirmedProduct["materialComposition"];
   mallName: string;
   price: string;
-};
-
-type ProductMeasurementDraft = {
-  size: string;
-  totalLength: string;
-  shoulder: string;
-  chest: string;
-  sleeve: string;
-  waist: string;
-  hip: string;
-  thigh: string;
-  rise: string;
-  hem: string;
-  footLength: string;
 };
 
 type ProductMeasurementField = Exclude<keyof ProductMeasurementDraft, "size">;
@@ -356,40 +351,6 @@ function buildConfirmedProductFromDraft(
   };
 }
 
-const INVALID_PRODUCT_SIZE_KEYWORDS = [
-  "무신사",
-  "무진장",
-  "단독",
-  "이벤트",
-  "쿠폰",
-  "할인",
-  "적립",
-  "후기",
-  "배송",
-  "무료",
-  "랭킹",
-  "브랜드",
-];
-
-function hasProductSizeMeasurements(sizeInfo: ProductSizeMeasurement) {
-  return PRODUCT_SIZE_MEASUREMENT_LABELS.some(([key]) => typeof sizeInfo[key] === "number");
-}
-
-function isValidProductSizeName(size?: string) {
-  const normalizedSize = size?.trim();
-
-  return Boolean(
-    normalizedSize &&
-      !INVALID_PRODUCT_SIZE_KEYWORDS.some((keyword) => normalizedSize.includes(keyword))
-  );
-}
-
-function getValidProductSizeRows(productSizeGuide?: ProductSizeGuide) {
-  return (productSizeGuide?.sizes || []).filter(
-    (sizeInfo) => isValidProductSizeName(sizeInfo.size) && hasProductSizeMeasurements(sizeInfo)
-  );
-}
-
 function normalizeProductSizeGuideForDisplay(
   productSizeGuide?: ProductSizeGuide
 ): ProductSizeGuide | undefined {
@@ -423,85 +384,6 @@ const PRODUCT_SIZE_MEASUREMENT_LABELS: [keyof ProductSizeMeasurement, string][] 
   ["hem", "밑단"],
   ["footLength", "발길이"],
 ];
-
-function normalizeSizeForCompare(size?: string) {
-  const normalizedSize = (size || "").replace(/\s+/g, "").toUpperCase();
-  if (["FREE", "F", "ONESIZE", "OS"].includes(normalizedSize)) return "FREE";
-
-  const letterSize = normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/)?.[0];
-  const baseSize = letterSize || normalizedSize;
-
-  if (baseSize === "2XL") return "XXL";
-  if (baseSize === "3XL") return "XXXL";
-
-  return baseSize;
-}
-
-function getBaseSizeForStorage(size: string) {
-  const normalizedSize = size.replace(/\s+/g, "").toUpperCase();
-  if (["FREE", "F", "ONESIZE", "OS"].includes(normalizedSize)) return "FREE";
-
-  const letterSize = normalizedSize.match(
-    /(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/
-  )?.[0];
-
-  return letterSize || normalizedSize;
-}
-
-function getProductSizeDisplayName(sizeInfo: ProductSizeMeasurement) {
-  if (
-    [sizeInfo.size, sizeInfo.displaySize, sizeInfo.rawSize].some(
-      (size) => normalizeSizeForCompare(size) === "FREE"
-    )
-  ) {
-    return "FREE";
-  }
-
-  return (sizeInfo.displaySize || sizeInfo.rawSize || sizeInfo.size).trim();
-}
-
-function getProductSizeNumericRange(sizeInfo: ProductSizeMeasurement) {
-  if (sizeInfo.numericRange) return sizeInfo.numericRange;
-
-  const displaySize = getProductSizeDisplayName(sizeInfo);
-  const rangeMatch = displaySize.match(/(\d{1,3})\s*[~～\-–—]\s*(\d{1,3})/);
-  if (!rangeMatch) return undefined;
-
-  const firstValue = Number(rangeMatch[1]);
-  const secondValue = Number(rangeMatch[2]);
-
-  return {
-    min: Math.min(firstValue, secondValue),
-    max: Math.max(firstValue, secondValue),
-  };
-}
-
-function isSizeInProductNumericRange(
-  size: string | undefined,
-  sizeInfo: ProductSizeMeasurement
-) {
-  const numericSize = Number((size || "").trim());
-  const numericRange = getProductSizeNumericRange(sizeInfo);
-
-  return (
-    Number.isFinite(numericSize) &&
-    numericRange !== undefined &&
-    numericSize >= numericRange.min &&
-    numericSize <= numericRange.max
-  );
-}
-
-function doesProductSizeRowMatch(sizeInfo: ProductSizeMeasurement, size?: string) {
-  const targetSize = normalizeSizeForCompare(size);
-  if (!targetSize) return false;
-
-  return (
-    normalizeSizeForCompare(sizeInfo.size) === targetSize ||
-    normalizeSizeForCompare(sizeInfo.displaySize) === targetSize ||
-    normalizeSizeForCompare(sizeInfo.rawSize) === targetSize ||
-    isSizeInProductNumericRange(size, sizeInfo)
-  );
-}
 
 function getProfileSizeForItem(item: ClosetItem, profile?: UserProfile | null) {
   if (!profile) return "";
@@ -558,45 +440,6 @@ function getProductMeasurementDraft(item: ClosetItem): ProductMeasurementDraft {
     hem: measurementValueToDraft(matchingRow.hem),
     footLength: measurementValueToDraft(matchingRow.footLength),
   };
-}
-
-function parseProductMeasurement(value: string) {
-  const parsedValue = Number(value.replace(",", ".").trim());
-  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
-}
-
-function buildProductSizeMeasurement(
-  draft: ProductMeasurementDraft
-): ProductSizeMeasurement | null {
-  const size = draft.size.trim();
-  if (!size) return null;
-  const baseSize = getBaseSizeForStorage(size);
-  const rangeMatch = size.match(/(\d{1,3})\s*[~～\-–—]\s*(\d{1,3})/);
-  const numericRange = rangeMatch
-    ? {
-        min: Math.min(Number(rangeMatch[1]), Number(rangeMatch[2])),
-        max: Math.max(Number(rangeMatch[1]), Number(rangeMatch[2])),
-      }
-    : undefined;
-
-  const measurement: ProductSizeMeasurement = {
-    size: baseSize || size,
-    rawSize: size,
-    displaySize: size,
-    numericRange,
-    totalLength: parseProductMeasurement(draft.totalLength),
-    shoulder: parseProductMeasurement(draft.shoulder),
-    chest: parseProductMeasurement(draft.chest),
-    sleeve: parseProductMeasurement(draft.sleeve),
-    waist: parseProductMeasurement(draft.waist),
-    hip: parseProductMeasurement(draft.hip),
-    thigh: parseProductMeasurement(draft.thigh),
-    rise: parseProductMeasurement(draft.rise),
-    hem: parseProductMeasurement(draft.hem),
-    footLength: parseProductMeasurement(draft.footLength),
-  };
-
-  return hasProductSizeMeasurements(measurement) ? measurement : null;
 }
 
 const TOP_MEASUREMENT_FIELDS: { key: ProductMeasurementField; label: string }[] = [
@@ -1984,12 +1827,18 @@ function RecommendedSizeCard({
 
   const recommendedRow = getValidProductSizeRows(
     item.confirmedProduct?.productSizeGuide
-  ).find((row) => normalizeSizeForCompare(row.size) === normalizeSizeForCompare(result.recommendedSize));
+  ).find(
+    (row) =>
+      normalizeProductSizeForCompare(row.size) ===
+      normalizeProductSizeForCompare(result.recommendedSize)
+  );
   const currentSizeMatches = recommendedRow
     ? doesProductSizeRowMatch(recommendedRow, item.size)
-    : normalizeSizeForCompare(item.size) === normalizeSizeForCompare(result.recommendedSize);
+    : normalizeProductSizeForCompare(item.size) ===
+      normalizeProductSizeForCompare(result.recommendedSize);
   const alternatives = displayedRecommendations.slice(1);
-  const isFreeRecommendation = normalizeSizeForCompare(result.recommendedSize) === "FREE";
+  const isFreeRecommendation =
+    normalizeProductSizeForCompare(result.recommendedSize) === "FREE";
 
   return (
     <View style={styles.sizeMatchCard}>
@@ -2458,12 +2307,7 @@ export default function ClothesDetailScreen() {
     }
 
     const existingRows = getValidProductSizeRows(item.confirmedProduct.productSizeGuide);
-    const nextRows = [
-      ...existingRows.filter(
-        (row) => !doesProductSizeRowMatch(row, measurement.size)
-      ),
-      measurement,
-    ];
+    const nextRows = upsertProductSizeMeasurement(existingRows, measurement);
     const confirmedProduct: ConfirmedProduct = {
       ...item.confirmedProduct,
       productSizeGuide: {
