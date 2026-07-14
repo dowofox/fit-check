@@ -40,6 +40,10 @@ const {
   getValidProductSizeRows,
   upsertProductSizeMeasurement,
 } = require("../utils/productSizeMeasurements.ts");
+const {
+  countValidProfileMeasurements,
+  validateProfileMeasurementInputs,
+} = require("../utils/profileMeasurements.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -289,5 +293,31 @@ test("현재 사이즈 적합도는 부족한 정보에 맞는 차단 이유를 
       null
     ).blockedReason,
     "missing_profile_measurements"
+  );
+});
+
+test("프로필 신체 치수는 양수 숫자만 정규화하고 잘못된 필드를 구분한다", () => {
+  const result = validateProfileMeasurementInputs({
+    height: "175",
+    shoulderWidth: "47,5",
+    chestCircumference: "0",
+    waistCircumference: "82cm",
+    hipCircumference: "",
+    armLength: "60",
+    inseam: "-1",
+    thighCircumference: "64",
+    preferredPantsTotalLength: "104.0",
+  });
+
+  assert.equal(result.values.shoulderWidth, "47.5");
+  assert.equal(result.values.preferredPantsTotalLength, "104");
+  assert.deepEqual(result.invalidFields, [
+    "가슴 둘레",
+    "허리 둘레",
+    "다리 안쪽 길이(인심)",
+  ]);
+  assert.equal(
+    countValidProfileMeasurements(result.values, ["height"]),
+    4
   );
 });

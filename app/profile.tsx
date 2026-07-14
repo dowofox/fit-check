@@ -1,6 +1,10 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { normalizeSize } from "@/utils/sizeMatch";
 import {
+  countValidProfileMeasurements,
+  validateProfileMeasurementInputs,
+} from "@/utils/profileMeasurements";
+import {
   ClosetItem,
   getClosetItems,
   getUserProfile,
@@ -61,11 +65,6 @@ function MeasurementInput({
   );
 }
 
-function parseOptionalMeasurement(value: string) {
-  const parsedValue = Number(value.replace(",", ".").trim());
-  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
-}
-
 export default function ProfileScreen() {
   const [gender, setGender] = useState("남성");
   const [age, setAge] = useState("");
@@ -86,7 +85,8 @@ export default function ProfileScreen() {
   const [referenceClothing, setReferenceClothing] = useState<ReferenceClothing>({});
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
-  const measurementCount = [
+  const profileMeasurementInputs = {
+    height,
     shoulderWidth,
     chestCircumference,
     waistCircumference,
@@ -95,7 +95,8 @@ export default function ProfileScreen() {
     inseam,
     thighCircumference,
     preferredPantsTotalLength,
-  ].filter(Boolean).length;
+  };
+  const measurementCount = countValidProfileMeasurements(profileMeasurementInputs, ["height"]);
 
   useFocusEffect(
     useCallback(() => {
@@ -142,26 +143,36 @@ export default function ProfileScreen() {
     const normalizedTopSize = normalizeSize(topSize);
     const normalizedBottomSize = normalizeSize(bottomSize);
     const normalizedShoeSize = normalizeSize(shoeSize);
-    const normalizedPreferredPantsTotalLength = parseOptionalMeasurement(
-      preferredPantsTotalLength
-    );
+    const measurementValidation = validateProfileMeasurementInputs(profileMeasurementInputs);
+    if (measurementValidation.invalidFields.length > 0) {
+      Alert.alert(
+        "입력 확인",
+        `${measurementValidation.invalidFields.join(", ")} 값은 0보다 큰 숫자로 입력해주세요.`
+      );
+      return;
+    }
+
+    const normalizedMeasurements = measurementValidation.values;
+    const normalizedPreferredPantsTotalLength = normalizedMeasurements.preferredPantsTotalLength
+      ? Number(normalizedMeasurements.preferredPantsTotalLength)
+      : undefined;
 
     await saveUserProfile({
       gender,
       age,
-      height,
+      height: normalizedMeasurements.height,
       weight,
       bodyType,
       topSize: normalizedTopSize,
       bottomSize: normalizedBottomSize,
       shoeSize: normalizedShoeSize,
-      shoulderWidth,
-      chestCircumference,
-      waistCircumference,
-      hipCircumference,
-      armLength,
-      inseam,
-      thighCircumference,
+      shoulderWidth: normalizedMeasurements.shoulderWidth,
+      chestCircumference: normalizedMeasurements.chestCircumference,
+      waistCircumference: normalizedMeasurements.waistCircumference,
+      hipCircumference: normalizedMeasurements.hipCircumference,
+      armLength: normalizedMeasurements.armLength,
+      inseam: normalizedMeasurements.inseam,
+      thighCircumference: normalizedMeasurements.thighCircumference,
       preferredPantsTotalLength: normalizedPreferredPantsTotalLength,
       referenceClothing,
     });
@@ -169,6 +180,14 @@ export default function ProfileScreen() {
     setTopSize(normalizedTopSize);
     setBottomSize(normalizedBottomSize);
     setShoeSize(normalizedShoeSize);
+    setHeight(normalizedMeasurements.height);
+    setShoulderWidth(normalizedMeasurements.shoulderWidth);
+    setChestCircumference(normalizedMeasurements.chestCircumference);
+    setWaistCircumference(normalizedMeasurements.waistCircumference);
+    setHipCircumference(normalizedMeasurements.hipCircumference);
+    setArmLength(normalizedMeasurements.armLength);
+    setInseam(normalizedMeasurements.inseam);
+    setThighCircumference(normalizedMeasurements.thighCircumference);
     setPreferredPantsTotalLength(
       normalizedPreferredPantsTotalLength !== undefined
         ? String(normalizedPreferredPantsTotalLength)
