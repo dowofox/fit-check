@@ -33,6 +33,11 @@ const OFFICIAL_SEASON_RULES: Array<{
     seasons: ["겨울"],
   },
   {
+    id: "summer-knit",
+    keywords: ["반팔 니트", "민소매 니트", "니트 베스트", "short sleeve knit"],
+    seasons: ["봄", "여름"],
+  },
+  {
     id: "summer-bottom",
     keywords: [
       "버뮤다",
@@ -162,8 +167,37 @@ const OFFICIAL_SEASON_RULES: Array<{
   },
   {
     id: "transitional",
-    keywords: ["봄", "가을", "간절기", "경량", "트렌치", "얇은 니트", "바람막이", "코치 자켓", "코치 재킷"],
+    keywords: [
+      "봄",
+      "가을",
+      "간절기",
+      "경량",
+      "트렌치",
+      "얇은 니트",
+      "가디건",
+      "바람막이",
+      "윈드브레이커",
+      "블루종",
+      "트러커 자켓",
+      "트러커 재킷",
+      "데님 자켓",
+      "데님 재킷",
+      "후드 집업",
+      "맨투맨",
+      "스웨트셔츠",
+      "cardigan",
+      "windbreaker",
+      "sweatshirt",
+      "코치 자켓",
+      "코치 재킷",
+    ],
     seasons: ["봄", "가을"],
+  },
+  {
+    id: "coat",
+    keywords: ["코트", "coat"],
+    excludedKeywords: ["트렌치코트", "트렌치 코트", "trench coat"],
+    seasons: ["가을", "겨울"],
   },
 ];
 

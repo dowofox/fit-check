@@ -149,6 +149,13 @@ const SEASON_EVIDENCE_RULES = [
     seasons: ["가을", "겨울"],
   },
   {
+    id: "trench-coat",
+    priority: 91,
+    categories: ["아우터"],
+    keywords: ["트렌치코트", "트렌치 코트", "trench coat"],
+    seasons: ["봄", "가을"],
+  },
+  {
     id: "winter-footwear",
     priority: 90,
     categories: ["신발"],
@@ -173,7 +180,7 @@ const SEASON_EVIDENCE_RULES = [
     id: "coat",
     priority: 90,
     categories: ["아우터"],
-    keywords: ["코트", "트렌치코트", "트렌치 코트", "coat", "trench coat"],
+    keywords: ["코트", "coat"],
     seasons: ["가을", "겨울"],
   },
   {

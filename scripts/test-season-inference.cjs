@@ -34,6 +34,7 @@ const {
   inferSeasonsFromOfficialProduct,
   resolveRegistrationSeasonInference,
 } = require("../utils/seasonInference.ts");
+const { resolveClothesSeasons } = require("../server/clothesSeason.js");
 const { normalizeClosetSeasons } = require("../utils/closetRegistration.ts");
 
 test("빈 계절은 사계절로 바꾸지 않는다", () => {
@@ -142,4 +143,31 @@ test("공식 계절 키워드를 품목별로 구분한다", () => {
     inferSeasonsFromOfficialProduct({ productName: "레더 크로스백" }),
     null
   );
+});
+
+test("대표 품목은 사진 분석과 공식 상품 보정에서 같은 계절을 반환한다", () => {
+  const cases = [
+    { category: "상의", name: "반팔 니트" },
+    { category: "아우터", name: "니트 가디건" },
+    { category: "아우터", name: "트렌치코트" },
+    { category: "아우터", name: "울 코트" },
+    { category: "하의", name: "시어서커 버뮤다 팬츠" },
+    { category: "하의", name: "코듀로이 와이드 팬츠" },
+    { category: "신발", name: "스트랩 샌들" },
+    { category: "신발", name: "첼시 부츠" },
+    { category: "액세서리", name: "밀짚모자" },
+    { category: "액세서리", name: "울 비니" },
+  ];
+
+  cases.forEach(({ category, name }) => {
+    const photoResult = resolveClothesSeasons({ category, detailCategory: name });
+    const officialResult = inferSeasonsFromOfficialProduct({ productName: name });
+
+    assert.ok(officialResult, `${name} 공식 상품 계절 규칙이 필요합니다.`);
+    assert.deepEqual(
+      officialResult.seasons,
+      photoResult.seasons,
+      `${name}의 사진 분석과 공식 상품 계절이 다릅니다.`
+    );
+  });
 });
