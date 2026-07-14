@@ -104,6 +104,7 @@ const BRAND_OR_LOGO_TERMS = [
 ];
 
 type ClothesAnalysis = {
+  source?: "image" | "productFallback";
   category?: string;
   subCategory?: string;
   detailCategory?: string;
@@ -387,6 +388,38 @@ function buildConfirmedProductFromExtractedProduct(product: ExtractedProduct): C
   };
 }
 
+function createProductFallbackAnalysis(product: ExtractedProduct): ClothesAnalysis {
+  const classification = inferProductAttributesFromConfirmedProduct({
+    productName: product.productName,
+    brand: product.brand,
+    materialComposition: product.materialComposition,
+  });
+  const styleTags = classification.styleTags?.length
+    ? classification.styleTags
+    : ["데일리"];
+
+  return {
+    source: "productFallback",
+    category: classification.category || "기타",
+    subCategory: classification.subCategory || "분류 확인 필요",
+    detailCategory: classification.detailCategory || "상세 종류 확인 필요",
+    color: "색상 확인 필요",
+    style: styleTags[0],
+    styleTags,
+    season: "사계절",
+    seasons: ["사계절"],
+    fit: "핏 분석 전",
+    material:
+      classification.material ||
+      product.materialComposition?.summary ||
+      "판단 어려움",
+    description: "상품 이미지 분석을 완료하지 못해 확인된 상품 정보로 등록합니다.",
+    matchTip: "등록 후 옷 상세에서 정보를 보완하면 추천이 더 정확해져요.",
+    avoidTip: "종류, 색상, 계절이 다르면 저장 전에 바로잡아주세요.",
+    analysisWarnings: ["상품 이미지 AI 분석을 완료하지 못했어요."],
+  };
+}
+
 function getInferredBrand(analysis: ClothesAnalysis, confirmedBrand?: string) {
   const inferredBrand = analysis.inferredBrand || analysis.brand || analysis.confirmedBrand || "";
   const trimmedBrand = inferredBrand.trim();
@@ -524,6 +557,7 @@ export default function AddClothesScreen() {
   const [hasManuallyEditedStyleTags, setHasManuallyEditedStyleTags] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDetailCategory, setSelectedDetailCategory] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
   const [manuallyEditedClassificationFields, setManuallyEditedClassificationFields] =
     useState<ProductClassificationField[]>([]);
   const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
@@ -539,6 +573,7 @@ export default function AddClothesScreen() {
     setHasManuallyEditedStyleTags(false);
     setSelectedCategory("");
     setSelectedDetailCategory("");
+    setSelectedColor("");
     setManuallyEditedClassificationFields([]);
     setSelectedSize(DEFAULT_SIZE);
   }
@@ -566,6 +601,22 @@ export default function AddClothesScreen() {
     );
   }
 
+  function applyAnalysisToForm(nextAnalysis: ClothesAnalysis) {
+    setAnalysis(nextAnalysis);
+    setSelectedCategory(nextAnalysis.category || "기타");
+    setSelectedDetailCategory(
+      generalizeBrandTerms(
+        nextAnalysis.detailCategory || nextAnalysis.subCategory,
+        "상세 분류 확인 필요"
+      )
+    );
+    setSelectedColor(nextAnalysis.color || "색상 확인 필요");
+    setSelectedSeasons(normalizeSeasons(nextAnalysis.seasons || nextAnalysis.season));
+    setSelectedStyleTags(normalizeStyleTags(nextAnalysis.styleTags, nextAnalysis.style));
+    setHasManuallyEditedStyleTags(false);
+    setSelectedSize(DEFAULT_SIZE);
+  }
+
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -586,6 +637,7 @@ export default function AddClothesScreen() {
       setHasManuallyEditedStyleTags(false);
       setSelectedCategory("");
       setSelectedDetailCategory("");
+      setSelectedColor("");
       setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
     }
@@ -615,6 +667,7 @@ export default function AddClothesScreen() {
       setHasManuallyEditedStyleTags(false);
       setSelectedCategory("");
       setSelectedDetailCategory("");
+      setSelectedColor("");
       setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
     }
@@ -688,37 +741,20 @@ export default function AddClothesScreen() {
 
     try {
       setIsSaving(true);
-
-      const encodedImage = await encodeImageUri(imageUri);
-
-      const response = await fetch(API_ENDPOINTS.analyzeClothes, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image: encodedImage.base64,
-          imageMimeType: encodedImage.mimeType,
-        }),
-      });
-
-      const analysis = await response.json();
-
-      setAnalysis(analysis);
-      setSelectedCategory(analysis.category || "기타");
-      setSelectedDetailCategory(
-        generalizeBrandTerms(
-          analysis.detailCategory || analysis.subCategory,
-          "상세 분류 전"
-        )
-      );
-      setSelectedSeasons(normalizeSeasons(analysis.seasons || analysis.season));
-      setSelectedStyleTags(normalizeStyleTags(analysis.styleTags, analysis.style));
-      setHasManuallyEditedStyleTags(false);
-      setSelectedSize(DEFAULT_SIZE);
+      const nextAnalysis = await requestClothesAnalysis(imageUri);
+      applyAnalysisToForm({ ...nextAnalysis, source: "image" });
     } catch (error) {
       console.error("옷 분석 실패:", error);
-      Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
+
+      if (extractedProduct) {
+        applyAnalysisToForm(createProductFallbackAnalysis(extractedProduct));
+        Alert.alert(
+          "상품 정보로 계속할게요",
+          "이미지 AI 분석은 완료하지 못했지만 확인된 상품 정보는 유지했어요. 아래에서 종류, 색상, 계절을 확인한 뒤 저장해주세요."
+        );
+      } else {
+        Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -797,7 +833,7 @@ export default function AddClothesScreen() {
           selectedDetailCategory || analysis.detailCategory || analysis.subCategory,
           "상세 분류 전"
         ),
-        color: analysis.color || "색상 분석 전",
+        color: selectedColor || analysis.color || "색상 확인 필요",
         style: selectedStyleTags[0] || analysis.style || "스타일 분석 전",
         styleTags: selectedStyleTags,
         season: selectedSeasons.join(", "),
@@ -1138,16 +1174,25 @@ export default function AddClothesScreen() {
         {analysis && (
           <View style={styles.analysisCard}>
             <Text style={styles.analysisTitle}>
-              {addMode === "photo" ? "빠른 등록 정보" : "등록 정보 확인"}
+              {extractedProduct ? "등록 정보 확인" : "빠른 등록 정보"}
             </Text>
             <Text style={styles.analysisText}>
               {analysis.detailCategory || analysis.subCategory || analysis.category || "옷 종류 분석 전"}
             </Text>
             <Text style={styles.analysisSummaryText}>
-              {addMode === "photo"
-                ? "사진 등록은 종류, 색상, 계절, 스타일 같은 기본 정보만 빠르게 확인해요. 실측과 공식 소재가 필요하면 상품 링크 등록을 사용해주세요."
-                : "공식 상품 정보는 위 미리보기를 기준으로 저장돼요. 아래 기본 정보와 보유 사이즈만 확인해주세요."}
+              {extractedProduct
+                ? "공식 상품 정보는 위 미리보기를 기준으로 저장돼요. 아래 종류, 색상, 계절과 보유 사이즈를 확인해주세요."
+                : "사진 등록은 종류, 색상, 계절, 스타일 같은 기본 정보만 빠르게 확인해요. 실측과 공식 소재가 필요하면 상품 링크 등록을 사용해주세요."}
             </Text>
+
+            {analysis.source === "productFallback" ? (
+              <View style={styles.partialExtractionNotice}>
+                <Feather name="alert-circle" size={14} color="#8c6f47" />
+                <Text style={styles.partialExtractionNoticeText}>
+                  이미지 분석 없이 확인된 상품 정보로 계속해요. 종류, 색상, 계절을 저장 전에 확인해주세요.
+                </Text>
+              </View>
+            ) : null}
 
             <Text style={styles.seasonLabel}>카테고리</Text>
             <TextInput
@@ -1170,6 +1215,15 @@ export default function AddClothesScreen() {
                 markClassificationFieldAsEdited("detailCategory");
               }}
               placeholder="예: 데님 셔츠, 와이드 슬랙스"
+              placeholderTextColor="#777064"
+            />
+
+            <Text style={styles.seasonLabel}>색상</Text>
+            <TextInput
+              style={styles.sizeInput}
+              value={selectedColor}
+              onChangeText={setSelectedColor}
+              placeholder="예: 블랙, 화이트, 데님"
               placeholderTextColor="#777064"
             />
 
@@ -1262,7 +1316,7 @@ export default function AddClothesScreen() {
               <Text style={styles.primaryButtonText}>
                 {analysis
                   ? "선택한 정보로 저장"
-                  : addMode === "link"
+                  : extractedProduct
                     ? "상품 이미지 분석하고 등록 정보 확인"
                     : selectedImages.length > 1
                       ? "선택한 사진 AI 분석하기"
