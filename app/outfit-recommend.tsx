@@ -372,6 +372,9 @@ function RecommendationCard({
   const displayReasons = getOutfitDisplayReasons(recommendation.reasons, 3);
   const previewReasons = displayReasons.slice(0, 2);
   const sockRecommendation = recommendation.sockRecommendation;
+  const seasonReviewItems = recommendation.items.filter(
+    (item) => item.seasonNeedsReview === true
+  );
 
   return (
     <View style={styles.recommendCard}>
@@ -414,6 +417,39 @@ function RecommendationCard({
           ))}
         </View>
       </View>
+
+      {seasonReviewItems.length > 0 ? (
+        <View style={styles.seasonReviewCard}>
+          <View style={styles.seasonReviewHeader}>
+            <Feather name="calendar" size={15} color={colors.warning} />
+            <View style={styles.seasonReviewTextArea}>
+              <Text style={styles.seasonReviewTitle}>계절을 확인해주세요</Text>
+              <Text style={styles.seasonReviewDescription}>
+                계절이 확실하지 않아 이 코디에서는 중립적으로 반영했어요.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.seasonReviewItemRow}>
+            {seasonReviewItems.map((item) => (
+              <Pressable
+                key={item.id}
+                style={styles.seasonReviewItemButton}
+                onPress={() =>
+                  router.push({
+                    pathname: "/clothes-detail",
+                    params: { id: item.id, openEdit: "season" },
+                  })
+                }
+              >
+                <Text style={styles.seasonReviewItemText} numberOfLines={1}>
+                  {getItemName(item)}
+                </Text>
+                <Feather name="chevron-right" size={13} color={colors.warning} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       {previewReasons.length > 0 ? (
         <Pressable
@@ -1067,6 +1103,59 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     marginTop: 3,
+  },
+  seasonReviewCard: {
+    backgroundColor: colors.softCard,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    marginBottom: 10,
+  },
+  seasonReviewHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  seasonReviewTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  seasonReviewTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  seasonReviewDescription: {
+    color: colors.subText,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  seasonReviewItemRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 9,
+  },
+  seasonReviewItemButton: {
+    maxWidth: "100%",
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  seasonReviewItemText: {
+    color: colors.warning,
+    fontSize: 11,
+    fontWeight: "700",
+    flexShrink: 1,
   },
   alternativeBox: {
     backgroundColor: colors.card,
