@@ -652,6 +652,7 @@ function getStructuredProductData(html, productUrl) {
       .filter(Boolean);
     const category = [...new Set(categoryValues)].join(" > ");
     const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
+    const materialComposition = extractStructuredProductMaterialComposition(product);
 
     return {
       name: typeof product.name === "string" ? product.name.trim() : "",
@@ -663,10 +664,53 @@ function getStructuredProductData(html, productUrl) {
         typeof offers?.price === "string" || typeof offers?.price === "number"
           ? String(offers.price)
           : "",
+      materialComposition,
     };
   }
 
   return undefined;
+}
+
+function extractStructuredProductMaterialComposition(product) {
+  if (!product || typeof product !== "object") return undefined;
+
+  const directMaterialKeys = [
+    "materialComposition",
+    "goodsMaterial",
+    "materials",
+    "material",
+    "composition",
+    "fabric",
+    "textile",
+  ];
+
+  for (const key of directMaterialKeys) {
+    if (product[key] === undefined || product[key] === null) continue;
+
+    const composition = normalizeMaterialCompositionValue(
+      product[key],
+      "official",
+      key,
+    );
+    if (composition) {
+      logMaterialExtraction("candidate", {
+        path: `selectedProduct.${key}`,
+        source: "structured-product",
+        summary: composition.summary,
+      });
+      return composition;
+    }
+  }
+
+  if (!product.additionalProperty) return undefined;
+
+  return findMaterialCompositionInJson(
+    product.additionalProperty,
+    "official",
+    0,
+    "selectedProduct.additionalProperty",
+    "structured-product",
+  );
 }
 
 function hasProductPageEvidence(html, structuredProduct, isMusinsa) {
@@ -2768,6 +2812,9 @@ app.post("/extract-product", async (req, res) => {
         isMusinsa && productId
           ? await fetchMusinsaMaterialComposition(productId, finalProductUrl)
           : undefined;
+      if (!materialComposition) {
+        materialComposition = structuredProduct?.materialComposition;
+      }
       if (!materialComposition) {
         materialComposition = extractProductMaterialComposition(html);
       }

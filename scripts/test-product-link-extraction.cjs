@@ -120,6 +120,7 @@ const fixtureServer = http.createServer((request, response) => {
           "name":"추천 레더 재킷",
           "brand":{"@type":"Brand","name":"OTHER"},
           "category":"Outerwear",
+          "material":"울 100%",
           "image":"/images/related-jacket.jpg"
         }]
       }</script>
@@ -131,6 +132,7 @@ const fixtureServer = http.createServer((request, response) => {
         "brand":{"@type":"Brand","name":"NAES"},
         "category":["Apparel","Bottoms","Pants"],
         "color":"Navy",
+        "material":"면 100%",
         "image":"/images/main-pants.jpg"
       }</script>
     </head><body></body></html>`);
@@ -277,6 +279,7 @@ async function main() {
     assert.equal(relatedFirst.body.productName, "투턱 와이드 팬츠");
     assert.equal(relatedFirst.body.brand, "NAES");
     assert.equal(relatedFirst.body.productCategory, "Apparel > Bottoms > Pants");
+    assert.equal(relatedFirst.body.materialComposition.summary, "면 100%");
     assert.equal(
       relatedFirst.body.productImageUrl,
       `http://127.0.0.1:${fixturePort}/images/main-pants.jpg`
