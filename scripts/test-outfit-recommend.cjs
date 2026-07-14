@@ -37,6 +37,7 @@ const {
 } = require("../utils/outfitRecommend.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
 const { matchSavedOutfitsWithCloset } = require("../utils/savedOutfitIntegrity.ts");
+const { getSavedOutfitItemIds } = require("../utils/recommendationInput.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -294,4 +295,40 @@ test("저장 코디는 삭제된 옷 ID를 누락 상태로 구분한다", () =>
     [wardrobe[0].id, wardrobe[1].id]
   );
   assert.deepEqual(matchedOutfit.missingItemIds, ["deleted-item"]);
+});
+
+test("새 추천 제외에는 현재 옷장에 모든 아이템이 남은 저장 코디만 사용한다", () => {
+  const wardrobe = createWardrobe();
+  const completeIds = [wardrobe[0].id, wardrobe[1].id];
+  const savedOutfits = [
+    {
+      id: "complete",
+      itemIds: completeIds,
+      score: 80,
+      grade: "B",
+      reasons: [],
+      warnings: [],
+      createdAt,
+    },
+    {
+      id: "stale",
+      itemIds: [wardrobe[0].id, "deleted-item"],
+      score: 80,
+      grade: "B",
+      reasons: [],
+      warnings: [],
+      createdAt,
+    },
+    {
+      id: "empty",
+      itemIds: [],
+      score: 80,
+      grade: "B",
+      reasons: [],
+      warnings: [],
+      createdAt,
+    },
+  ];
+
+  assert.deepEqual(getSavedOutfitItemIds(savedOutfits, wardrobe), [completeIds]);
 });

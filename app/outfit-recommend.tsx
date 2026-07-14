@@ -683,7 +683,7 @@ export default function OutfitRecommendScreen() {
       getSavedOutfits(),
     ]);
     const recommendationItems = toRecommendationInputItems(items);
-    const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits);
+    const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits, items);
     const weather = await getWeatherForRecommendation(paramsWeather);
     const recommendationResult = getOutfitRecommendationResult(
       recommendationItems,

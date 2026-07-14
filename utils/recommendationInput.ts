@@ -82,8 +82,18 @@ export function toRecommendationInputItems(items: ClosetItem[]) {
   return items.map(toRecommendationInputItem);
 }
 
-export function getSavedOutfitItemIds(savedOutfits: SavedOutfit[]) {
-  return savedOutfits.map((outfit) => outfit.itemIds);
+export function getSavedOutfitItemIds(
+  savedOutfits: SavedOutfit[],
+  closetItems: ClosetItem[]
+) {
+  const closetItemIds = new Set(closetItems.map((item) => item.id));
+
+  return savedOutfits
+    .map((outfit) => outfit.itemIds)
+    .filter(
+      (itemIds) =>
+        itemIds.length > 0 && itemIds.every((itemId) => closetItemIds.has(itemId))
+    );
 }
 
 export function getRecommendationDataKey(

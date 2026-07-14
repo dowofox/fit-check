@@ -322,7 +322,10 @@ export default function HomeScreen() {
           if (!isActive) return;
 
           const recommendationItems = toRecommendationInputItems(nextClosetItems);
-          const savedOutfitItemIds = getSavedOutfitItemIds(nextSavedOutfits);
+          const savedOutfitItemIds = getSavedOutfitItemIds(
+            nextSavedOutfits,
+            nextClosetItems
+          );
           const dataKey = getRecommendationDataKey(
             recommendationItems,
             nextProfile,
