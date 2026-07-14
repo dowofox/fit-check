@@ -288,6 +288,20 @@ async function main() {
       )
     );
 
+    const imageLessItem = createClosetItem("manual-no-photo", "액세서리", {
+      imageUri: "",
+      subCategory: "모자",
+      detailCategory: "볼캡",
+      color: "블랙",
+    });
+    await saveClosetItem(imageLessItem);
+    await updateClosetItem(imageLessItem.id, { imageUri: "file:///manual-photo.jpg" });
+    const closetWithUpdatedImage = await getClosetItems();
+    assert.equal(
+      closetWithUpdatedImage.find((closetItem) => closetItem.id === imageLessItem.id)?.imageUri,
+      "file:///manual-photo.jpg"
+    );
+
     console.log("등록부터 추천까지 핵심 흐름 통합 테스트 통과");
   } finally {
     apiProcess.kill();

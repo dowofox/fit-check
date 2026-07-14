@@ -37,6 +37,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image as ExpoImage } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -2058,6 +2059,7 @@ export default function ClothesDetailScreen() {
   const [isSavingRecommendationPreference, setIsSavingRecommendationPreference] = useState(false);
   const [isSavingReferenceClothing, setIsSavingReferenceClothing] = useState(false);
   const [isMeasurementFormOpen, setIsMeasurementFormOpen] = useState(false);
+  const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
@@ -2155,6 +2157,39 @@ export default function ClothesDetailScreen() {
     }
 
     setEditMode(false);
+  }
+
+  async function handleAddItemPhoto() {
+    if (!item || isUpdatingImage) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets[0]?.uri) return;
+
+      setIsUpdatingImage(true);
+      const updatedCloset = await updateClosetItem(item.id, {
+        imageUri: result.assets[0].uri,
+      });
+      const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
+
+      if (!updatedItem) {
+        Alert.alert("사진 저장 실패", "선택한 사진을 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      setItem(updatedItem);
+      setDraft(getEditableValues(updatedItem));
+    } catch (error) {
+      console.error("옷 사진 추가 실패:", error);
+      Alert.alert("사진 추가 실패", "사진을 불러오지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setIsUpdatingImage(false);
+    }
   }
 
   async function handleSave(allowUncertainValues = false) {
@@ -2720,6 +2755,16 @@ export default function ClothesDetailScreen() {
               <View style={[styles.heroImage, styles.heroImagePlaceholder]}>
                 <Feather name="image" size={28} color="#8c6f47" />
                 <Text style={styles.heroImagePlaceholderText}>등록된 사진이 없어요</Text>
+                <Pressable
+                  style={styles.heroImageAddButton}
+                  onPress={handleAddItemPhoto}
+                  disabled={isUpdatingImage}
+                >
+                  <Feather name="plus" size={14} color="#fff" />
+                  <Text style={styles.heroImageAddButtonText}>
+                    {isUpdatingImage ? "사진 저장 중" : "사진 추가"}
+                  </Text>
+                </Pressable>
               </View>
             )}
 
@@ -3118,6 +3163,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "700",
+  },
+  heroImageAddButton: {
+    minHeight: 38,
+    borderRadius: 14,
+    backgroundColor: "#111",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 15,
+    marginTop: 3,
+  },
+  heroImageAddButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
   },
 
   summaryCard: {
