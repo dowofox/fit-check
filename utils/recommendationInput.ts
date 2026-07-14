@@ -57,6 +57,9 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     styleTags: styles,
     season: registration.seasons.join(", "),
     seasons: registration.seasons,
+    seasonSource: item.seasonSource,
+    seasonNeedsReview:
+      item.seasonNeedsReview ?? registration.reviewFields.includes("season"),
     fit: getReliableValue(item.fit),
     size: item.size,
     intendedFit: item.intendedFit,

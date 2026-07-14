@@ -175,7 +175,7 @@ async function main() {
   const emptyRegistration = normalizeClosetRegistrationBasics({});
   assert.equal(emptyRegistration.category, "기타");
   assert.equal(emptyRegistration.color, "색상 확인 필요");
-  assert.deepEqual(emptyRegistration.seasons, ["사계절"]);
+  assert.deepEqual(emptyRegistration.seasons, []);
   assert.deepEqual(emptyRegistration.reviewFields, ["category", "color", "season"]);
 
   const validRegistration = normalizeClosetRegistrationBasics({
@@ -197,7 +197,8 @@ async function main() {
   });
   assert.equal(legacyRecommendationItem.category, "기타");
   assert.equal(legacyRecommendationItem.color, undefined);
-  assert.deepEqual(legacyRecommendationItem.seasons, ["사계절"]);
+  assert.deepEqual(legacyRecommendationItem.seasons, []);
+  assert.equal(legacyRecommendationItem.seasonNeedsReview, true);
   assert.deepEqual(legacyRecommendationItem.styleTags, ["데일리"]);
   assert.equal(legacyRecommendationItem.pattern, undefined);
 

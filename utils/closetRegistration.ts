@@ -20,7 +20,11 @@ export function normalizeClosetSeasons(value?: string | string[]) {
     values.some((currentValue) => currentValue.includes(season))
   );
 
-  return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
+  if (matchedSeasons.length > 1 && matchedSeasons.includes("사계절")) {
+    return matchedSeasons.filter((season) => season !== "사계절");
+  }
+
+  return matchedSeasons;
 }
 
 export function normalizeClosetRegistrationBasics({

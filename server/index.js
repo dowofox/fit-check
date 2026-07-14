@@ -8,6 +8,7 @@ const os = require("os");
 const path = require("path");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
+const { resolveClothesSeasons } = require("./clothesSeason");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -226,22 +227,6 @@ function getRiskLevel(score) {
 function normalizeComment(comment, fallback) {
   if (typeof comment === "string" && comment.trim().length > 0) return comment.trim();
   return fallback;
-}
-
-function normalizeClothesSeasons(seasonValue) {
-  const allowedSeasons = ["봄", "여름", "가을", "겨울", "사계절"];
-
-  if (Array.isArray(seasonValue)) {
-    const matchedSeasons = allowedSeasons.filter((option) =>
-      seasonValue.some((season) => typeof season === "string" && season.includes(option))
-    );
-    return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
-  }
-
-  if (typeof seasonValue !== "string" || seasonValue.trim().length === 0) return ["사계절"];
-
-  const matchedSeasons = allowedSeasons.filter((option) => seasonValue.includes(option));
-  return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
 }
 
 function normalizeStyleTags(styleTags, style) {
@@ -2764,8 +2749,10 @@ app.post("/analyze-clothes", async (req, res) => {
         color: "분석 불가",
         style: "분석 불가",
         styleTags: ["데일리"],
-        season: "사계절",
-        seasons: ["사계절"],
+        season: "",
+        seasons: [],
+        seasonSource: "photo_ai",
+        seasonNeedsReview: true,
         fit: "분석 불가",
         description: "이미지가 없어 옷을 분석하지 못했습니다.",
         matchTip: "사진을 다시 선택해주세요.",
@@ -2817,6 +2804,14 @@ app.post("/analyze-clothes", async (req, res) => {
   "style": "캐주얼 / 미니멀 / 스트릿 / 포멀 / 스포티 / 빈티지 / 기타 중 하나",
   "styleTags": ["캐주얼", "편안함", "데일리"],
   "seasons": ["봄", "가을"],
+  "seasonEvidence": {
+    "sleeveLength": "민소매 / 반팔 / 중간 소매 / 긴팔 / 해당 없음 / 판단 어려움 중 하나",
+    "thickness": "얇음 / 보통 / 두꺼움 / 판단 어려움 중 하나",
+    "insulation": "낮음 / 보통 / 높음 / 판단 어려움 중 하나",
+    "breathability": "낮음 / 보통 / 높음 / 판단 어려움 중 하나",
+    "layeringRole": "단독 / 이너 / 가벼운 겉옷 / 방한 겉옷 / 해당 없음 / 판단 어려움 중 하나",
+    "evidence": ["계절 판단에 사용한 사진 속 단서"]
+  },
   "fit": "슬림핏 / 레귤러핏 / 오버핏 / 와이드핏 / 판단 어려움 중 하나",
   "brand": null,
   "confirmedBrand": null,
@@ -2891,7 +2886,14 @@ app.post("/analyze-clothes", async (req, res) => {
 - 실제 사진에 보이는 옷만 기준으로 판단해주세요.
 - 색상은 가장 많이 보이는 대표 색상으로 말해주세요.
 - styleTags는 ["미니멀", "캐주얼", "스트릿", "댄디", "포멀", "스포티", "아메카지", "고프코어", "빈티지", "러블리", "페미닌", "모던", "클래식", "데일리", "편안함", "깔끔함", "꾸안꾸"] 중 최대 3개를 배열로 작성하세요.
-- seasons는 반드시 ["봄", "여름", "가을", "겨울", "사계절"] 중 필요한 값을 담은 배열로 작성하세요.
+- seasons는 ["봄", "여름", "가을", "겨울", "사계절"] 중 근거가 있는 값만 담으세요. 판단 근거가 부족하면 빈 배열 []을 반환하세요.
+- 계절은 색상이나 스타일 분위기로 추측하지 말고 의류 종류, 소매 길이, 원단 두께, 보온성, 통기성, 레이어링 역할을 먼저 판단한 뒤 결정하세요.
+- seasonEvidence를 먼저 작성한 다음 그 근거와 일치하는 seasons를 선택하세요.
+- "사계절"은 기본값이 아닙니다. 사진만으로 사계절 착용을 확정하기 어렵다면 "사계절" 대신 빈 배열 []을 반환하세요.
+- "사계절"을 다른 계절과 함께 넣지 마세요. 특정 계절을 선택했다면 "사계절"은 제외하세요.
+- 반팔·민소매·린넨·쇼츠·샌들은 여름 중심, 패딩·다운·무스탕은 겨울, 가디건·바람막이·맨투맨은 봄/가을 중심으로 판단하세요.
+- 반팔 니트는 일반 니트와 구분해 봄/여름 중심으로 판단하고, 얇은 니트와 두꺼운 울 니트를 같은 계절로 처리하지 마세요.
+- 사진만으로 두께나 소재를 확인하기 어렵다면 seasonEvidence에 "판단 어려움"을 쓰고, 근거 없이 겨울 또는 여름 한 계절로 단정하지 마세요.
 - garmentProfile은 사진에서 보이는 의류의 실루엣, 부피감, 소재 인상을 추정하는 필드입니다.
 - 모델 착용 사진일 수 있으므로 garmentProfile을 사용자에게 실제로 맞는 핏이나 체형 적합도로 판단하지 마세요.
 - garmentProfile은 코디의 시각적 균형을 돕는 보조 정보이며 실제 핏은 상품 실측과 사용자 신체 치수로 별도 판단합니다.
@@ -2952,7 +2954,8 @@ app.post("/analyze-clothes", async (req, res) => {
 
     const text = completion.choices[0].message.content;
     const parsed = JSON.parse(text);
-    const seasons = normalizeClothesSeasons(parsed.seasons || parsed.season);
+    const seasonResolution = resolveClothesSeasons(parsed);
+    const seasons = seasonResolution.seasons;
     const styleTags = normalizeStyleTags(parsed.styleTags, parsed.style);
     const productCandidates = normalizeProductCandidates(parsed.productCandidates);
     const styleProfile = normalizeStyleProfile(parsed.styleProfile);
@@ -3008,6 +3011,8 @@ app.post("/analyze-clothes", async (req, res) => {
       styleTags,
       season: seasons.join(", "),
       seasons,
+      seasonSource: seasonResolution.source,
+      seasonNeedsReview: seasonResolution.needsReview,
       fit: parsed.fit || "핏 분석 전",
       brand: confirmedBrand,
       confirmedBrand,
@@ -3042,8 +3047,10 @@ app.post("/analyze-clothes", async (req, res) => {
       color: "분석 실패",
       style: "분석 실패",
       styleTags: ["데일리"],
-      season: "사계절",
-      seasons: ["사계절"],
+      season: "",
+      seasons: [],
+      seasonSource: "photo_ai",
+      seasonNeedsReview: true,
       fit: "분석 실패",
       description: "옷 분석에 실패했습니다.",
       matchTip: "다시 시도해주세요.",

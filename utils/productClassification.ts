@@ -23,6 +23,7 @@ export type ProductClassificationResult = {
 };
 
 type ClassificationCandidate = Omit<ProductClassificationResult, "confidence" | "reasons">;
+type ProductAttributeField = Exclude<ProductClassificationField, "season">;
 
 export function getResolvedItemMaterial(item: ClosetItem) {
   const userEditedMaterial = item.userEditedClassificationFields?.includes("material");
@@ -125,12 +126,12 @@ export function inferProductAttributesFromConfirmedProduct({
   );
   const result: ProductClassificationResult = {};
 
-  (Object.keys(candidate) as ProductClassificationField[]).forEach((field) => {
+  (Object.keys(candidate) as ProductAttributeField[]).forEach((field) => {
     if (protectedFields.has(field)) return;
 
     const value = candidate[field];
     if (value !== undefined) {
-      (result as Record<ProductClassificationField, string | string[] | undefined>)[field] = value;
+      (result as Record<ProductAttributeField, string | string[] | undefined>)[field] = value;
     }
   });
 

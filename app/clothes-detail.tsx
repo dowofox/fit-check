@@ -8,6 +8,7 @@ import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
+import { getConfirmedProductSeasonInference } from "@/utils/seasonInference";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import {
   buildProductSizeMeasurement,
@@ -247,10 +248,10 @@ function getItemSeasons(item: ClosetItem) {
   if (item.season) {
     const seasons = SEASON_OPTIONS.filter((season) => item.season?.includes(season));
 
-    return seasons.length > 0 ? seasons : ["사계절"];
+    return seasons;
   }
 
-  return ["사계절"];
+  return [];
 }
 
 function toggleSeason(currentSeasons: string[], season: string) {
@@ -260,7 +261,7 @@ function toggleSeason(currentSeasons: string[], season: string) {
     ? currentSeasons.filter((currentSeason) => currentSeason !== season)
     : [...currentSeasons.filter((currentSeason) => currentSeason !== "사계절"), season];
 
-  return nextSeasons.length > 0 ? nextSeasons : ["사계절"];
+  return nextSeasons;
 }
 
 function toggleStyleTag(currentTags: string[], tag: string) {
@@ -309,6 +310,9 @@ function getUserEditedClassificationFields(
   if (draft.material !== (item.material || "")) editedFields.add("material");
   if (JSON.stringify(draft.styleTags) !== JSON.stringify(getItemStyleTags(item))) {
     editedFields.add("styleTags");
+  }
+  if (JSON.stringify(draft.seasons) !== JSON.stringify(getItemSeasons(item))) {
+    editedFields.add("season");
   }
 
   return [...editedFields];
@@ -2152,10 +2156,15 @@ export default function ClothesDetailScreen() {
 
     try {
       const userEditedClassificationFields = getUserEditedClassificationFields(item, normalizedDraft);
+      const seasonWasEdited = userEditedClassificationFields.includes("season");
       const updatedCloset = await updateClosetItem(item.id, {
         ...normalizedDraft,
         style: normalizedDraft.styleTags[0] || normalizedDraft.style,
         season: normalizedDraft.seasons.join(", "),
+        seasonSource: seasonWasEdited ? "user" : item.seasonSource,
+        seasonNeedsReview: seasonWasEdited
+          ? normalizedDraft.seasons.length === 0
+          : item.seasonNeedsReview,
         userEditedClassificationFields,
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
@@ -2258,6 +2267,9 @@ export default function ClothesDetailScreen() {
         materialComposition: replacementConfirmedProduct.materialComposition,
         currentItem: item,
       });
+      const officialSeasonInference = item.userEditedClassificationFields?.includes("season")
+        ? null
+        : getConfirmedProductSeasonInference(replacementConfirmedProduct, item);
       const classificationUpdates: Partial<ClosetItem> = {
         ...(classification.category ? { category: classification.category } : {}),
         ...(classification.subCategory ? { subCategory: classification.subCategory } : {}),
@@ -2269,6 +2281,14 @@ export default function ClothesDetailScreen() {
           ? {
               styleTags: classification.styleTags,
               style: classification.styleTags[0] || item.style,
+            }
+          : {}),
+        ...(officialSeasonInference
+          ? {
+              season: officialSeasonInference.seasons.join(", "),
+              seasons: officialSeasonInference.seasons,
+              seasonSource: officialSeasonInference.source,
+              seasonNeedsReview: officialSeasonInference.needsReview,
             }
           : {}),
       };
@@ -2859,7 +2879,10 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="브랜드" value={getDisplayBrand(item)} />
                   <DetailRow label="색상" value={item.color} />
                   <DetailRow label="소재" value={getDisplayMaterial(item)} />
-                  <DetailRow label="계절" value={getItemSeasons(item).join(", ")} />
+                  <DetailRow
+                    label="계절"
+                    value={getItemSeasons(item).join(", ") || "계절 확인 필요"}
+                  />
                   <DetailRow label="스타일" value={getDisplayStyleText(item)} />
                   <DetailRow label="핏" value={item.fit} />
                   <DetailRow label="사이즈" value={item.size || "사이즈 미입력"} />

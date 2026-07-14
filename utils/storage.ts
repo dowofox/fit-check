@@ -156,6 +156,15 @@ export type AnalysisQuality = {
   missingHints?: string[];
 };
 
+export type SeasonSource = "user" | "official_product" | "rule" | "photo_ai";
+
+export type SeasonInferenceResult = {
+  seasons: string[];
+  source: SeasonSource;
+  needsReview: boolean;
+  reasons?: string[];
+};
+
 export function pruneReferenceClothing(
   referenceClothing: ReferenceClothing | undefined,
   closetItems: ClosetItem[]
@@ -179,7 +188,8 @@ export type ProductClassificationField =
   | "subCategory"
   | "detailCategory"
   | "material"
-  | "styleTags";
+  | "styleTags"
+  | "season";
 
 export type ClosetItem = {
   id: string;
@@ -193,6 +203,8 @@ export type ClosetItem = {
   styleTags?: string[];
   season?: string;
   seasons?: string[];
+  seasonSource?: SeasonSource;
+  seasonNeedsReview?: boolean;
   fit?: string;
   size?: string;
   intendedFit?: string;

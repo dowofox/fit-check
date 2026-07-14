@@ -146,10 +146,21 @@ function getItemSeasons(item: ClosetItem) {
     const seasons = ["봄", "여름", "가을", "겨울", "사계절", "전체"]
       .filter((season) => item.season?.includes(season));
 
-    return seasons.length > 0 ? seasons : ["사계절"];
+    return seasons;
   }
 
-  return ["사계절"];
+  return [];
+}
+
+function hasUncertainSeason(item: ClosetItem) {
+  return item.seasonNeedsReview === true || getItemSeasons(item).length === 0;
+}
+
+function hasTrustedSeasonSource(item: ClosetItem) {
+  return (
+    getItemSeasons(item).length > 0 &&
+    ["user", "official_product", "rule"].includes(item.seasonSource || "")
+  );
 }
 
 function getItemStyles(item: ClosetItem) {
@@ -533,8 +544,8 @@ function getCurrentSeason(date = new Date()) {
 function isSeasonAllowed(item: ClosetItem, currentSeason: string, warnings: string[]) {
   const seasons = getItemSeasons(item);
 
-  if (seasons.length === 0) {
-    warnings.push(`${getItemLabel(item)}: 계절 정보가 부족해요.`);
+  if (hasUncertainSeason(item) && !hasTrustedSeasonSource(item)) {
+    warnings.push(`${getItemLabel(item)}: 계절 정보가 불확실해 중립적으로 비교했어요.`);
     return true;
   }
 
@@ -550,6 +561,7 @@ function isSeasonAllowed(item: ClosetItem, currentSeason: string, warnings: stri
 function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
   const seasons = getItemSeasons(item);
 
+  if (hasUncertainSeason(item) && !hasTrustedSeasonSource(item)) return true;
   if (seasons.length === 0) return true;
 
   return seasons.some((season) => {
@@ -628,6 +640,7 @@ function getSeasonMatchedItems(
 function getSeasonPriority(item: ClosetItem, currentSeason: string) {
   const seasons = getItemSeasons(item);
 
+  if (hasUncertainSeason(item) && !hasTrustedSeasonSource(item)) return 1;
   if (seasons.length === 0) return 1;
   if (isSeasonCandidate(item, currentSeason)) return 2;
   return 0;
@@ -1733,6 +1746,7 @@ function buildRecommendation(
   const measurementSourceCount = [topProfileSource, bottomProfileSource].filter(
     (source) => source === "measurement"
   ).length;
+  const hasUncertainSeasonItem = items.some(hasUncertainSeason);
   const isSeasonMatched = items.every((item) => isSeasonAllowed(item, currentSeason, warnings));
 
   if (measurementSourceCount === 2) {
@@ -1750,6 +1764,8 @@ function buildRecommendation(
 
   if (!isSeasonMatched) {
     warnings.push(`${currentSeason} 기준으로 계절감이 맞지 않는 아이템이 포함되어 점수를 낮게 봤어요.`);
+  } else if (hasUncertainSeasonItem) {
+    reasons.push("계절 정보가 불확실한 아이템은 사계절로 단정하지 않고 중립적으로 비교했어요.");
   } else {
     reasons.push(`${currentSeason}에 입기 좋은 계절 정보의 아이템들로 구성됐어요.`);
   }

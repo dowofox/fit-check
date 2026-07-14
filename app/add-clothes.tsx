@@ -8,6 +8,10 @@ import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
+import {
+  getConfirmedProductSeasonInference,
+  resolveRegistrationSeasonInference,
+} from "@/utils/seasonInference";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import { normalizeSize } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
@@ -20,6 +24,7 @@ import type {
   ProductCandidate,
   ProductClassificationField,
   ProductSizeGuide,
+  SeasonSource,
   StyleProfile,
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
@@ -119,6 +124,8 @@ type ClothesAnalysis = {
   styleTags?: string[];
   season?: string;
   seasons?: string[];
+  seasonSource?: SeasonSource;
+  seasonNeedsReview?: boolean;
   fit?: string;
   size?: string;
   brand?: string;
@@ -292,7 +299,7 @@ function toggleSeason(currentSeasons: string[], season: string) {
     ? currentSeasons.filter((currentSeason) => currentSeason !== season)
     : [...currentSeasons.filter((currentSeason) => currentSeason !== "사계절"), season];
 
-  return nextSeasons.length > 0 ? nextSeasons : ["사계절"];
+  return nextSeasons;
 }
 
 function normalizeStyleTags(styleTags?: string[], style?: string) {
@@ -387,6 +394,9 @@ function createProductFallbackAnalysis(product: ExtractedProduct): ClothesAnalys
   const styleTags = classification.styleTags?.length
     ? classification.styleTags
     : ["데일리"];
+  const seasonInference = getConfirmedProductSeasonInference(
+    buildConfirmedProductFromExtractedProduct(product)
+  );
 
   return {
     source: "productFallback",
@@ -396,8 +406,10 @@ function createProductFallbackAnalysis(product: ExtractedProduct): ClothesAnalys
     color: "색상 확인 필요",
     style: styleTags[0],
     styleTags,
-    season: "사계절",
-    seasons: ["사계절"],
+    season: seasonInference?.seasons.join(", ") || "",
+    seasons: seasonInference?.seasons || [],
+    seasonSource: seasonInference?.source || "photo_ai",
+    seasonNeedsReview: seasonInference?.needsReview ?? true,
     fit: "핏 분석 전",
     material:
       classification.material ||
@@ -415,8 +427,10 @@ function createManualAnalysis(): ClothesAnalysis {
     source: "manual",
     category: "상의",
     subCategory: "상의",
-    seasons: ["사계절"],
-    season: "사계절",
+    seasons: [],
+    season: "",
+    seasonSource: "user",
+    seasonNeedsReview: true,
     style: "데일리",
     styleTags: ["데일리"],
     fit: "핏 정보 없음",
@@ -542,6 +556,8 @@ async function saveAnalyzedClosetItem(
     styleTags,
     season: registration.seasons.join(", "),
     seasons: registration.seasons,
+    seasonSource: analysis.seasonSource || "photo_ai",
+    seasonNeedsReview: analysis.seasonNeedsReview ?? registration.reviewFields.includes("season"),
     fit: analysis.fit || "핏 미분석",
     size: normalizeClosetSize(size),
     ...getAnalysisDetailFields(analysis),
@@ -563,7 +579,9 @@ export default function AddClothesScreen() {
   const [isExtractingProduct, setIsExtractingProduct] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [analysis, setAnalysis] = useState<ClothesAnalysis | null>(null);
-  const [selectedSeasons, setSelectedSeasons] = useState<string[]>(["사계절"]);
+  const [selectedSeasons, setSelectedSeasons] = useState<string[]>([]);
+  const [seasonSource, setSeasonSource] = useState<SeasonSource>("photo_ai");
+  const [seasonNeedsReview, setSeasonNeedsReview] = useState(true);
   const [selectedStyleTags, setSelectedStyleTags] = useState<string[]>(["데일리"]);
   const [hasManuallyEditedStyleTags, setHasManuallyEditedStyleTags] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -579,7 +597,9 @@ export default function AddClothesScreen() {
   function resetAnalysisState() {
     setAnalysis(null);
     setProgressText("");
-    setSelectedSeasons(["사계절"]);
+    setSelectedSeasons([]);
+    setSeasonSource("photo_ai");
+    setSeasonNeedsReview(true);
     setSelectedStyleTags(["데일리"]);
     setHasManuallyEditedStyleTags(false);
     setSelectedCategory("");
@@ -616,8 +636,23 @@ export default function AddClothesScreen() {
     );
   }
 
+  function updateSelectedSeason(season: string) {
+    setSelectedSeasons((currentSeasons) => {
+      const nextSeasons = toggleSeason(currentSeasons, season);
+      setSeasonNeedsReview(nextSeasons.length === 0);
+      return nextSeasons;
+    });
+    setSeasonSource("user");
+    markClassificationFieldAsEdited("season");
+  }
+
   function applyAnalysisToForm(nextAnalysis: ClothesAnalysis) {
     const isManual = nextAnalysis.source === "manual";
+    const officialSeasonInference = extractedProduct
+      ? getConfirmedProductSeasonInference(buildConfirmedProductFromExtractedProduct(extractedProduct))
+      : null;
+    const resolvedSeasons = officialSeasonInference?.seasons ||
+      normalizeClosetSeasons(nextAnalysis.seasons || nextAnalysis.season);
 
     setAnalysis(nextAnalysis);
     setSelectedCategory(nextAnalysis.category || (isManual ? "상의" : "기타"));
@@ -630,7 +665,13 @@ export default function AddClothesScreen() {
           )
     );
     setSelectedColor(nextAnalysis.color || (isManual ? "" : "색상 확인 필요"));
-    setSelectedSeasons(normalizeClosetSeasons(nextAnalysis.seasons || nextAnalysis.season));
+    setSelectedSeasons(resolvedSeasons);
+    setSeasonSource(officialSeasonInference?.source || nextAnalysis.seasonSource || "photo_ai");
+    setSeasonNeedsReview(
+      officialSeasonInference?.needsReview ??
+        nextAnalysis.seasonNeedsReview ??
+        resolvedSeasons.length === 0
+    );
     setSelectedStyleTags(normalizeStyleTags(nextAnalysis.styleTags, nextAnalysis.style));
     setHasManuallyEditedStyleTags(false);
     setSelectedSize(DEFAULT_SIZE);
@@ -651,7 +692,9 @@ export default function AddClothesScreen() {
       setImageUri(images[0]?.uri || "");
       setAnalysis(null);
       setProgressText("");
-      setSelectedSeasons(["사계절"]);
+      setSelectedSeasons([]);
+      setSeasonSource("photo_ai");
+      setSeasonNeedsReview(true);
       setSelectedStyleTags(["데일리"]);
       setHasManuallyEditedStyleTags(false);
       setSelectedCategory("");
@@ -681,7 +724,9 @@ export default function AddClothesScreen() {
       setImageUri(nextImage.uri);
       setAnalysis(null);
       setProgressText("");
-      setSelectedSeasons(["사계절"]);
+      setSelectedSeasons([]);
+      setSeasonSource("photo_ai");
+      setSeasonNeedsReview(true);
       setSelectedStyleTags(["데일리"]);
       setHasManuallyEditedStyleTags(false);
       setSelectedCategory("");
@@ -836,16 +881,34 @@ export default function AddClothesScreen() {
       return;
     }
 
+    const confirmedProduct = extractedProduct
+      ? buildConfirmedProductFromExtractedProduct(extractedProduct)
+      : undefined;
+    const seasonWasEdited = manuallyEditedClassificationFields.includes("season");
+    const resolvedSeasonInference = resolveRegistrationSeasonInference({
+      selectedSeasons,
+      selectedSource: seasonSource,
+      selectedNeedsReview: seasonNeedsReview,
+      userEdited: seasonWasEdited,
+      confirmedProduct,
+    });
+    const resolvedSeasons = resolvedSeasonInference.seasons;
+    const resolvedSeasonSource = resolvedSeasonInference.source;
+    const resolvedSeasonNeedsReview = resolvedSeasonInference.needsReview;
     const registration = normalizeClosetRegistrationBasics({
       category: selectedCategory || analysis.category,
       color: selectedColor || analysis.color,
-      seasons: selectedSeasons,
+      seasons: resolvedSeasons,
     });
+    const reviewFields = [...registration.reviewFields];
+    if (resolvedSeasonNeedsReview && !reviewFields.includes("season")) {
+      reviewFields.push("season");
+    }
 
-    if (!allowUncertainValues && registration.reviewFields.length > 0) {
+    if (!allowUncertainValues && reviewFields.length > 0) {
       Alert.alert(
         "등록 정보를 확인해주세요",
-        `${getRegistrationReviewLabels(registration.reviewFields).join(", ")} 정보가 불확실해요. 수정하거나 현재 값으로 저장할 수 있어요.`,
+        `${getRegistrationReviewLabels(reviewFields).join(", ")} 정보가 불확실해요. 수정하거나 현재 값으로 저장할 수 있어요.`,
         [
           { text: "돌아가기", style: "cancel" },
           { text: "현재 값으로 저장", onPress: () => void saveItem(true) },
@@ -857,9 +920,6 @@ export default function AddClothesScreen() {
     try {
       setIsSaving(true);
       const cleanImageUri = await getOptionalCleanImageUri(analysis);
-      const confirmedProduct = extractedProduct
-        ? buildConfirmedProductFromExtractedProduct(extractedProduct)
-        : undefined;
       const confirmedProductBrand = confirmedProduct?.brand?.trim() || undefined;
       const confirmedMaterial = confirmedProduct?.materialComposition?.summary?.trim();
       const shouldApplyConfirmedMaterial =
@@ -894,6 +954,8 @@ export default function AddClothesScreen() {
         styleTags: selectedStyleTags,
         season: registration.seasons.join(", "),
         seasons: registration.seasons,
+        seasonSource: resolvedSeasonSource,
+        seasonNeedsReview: resolvedSeasonNeedsReview,
         fit: analysis.fit || "핏 분석 전",
         size: normalizeClosetSize(selectedSize),
         ...getAnalysisDetailFields(analysis),
@@ -989,11 +1051,15 @@ export default function AddClothesScreen() {
   const sizeOptions = getSizeOptions(selectedCategory || analysis?.category);
   const canContinue = addMode === "manual" ? Boolean(analysis) : Boolean(imageUri);
   const registrationReviewFields = analysis
-    ? normalizeClosetRegistrationBasics({
+    ? (() => {
+        const fields = normalizeClosetRegistrationBasics({
         category: selectedCategory || analysis.category,
         color: selectedColor || analysis.color,
         seasons: selectedSeasons,
-      }).reviewFields
+        }).reviewFields;
+        if (seasonNeedsReview && !fields.includes("season")) fields.push("season");
+        return fields;
+      })()
     : [];
 
   return (
@@ -1371,7 +1437,18 @@ export default function AddClothesScreen() {
               </>
             ) : null}
 
-            <Text style={styles.seasonLabel}>계절</Text>
+            <Text style={styles.seasonLabel}>입기 좋은 계절</Text>
+            {seasonNeedsReview ? (
+              <View style={styles.registrationReviewNotice}>
+                <Feather name="alert-circle" size={15} color="#b45309" />
+                <Text style={styles.registrationReviewNoticeText}>
+                  계절을 정확히 판단하기 어려워요. 실제로 입는 계절을 확인해주세요.
+                  {selectedSeasons.length > 0
+                    ? `\n추천: ${selectedSeasons.join(" · ")}`
+                    : ""}
+                </Text>
+              </View>
+            ) : null}
             <View style={styles.seasonChipRow}>
               {SEASON_OPTIONS.map((season) => {
                 const isActive = selectedSeasons.includes(season);
@@ -1380,7 +1457,7 @@ export default function AddClothesScreen() {
                   <Pressable
                     key={season}
                     style={[styles.seasonChip, isActive && styles.seasonChipActive]}
-                    onPress={() => setSelectedSeasons((currentSeasons) => toggleSeason(currentSeasons, season))}
+                    onPress={() => updateSelectedSeason(season)}
                   >
                     <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
                       {season}
