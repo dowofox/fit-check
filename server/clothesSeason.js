@@ -260,6 +260,10 @@ function buildEvidenceText(input) {
 
 function includesSeasonKeyword(text, keyword) {
   const normalizedKeyword = keyword.toLowerCase();
+  if (normalizedKeyword === "기모") {
+    return text.replace(/기모노/g, "").includes(normalizedKeyword);
+  }
+
   if (/^[가-힣]$/.test(normalizedKeyword)) {
     return text
       .split(/[\s,/%()[\]{}·:;]+/)

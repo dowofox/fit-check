@@ -211,6 +211,29 @@ test("공식 상품명의 울트라를 울 소재로 오인하지 않는다", ()
   );
 });
 
+test("다운타운과 기모노를 보온 소재로 오인하지 않는다", () => {
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({
+      productName: "다운타운 그래픽 반팔 티셔츠",
+    })?.seasons,
+    ["여름"]
+  );
+
+  const kimonoJacket = inferSeasonsFromOfficialProduct({
+    productName: "기모노 로브 자켓",
+  });
+  assert.equal(kimonoJacket?.seasons.includes("겨울") || false, false);
+
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "구스 다운 베스트" })?.seasons,
+    ["겨울"]
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "기모 와이드 팬츠" })?.seasons,
+    ["가을", "겨울"]
+  );
+});
+
 test("대표 품목은 사진 분석과 공식 상품 보정에서 같은 계절을 반환한다", () => {
   const cases = [
     { category: "상의", name: "반팔 니트" },

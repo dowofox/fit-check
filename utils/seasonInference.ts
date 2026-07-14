@@ -16,7 +16,12 @@ const OFFICIAL_SEASON_RULES: Array<{
     id: "deep-winter",
     keywords: [
       "패딩",
-      "다운",
+      "구스 다운",
+      "구스다운",
+      "덕 다운",
+      "덕다운",
+      "다운 베스트",
+      "다운베스트",
       "충전재",
       "무스탕",
       "양털",
@@ -235,6 +240,10 @@ function getMaterialText(materialComposition?: MaterialComposition) {
 
 function includesSeasonKeyword(text: string, keyword: string) {
   const normalizedKeyword = keyword.toLowerCase();
+  if (normalizedKeyword === "기모") {
+    return text.replace(/기모노/g, "").includes(normalizedKeyword);
+  }
+
   if (/^[가-힣]$/.test(normalizedKeyword)) {
     return text
       .split(/[\s,/%()[\]{}·:;]+/)

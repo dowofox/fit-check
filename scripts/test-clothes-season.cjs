@@ -59,6 +59,22 @@ test("울트라를 울 소재 계절 근거로 오인하지 않는다", () => {
   ]);
 });
 
+test("기모노를 기모 소재 계절 근거로 오인하지 않는다", () => {
+  const kimonoJacket = resolveClothesSeasons({
+    category: "아우터",
+    detailCategory: "기모노 로브 자켓",
+    seasons: ["봄", "가을"],
+    confidence: { season: 85 },
+  });
+
+  assert.deepEqual(kimonoJacket.seasons, ["봄", "가을"]);
+  assert.equal(kimonoJacket.seasons.includes("겨울"), false);
+  assert.deepEqual(
+    seasons({ category: "하의", detailCategory: "기모 와이드 팬츠" }),
+    ["가을", "겨울"]
+  );
+});
+
 test("패딩과 울·플리스는 겨울 계절감을 보수적으로 반영한다", () => {
   assert.deepEqual(seasons({ category: "아우터", detailCategory: "숏 패딩" }), ["겨울"]);
   assert.deepEqual(seasons({ detailCategory: "울 니트", material: "울" }), [
