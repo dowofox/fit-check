@@ -70,6 +70,9 @@ const {
 const {
   getOutfitRecommendationResult,
 } = require("../utils/outfitRecommend.ts");
+const {
+  normalizeClosetRegistrationBasics,
+} = require("../utils/closetRegistration.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -165,6 +168,19 @@ const fixtureServer = http.createServer((request, response) => {
 });
 
 async function main() {
+  const emptyRegistration = normalizeClosetRegistrationBasics({});
+  assert.equal(emptyRegistration.category, "기타");
+  assert.equal(emptyRegistration.color, "색상 확인 필요");
+  assert.deepEqual(emptyRegistration.seasons, ["사계절"]);
+  assert.deepEqual(emptyRegistration.reviewFields, ["category", "color", "season"]);
+
+  const validRegistration = normalizeClosetRegistrationBasics({
+    category: "상의",
+    color: "아이보리",
+    seasons: ["봄", "가을"],
+  });
+  assert.deepEqual(validRegistration.reviewFields, []);
+
   await listen(fixtureServer, fixturePort);
   const apiProcess = spawn(process.execPath, ["server/index.js"], {
     cwd: projectRoot,

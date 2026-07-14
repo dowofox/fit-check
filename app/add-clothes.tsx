@@ -1,5 +1,10 @@
 import { API_ENDPOINTS } from "@/utils/api";
 import {
+  normalizeClosetRegistrationBasics,
+  normalizeClosetSeasons,
+  type RegistrationReviewField,
+} from "@/utils/closetRegistration";
+import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
@@ -280,22 +285,6 @@ async function requestClothesAnalysis(uri: string) {
   return analysis as ClothesAnalysis;
 }
 
-function normalizeSeasons(seasonValue?: string | string[]) {
-  if (Array.isArray(seasonValue)) {
-    const matchedSeasons = SEASON_OPTIONS.filter((option) =>
-      seasonValue.some((season) => season.includes(option))
-    );
-
-    return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
-  }
-
-  if (!seasonValue) return ["사계절"];
-
-  const matchedSeasons = SEASON_OPTIONS.filter((option) => seasonValue.includes(option));
-
-  return matchedSeasons.length > 0 ? matchedSeasons : ["사계절"];
-}
-
 function toggleSeason(currentSeasons: string[], season: string) {
   if (season === "사계절") return ["사계절"];
 
@@ -437,6 +426,16 @@ function createManualAnalysis(): ClothesAnalysis {
   };
 }
 
+function getRegistrationReviewLabels(fields: RegistrationReviewField[]) {
+  const labels: Record<RegistrationReviewField, string> = {
+    category: "종류",
+    color: "색상",
+    season: "계절",
+  };
+
+  return fields.map((field) => labels[field]);
+}
+
 function getInferredBrand(analysis: ClothesAnalysis, confirmedBrand?: string) {
   const inferredBrand = analysis.inferredBrand || analysis.brand || analysis.confirmedBrand || "";
   const trimmedBrand = inferredBrand.trim();
@@ -527,27 +526,32 @@ function getAnalysisDetailFields(analysis: ClothesAnalysis) {
 async function saveAnalyzedClosetItem(
   imageUri: string,
   analysis: ClothesAnalysis,
-  seasons = normalizeSeasons(analysis.seasons || analysis.season),
+  seasons = normalizeClosetSeasons(analysis.seasons || analysis.season),
   styleTags = normalizeStyleTags(analysis.styleTags, analysis.style),
   size = DEFAULT_SIZE
 ) {
   const cleanImageUri = await getOptionalCleanImageUri(analysis);
+  const registration = normalizeClosetRegistrationBasics({
+    category: analysis.category,
+    color: analysis.color,
+    seasons,
+  });
 
   await saveClosetItem({
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     imageUri,
     cleanImageUri,
-    category: analysis.category || "기타",
+    category: registration.category,
     subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
     detailCategory: generalizeBrandTerms(
       analysis.detailCategory || analysis.subCategory,
       "상세 분류 전"
     ),
-    color: analysis.color || "색상 미분석",
+    color: registration.color,
     style: styleTags[0] || analysis.style || "스타일 미분석",
     styleTags,
-    season: seasons.join(", "),
-    seasons,
+    season: registration.seasons.join(", "),
+    seasons: registration.seasons,
     fit: analysis.fit || "핏 미분석",
     size: normalizeClosetSize(size),
     ...getAnalysisDetailFields(analysis),
@@ -636,7 +640,7 @@ export default function AddClothesScreen() {
           )
     );
     setSelectedColor(nextAnalysis.color || (isManual ? "" : "색상 확인 필요"));
-    setSelectedSeasons(normalizeSeasons(nextAnalysis.seasons || nextAnalysis.season));
+    setSelectedSeasons(normalizeClosetSeasons(nextAnalysis.seasons || nextAnalysis.season));
     setSelectedStyleTags(normalizeStyleTags(nextAnalysis.styleTags, nextAnalysis.style));
     setHasManuallyEditedStyleTags(false);
     setSelectedSize(DEFAULT_SIZE);
@@ -829,7 +833,7 @@ export default function AddClothesScreen() {
     }
   }
 
-  async function saveItem() {
+  async function saveItem(allowUncertainValues = false) {
     if ((!imageUri && addMode !== "manual") || !analysis || isSaving) return;
 
     if (addMode === "manual" && !selectedCategory.trim()) {
@@ -839,6 +843,24 @@ export default function AddClothesScreen() {
 
     if (addMode === "manual" && !selectedColor.trim()) {
       Alert.alert("색상을 입력해주세요", "대표 색상을 입력하면 코디 추천에 활용할 수 있어요.");
+      return;
+    }
+
+    const registration = normalizeClosetRegistrationBasics({
+      category: selectedCategory || analysis.category,
+      color: selectedColor || analysis.color,
+      seasons: selectedSeasons,
+    });
+
+    if (!allowUncertainValues && registration.reviewFields.length > 0) {
+      Alert.alert(
+        "등록 정보를 확인해주세요",
+        `${getRegistrationReviewLabels(registration.reviewFields).join(", ")} 정보가 불확실해요. 수정하거나 현재 값으로 저장할 수 있어요.`,
+        [
+          { text: "돌아가기", style: "cancel" },
+          { text: "현재 값으로 저장", onPress: () => void saveItem(true) },
+        ]
+      );
       return;
     }
 
@@ -863,7 +885,7 @@ export default function AddClothesScreen() {
         id: Date.now().toString(),
         imageUri,
         cleanImageUri,
-        category: selectedCategory.trim() || analysis.category || "기타",
+        category: registration.category,
         subCategory:
           addMode === "manual"
             ? manualDetailCategory
@@ -877,11 +899,11 @@ export default function AddClothesScreen() {
             : selectedDetailCategory || analysis.detailCategory || analysis.subCategory,
           "상세 분류 전"
         ),
-        color: selectedColor.trim() || analysis.color || "색상 확인 필요",
+        color: registration.color,
         style: selectedStyleTags[0] || analysis.style || "스타일 분석 전",
         styleTags: selectedStyleTags,
-        season: selectedSeasons.join(", "),
-        seasons: selectedSeasons,
+        season: registration.seasons.join(", "),
+        seasons: registration.seasons,
         fit: analysis.fit || "핏 분석 전",
         size: normalizeClosetSize(selectedSize),
         ...getAnalysisDetailFields(analysis),
@@ -976,6 +998,13 @@ export default function AddClothesScreen() {
 
   const sizeOptions = getSizeOptions(selectedCategory || analysis?.category);
   const canContinue = addMode === "manual" ? Boolean(analysis) : Boolean(imageUri);
+  const registrationReviewFields = analysis
+    ? normalizeClosetRegistrationBasics({
+        category: selectedCategory || analysis.category,
+        color: selectedColor || analysis.color,
+        seasons: selectedSeasons,
+      }).reviewFields
+    : [];
 
   return (
     <View style={styles.screen}>
@@ -1261,6 +1290,15 @@ export default function AddClothesScreen() {
               </View>
             ) : null}
 
+            {registrationReviewFields.length > 0 ? (
+              <View style={styles.registrationReviewNotice}>
+                <Feather name="check-square" size={15} color="#b45309" />
+                <Text style={styles.registrationReviewNoticeText}>
+                  저장 전 {getRegistrationReviewLabels(registrationReviewFields).join(", ")}을 확인해주세요.
+                </Text>
+              </View>
+            ) : null}
+
             <Text style={styles.seasonLabel}>카테고리</Text>
             {analysis.source === "manual" ? (
               <View style={styles.seasonChipRow}>
@@ -1401,7 +1439,7 @@ export default function AddClothesScreen() {
             styles.primaryButton,
             (!canContinue || isSaving || isExtractingProduct) && styles.primaryButtonDisabled,
           ]}
-          onPress={analysis ? saveItem : analyzeItem}
+          onPress={analysis ? () => saveItem() : analyzeItem}
           disabled={!canContinue || isSaving || isExtractingProduct}
         >
           {isSaving ? (
@@ -1803,6 +1841,26 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     color: "#777064",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  registrationReviewNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+    backgroundColor: "#fff7ed",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#f1d4b3",
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+  },
+  registrationReviewNoticeText: {
+    flex: 1,
+    minWidth: 0,
+    color: "#b45309",
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "700",
