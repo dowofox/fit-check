@@ -9,7 +9,11 @@ import {
   getOutfitDisplayReasons,
   getOutfitRecommendationResult,
 } from "@/utils/outfitRecommend";
-import type { OutfitRecommendation, OutfitRecommendationWeather } from "@/utils/outfitRecommend";
+import type {
+  OutfitRecommendation,
+  OutfitRecommendationEmptyReason,
+  OutfitRecommendationWeather,
+} from "@/utils/outfitRecommend";
 import {
   endPerformanceTimer,
   logPerformanceMetric,
@@ -48,6 +52,44 @@ type HomeRecommendationCache = {
   weatherLabel: string | null;
   weather: OutfitRecommendationWeather | null;
 };
+
+type HomeRecommendationEmptyState = {
+  reason?: OutfitRecommendationEmptyReason;
+  missingCategories?: string[];
+};
+
+function getHomeRecommendationEmptyContent({
+  reason,
+  missingCategories,
+}: HomeRecommendationEmptyState) {
+  if (reason === "missing_core_category") {
+    const missingText = missingCategories?.join("와 ") || "상의와 하의";
+
+    return {
+      title: "추천에 필요한 옷이 부족해요",
+      text: `${missingText}를 추가하면 코디를 추천할 수 있어요.`,
+    };
+  }
+
+  if (reason === "below_quality_threshold") {
+    return {
+      title: "추천할 만한 조합이 아직 부족해요",
+      text: "다른 색상이나 실루엣의 옷을 추가하면 더 좋은 조합을 찾을 수 있어요.",
+    };
+  }
+
+  if (reason === "saved_combinations_exhausted") {
+    return {
+      title: "새로운 추천 조합이 없어요",
+      text: "추천 가능한 조합을 이미 저장했어요. 옷을 더 추가하면 새로운 코디를 만들 수 있어요.",
+    };
+  }
+
+  return {
+    title: "오늘의 추천을 준비하지 못했어요",
+    text: "상의와 하의를 조금 더 등록하면 추천이 정교해져요.",
+  };
+}
 
 function getWeatherKey(weather: OutfitRecommendationWeather) {
   return [
@@ -168,6 +210,8 @@ export default function HomeScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [todayRecommendations, setTodayRecommendations] = useState<OutfitRecommendation[]>([]);
+  const [recommendationEmptyState, setRecommendationEmptyState] =
+    useState<HomeRecommendationEmptyState>({});
   const [weatherLabel, setWeatherLabel] = useState<string | null>(null);
   const [currentRecommendationWeather, setCurrentRecommendationWeather] =
     useState<OutfitRecommendationWeather | null>(null);
@@ -232,6 +276,10 @@ export default function HomeScreen() {
         if (!isActive) return true;
 
         setTodayRecommendations(recommendations);
+        setRecommendationEmptyState({
+          reason: recommendationResult.emptyReason,
+          missingCategories: recommendationResult.missingCategories,
+        });
         setWeatherLabel(nextWeatherLabel);
         setCurrentRecommendationWeather(weather);
         return true;
@@ -381,6 +429,10 @@ export default function HomeScreen() {
     }
   }
 
+  const recommendationEmptyContent = getHomeRecommendationEmptyContent(
+    recommendationEmptyState
+  );
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -452,21 +504,23 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>오늘의 추천 코디</Text>
               {weatherLabel ? <Text style={styles.weatherBasisText}>{weatherLabel}</Text> : null}
             </View>
-            <Pressable
-              style={styles.moreWrap}
-              onPress={() =>
-                router.push({
-                  pathname: "/outfit-recommend",
-                  params: getRecommendationRouteParams(
-                    todayRecommendations[0],
-                    currentRecommendationWeather
-                  ),
-                })
-              }
-            >
-              <Text style={styles.moreText}>추천 더보기</Text>
-              <Feather name="chevron-right" size={14} color={colors.point} />
-            </Pressable>
+            {todayRecommendations.length > 0 ? (
+              <Pressable
+                style={styles.moreWrap}
+                onPress={() =>
+                  router.push({
+                    pathname: "/outfit-recommend",
+                    params: getRecommendationRouteParams(
+                      todayRecommendations[0],
+                      currentRecommendationWeather
+                    ),
+                  })
+                }
+              >
+                <Text style={styles.moreText}>추천 더보기</Text>
+                <Feather name="chevron-right" size={14} color={colors.point} />
+              </Pressable>
+            ) : null}
           </View>
 
           {todayRecommendations.length > 0 ? (
@@ -484,7 +538,24 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
           ) : (
-            <Text style={styles.emptyText}>옷을 더 추가하면 추천을 받을 수 있어요.</Text>
+            <View style={styles.recommendationEmptyCard}>
+              <View style={styles.recommendationEmptyIcon}>
+                <Feather name="plus" size={16} color={colors.point} />
+              </View>
+              <View style={styles.recommendationEmptyTextArea}>
+                <Text style={styles.recommendationEmptyTitle}>
+                  {recommendationEmptyContent.title}
+                </Text>
+                <Text style={styles.emptyText}>{recommendationEmptyContent.text}</Text>
+              </View>
+              <Pressable
+                style={styles.recommendationEmptyButton}
+                onPress={() => router.push("/add-clothes")}
+              >
+                <Text style={styles.recommendationEmptyButtonText}>옷 추가하기</Text>
+                <Feather name="chevron-right" size={14} color={colors.card} />
+              </Pressable>
+            </View>
           )}
         </View>
 
@@ -665,6 +736,52 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body,
     color: colors.subText,
+    lineHeight: 19,
+  },
+  recommendationEmptyCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  recommendationEmptyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.softCard,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  recommendationEmptyTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  recommendationEmptyTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  recommendationEmptyButton: {
+    minHeight: 36,
+    borderRadius: 12,
+    backgroundColor: colors.text,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    flexShrink: 0,
+  },
+  recommendationEmptyButtonText: {
+    color: colors.card,
+    fontSize: 11,
+    fontWeight: "700",
   },
   recommendCarousel: {
     gap: 12,
