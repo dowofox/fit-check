@@ -1409,13 +1409,18 @@ function getSizeWarnings(
   if (!profile) return ["프로필 사이즈가 없어 사이즈 적합도는 참고하지 못했어요."];
 
   return items
+    .filter((item) => ["상의", "하의", "아우터"].includes(item.category))
     .map((item) => {
       if (!fitSuitabilityCache.has(item.id)) {
         fitSuitabilityCache.set(item.id, getFitSuitability(item, profile));
       }
 
       const result = fitSuitabilityCache.get(item.id)!;
-      const hasSizeWarning = ["작을 수 있어요", "사이즈를 직접 확인해보세요", "사이즈 정보가 더 필요해요"].includes(result.status);
+      const hasSizeWarning =
+        result.fitResult === "small" ||
+        ["작을 수", "클 수", "많이 여유로울 수"].some((keyword) =>
+          result.status.includes(keyword)
+        );
 
       return hasSizeWarning ? `${getItemLabel(item)}: ${result.status}` : "";
     })
