@@ -109,6 +109,23 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/brand-array") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"공동 브랜드 스웨트셔츠",
+        "brand":[
+          {"@type":"Brand","name":"NAES"},
+          {"@type":"Brand","name":"COLLAB"},
+          {"@type":"Brand","name":"NAES"}
+        ],
+        "image":"/images/collaboration-sweatshirt.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/related-first") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -291,6 +308,10 @@ async function main() {
     assert.equal(metaBrand.body.brand, "META BRAND");
     assert.equal(metaBrand.body.price, "39000");
 
+    const brandArray = await extract("/brand-array");
+    assert.equal(brandArray.response.status, 200);
+    assert.equal(brandArray.body.brand, "NAES / COLLAB");
+
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
     assert.equal(metaImageFallback.body.productColor, "네이비");
@@ -346,7 +367,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 13개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 14개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);

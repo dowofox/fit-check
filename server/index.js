@@ -595,6 +595,20 @@ function scoreStructuredProductCandidate(candidate, productUrl) {
   return score;
 }
 
+function getStructuredProductBrand(value) {
+  const brandValues = (Array.isArray(value) ? value : [value])
+    .map((brandValue) =>
+      typeof brandValue === "string"
+        ? normalizeExtractedBrand(brandValue)
+        : typeof brandValue?.name === "string"
+          ? normalizeExtractedBrand(brandValue.name)
+          : "",
+    )
+    .filter(Boolean);
+
+  return [...new Set(brandValues)].join(" / ");
+}
+
 function getStructuredProductData(html, productUrl) {
   const jsonScripts = extractJsonDataFromScripts(html, true).filter(
     (script) => script.source === "json-script"
@@ -612,13 +626,7 @@ function getStructuredProductData(html, productUrl) {
 
   if (product) {
 
-    const brandValue = product.brand;
-    const brand =
-      typeof brandValue === "string"
-        ? brandValue
-        : typeof brandValue?.name === "string"
-          ? brandValue.name
-          : "";
+    const brand = getStructuredProductBrand(product.brand);
     const imageValue = Array.isArray(product.image) ? product.image[0] : product.image;
     const image =
       typeof imageValue === "string"
@@ -656,7 +664,7 @@ function getStructuredProductData(html, productUrl) {
 
     return {
       name: typeof product.name === "string" ? product.name.trim() : "",
-      brand: brand.trim(),
+      brand,
       category,
       color,
       image: image.trim(),
