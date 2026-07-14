@@ -1,5 +1,6 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
+import { normalizeClosetRegistrationBasics } from "@/utils/closetRegistration";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import {
     ClosetItem,
@@ -32,6 +33,14 @@ const CLOSET_CARD_WIDTH = Math.floor(
 
 function getItemTitle(item: ClosetItem) {
     return item.detailCategory || item.subCategory || item.category || "아이템";
+}
+
+function needsRecommendationInfoReview(item: ClosetItem) {
+    return normalizeClosetRegistrationBasics({
+        category: item.category,
+        color: item.color,
+        seasons: item.seasons?.length ? item.seasons : item.season,
+    }).reviewFields.length > 0;
 }
 
 function formatDate(value?: string) {
@@ -227,6 +236,12 @@ export default function ClosetScreen() {
                                             style={styles.closetImage}
                                             contentFit="contain"
                                         />
+                                        {needsRecommendationInfoReview(item) ? (
+                                            <View style={styles.infoReviewBadge}>
+                                                <Feather name="alert-circle" size={11} color={colors.warning} />
+                                                <Text style={styles.infoReviewBadgeText}>정보 확인</Text>
+                                            </View>
+                                        ) : null}
                                     </View>
 
                                     <Text style={styles.closetCategory} numberOfLines={1}>
@@ -417,6 +432,27 @@ const styles = StyleSheet.create({
     closetImage: {
         width: "100%",
         height: "100%",
+    },
+    infoReviewBadge: {
+        position: "absolute",
+        top: 7,
+        left: 7,
+        minHeight: 24,
+        borderRadius: 999,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.border,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingVertical: 4,
+        paddingHorizontal: 7,
+    },
+    infoReviewBadgeText: {
+        color: colors.warning,
+        fontSize: 9,
+        lineHeight: 12,
+        fontWeight: "800",
     },
     closetCategory: {
         fontSize: 12,

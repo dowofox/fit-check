@@ -1,8 +1,8 @@
 import { API_ENDPOINTS } from "@/utils/api";
 import {
+  getRegistrationReviewLabels,
   normalizeClosetRegistrationBasics,
   normalizeClosetSeasons,
-  type RegistrationReviewField,
 } from "@/utils/closetRegistration";
 import {
   getProductClassificationNotice,
@@ -424,16 +424,6 @@ function createManualAnalysis(): ClothesAnalysis {
     matchTip: "옷 정보를 더 채우면 추천이 정교해져요.",
     avoidTip: "",
   };
-}
-
-function getRegistrationReviewLabels(fields: RegistrationReviewField[]) {
-  const labels: Record<RegistrationReviewField, string> = {
-    category: "종류",
-    color: "색상",
-    season: "계절",
-  };
-
-  return fields.map((field) => labels[field]);
 }
 
 function getInferredBrand(analysis: ClothesAnalysis, confirmedBrand?: string) {

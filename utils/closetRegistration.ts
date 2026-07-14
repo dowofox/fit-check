@@ -2,6 +2,11 @@ const SEASONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
 
 export type RegistrationReviewField = "category" | "color" | "season";
+const REVIEW_FIELD_LABELS: Record<RegistrationReviewField, string> = {
+  category: "종류",
+  color: "색상",
+  season: "계절",
+};
 
 type ClosetRegistrationBasicsInput = {
   category?: string;
@@ -51,4 +56,8 @@ export function normalizeClosetRegistrationBasics({
     seasons: normalizedSeasons,
     reviewFields,
   };
+}
+
+export function getRegistrationReviewLabels(fields: RegistrationReviewField[]) {
+  return fields.map((field) => REVIEW_FIELD_LABELS[field]);
 }

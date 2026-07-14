@@ -1,5 +1,8 @@
 import { API_ENDPOINTS } from "@/utils/api";
-import { normalizeClosetRegistrationBasics } from "@/utils/closetRegistration";
+import {
+  getRegistrationReviewLabels,
+  normalizeClosetRegistrationBasics,
+} from "@/utils/closetRegistration";
 import {
   getResolvedItemMaterial,
   getProductClassificationNotice,
@@ -2663,6 +2666,13 @@ export default function ClothesDetailScreen() {
         sizeRecommendation.blockedReason === "missing_product_measurements")
   );
   const referenceClothingKey = item ? getReferenceClothingKey(item) : null;
+  const recommendationReviewFields = item
+    ? normalizeClosetRegistrationBasics({
+        category: item.category,
+        color: item.color,
+        seasons: item.seasons?.length ? item.seasons : item.season,
+      }).reviewFields
+    : [];
   const isCurrentReferenceClothing = Boolean(
     item &&
       referenceClothingKey &&
@@ -2776,6 +2786,24 @@ export default function ClothesDetailScreen() {
                 {[getDisplayBrand(item), item.category, item.color].filter(Boolean).join(" · ")}
               </Text>
             </View>
+
+            {!editMode && recommendationReviewFields.length > 0 ? (
+              <View style={styles.recommendationInfoReviewCard}>
+                <View style={styles.recommendationInfoReviewHeader}>
+                  <Feather name="alert-circle" size={18} color="#b45309" />
+                  <View style={styles.tipHeaderText}>
+                    <Text style={styles.recommendationInfoReviewTitle}>추천 정보 확인</Text>
+                    <Text style={styles.recommendationInfoReviewText}>
+                      {getRegistrationReviewLabels(recommendationReviewFields).join(", ")} 정보가 불확실해 코디 추천에 충분히 반영되지 않을 수 있어요.
+                    </Text>
+                  </View>
+                </View>
+                <Pressable style={styles.recommendationInfoReviewButton} onPress={handleEdit}>
+                  <Feather name="edit-3" size={14} color="#fff" />
+                  <Text style={styles.recommendationInfoReviewButtonText}>정보 수정</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             <View style={styles.infoCard}>
               {editMode ? (
@@ -3197,6 +3225,50 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: 6,
     flexShrink: 1,
+  },
+  recommendationInfoReviewCard: {
+    backgroundColor: "#fff7ed",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#f1d4b3",
+    padding: 14,
+    gap: 12,
+    marginBottom: 14,
+  },
+  recommendationInfoReviewHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+  },
+  recommendationInfoReviewTitle: {
+    color: "#8a3f08",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "900",
+    marginBottom: 3,
+  },
+  recommendationInfoReviewText: {
+    color: "#b45309",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  recommendationInfoReviewButton: {
+    minHeight: 40,
+    borderRadius: 14,
+    backgroundColor: "#111",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  recommendationInfoReviewButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
   },
 
   itemSubtitle: {
