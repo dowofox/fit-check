@@ -37,6 +37,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
+const CATEGORY_OPTIONS = ["상의", "하의", "신발", "아우터", "액세서리"];
 const DEFAULT_SIZE = "사이즈 미입력";
 const TOP_SIZE_OPTIONS = ["FREE", "S", "M", "L", "XL", "2XL", "3XL"];
 const BOTTOM_SIZE_OPTIONS = ["FREE", "28", "29", "30", "31", "32", "33", "34", "36"];
@@ -104,7 +105,7 @@ const BRAND_OR_LOGO_TERMS = [
 ];
 
 type ClothesAnalysis = {
-  source?: "image" | "productFallback";
+  source?: "image" | "productFallback" | "manual";
   category?: string;
   subCategory?: string;
   detailCategory?: string;
@@ -148,7 +149,7 @@ type SelectedImage = {
   uri: string;
 };
 
-type AddMode = "photo" | "link";
+type AddMode = "photo" | "link" | "manual";
 
 type ExtractedProduct = {
   brand?: string;
@@ -420,6 +421,22 @@ function createProductFallbackAnalysis(product: ExtractedProduct): ClothesAnalys
   };
 }
 
+function createManualAnalysis(): ClothesAnalysis {
+  return {
+    source: "manual",
+    category: "상의",
+    subCategory: "상의",
+    seasons: ["사계절"],
+    season: "사계절",
+    style: "데일리",
+    styleTags: ["데일리"],
+    fit: "핏 정보 없음",
+    description: "직접 등록한 옷이에요.",
+    matchTip: "옷 정보를 더 채우면 추천이 정교해져요.",
+    avoidTip: "",
+  };
+}
+
 function getInferredBrand(analysis: ClothesAnalysis, confirmedBrand?: string) {
   const inferredBrand = analysis.inferredBrand || analysis.brand || analysis.confirmedBrand || "";
   const trimmedBrand = inferredBrand.trim();
@@ -585,6 +602,10 @@ export default function AddClothesScreen() {
     setExtractedProduct(null);
     setProductLinkFailure(null);
     resetAnalysisState();
+
+    if (nextMode === "manual") {
+      applyAnalysisToForm(createManualAnalysis());
+    }
   }
 
   function switchToPhotoFallback() {
@@ -602,15 +623,19 @@ export default function AddClothesScreen() {
   }
 
   function applyAnalysisToForm(nextAnalysis: ClothesAnalysis) {
+    const isManual = nextAnalysis.source === "manual";
+
     setAnalysis(nextAnalysis);
-    setSelectedCategory(nextAnalysis.category || "기타");
+    setSelectedCategory(nextAnalysis.category || (isManual ? "상의" : "기타"));
     setSelectedDetailCategory(
-      generalizeBrandTerms(
-        nextAnalysis.detailCategory || nextAnalysis.subCategory,
-        "상세 분류 확인 필요"
-      )
+      isManual
+        ? nextAnalysis.detailCategory || ""
+        : generalizeBrandTerms(
+            nextAnalysis.detailCategory || nextAnalysis.subCategory,
+            "상세 분류 확인 필요"
+          )
     );
-    setSelectedColor(nextAnalysis.color || "색상 확인 필요");
+    setSelectedColor(nextAnalysis.color || (isManual ? "" : "색상 확인 필요"));
     setSelectedSeasons(normalizeSeasons(nextAnalysis.seasons || nextAnalysis.season));
     setSelectedStyleTags(normalizeStyleTags(nextAnalysis.styleTags, nextAnalysis.style));
     setHasManuallyEditedStyleTags(false);
@@ -805,7 +830,17 @@ export default function AddClothesScreen() {
   }
 
   async function saveItem() {
-    if (!imageUri || !analysis || isSaving) return;
+    if ((!imageUri && addMode !== "manual") || !analysis || isSaving) return;
+
+    if (addMode === "manual" && !selectedCategory.trim()) {
+      Alert.alert("종류를 선택해주세요", "옷의 카테고리를 선택해야 저장할 수 있어요.");
+      return;
+    }
+
+    if (addMode === "manual" && !selectedColor.trim()) {
+      Alert.alert("색상을 입력해주세요", "대표 색상을 입력하면 코디 추천에 활용할 수 있어요.");
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -823,17 +858,26 @@ export default function AddClothesScreen() {
         ...manuallyEditedClassificationFields,
         ...(hasManuallyEditedStyleTags ? (["styleTags"] as ProductClassificationField[]) : []),
       ];
+      const manualDetailCategory = selectedDetailCategory.trim() || selectedCategory.trim();
       const initialItem: ClosetItem = {
         id: Date.now().toString(),
         imageUri,
         cleanImageUri,
-        category: selectedCategory || analysis.category || "기타",
-        subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
+        category: selectedCategory.trim() || analysis.category || "기타",
+        subCategory:
+          addMode === "manual"
+            ? manualDetailCategory
+            : generalizeBrandTerms(
+                selectedDetailCategory || analysis.subCategory || selectedCategory,
+                "분석 전"
+              ),
         detailCategory: generalizeBrandTerms(
-          selectedDetailCategory || analysis.detailCategory || analysis.subCategory,
+          addMode === "manual"
+            ? manualDetailCategory
+            : selectedDetailCategory || analysis.detailCategory || analysis.subCategory,
           "상세 분류 전"
         ),
-        color: selectedColor || analysis.color || "색상 확인 필요",
+        color: selectedColor.trim() || analysis.color || "색상 확인 필요",
         style: selectedStyleTags[0] || analysis.style || "스타일 분석 전",
         styleTags: selectedStyleTags,
         season: selectedSeasons.join(", "),
@@ -930,7 +974,8 @@ export default function AddClothesScreen() {
     }
   }
 
-  const sizeOptions = getSizeOptions(analysis?.category);
+  const sizeOptions = getSizeOptions(selectedCategory || analysis?.category);
+  const canContinue = addMode === "manual" ? Boolean(analysis) : Boolean(imageUri);
 
   return (
     <View style={styles.screen}>
@@ -1000,6 +1045,22 @@ export default function AddClothesScreen() {
               </Text>
             </View>
             {addMode === "photo" ? <Feather name="check-circle" size={18} color="#8c6f47" /> : null}
+          </Pressable>
+
+          <Pressable
+            style={[styles.modeOptionCard, addMode === "manual" && styles.modeOptionCardActive]}
+            onPress={() => switchAddMode("manual")}
+          >
+            <View style={styles.modeOptionIcon}>
+              <Feather name="edit-3" size={18} color="#8c6f47" />
+            </View>
+            <View style={styles.modeOptionTextWrap}>
+              <Text style={styles.modeOptionTitle}>직접 입력해서 추가</Text>
+              <Text style={styles.modeOptionDescription}>
+                링크와 사진이 없을 때 필요한 정보만 입력해요.
+              </Text>
+            </View>
+            {addMode === "manual" ? <Feather name="check-circle" size={18} color="#8c6f47" /> : null}
           </Pressable>
         </View>
 
@@ -1174,13 +1235,19 @@ export default function AddClothesScreen() {
         {analysis && (
           <View style={styles.analysisCard}>
             <Text style={styles.analysisTitle}>
-              {extractedProduct ? "등록 정보 확인" : "빠른 등록 정보"}
+              {analysis.source === "manual"
+                ? "직접 등록 정보"
+                : extractedProduct
+                  ? "등록 정보 확인"
+                  : "빠른 등록 정보"}
             </Text>
             <Text style={styles.analysisText}>
               {analysis.detailCategory || analysis.subCategory || analysis.category || "옷 종류 분석 전"}
             </Text>
             <Text style={styles.analysisSummaryText}>
-              {extractedProduct
+              {analysis.source === "manual"
+                ? "사진 없이 저장할 최소 정보예요. 종류, 색상, 계절과 보유 사이즈를 확인해주세요."
+                : extractedProduct
                 ? "공식 상품 정보는 위 미리보기를 기준으로 저장돼요. 아래 종류, 색상, 계절과 보유 사이즈를 확인해주세요."
                 : "사진 등록은 종류, 색상, 계절, 스타일 같은 기본 정보만 빠르게 확인해요. 실측과 공식 소재가 필요하면 상품 링크 등록을 사용해주세요."}
             </Text>
@@ -1195,18 +1262,40 @@ export default function AddClothesScreen() {
             ) : null}
 
             <Text style={styles.seasonLabel}>카테고리</Text>
-            <TextInput
-              style={styles.sizeInput}
-              value={selectedCategory}
-              onChangeText={(value) => {
-                setSelectedCategory(value);
-                markClassificationFieldAsEdited("category");
-              }}
-              placeholder="상의 / 하의 / 신발 / 아우터 / 액세서리"
-              placeholderTextColor="#777064"
-            />
+            {analysis.source === "manual" ? (
+              <View style={styles.seasonChipRow}>
+                {CATEGORY_OPTIONS.map((category) => {
+                  const isActive = selectedCategory === category;
 
-            <Text style={styles.seasonLabel}>상세 종류</Text>
+                  return (
+                    <Pressable
+                      key={category}
+                      style={[styles.seasonChip, isActive && styles.seasonChipActive]}
+                      onPress={() => setSelectedCategory(category)}
+                    >
+                      <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
+                        {category}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <TextInput
+                style={styles.sizeInput}
+                value={selectedCategory}
+                onChangeText={(value) => {
+                  setSelectedCategory(value);
+                  markClassificationFieldAsEdited("category");
+                }}
+                placeholder="상의 / 하의 / 신발 / 아우터 / 액세서리"
+                placeholderTextColor="#777064"
+              />
+            )}
+
+            <Text style={styles.seasonLabel}>
+              {analysis.source === "manual" ? "상세 종류 (선택)" : "상세 종류"}
+            </Text>
             <TextInput
               style={styles.sizeInput}
               value={selectedDetailCategory}
@@ -1227,28 +1316,32 @@ export default function AddClothesScreen() {
               placeholderTextColor="#777064"
             />
 
-            <Text style={styles.seasonLabel}>스타일 태그</Text>
-            <View style={styles.seasonChipRow}>
-              {STYLE_TAG_OPTIONS.map((tag) => {
-                const isActive = selectedStyleTags.includes(tag);
+            {analysis.source !== "manual" ? (
+              <>
+                <Text style={styles.seasonLabel}>스타일 태그</Text>
+                <View style={styles.seasonChipRow}>
+                  {STYLE_TAG_OPTIONS.map((tag) => {
+                    const isActive = selectedStyleTags.includes(tag);
 
-                return (
-                  <Pressable
-                    key={tag}
-                    style={[styles.seasonChip, isActive && styles.seasonChipActive]}
-                    onPress={() => {
-                      setHasManuallyEditedStyleTags(true);
-                      setSelectedStyleTags((currentTags) => toggleStyleTag(currentTags, tag));
-                    }}
-                  >
-                    <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
-                      {tag}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.analysisHint}>최대 3개까지 선택할 수 있어요.</Text>
+                    return (
+                      <Pressable
+                        key={tag}
+                        style={[styles.seasonChip, isActive && styles.seasonChipActive]}
+                        onPress={() => {
+                          setHasManuallyEditedStyleTags(true);
+                          setSelectedStyleTags((currentTags) => toggleStyleTag(currentTags, tag));
+                        }}
+                      >
+                        <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
+                          {tag}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={styles.analysisHint}>최대 3개까지 선택할 수 있어요.</Text>
+              </>
+            ) : null}
 
             <Text style={styles.seasonLabel}>계절</Text>
             <View style={styles.seasonChipRow}>
@@ -1304,9 +1397,12 @@ export default function AddClothesScreen() {
         {progressText ? <Text style={styles.progressText}>{progressText}</Text> : null}
 
         <Pressable
-          style={[styles.primaryButton, (!imageUri || isSaving || isExtractingProduct) && styles.primaryButtonDisabled]}
+          style={[
+            styles.primaryButton,
+            (!canContinue || isSaving || isExtractingProduct) && styles.primaryButtonDisabled,
+          ]}
           onPress={analysis ? saveItem : analyzeItem}
-          disabled={!imageUri || isSaving || isExtractingProduct}
+          disabled={!canContinue || isSaving || isExtractingProduct}
         >
           {isSaving ? (
             <ActivityIndicator color="#fff" />
@@ -1315,7 +1411,9 @@ export default function AddClothesScreen() {
               <Feather name="save" size={18} color="#fff" />
               <Text style={styles.primaryButtonText}>
                 {analysis
-                  ? "선택한 정보로 저장"
+                  ? analysis.source === "manual"
+                    ? "직접 입력한 옷 저장"
+                    : "선택한 정보로 저장"
                   : extractedProduct
                     ? "상품 이미지 분석하고 등록 정보 확인"
                     : selectedImages.length > 1
