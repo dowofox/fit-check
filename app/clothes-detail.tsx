@@ -382,11 +382,11 @@ function getProductSizeGuideSummary(productSizeGuide?: ProductSizeGuide) {
 const PRODUCT_SIZE_MEASUREMENT_LABELS: [keyof ProductSizeMeasurement, string][] = [
   ["totalLength", "총장"],
   ["shoulder", "어깨"],
-  ["chest", "가슴"],
+  ["chest", "가슴단면"],
   ["sleeve", "소매"],
-  ["waist", "허리"],
-  ["hip", "엉덩이"],
-  ["thigh", "허벅지"],
+  ["waist", "허리단면"],
+  ["hip", "엉덩이단면"],
+  ["thigh", "허벅지단면"],
   ["rise", "밑위"],
   ["hem", "밑단"],
   ["footLength", "발길이"],
@@ -452,15 +452,15 @@ function getProductMeasurementDraft(item: ClosetItem): ProductMeasurementDraft {
 const TOP_MEASUREMENT_FIELDS: { key: ProductMeasurementField; label: string }[] = [
   { key: "totalLength", label: "총장" },
   { key: "shoulder", label: "어깨" },
-  { key: "chest", label: "가슴" },
+  { key: "chest", label: "가슴단면" },
   { key: "sleeve", label: "소매" },
 ];
 
 const BOTTOM_MEASUREMENT_FIELDS: { key: ProductMeasurementField; label: string }[] = [
   { key: "totalLength", label: "총장" },
-  { key: "waist", label: "허리" },
-  { key: "hip", label: "엉덩이" },
-  { key: "thigh", label: "허벅지" },
+  { key: "waist", label: "허리단면" },
+  { key: "hip", label: "엉덩이단면" },
+  { key: "thigh", label: "허벅지단면" },
   { key: "rise", label: "밑위" },
   { key: "hem", label: "밑단" },
 ];
@@ -1492,7 +1492,8 @@ function ProductMeasurementForm({
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>상품 실측 직접 입력</Text>
           <Text style={styles.aiDetailSubtitle}>
-            상품 페이지의 실측표를 cm 단위로 입력해주세요. 같은 사이즈는 기존 값이 수정돼요.
+            상품 페이지의 실측표를 cm 단위로 입력해주세요. 가슴, 허리, 엉덩이,
+            {" "}허벅지는 단면 기준이며 같은 사이즈는 기존 값이 수정돼요.
           </Text>
         </View>
       </View>
