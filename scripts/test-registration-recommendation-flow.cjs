@@ -73,6 +73,10 @@ const {
 const {
   normalizeClosetRegistrationBasics,
 } = require("../utils/closetRegistration.ts");
+const {
+  toRecommendationInputItem,
+  toRecommendationInputItems,
+} = require("../utils/recommendationInput.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -181,6 +185,22 @@ async function main() {
   });
   assert.deepEqual(validRegistration.reviewFields, []);
 
+  const legacyRecommendationItem = toRecommendationInputItem({
+    id: "legacy-empty",
+    imageUri: "",
+    category: "",
+    color: "판단 어려움",
+    season: "",
+    style: "스타일 미분석",
+    pattern: "판단 어려움",
+    createdAt,
+  });
+  assert.equal(legacyRecommendationItem.category, "기타");
+  assert.equal(legacyRecommendationItem.color, undefined);
+  assert.deepEqual(legacyRecommendationItem.seasons, ["사계절"]);
+  assert.deepEqual(legacyRecommendationItem.styleTags, ["데일리"]);
+  assert.equal(legacyRecommendationItem.pattern, undefined);
+
   await listen(fixtureServer, fixturePort);
   const apiProcess = spawn(process.execPath, ["server/index.js"], {
     cwd: projectRoot,
@@ -259,7 +279,8 @@ async function main() {
     assert.equal(updatedTop.detailCategory, "린넨 오픈카라 셔츠");
     assert.equal(updatedTop.confirmedProduct.productName, "린넨 데일리 셔츠");
 
-    const recommendationResult = getOutfitRecommendationResult(updatedCloset, null, "여름");
+    const recommendationItems = toRecommendationInputItems(updatedCloset);
+    const recommendationResult = getOutfitRecommendationResult(recommendationItems, null, "여름");
     assert.ok(recommendationResult.recommendations.length > 0);
     assert.ok(
       recommendationResult.recommendations.some((recommendation) =>
