@@ -42,6 +42,22 @@ const SEASON_EVIDENCE_RULES = [
     seasons: ["여름"],
   },
   {
+    id: "summer-bottom",
+    priority: 109,
+    categories: ["하의"],
+    keywords: [
+      "버뮤다",
+      "하프 팬츠",
+      "쿨링 팬츠",
+      "냉감 팬츠",
+      "시어서커 팬츠",
+      "메쉬 팬츠",
+      "mesh pants",
+      "seersucker pants",
+    ],
+    seasons: ["여름"],
+  },
+  {
     id: "summer-footwear",
     priority: 108,
     categories: ["신발"],
@@ -59,6 +75,37 @@ const SEASON_EVIDENCE_RULES = [
     priority: 100,
     keywords: ["반팔", "숏슬리브", "숏 슬리브", "하프 슬리브", "short sleeve", "short-sleeve"],
     seasons: ["여름"],
+  },
+  {
+    id: "winter-bottom",
+    priority: 98,
+    categories: ["하의"],
+    keywords: [
+      "기모 팬츠",
+      "기모 바지",
+      "코듀로이 팬츠",
+      "골덴 팬츠",
+      "울 팬츠",
+      "모직 팬츠",
+      "플리스 팬츠",
+      "후리스 팬츠",
+      "벨벳 팬츠",
+      "corduroy pants",
+      "wool pants",
+      "fleece pants",
+    ],
+    keywordGroups: [
+      ["기모", "팬츠"],
+      ["기모", "바지"],
+      ["코듀로이", "팬츠"],
+      ["골덴", "팬츠"],
+      ["울", "팬츠"],
+      ["모직", "팬츠"],
+      ["플리스", "팬츠"],
+      ["후리스", "팬츠"],
+      ["벨벳", "팬츠"],
+    ],
+    seasons: ["가을", "겨울"],
   },
   {
     id: "warm-material",
@@ -163,7 +210,10 @@ function findEvidenceRule(input) {
     .find(
       (rule) =>
         (!rule.categories || rule.categories.includes(category)) &&
-        rule.keywords.some((keyword) => evidenceText.includes(keyword.toLowerCase()))
+        (rule.keywords.some((keyword) => evidenceText.includes(keyword.toLowerCase())) ||
+          (rule.keywordGroups || []).some((keywords) =>
+            keywords.every((keyword) => evidenceText.includes(keyword.toLowerCase()))
+          ))
     );
 }
 

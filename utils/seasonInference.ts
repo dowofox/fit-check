@@ -8,6 +8,7 @@ import type {
 const OFFICIAL_SEASON_RULES: Array<{
   id: string;
   keywords: string[];
+  keywordGroups?: string[][];
   seasons: string[];
 }> = [
   {
@@ -29,6 +30,49 @@ const OFFICIAL_SEASON_RULES: Array<{
       "shearling",
     ],
     seasons: ["겨울"],
+  },
+  {
+    id: "summer-bottom",
+    keywords: [
+      "버뮤다",
+      "하프 팬츠",
+      "쿨링 팬츠",
+      "냉감 팬츠",
+      "시어서커 팬츠",
+      "메쉬 팬츠",
+      "mesh pants",
+      "seersucker pants",
+    ],
+    seasons: ["여름"],
+  },
+  {
+    id: "winter-bottom",
+    keywords: [
+      "기모 팬츠",
+      "기모 바지",
+      "코듀로이 팬츠",
+      "골덴 팬츠",
+      "울 팬츠",
+      "모직 팬츠",
+      "플리스 팬츠",
+      "후리스 팬츠",
+      "벨벳 팬츠",
+      "corduroy pants",
+      "wool pants",
+      "fleece pants",
+    ],
+    keywordGroups: [
+      ["기모", "팬츠"],
+      ["기모", "바지"],
+      ["코듀로이", "팬츠"],
+      ["골덴", "팬츠"],
+      ["울", "팬츠"],
+      ["모직", "팬츠"],
+      ["플리스", "팬츠"],
+      ["후리스", "팬츠"],
+      ["벨벳", "팬츠"],
+    ],
+    seasons: ["가을", "겨울"],
   },
   {
     id: "warm-material",
@@ -102,8 +146,12 @@ export function inferSeasonsFromOfficialProduct({
   ]);
   if (!searchText) return null;
 
-  const matchedRule = OFFICIAL_SEASON_RULES.find((rule) =>
-    rule.keywords.some((keyword) => searchText.includes(keyword.toLowerCase()))
+  const matchedRule = OFFICIAL_SEASON_RULES.find(
+    (rule) =>
+      rule.keywords.some((keyword) => searchText.includes(keyword.toLowerCase())) ||
+      (rule.keywordGroups || []).some((keywords) =>
+        keywords.every((keyword) => searchText.includes(keyword.toLowerCase()))
+      )
   );
   if (!matchedRule) return null;
 
