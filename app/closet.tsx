@@ -1,6 +1,6 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
-import { normalizeClosetRegistrationBasics } from "@/utils/closetRegistration";
+import { getClosetItemReviewFields } from "@/utils/closetRegistration";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import { getSavedOutfitUsageCount } from "@/utils/savedOutfitIntegrity";
 import {
@@ -37,12 +37,11 @@ function getItemTitle(item: ClosetItem) {
     return item.detailCategory || item.subCategory || item.category || "아이템";
 }
 
-function needsRecommendationInfoReview(item: ClosetItem) {
-    return normalizeClosetRegistrationBasics({
-        category: item.category,
-        color: item.color,
-        seasons: item.seasons?.length ? item.seasons : item.season,
-    }).reviewFields.length > 0;
+function getRecommendationInfoReviewLabel(item: ClosetItem) {
+    const reviewFields = getClosetItemReviewFields(item);
+
+    if (reviewFields.length === 1 && reviewFields[0] === "season") return "계절 확인";
+    return reviewFields.length > 0 ? "정보 확인" : "";
 }
 
 function formatDate(value?: string) {
@@ -228,39 +227,43 @@ export default function ClosetScreen() {
                         </Text>
 
                         <View style={styles.closetGrid}>
-                            {filteredItems.map((item) => (
-                                <Pressable
-                                    key={item.id}
-                                    style={styles.closetCard}
-                                    onPress={() => router.push({
-                                        pathname: "/clothes-detail",
-                                        params: { id: item.id },
-                                    })}
-                                    onLongPress={() => handleDeleteItem(item.id)}
-                                >
-                                    <View style={styles.imageBox}>
-                                        <ClosetItemImage
-                                            item={item}
-                                            style={styles.closetImage}
-                                            contentFit="contain"
-                                        />
-                                        {needsRecommendationInfoReview(item) ? (
-                                            <View style={styles.infoReviewBadge}>
-                                                <Feather name="alert-circle" size={11} color={colors.warning} />
-                                                <Text style={styles.infoReviewBadgeText}>정보 확인</Text>
-                                            </View>
-                                        ) : null}
-                                    </View>
+                            {filteredItems.map((item) => {
+                                const reviewLabel = getRecommendationInfoReviewLabel(item);
 
-                                    <Text style={styles.closetCategory} numberOfLines={1}>
-                                        {getItemTitle(item)}
-                                    </Text>
+                                return (
+                                    <Pressable
+                                        key={item.id}
+                                        style={styles.closetCard}
+                                        onPress={() => router.push({
+                                            pathname: "/clothes-detail",
+                                            params: { id: item.id },
+                                        })}
+                                        onLongPress={() => handleDeleteItem(item.id)}
+                                    >
+                                        <View style={styles.imageBox}>
+                                            <ClosetItemImage
+                                                item={item}
+                                                style={styles.closetImage}
+                                                contentFit="contain"
+                                            />
+                                            {reviewLabel ? (
+                                                <View style={styles.infoReviewBadge}>
+                                                    <Feather name="alert-circle" size={11} color={colors.warning} />
+                                                    <Text style={styles.infoReviewBadgeText}>{reviewLabel}</Text>
+                                                </View>
+                                            ) : null}
+                                        </View>
 
-                                    <Text style={styles.closetSubText} numberOfLines={1}>
-                                        {formatDate(item.createdAt)}
-                                    </Text>
-                                </Pressable>
-                            ))}
+                                        <Text style={styles.closetCategory} numberOfLines={1}>
+                                            {getItemTitle(item)}
+                                        </Text>
+
+                                        <Text style={styles.closetSubText} numberOfLines={1}>
+                                            {formatDate(item.createdAt)}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
                         </View>
                     </View>
                 )}

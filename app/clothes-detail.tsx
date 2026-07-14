@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "@/utils/api";
 import {
+  getClosetItemReviewFields,
   getRegistrationReviewLabels,
   normalizeClosetRegistrationBasics,
 } from "@/utils/closetRegistration";
@@ -2656,11 +2657,7 @@ export default function ClothesDetailScreen() {
   );
   const referenceClothingKey = item ? getReferenceClothingKey(item) : null;
   const recommendationReviewFields = item
-    ? normalizeClosetRegistrationBasics({
-        category: item.category,
-        color: item.color,
-        seasons: item.seasons?.length ? item.seasons : item.season,
-      }).reviewFields
+    ? getClosetItemReviewFields(item)
     : [];
   const isCurrentReferenceClothing = Boolean(
     item &&

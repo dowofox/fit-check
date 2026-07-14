@@ -1,3 +1,5 @@
+import type { ClosetItem } from "@/utils/storage";
+
 const SEASONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
 
@@ -64,4 +66,20 @@ export function normalizeClosetRegistrationBasics({
 
 export function getRegistrationReviewLabels(fields: RegistrationReviewField[]) {
   return fields.map((field) => REVIEW_FIELD_LABELS[field]);
+}
+
+export function getClosetItemReviewFields(
+  item: Pick<ClosetItem, "category" | "color" | "season" | "seasons" | "seasonNeedsReview">
+) {
+  const reviewFields = normalizeClosetRegistrationBasics({
+    category: item.category,
+    color: item.color,
+    seasons: item.seasons?.length ? item.seasons : item.season,
+  }).reviewFields;
+
+  if (item.seasonNeedsReview && !reviewFields.includes("season")) {
+    reviewFields.push("season");
+  }
+
+  return reviewFields;
 }

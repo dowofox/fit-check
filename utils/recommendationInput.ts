@@ -1,4 +1,7 @@
-import { normalizeClosetRegistrationBasics } from "@/utils/closetRegistration";
+import {
+  getClosetItemReviewFields,
+  normalizeClosetRegistrationBasics,
+} from "@/utils/closetRegistration";
 import type { ClosetItem, SavedOutfit, UserProfile } from "@/utils/storage";
 
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
@@ -25,6 +28,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     color: item.color,
     seasons: item.seasons?.length ? item.seasons : item.season,
   });
+  const reviewFields = getClosetItemReviewFields(item);
   const category = registration.reviewFields.includes("category")
     ? "기타"
     : registration.category;
@@ -59,7 +63,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     seasons: registration.seasons,
     seasonSource: item.seasonSource,
     seasonNeedsReview:
-      item.seasonNeedsReview ?? registration.reviewFields.includes("season"),
+      reviewFields.includes("season"),
     fit: getReliableValue(item.fit),
     size: item.size,
     intendedFit: item.intendedFit,

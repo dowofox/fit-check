@@ -71,6 +71,7 @@ const {
   getOutfitRecommendationResult,
 } = require("../utils/outfitRecommend.ts");
 const {
+  getClosetItemReviewFields,
   normalizeClosetRegistrationBasics,
 } = require("../utils/closetRegistration.ts");
 const {
@@ -184,6 +185,22 @@ async function main() {
     seasons: ["봄", "가을"],
   });
   assert.deepEqual(validRegistration.reviewFields, []);
+
+  const conflictedSeasonReviewFields = getClosetItemReviewFields({
+    category: "아우터",
+    color: "블랙",
+    seasons: ["겨울"],
+    seasonNeedsReview: true,
+  });
+  assert.deepEqual(conflictedSeasonReviewFields, ["season"]);
+
+  const confirmedSeasonReviewFields = getClosetItemReviewFields({
+    category: "아우터",
+    color: "블랙",
+    seasons: ["겨울"],
+    seasonNeedsReview: false,
+  });
+  assert.deepEqual(confirmedSeasonReviewFields, []);
 
   const legacyRecommendationItem = toRecommendationInputItem({
     id: "legacy-empty",
