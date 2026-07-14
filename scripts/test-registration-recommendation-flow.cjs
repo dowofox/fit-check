@@ -428,6 +428,29 @@ async function main() {
       "벨트"
     );
 
+    assert.equal(
+      getProductAnalysisTarget({ productName: "울트라 스트레치 팬츠" }).material,
+      undefined
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "모던 와이드 슬랙스" }).material,
+      undefined
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "울 테일러드 팬츠" }).material,
+      "울"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "베이직 팬츠",
+        materialComposition: {
+          summary: "모 100%",
+          items: [{ name: "모", percentage: 100 }],
+        },
+      }).material,
+      "울"
+    );
+
     const normalizedPantsContext = normalizeProductAnalysisContext({
       productName: "TWO TUCK WIDE PANTS",
       category: "하의",

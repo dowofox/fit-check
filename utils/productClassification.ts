@@ -79,6 +79,13 @@ function includesKeyword(value: string, keyword: string) {
     return keywordParts.every((part) => valueParts.includes(part));
   }
 
+  if (/^[가-힣]$/.test(normalizedKeyword)) {
+    return value
+      .split(/[\s,/%()[\]{}·:;]+/)
+      .filter(Boolean)
+      .includes(normalizedKeyword);
+  }
+
   if (value.includes(normalizedKeyword)) return true;
 
   if (keywordParts.length < 2 || keywordParts.some((part) => part.length < 2)) {
