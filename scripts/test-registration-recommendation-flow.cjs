@@ -396,7 +396,8 @@ async function main() {
       productCategory: "Fashion > Shoes > Pumps",
     });
     assert.equal(slingbackShoesTarget.category, "신발");
-    assert.equal(slingbackShoesTarget.subCategory, "신발");
+    assert.equal(slingbackShoesTarget.subCategory, "구두");
+    assert.equal(slingbackShoesTarget.detailCategory, "슬링백 슈즈");
 
     const beltBagTarget = getProductAnalysisTarget({
       productName: "레더 벨트 백",
@@ -405,9 +406,26 @@ async function main() {
     assert.equal(beltBagTarget.category, "액세서리");
     assert.equal(beltBagTarget.subCategory, "가방");
 
+    const slingbackWithoutCategory = getProductAnalysisTarget({
+      productName: "레더 슬링백 펌프스",
+    });
+    assert.equal(slingbackWithoutCategory.category, "신발");
+    assert.equal(slingbackWithoutCategory.detailCategory, "슬링백 슈즈");
+
+    const waistBagWithoutCategory = getProductAnalysisTarget({
+      productName: "나일론 벨트 백",
+    });
+    assert.equal(waistBagWithoutCategory.category, "액세서리");
+    assert.equal(waistBagWithoutCategory.subCategory, "가방");
+    assert.equal(waistBagWithoutCategory.detailCategory, "웨이스트백");
+
     assert.equal(
       getProductAnalysisTarget({ productName: "슬링백" }).detailCategory,
       "슬링백"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "레더 벨트" }).detailCategory,
+      "벨트"
     );
 
     const normalizedPantsContext = normalizeProductAnalysisContext({
