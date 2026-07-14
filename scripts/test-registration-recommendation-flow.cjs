@@ -353,6 +353,34 @@ async function main() {
       }
     );
 
+    const shortSleeveTShirtTarget = getProductAnalysisTarget({
+      productName: "BASIC SHORT SLEEVE TEE",
+      productCategory: "Apparel > Tops > T-Shirts",
+    });
+    assert.equal(shortSleeveTShirtTarget.category, "상의");
+    assert.equal(shortSleeveTShirtTarget.subCategory, "티셔츠");
+    assert.equal(shortSleeveTShirtTarget.detailCategory, "반팔 티셔츠");
+
+    assert.equal(
+      getProductAnalysisTarget({ productName: "ESSENTIAL LONG-SLEEVE T-SHIRT" })
+        .detailCategory,
+      "긴팔 티셔츠"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "COTTON SLEEVELESS TOP" }).detailCategory,
+      "민소매 티셔츠"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "SUMMER SHORT SLEEVE KNIT" })
+        .detailCategory,
+      "반팔 니트"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "OXFORD SHORT SLEEVE SHIRT" })
+        .detailCategory,
+      "옥스포드 셔츠"
+    );
+
     const pleatedSkirtTarget = getProductAnalysisTarget({
       productName: "PLEATED MIDI SKIRT",
       productCategory: "Apparel > Bottoms > Skirts",
