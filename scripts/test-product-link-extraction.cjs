@@ -47,16 +47,30 @@ const fixtureServer = http.createServer((request, response) => {
   if (request.url === "/product") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
-      <meta property="og:image" content="/images/shirt.jpg">
+      <meta property="og:image" content="/images/shirt-full-look.jpg">
       <script type="application/ld+json">{
         "@context":"https://schema.org",
         "@type":"Product",
         "name":"린넨 데일리 셔츠",
         "brand":{"@type":"Brand","name":"NAES"},
-        "image":"/fallback.jpg",
+        "image":"/images/shirt-product.jpg",
         "offers":{"@type":"Offer","price":"59000"}
       }</script>
     </head><body><dl><dt>소재</dt><dd>린넨 55%, 면 45%</dd></dl></body></html>`);
+    return;
+  }
+
+  if (request.url === "/meta-image") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <meta property="og:image" content="/images/meta-shirt.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"메타 이미지 셔츠",
+        "brand":{"@type":"Brand","name":"NAES"}
+      }</script>
+    </head><body></body></html>`);
     return;
   }
 
@@ -134,7 +148,7 @@ async function main() {
     assert.equal(complete.body.brand, "NAES");
     assert.equal(
       complete.body.productImageUrl,
-      `http://127.0.0.1:${fixturePort}/images/shirt.jpg`
+      `http://127.0.0.1:${fixturePort}/images/shirt-product.jpg`
     );
     assert.equal(complete.body.extractionSource, "structured_metadata");
     assert.equal(complete.body.extractionStatus, "complete");
@@ -145,6 +159,13 @@ async function main() {
     assert.equal(partial.body.extractionStatus, "partial");
     assert.ok(partial.body.missingFields.includes("brand"));
     assert.ok(partial.body.missingFields.includes("materialComposition"));
+
+    const metaImageFallback = await extract("/meta-image");
+    assert.equal(metaImageFallback.response.status, 200);
+    assert.equal(
+      metaImageFallback.body.productImageUrl,
+      `http://127.0.0.1:${fixturePort}/images/meta-shirt.jpg`
+    );
 
     const flatSize = await extract("/size-flat");
     const circumferenceSize = await extract("/size-circumference");
@@ -164,7 +185,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 6개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 7개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);

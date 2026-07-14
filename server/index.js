@@ -560,7 +560,9 @@ function getStructuredProductData(html) {
         ? imageValue
         : typeof imageValue?.url === "string"
           ? imageValue.url
-          : "";
+          : typeof imageValue?.contentUrl === "string"
+            ? imageValue.contentUrl
+            : "";
     const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
 
     return {
@@ -2651,10 +2653,15 @@ app.post("/extract-product", async (req, res) => {
         "image",
         "og:image:secure_url",
       ]);
-      const productImageUrl = resolveProductImageUrl(
-        productImageMeta.value || structuredProduct?.image || "",
+      const structuredProductImageUrl = resolveProductImageUrl(
+        structuredProduct?.image || "",
         finalProductUrl
       );
+      const metadataProductImageUrl = resolveProductImageUrl(
+        productImageMeta.value || "",
+        finalProductUrl
+      );
+      const productImageUrl = structuredProductImageUrl || metadataProductImageUrl;
       let materialComposition =
         isMusinsa && productId
           ? await fetchMusinsaMaterialComposition(productId, finalProductUrl)
