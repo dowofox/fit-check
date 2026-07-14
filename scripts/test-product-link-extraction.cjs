@@ -49,6 +49,8 @@ const fixtureServer = http.createServer((request, response) => {
       <meta property="og:site_name" content="NAES SHOP">
       <meta property="og:image" content="/images/shirt-full-look.jpg">
       <meta property="product:brand" content="WRONG META BRAND">
+      <meta property="product:price:amount" content="990">
+      <meta name="twitter:data1" content="WRONG TWITTER DATA">
       <meta property="product:category" content="Outerwear">
       <meta property="product:color" content="블랙">
       <script type="application/ld+json">{
@@ -96,6 +98,7 @@ const fixtureServer = http.createServer((request, response) => {
   if (request.url === "/meta-brand") {
     response.end(`<!doctype html><html><head>
       <meta property="product:brand" content="META BRAND">
+      <meta property="product:price:amount" content="39000">
       <script type="application/ld+json">{
         "@context":"https://schema.org",
         "@type":"Product",
@@ -196,6 +199,7 @@ async function main() {
     assert.equal(complete.body.brand, "NAES");
     assert.equal(complete.body.productCategory, "Apparel > Shirts");
     assert.equal(complete.body.productColor, "아이보리");
+    assert.equal(complete.body.price, "59000");
     assert.equal(
       complete.body.productImageUrl,
       `http://127.0.0.1:${fixturePort}/images/shirt-product.jpg`
@@ -213,6 +217,7 @@ async function main() {
     const metaBrand = await extract("/meta-brand");
     assert.equal(metaBrand.response.status, 200);
     assert.equal(metaBrand.body.brand, "META BRAND");
+    assert.equal(metaBrand.body.price, "39000");
 
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);

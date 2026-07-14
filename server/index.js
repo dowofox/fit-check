@@ -706,7 +706,6 @@ function extractPrice(html) {
   const metaPrice = extractMetaContent(html, [
     "product:price:amount",
     "og:price:amount",
-    "twitter:data1",
   ]);
 
   if (metaPrice) return metaPrice;
@@ -2725,7 +2724,7 @@ app.post("/extract-product", async (req, res) => {
         structuredProduct?.category ||
         extractMetaContent(html, ["product:category", "category"]) ||
         "";
-      const price = extractPrice(html) || structuredProduct?.price || "";
+      const price = structuredProduct?.price || extractPrice(html) || "";
       const productImageMeta = extractMetaContentWithDebug(html, [
         "og:image",
         "twitter:image",
