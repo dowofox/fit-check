@@ -51,6 +51,8 @@ function isFreeSizeAlias(size?: string) {
   const compactSize = (size || "")
     .trim()
     .toUpperCase()
+    .replace(/\(?\s*\d{1,3}(?:\.\d+)?\s*[~～\-–—]\s*\d{1,3}(?:\.\d+)?\s*\)?/g, "")
+    .replace(/\(\s*\d{1,3}(?:\.\d+)?\s*\)/g, "")
     .replace(/[\s/_-]+/g, "");
 
   return ["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactSize);

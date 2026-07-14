@@ -26,7 +26,10 @@ export function normalizeSize(size?: string) {
     .replace(/LARGE/g, "L")
     .replace(/MEDIUM/g, "M")
     .replace(/SMALL/g, "S");
-  const compactFreeSize = upperSize.replace(/[-_/]+/g, "");
+  const compactFreeSize = upperSize
+    .replace(/\(?\d{1,3}(?:\.\d+)?[~～\-–—]\d{1,3}(?:\.\d+)?\)?/g, "")
+    .replace(/\(\d{1,3}(?:\.\d+)?\)/g, "")
+    .replace(/[-_/]+/g, "");
 
   if (["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactFreeSize)) {
     return "FREE";

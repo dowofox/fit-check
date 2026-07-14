@@ -53,13 +53,23 @@ const { pruneReferenceClothing } = require("../utils/storage.ts");
 const createdAt = "2026-07-01T00:00:00.000Z";
 
 test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () => {
-  ["FREE", "FREE SIZE", "ONE SIZE", "ONE-SIZE", "O/S", "OS"].forEach((size) => {
+  [
+    "FREE",
+    "FREE SIZE",
+    "ONE SIZE",
+    "ONE-SIZE",
+    "O/S",
+    "OS",
+    "FREE SIZE 44~66",
+    "ONE SIZE (44~66)",
+    "O/S(44-66)",
+  ].forEach((size) => {
     assert.equal(normalizeSize(size), "FREE");
     assert.equal(normalizeProductSizeForCompare(size), "FREE");
   });
 
   const measurement = buildProductSizeMeasurement({
-    size: "ONE-SIZE",
+    size: "ONE-SIZE(44~66)",
     totalLength: "68",
     shoulder: "",
     chest: "55",
@@ -73,7 +83,8 @@ test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () =
   });
 
   assert.equal(measurement?.size, "FREE");
-  assert.equal(measurement?.displaySize, "ONE-SIZE");
+  assert.equal(measurement?.displaySize, "ONE-SIZE(44~66)");
+  assert.deepEqual(measurement?.numericRange, { min: 44, max: 66 });
   assert.equal(doesProductSizeRowMatch(measurement, "FREE SIZE"), true);
 });
 

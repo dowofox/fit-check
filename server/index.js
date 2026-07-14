@@ -892,7 +892,10 @@ function parseProductSizeName(value) {
   if (INVALID_SIZE_NAME_KEYWORDS.some((keyword) => rawSize.includes(keyword))) return null;
 
   const normalizedRawSize = rawSize.toUpperCase();
-  const compactSize = normalizedRawSize.replace(/[\s/_-]+/g, "");
+  const compactSize = normalizedRawSize
+    .replace(/\(?\s*\d{1,3}(?:\.\d+)?\s*[~～\-–—]\s*\d{1,3}(?:\.\d+)?\s*\)?/g, "")
+    .replace(/\(\s*\d{1,3}(?:\.\d+)?\s*\)/g, "")
+    .replace(/[\s/_-]+/g, "");
   const isFreeSize = ["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactSize);
   const letterSize = isFreeSize
     ? "FREE"

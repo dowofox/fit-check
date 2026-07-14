@@ -372,9 +372,9 @@ const fixtureServer = http.createServer((request, response) => {
     </head><body>
       <table>
         <tr><th>사이즈</th><th>총장</th><th>가슴단면</th></tr>
-        <tr><td>FREE SIZE</td><td>68</td><td>55</td></tr>
-        <tr><td>ONE-SIZE</td><td>69</td><td>56</td></tr>
-        <tr><td>O/S</td><td>70</td><td>57</td></tr>
+        <tr><td>FREE SIZE 44~66</td><td>68</td><td>55</td></tr>
+        <tr><td>ONE-SIZE(44~66)</td><td>69</td><td>56</td></tr>
+        <tr><td>O/S(44-66)</td><td>70</td><td>57</td></tr>
       </table>
     </body></html>`);
     return;
@@ -544,6 +544,14 @@ async function main() {
     assert.deepEqual(
       freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
       ["FREE", "FREE", "FREE"]
+    );
+    assert.deepEqual(
+      freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.numericRange),
+      [
+        { min: 44, max: 66 },
+        { min: 44, max: 66 },
+        { min: 44, max: 66 },
+      ]
     );
 
     const unsupported = await extract("/article");
