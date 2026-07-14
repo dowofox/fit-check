@@ -171,6 +171,25 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/regenerated-fiber-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"재생섬유 혼방 셔츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "material":[
+          {"name":"cotton","percentage":60},
+          {"name":"tencel","percentage":25},
+          {"name":"modal","percentage":10},
+          {"name":"cupro","percentage":5}
+        ],
+        "image":"/images/regenerated-fiber-shirt.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/product-group") {
     response.end(`<!doctype html><html><head>
       <meta property="product:color" content="Navy">
@@ -490,6 +509,18 @@ async function main() {
     assert.equal(materialObject.body.materialComposition.summary, "면 100%");
     assert.deepEqual(materialObject.body.materialComposition.items, [
       { name: "면", percentage: 100 },
+    ]);
+
+    const regeneratedFiber = await extract("/regenerated-fiber-material");
+    assert.equal(
+      regeneratedFiber.body.materialComposition.summary,
+      "면 60%, 리오셀 25%, 모달 10%, 큐프로 5%"
+    );
+    assert.deepEqual(regeneratedFiber.body.materialComposition.items, [
+      { name: "면", percentage: 60 },
+      { name: "리오셀", percentage: 25 },
+      { name: "모달", percentage: 10 },
+      { name: "큐프로", percentage: 5 },
     ]);
 
     const productGroup = await extract("/product-group");
