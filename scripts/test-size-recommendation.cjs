@@ -335,6 +335,7 @@ test("기존 실측표의 잘못된 값은 숨기고 같은 사이즈 입력은 
       { size: "무신사 단독", totalLength: 100 },
       { size: "M", totalLength: Number.NaN, chest: 0 },
       { size: "2XL", totalLength: 72, chest: 58 },
+      { size: "XXL", totalLength: 74, shoulder: 50, chest: 60 },
     ],
   });
   const replacement = buildProductSizeMeasurement({
@@ -352,6 +353,8 @@ test("기존 실측표의 잘못된 값은 숨기고 같은 사이즈 입력은 
   });
 
   assert.equal(rows.length, 1);
+  assert.equal(rows[0].totalLength, 74);
+  assert.equal(rows[0].shoulder, 50);
   assert.ok(replacement);
   const nextRows = upsertProductSizeMeasurement(rows, replacement);
   assert.equal(nextRows.length, 1);

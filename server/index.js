@@ -983,19 +983,48 @@ function isValidProductSizeName(size) {
   return Boolean(parseProductSizeName(size));
 }
 
+const PRODUCT_SIZE_MEASUREMENT_KEYS = [
+  "totalLength",
+  "shoulder",
+  "chest",
+  "sleeve",
+  "waist",
+  "hip",
+  "thigh",
+  "rise",
+  "hem",
+  "footLength",
+];
+
 function hasProductSizeMeasurements(sizeMeasurement) {
-  return [
-    sizeMeasurement.totalLength,
-    sizeMeasurement.shoulder,
-    sizeMeasurement.chest,
-    sizeMeasurement.sleeve,
-    sizeMeasurement.waist,
-    sizeMeasurement.hip,
-    sizeMeasurement.thigh,
-    sizeMeasurement.rise,
-    sizeMeasurement.hem,
-    sizeMeasurement.footLength,
-  ].some((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
+  return PRODUCT_SIZE_MEASUREMENT_KEYS.some((key) => {
+    const value = sizeMeasurement[key];
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+  });
+}
+
+function getProductSizeMeasurementCompleteness(sizeMeasurement) {
+  return PRODUCT_SIZE_MEASUREMENT_KEYS.filter((key) => {
+    const value = sizeMeasurement[key];
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+  }).length;
+}
+
+function dedupeProductSizeMeasurements(sizeMeasurements) {
+  const rowsBySize = new Map();
+
+  sizeMeasurements.forEach((sizeMeasurement) => {
+    const current = rowsBySize.get(sizeMeasurement.size);
+    if (
+      !current ||
+      getProductSizeMeasurementCompleteness(sizeMeasurement) >
+        getProductSizeMeasurementCompleteness(current)
+    ) {
+      rowsBySize.set(sizeMeasurement.size, sizeMeasurement);
+    }
+  });
+
+  return [...rowsBySize.values()];
 }
 
 function logInvalidSizeRow(reason, row, normalizedRow) {
@@ -1143,10 +1172,12 @@ function normalizeProductSizeGuide(productSizeGuide) {
   ];
 
   for (const rawSizes of collections) {
-    const sizes = rawSizes
-      .filter((row) => !isEventBannerObject(row))
-      .map((row) => normalizeNestedSizeMeasurement(row))
-      .filter(Boolean);
+    const sizes = dedupeProductSizeMeasurements(
+      rawSizes
+        .filter((row) => !isEventBannerObject(row))
+        .map((row) => normalizeNestedSizeMeasurement(row))
+        .filter(Boolean),
+    );
 
     if (sizes.length > 0) {
       return {
@@ -1917,23 +1948,26 @@ function extractProductSizeGuideFromTables(html) {
 
     const headerLabels = rows[headerIndex];
     const headers = headerLabels.map((cell) => getSizeMeasurementKey(cell));
-    const sizeRows = rows
-      .slice(headerIndex + 1)
-      .map((cells) => {
-        const row = {};
+    const sizeRows = dedupeProductSizeMeasurements(
+      rows
+        .slice(headerIndex + 1)
+        .map((cells) => {
+          const row = {};
 
-        cells.forEach((cell, index) => {
-          const key = headers[index];
-          if (!key) return;
+          cells.forEach((cell, index) => {
+            const key = headers[index];
+            if (!key) return;
 
-          row[key] = key === "size"
-            ? cell
-            : normalizeProductSizeMeasurementValue(headerLabels[index], key, cell);
-        });
+            row[key] =
+              key === "size"
+                ? cell
+                : normalizeProductSizeMeasurementValue(headerLabels[index], key, cell);
+          });
 
-        return normalizeProductSizeMeasurement(row);
-      })
-      .filter(Boolean);
+          return normalizeProductSizeMeasurement(row);
+        })
+        .filter(Boolean),
+    );
 
     if (sizeRows.length > 0) {
       return {

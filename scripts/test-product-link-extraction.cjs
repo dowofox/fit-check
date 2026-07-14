@@ -397,6 +397,28 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-duplicates") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <meta property="og:image" content="/images/duplicate-size-shirt.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"중복 실측 셔츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/duplicate-size-shirt.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>어깨</th><th>가슴단면</th></tr>
+        <tr><td>M</td><td>70</td><td>-</td><td>55</td></tr>
+        <tr><td>M</td><td>70</td><td>48</td><td>55</td></tr>
+        <tr><td>L</td><td>72</td><td>50</td><td>57</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/size-free-aliases") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -629,26 +651,27 @@ async function main() {
     assert.equal(formattedMeasurement.thigh, undefined);
     assert.equal(formattedMeasurement.hem, undefined);
 
+    const duplicateSizes = await extract("/size-duplicates");
+    assert.deepEqual(
+      duplicateSizes.body.productSizeGuide.sizes.map((measurement) => measurement.size),
+      ["M", "L"]
+    );
+    assert.equal(duplicateSizes.body.productSizeGuide.sizes[0].shoulder, 48);
+
     const freeAliases = await extract("/size-free-aliases");
     assert.deepEqual(
       freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
-      ["FREE", "FREE", "FREE", "FREE", "FREE"]
+      ["FREE"]
     );
     assert.deepEqual(
       freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.numericRange),
-      [
-        { min: 44, max: 66 },
-        { min: 44, max: 66 },
-        { min: 44, max: 66 },
-        { min: 44, max: 66 },
-        { min: 44, max: 66 },
-      ]
+      [{ min: 44, max: 66 }]
     );
 
     const englishAliases = await extract("/size-english-aliases");
     assert.deepEqual(
       englishAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
-      ["S", "M", "L", "XL", "XXL", "XS", "XL", "XXL", "XXXL"]
+      ["S", "M", "L", "XL", "XXL", "XS", "XXXL"]
     );
 
     const unsupported = await extract("/article");

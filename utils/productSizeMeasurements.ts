@@ -175,9 +175,29 @@ export function sanitizeProductSizeMeasurement(
 }
 
 export function getValidProductSizeRows(productSizeGuide?: ProductSizeGuide) {
-  return (productSizeGuide?.sizes || [])
+  const rows = (productSizeGuide?.sizes || [])
     .map(sanitizeProductSizeMeasurement)
     .filter((sizeInfo): sizeInfo is ProductSizeMeasurement => Boolean(sizeInfo));
+  const rowsBySize = new Map<string, ProductSizeMeasurement>();
+
+  rows.forEach((sizeInfo) => {
+    const key = normalizeProductSizeForCompare(sizeInfo.size);
+    const current = rowsBySize.get(key);
+    const completeness = PRODUCT_MEASUREMENT_KEYS.filter(
+      (measurementKey) => sizeInfo[measurementKey] !== undefined
+    ).length;
+    const currentCompleteness = current
+      ? PRODUCT_MEASUREMENT_KEYS.filter(
+          (measurementKey) => current[measurementKey] !== undefined
+        ).length
+      : -1;
+
+    if (!current || completeness > currentCompleteness) {
+      rowsBySize.set(key, sizeInfo);
+    }
+  });
+
+  return [...rowsBySize.values()];
 }
 
 export function getProductSizeDisplayName(sizeInfo: ProductSizeMeasurement) {
