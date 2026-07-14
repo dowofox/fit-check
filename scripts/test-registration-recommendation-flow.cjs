@@ -391,6 +391,25 @@ async function main() {
       undefined
     );
 
+    const slingbackShoesTarget = getProductAnalysisTarget({
+      productName: "슬링백 펌프스",
+      productCategory: "Fashion > Shoes > Pumps",
+    });
+    assert.equal(slingbackShoesTarget.category, "신발");
+    assert.equal(slingbackShoesTarget.subCategory, "신발");
+
+    const beltBagTarget = getProductAnalysisTarget({
+      productName: "레더 벨트 백",
+      productCategory: "Fashion > Bags > Waist Bags",
+    });
+    assert.equal(beltBagTarget.category, "액세서리");
+    assert.equal(beltBagTarget.subCategory, "가방");
+
+    assert.equal(
+      getProductAnalysisTarget({ productName: "슬링백" }).detailCategory,
+      "슬링백"
+    );
+
     const normalizedPantsContext = normalizeProductAnalysisContext({
       productName: "TWO TUCK WIDE PANTS",
       category: "하의",

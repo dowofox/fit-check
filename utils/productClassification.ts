@@ -130,18 +130,29 @@ function mergeStyleTags(inferredTags: string[], currentTags?: string[]) {
 
 function getKeywordClassification(
   productName: string,
+  productCategory: string,
   materialComposition?: MaterialComposition,
   currentItem?: ClosetItem
 ) {
-  const officialMaterial = getOfficialMaterial(productName, materialComposition);
+  const classificationText = [productName, productCategory].filter(Boolean).join(" ");
+  const officialMaterial = getOfficialMaterial(classificationText, materialComposition);
   const currentTags = currentItem?.styleTags;
-  const specificRule = PRODUCT_CLASSIFICATION_RULES.find((rule) =>
-    includesAny(productName, rule.keywords)
+  const officialCategoryGroup = PRODUCT_CATEGORY_FALLBACK_RULES.find((rule) =>
+    includesAny(productCategory, rule.keywords)
+  )?.group;
+  const specificRules = officialCategoryGroup
+    ? PRODUCT_CLASSIFICATION_RULES.filter((rule) => rule.group === officialCategoryGroup)
+    : PRODUCT_CLASSIFICATION_RULES;
+  const fallbackRules = officialCategoryGroup
+    ? PRODUCT_CATEGORY_FALLBACK_RULES.filter((rule) => rule.group === officialCategoryGroup)
+    : PRODUCT_CATEGORY_FALLBACK_RULES;
+  const specificRule = specificRules.find((rule) =>
+    includesAny(classificationText, rule.keywords)
   );
   const matchedRule =
     specificRule ||
-    PRODUCT_CATEGORY_FALLBACK_RULES.find((rule) =>
-      includesAny(productName, rule.keywords)
+    fallbackRules.find((rule) =>
+      includesAny(classificationText, rule.keywords)
     );
   const candidate: ClassificationCandidate = matchedRule
     ? {
@@ -173,7 +184,8 @@ export function inferProductAttributesFromConfirmedProduct({
   if (!classificationText && !materialComposition) return {};
 
   const { candidate, matchedLabel } = getKeywordClassification(
-    classificationText,
+    normalizedProductName,
+    normalizedProductCategory,
     materialComposition,
     currentItem
   );
