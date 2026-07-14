@@ -5,6 +5,7 @@ import {
   ProductSizeMeasurement,
   UserProfile,
 } from "@/utils/storage";
+import { getValidProductSizeRows } from "@/utils/productSizeMeasurements";
 
 const LETTER_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 const TOP_LETTER_SIZE_VALUE: Record<string, number> = {
@@ -278,7 +279,7 @@ function parseMeasurement(value?: string | number) {
 }
 
 function getCurrentProductMeasurement(item: ClosetItem) {
-  const sizes = item.confirmedProduct?.productSizeGuide?.sizes || [];
+  const sizes = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide);
 
   if (getSizeAliases(item.size).length === 0) return undefined;
   return sizes.find((measurement) => doesMeasurementMatchSize(measurement, item.size));
@@ -1524,7 +1525,7 @@ export function getRecommendedProductSize(
   }
 
   const missingFields = getRequiredProfileFields(item, profile, context);
-  const sizeRows = (item.confirmedProduct?.productSizeGuide?.sizes || []).filter(
+  const sizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).filter(
     (measurement) =>
       Boolean(measurement.size) &&
       [
@@ -1660,7 +1661,7 @@ export function getFitSuitability(
   const intendedFit = item.intendedFit || "상관없음";
   const profileSize = getProfileSize(item, profile);
   const itemSize = item.size?.trim() || "";
-  const productSizeRows = item.confirmedProduct?.productSizeGuide?.sizes || [];
+  const productSizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide);
   const hasProductSizeGuide = productSizeRows.length > 0;
   const currentProductMeasurement = getCurrentProductMeasurement(item);
   const measurementComparison = getMeasurementComparison(item, profile);
