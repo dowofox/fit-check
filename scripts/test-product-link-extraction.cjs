@@ -394,6 +394,8 @@ const fixtureServer = http.createServer((request, response) => {
         <tr><td>FREE SIZE 44~66</td><td>68</td><td>55</td></tr>
         <tr><td>ONE-SIZE(44~66)</td><td>69</td><td>56</td></tr>
         <tr><td>O/S(44-66)</td><td>70</td><td>57</td></tr>
+        <tr><td>ONE SIZE FITS ALL (44~66)</td><td>71</td><td>58</td></tr>
+        <tr><td>OSFA(44-66)</td><td>72</td><td>59</td></tr>
       </table>
     </body></html>`);
     return;
@@ -602,11 +604,13 @@ async function main() {
     const freeAliases = await extract("/size-free-aliases");
     assert.deepEqual(
       freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
-      ["FREE", "FREE", "FREE"]
+      ["FREE", "FREE", "FREE", "FREE", "FREE"]
     );
     assert.deepEqual(
       freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.numericRange),
       [
+        { min: 44, max: 66 },
+        { min: 44, max: 66 },
         { min: 44, max: 66 },
         { min: 44, max: 66 },
         { min: 44, max: 66 },

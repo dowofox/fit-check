@@ -64,7 +64,11 @@ export function normalizeSize(size?: string) {
     .replace(/\(\d{1,3}(?:\.\d+)?\)/g, "")
     .replace(/[-_/]+/g, "");
 
-  if (["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactFreeSize)) {
+  if (
+    ["FREE", "F", "FREESIZE", "ONESIZE", "ONESIZEFITSALL", "OS", "OSFA"].includes(
+      compactFreeSize
+    )
+  ) {
     return "FREE";
   }
 

@@ -58,11 +58,16 @@ test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () =
     "FREE SIZE",
     "ONE SIZE",
     "ONE-SIZE",
+    "ONE SIZE FITS ALL",
+    "ONE-SIZE-FITS-ALL",
     "O/S",
     "OS",
+    "OSFA",
     "FREE SIZE 44~66",
     "ONE SIZE (44~66)",
+    "ONE SIZE FITS ALL (44~66)",
     "O/S(44-66)",
+    "OSFA(44-66)",
   ].forEach((size) => {
     assert.equal(normalizeSize(size), "FREE");
     assert.equal(normalizeProductSizeForCompare(size), "FREE");

@@ -926,7 +926,15 @@ function parseProductSizeName(value) {
     .replace(/\(?\s*\d{1,3}(?:\.\d+)?\s*[~～\-–—]\s*\d{1,3}(?:\.\d+)?\s*\)?/g, "")
     .replace(/\(\s*\d{1,3}(?:\.\d+)?\s*\)/g, "")
     .replace(/[\s/_-]+/g, "");
-  const isFreeSize = ["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactSize);
+  const isFreeSize = [
+    "FREE",
+    "F",
+    "FREESIZE",
+    "ONESIZE",
+    "ONESIZEFITSALL",
+    "OS",
+    "OSFA",
+  ].includes(compactSize);
   const namedSize = getNamedProductSizeAlias(rawSize);
   const letterSize = isFreeSize
     ? "FREE"
