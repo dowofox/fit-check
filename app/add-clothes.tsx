@@ -646,6 +646,14 @@ export default function AddClothesScreen() {
     markClassificationFieldAsEdited("season");
   }
 
+  function confirmSelectedSeasons() {
+    if (selectedSeasons.length === 0) return;
+
+    setSeasonSource("user");
+    setSeasonNeedsReview(false);
+    markClassificationFieldAsEdited("season");
+  }
+
   function applyAnalysisToForm(nextAnalysis: ClothesAnalysis) {
     const isManual = nextAnalysis.source === "manual";
     const officialSeasonInference = extractedProduct
@@ -1441,12 +1449,23 @@ export default function AddClothesScreen() {
             {seasonNeedsReview ? (
               <View style={styles.registrationReviewNotice}>
                 <Feather name="alert-circle" size={15} color="#b45309" />
-                <Text style={styles.registrationReviewNoticeText}>
-                  계절을 정확히 판단하기 어려워요. 실제로 입는 계절을 확인해주세요.
-                  {selectedSeasons.length > 0
-                    ? `\n추천: ${selectedSeasons.join(" · ")}`
-                    : ""}
-                </Text>
+                <View style={styles.registrationReviewContent}>
+                  <Text style={styles.registrationReviewNoticeText}>
+                    계절을 정확히 판단하기 어려워요. 실제로 입는 계절을 확인해주세요.
+                    {selectedSeasons.length > 0
+                      ? `\n추천: ${selectedSeasons.join(" · ")}`
+                      : ""}
+                  </Text>
+                  {selectedSeasons.length > 0 ? (
+                    <Pressable
+                      style={styles.seasonConfirmButton}
+                      onPress={confirmSelectedSeasons}
+                    >
+                      <Feather name="check" size={13} color="#fff" />
+                      <Text style={styles.seasonConfirmButtonText}>선택한 계절로 확인</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             ) : null}
             <View style={styles.seasonChipRow}>
@@ -1931,6 +1950,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "700",
+  },
+  registrationReviewContent: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "flex-start",
+  },
+  seasonConfirmButton: {
+    minHeight: 32,
+    borderRadius: 12,
+    backgroundColor: "#8c6f47",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginTop: 8,
+  },
+  seasonConfirmButtonText: {
+    color: "#fff",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "800",
   },
   linkProductBrand: {
     color: "#8c6f47",

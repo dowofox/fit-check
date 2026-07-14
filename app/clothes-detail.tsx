@@ -566,6 +566,46 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   );
 }
 
+function SeasonChipEditor({
+  values,
+  onSelect,
+  needsConfirmation,
+  isConfirmed,
+  onConfirm,
+}: {
+  values: string[];
+  onSelect: (value: string) => void;
+  needsConfirmation: boolean;
+  isConfirmed: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <>
+      <MultiChipGroup
+        label="입기 좋은 계절"
+        values={values}
+        options={SEASON_OPTIONS}
+        onSelect={onSelect}
+      />
+      {needsConfirmation && values.length > 0 ? (
+        <Pressable
+          style={[
+            styles.seasonConfirmationButton,
+            isConfirmed && styles.seasonConfirmationButtonDone,
+          ]}
+          onPress={onConfirm}
+          disabled={isConfirmed}
+        >
+          <Feather name={isConfirmed ? "check-circle" : "check"} size={14} color="#fff" />
+          <Text style={styles.seasonConfirmationButtonText}>
+            {isConfirmed ? "계절 확인 완료" : "선택한 계절로 확인"}
+          </Text>
+        </Pressable>
+      ) : null}
+    </>
+  );
+}
+
 function getMaterialCompositionSummary(
   materialComposition?: ConfirmedProduct["materialComposition"]
 ) {
@@ -1973,6 +2013,7 @@ export default function ClothesDetailScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [isDraftSeasonConfirmed, setIsDraftSeasonConfirmed] = useState(false);
   const [draft, setDraft] = useState<EditableClosetFields>(EMPTY_DRAFT);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [confirmedProductDraft, setConfirmedProductDraft] =
@@ -2019,6 +2060,7 @@ export default function ClothesDetailScreen() {
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
           setConfirmedProductDraft(getConfirmedProductDraft(selectedItem));
+          setIsDraftSeasonConfirmed(false);
 
           if (shouldOpenEditRef.current) {
             setEditMode(true);
@@ -2059,10 +2101,15 @@ export default function ClothesDetailScreen() {
   }
 
   function updateDraftSeasons(season: string) {
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      seasons: toggleSeason(currentDraft.seasons, season),
-    }));
+    setDraft((currentDraft) => {
+      const nextSeasons = toggleSeason(currentDraft.seasons, season);
+      setIsDraftSeasonConfirmed(nextSeasons.length > 0);
+
+      return {
+        ...currentDraft,
+        seasons: nextSeasons,
+      };
+    });
   }
 
   function updateDraftStyleTags(tag: string) {
@@ -2081,6 +2128,7 @@ export default function ClothesDetailScreen() {
     if (!item) return;
 
     setDraft(getEditableValues(item));
+    setIsDraftSeasonConfirmed(false);
     setEditMode(true);
   }
 
@@ -2090,6 +2138,7 @@ export default function ClothesDetailScreen() {
     }
 
     setEditMode(false);
+    setIsDraftSeasonConfirmed(false);
   }
 
   async function handleAddItemPhoto() {
@@ -2165,6 +2214,13 @@ export default function ClothesDetailScreen() {
 
     try {
       const userEditedClassificationFields = getUserEditedClassificationFields(item, normalizedDraft);
+      if (
+        isDraftSeasonConfirmed &&
+        normalizedDraft.seasons.length > 0 &&
+        !userEditedClassificationFields.includes("season")
+      ) {
+        userEditedClassificationFields.push("season");
+      }
       const seasonWasEdited = userEditedClassificationFields.includes("season");
       const updatedCloset = await updateClosetItem(item.id, {
         ...normalizedDraft,
@@ -2186,6 +2242,7 @@ export default function ClothesDetailScreen() {
       setItem(updatedItem);
       setDraft(getEditableValues(updatedItem));
       setEditMode(false);
+      setIsDraftSeasonConfirmed(false);
     } catch (error) {
       console.error("옷 정보 수정 실패:", error);
       Alert.alert("수정 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
@@ -2809,11 +2866,12 @@ export default function ClothesDetailScreen() {
                     </Text>
                   </View>
                   {shouldPrioritizeSeasonEdit ? (
-                    <MultiChipGroup
-                      label="입기 좋은 계절"
+                    <SeasonChipEditor
                       values={draft.seasons}
-                      options={SEASON_OPTIONS}
                       onSelect={updateDraftSeasons}
+                      needsConfirmation={item.seasonNeedsReview === true}
+                      isConfirmed={isDraftSeasonConfirmed}
+                      onConfirm={() => setIsDraftSeasonConfirmed(true)}
                     />
                   ) : null}
                   <ChipGroup
@@ -2855,11 +2913,12 @@ export default function ClothesDetailScreen() {
                     onSelect={updateDraftStyleTags}
                   />
                   {!shouldPrioritizeSeasonEdit ? (
-                    <MultiChipGroup
-                      label="계절"
+                    <SeasonChipEditor
                       values={draft.seasons}
-                      options={SEASON_OPTIONS}
                       onSelect={updateDraftSeasons}
+                      needsConfirmation={item.seasonNeedsReview === true}
+                      isConfirmed={isDraftSeasonConfirmed}
+                      onConfirm={() => setIsDraftSeasonConfirmed(true)}
                     />
                   ) : null}
                   <EditRow
@@ -3437,6 +3496,31 @@ const styles = StyleSheet.create({
 
   optionChipTextActive: {
     color: "#fff",
+  },
+
+  seasonConfirmationButton: {
+    minHeight: 38,
+    alignSelf: "flex-start",
+    borderRadius: 13,
+    backgroundColor: "#8c6f47",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+
+  seasonConfirmationButtonDone: {
+    backgroundColor: "#777064",
+  },
+
+  seasonConfirmationButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "800",
   },
 
   tipCard: {
