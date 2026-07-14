@@ -1457,6 +1457,33 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
 
   if (!value || typeof value !== "object") return undefined;
 
+  const directMaterialComposition = buildMaterialComposition(
+    [
+      {
+        name: getProductSizeValue(value, [
+          "materialName",
+          "material",
+          "fabric",
+          "fiber",
+          "name",
+          "label",
+          "title",
+          "type",
+        ]),
+        percentage: getProductSizeValue(value, [
+          "percentage",
+          "ratio",
+          "rate",
+          "contentRate",
+          "percent",
+          "value",
+        ]),
+      },
+    ],
+    source,
+  );
+  if (directMaterialComposition) return directMaterialComposition;
+
   if (Array.isArray(value.items)) {
     const itemComposition = normalizeMaterialCompositionValue(value.items, source, contextLabel);
     if (itemComposition) return itemComposition;

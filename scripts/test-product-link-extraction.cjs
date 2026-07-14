@@ -157,6 +157,20 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/material-object") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"코튼 셔츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "material":{"name":"cotton","percentage":100},
+        "image":"/images/cotton-shirt.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/related-first") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -363,6 +377,13 @@ async function main() {
       { name: "폴리에스터", percentage: 100 },
     ]);
 
+    const materialObject = await extract("/material-object");
+    assert.equal(materialObject.response.status, 200);
+    assert.equal(materialObject.body.materialComposition.summary, "면 100%");
+    assert.deepEqual(materialObject.body.materialComposition.items, [
+      { name: "면", percentage: 100 },
+    ]);
+
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
     assert.equal(metaImageFallback.body.productColor, "네이비");
@@ -418,7 +439,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 17개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 18개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
