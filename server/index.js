@@ -888,14 +888,22 @@ function isValidBaseProductSizeName(size) {
 
 const NAMED_PRODUCT_SIZE_ALIASES = {
   XSMALL: "XS",
+  EXTRASMALL: "XS",
   SMALL: "S",
   MEDIUM: "M",
   LARGE: "L",
   XLARGE: "XL",
+  EXTRALARGE: "XL",
   XXLARGE: "XXL",
+  DOUBLEEXTRALARGE: "XXL",
+  EXTRAEXTRALARGE: "XXL",
   XXXLARGE: "XXXL",
+  TRIPLEEXTRALARGE: "XXXL",
+  EXTRAEXTRAEXTRALARGE: "XXXL",
   "2XLARGE": "XXL",
+  "2EXTRALARGE": "XXL",
   "3XLARGE": "XXXL",
+  "3EXTRALARGE": "XXXL",
 };
 
 function getNamedProductSizeAlias(value) {

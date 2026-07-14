@@ -17,7 +17,40 @@ const TOP_LETTER_SIZE_VALUE: Record<string, number> = {
   XXXL: 115,
 };
 
+const NAMED_SIZE_ALIASES: Record<string, string> = {
+  XSMALL: "XS",
+  EXTRASMALL: "XS",
+  SMALL: "S",
+  MEDIUM: "M",
+  LARGE: "L",
+  XLARGE: "XL",
+  EXTRALARGE: "XL",
+  XXLARGE: "XXL",
+  DOUBLEEXTRALARGE: "XXL",
+  EXTRAEXTRALARGE: "XXL",
+  "2XLARGE": "XXL",
+  "2EXTRALARGE": "XXL",
+  XXXLARGE: "XXXL",
+  TRIPLEEXTRALARGE: "XXXL",
+  EXTRAEXTRAEXTRALARGE: "XXXL",
+  "3XLARGE": "XXXL",
+  "3EXTRALARGE": "XXXL",
+};
+
+function getNamedSizeAlias(size?: string) {
+  const compactSize = String(size || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\([^)]*\)/g, "")
+    .replace(/[\s/_-]+/g, "");
+
+  return NAMED_SIZE_ALIASES[compactSize];
+}
+
 export function normalizeSize(size?: string) {
+  const namedSizeAlias = getNamedSizeAlias(size);
+  if (namedSizeAlias) return namedSizeAlias;
+
   const upperSize = String(size || "")
     .trim()
     .toUpperCase()

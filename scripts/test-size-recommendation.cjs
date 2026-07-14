@@ -90,11 +90,15 @@ test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () =
 
 test("영문 장문 사이즈를 표준 문자 라벨로 비교한다", () => {
   const aliases = {
+    "EXTRA SMALL": "XS",
     SMALL: "S",
     MEDIUM: "M",
     LARGE: "L",
     "X-LARGE": "XL",
+    "EXTRA LARGE": "XL",
     "XX-LARGE": "XXL",
+    "DOUBLE EXTRA LARGE": "XXL",
+    "TRIPLE EXTRA LARGE": "XXXL",
   };
 
   Object.entries(aliases).forEach(([size, expected]) => {
@@ -119,6 +123,25 @@ test("영문 장문 사이즈를 표준 문자 라벨로 비교한다", () => {
   assert.equal(measurement?.size, "XL");
   assert.equal(measurement?.displaySize, "X-LARGE");
   assert.equal(doesProductSizeRowMatch(measurement, "XL"), true);
+
+  const extendedMeasurement = buildProductSizeMeasurement({
+    size: "EXTRA LARGE (33~34)",
+    totalLength: "72",
+    shoulder: "50",
+    chest: "58",
+    sleeve: "60",
+    waist: "",
+    hip: "",
+    thigh: "",
+    rise: "",
+    hem: "",
+    footLength: "",
+  });
+
+  assert.equal(extendedMeasurement?.size, "XL");
+  assert.equal(extendedMeasurement?.displaySize, "EXTRA LARGE (33~34)");
+  assert.deepEqual(extendedMeasurement?.numericRange, { min: 33, max: 34 });
+  assert.equal(doesProductSizeRowMatch(extendedMeasurement, "XL"), true);
 });
 
 function createItem(id, category, sizes, overrides = {}) {

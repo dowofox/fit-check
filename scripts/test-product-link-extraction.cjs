@@ -399,6 +399,10 @@ const fixtureServer = http.createServer((request, response) => {
         <tr><td>LARGE</td><td>70</td><td>56</td></tr>
         <tr><td>X-LARGE</td><td>72</td><td>58</td></tr>
         <tr><td>XX-LARGE</td><td>74</td><td>60</td></tr>
+        <tr><td>EXTRA SMALL</td><td>64</td><td>50</td></tr>
+        <tr><td>EXTRA LARGE</td><td>72</td><td>58</td></tr>
+        <tr><td>DOUBLE EXTRA LARGE</td><td>74</td><td>60</td></tr>
+        <tr><td>TRIPLE EXTRA LARGE</td><td>76</td><td>62</td></tr>
       </table>
     </body></html>`);
     return;
@@ -581,7 +585,7 @@ async function main() {
     const englishAliases = await extract("/size-english-aliases");
     assert.deepEqual(
       englishAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
-      ["S", "M", "L", "XL", "XXL"]
+      ["S", "M", "L", "XL", "XXL", "XS", "XL", "XXL", "XXXL"]
     );
 
     const unsupported = await extract("/article");
