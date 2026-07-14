@@ -617,25 +617,7 @@ function SeasonChipEditor({
 function getMaterialCompositionSummary(
   materialComposition?: ConfirmedProduct["materialComposition"]
 ) {
-  const summary = materialComposition?.summary?.trim();
-  if (!summary) return "";
-
-  const items = materialComposition?.items || [];
-  const totalPercentage = items.reduce(
-    (total, item) =>
-      typeof item.percentage === "number" ? total + item.percentage : total,
-    0
-  );
-
-  if (totalPercentage <= 100.5) return summary;
-
-  const materialNames = items
-    .map((item) => item.name?.trim())
-    .filter((name): name is string => Boolean(name));
-
-  return materialNames.length > 0
-    ? `${Array.from(new Set(materialNames)).join(", ")} (혼용률 확인 필요)`
-    : "소재 혼용률 확인 필요";
+  return materialComposition?.summary?.trim() || "";
 }
 
 function getDisplayBrand(item: ClosetItem) {

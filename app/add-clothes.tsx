@@ -329,20 +329,7 @@ function normalizeStyleTags(styleTags?: string[], style?: string) {
 }
 
 function getMaterialPreviewText(materialComposition?: ConfirmedProduct["materialComposition"]) {
-  const summary = materialComposition?.summary?.trim();
-  if (!summary) return "";
-
-  const totalPercentage = materialComposition?.items?.reduce(
-    (total, item) =>
-      typeof item.percentage === "number" ? total + item.percentage : total,
-    0
-  );
-
-  if (typeof totalPercentage === "number" && totalPercentage > 105) {
-    return "소재 정보 확인 필요";
-  }
-
-  return summary;
+  return materialComposition?.summary?.trim() || "";
 }
 
 function getSizeGuidePreviewText(product?: ExtractedProduct | null) {

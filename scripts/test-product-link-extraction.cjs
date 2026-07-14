@@ -142,6 +142,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/layered-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"레이어드 윈드브레이커",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/layered-windbreaker.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>소재</dt><dd>겉감: 나일론 100% / 안감: 폴리에스터 100%</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/related-first") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -337,6 +352,17 @@ async function main() {
     assert.equal(polyamideMaterial.response.status, 200);
     assert.equal(polyamideMaterial.body.materialComposition.summary, "나일론 100%");
 
+    const layeredMaterial = await extract("/layered-material");
+    assert.equal(layeredMaterial.response.status, 200);
+    assert.equal(
+      layeredMaterial.body.materialComposition.summary,
+      "나일론 100%, 폴리에스터 100%"
+    );
+    assert.deepEqual(layeredMaterial.body.materialComposition.items, [
+      { name: "나일론", percentage: 100 },
+      { name: "폴리에스터", percentage: 100 },
+    ]);
+
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
     assert.equal(metaImageFallback.body.productColor, "네이비");
@@ -392,7 +418,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 16개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 17개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
