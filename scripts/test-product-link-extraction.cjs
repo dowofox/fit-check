@@ -72,6 +72,35 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (["/size-flat", "/size-circumference", "/size-generic"].includes(request.url)) {
+    const waistHeader = request.url === "/size-flat"
+      ? "허리단면"
+      : request.url === "/size-circumference"
+        ? "허리둘레"
+        : "waist";
+    const hipHeader = request.url === "/size-circumference" ? "엉덩이둘레" : "엉덩이단면";
+    const waistValue = request.url === "/size-circumference" ? "82" : "41";
+    const hipValue = request.url === "/size-circumference" ? "104" : "52";
+
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <meta property="og:image" content="/images/pants.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"실측 테스트 팬츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/pants.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>${waistHeader}</th><th>${hipHeader}</th></tr>
+        <tr><td>M</td><td>104</td><td>${waistValue}</td><td>${hipValue}</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   response.end(`<!doctype html><html><head>
     <meta property="og:title" content="패션 뉴스">
     <meta property="og:image" content="/news.jpg">
@@ -86,7 +115,7 @@ async function main() {
       ...process.env,
       PORT: String(apiPort),
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || "test-key",
-      ENABLE_PRODUCT_SIZE_GUIDE: "false",
+      ENABLE_PRODUCT_SIZE_GUIDE: "true",
       DEBUG_SIZE_GUIDE: "false",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -117,11 +146,25 @@ async function main() {
     assert.ok(partial.body.missingFields.includes("brand"));
     assert.ok(partial.body.missingFields.includes("materialComposition"));
 
+    const flatSize = await extract("/size-flat");
+    const circumferenceSize = await extract("/size-circumference");
+    const genericSize = await extract("/size-generic");
+    const flatMeasurement = flatSize.body.productSizeGuide.sizes[0];
+    const circumferenceMeasurement = circumferenceSize.body.productSizeGuide.sizes[0];
+    const genericMeasurement = genericSize.body.productSizeGuide.sizes[0];
+
+    assert.equal(flatMeasurement.waist, 41);
+    assert.equal(flatMeasurement.hip, 52);
+    assert.equal(circumferenceMeasurement.waist, 41);
+    assert.equal(circumferenceMeasurement.hip, 52);
+    assert.equal(genericMeasurement.waist, 41);
+    assert.equal(genericMeasurement.hip, 52);
+
     const unsupported = await extract("/article");
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 회귀 테스트 3개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 6개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
