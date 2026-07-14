@@ -13,7 +13,8 @@
     "lint": "expo lint",
     "test:outfit": "node scripts/test-outfit-recommend.cjs",
     "test:product-link": "node scripts/test-product-link-extraction.cjs",
-    "test:core-flow": "node scripts/test-registration-recommendation-flow.cjs"
+    "test:core-flow": "node scripts/test-registration-recommendation-flow.cjs",
+    "test:size": "node scripts/test-size-recommendation.cjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
