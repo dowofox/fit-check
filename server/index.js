@@ -2829,10 +2829,23 @@ function sendProductExtractionError(res, status, code, message) {
   return res.status(status).json({ error: code, message });
 }
 
+function normalizeSubmittedProductUrl(value) {
+  const trimmedValue = typeof value === "string" ? value.trim() : "";
+  if (!trimmedValue) return "";
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmedValue)) return trimmedValue;
+  if (trimmedValue.startsWith("//")) return `https:${trimmedValue}`;
+
+  const localAddressPattern = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::\d+)?(?:[/?#]|$)/i;
+  if (localAddressPattern.test(trimmedValue)) return `http://${trimmedValue}`;
+
+  const domainPattern = /^(?:www\.)?[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}(?::\d+)?(?:[/?#]|$)/i;
+  return domainPattern.test(trimmedValue) ? `https://${trimmedValue}` : trimmedValue;
+}
+
 app.post("/extract-product", async (req, res) => {
   try {
     const { url } = req.body;
-    const productUrl = typeof url === "string" ? url.trim() : "";
+    const productUrl = normalizeSubmittedProductUrl(url);
 
     if (!productUrl) {
       return sendProductExtractionError(

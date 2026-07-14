@@ -31,14 +31,18 @@ async function waitForApi() {
   throw new Error("extract-product 테스트 서버가 시작되지 않았습니다.");
 }
 
-async function extract(pathname) {
+async function extractUrl(url) {
   const response = await fetch(`http://127.0.0.1:${apiPort}/extract-product`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: `http://127.0.0.1:${fixturePort}${pathname}` }),
+    body: JSON.stringify({ url }),
   });
 
   return { response, body: await response.json() };
+}
+
+async function extract(pathname) {
+  return extractUrl(`http://127.0.0.1:${fixturePort}${pathname}`);
 }
 
 const fixtureServer = http.createServer((request, response) => {
@@ -673,6 +677,23 @@ async function main() {
       englishAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
       ["S", "M", "L", "XL", "XXL", "XS", "XXXL"]
     );
+
+    const schemelessProduct = await extractUrl(
+      `127.0.0.1:${fixturePort}/product`
+    );
+    assert.equal(schemelessProduct.response.status, 200);
+    assert.equal(
+      schemelessProduct.body.productUrl,
+      `http://127.0.0.1:${fixturePort}/product`
+    );
+
+    const invalidUrl = await extractUrl("not a product link");
+    assert.equal(invalidUrl.response.status, 400);
+    assert.equal(invalidUrl.body.error, "invalid_product_url");
+
+    const unsupportedProtocol = await extractUrl("ftp://example.com/product");
+    assert.equal(unsupportedProtocol.response.status, 400);
+    assert.equal(unsupportedProtocol.body.error, "unsupported_product_url_protocol");
 
     const unsupported = await extract("/article");
     assert.equal(unsupported.response.status, 422);
