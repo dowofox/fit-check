@@ -201,6 +201,34 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (["/product-group-same-material", "/product-group-mixed-material"].includes(request.url)) {
+    const hasMixedMaterials = request.url === "/product-group-mixed-material";
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"ProductGroup",
+        "name":"소재 옵션 셔츠",
+        "url":"${request.url}",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "category":"Shirts",
+        "image":"/images/material-group-shirt.jpg",
+        "hasVariant":[
+          {
+            "@type":"Product",
+            "name":"첫 번째 셔츠",
+            "material":"면 100%"
+          },
+          {
+            "@type":"Product",
+            "name":"두 번째 셔츠",
+            "material":"${hasMixedMaterials ? "린넨 100%" : "면 100%"}"
+          }
+        ]
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/related-first") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -425,6 +453,20 @@ async function main() {
       `http://127.0.0.1:${fixturePort}/images/sweatshirt-group.jpg`
     );
 
+    const productGroupSameMaterial = await extract("/product-group-same-material");
+    assert.equal(productGroupSameMaterial.response.status, 200);
+    assert.equal(
+      productGroupSameMaterial.body.materialComposition.summary,
+      "면 100%"
+    );
+
+    const productGroupMixedMaterial = await extract("/product-group-mixed-material");
+    assert.equal(productGroupMixedMaterial.response.status, 200);
+    assert.equal(productGroupMixedMaterial.body.materialComposition, undefined);
+    assert.ok(
+      productGroupMixedMaterial.body.missingFields.includes("materialComposition")
+    );
+
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
     assert.equal(metaImageFallback.body.productColor, "네이비");
@@ -480,7 +522,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 19개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 21개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);

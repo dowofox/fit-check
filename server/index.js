@@ -680,7 +680,18 @@ function getStructuredProductData(html, productUrl) {
   return undefined;
 }
 
-function extractStructuredProductMaterialComposition(product) {
+function getMaterialCompositionSignature(materialComposition) {
+  return JSON.stringify(
+    [...(materialComposition?.items || [])]
+      .map((item) => ({
+        name: item.name,
+        percentage: item.percentage ?? null,
+      }))
+      .sort((first, second) => first.name.localeCompare(second.name)),
+  );
+}
+
+function extractStructuredProductMaterialComposition(product, includeVariants = true) {
   if (!product || typeof product !== "object") return undefined;
 
   const directMaterialKeys = [
@@ -711,15 +722,37 @@ function extractStructuredProductMaterialComposition(product) {
     }
   }
 
-  if (!product.additionalProperty) return undefined;
+  if (product.additionalProperty) {
+    const additionalPropertyComposition = findMaterialCompositionInJson(
+      product.additionalProperty,
+      "official",
+      0,
+      "selectedProduct.additionalProperty",
+      "structured-product",
+    );
+    if (additionalPropertyComposition) return additionalPropertyComposition;
+  }
 
-  return findMaterialCompositionInJson(
-    product.additionalProperty,
-    "official",
-    0,
-    "selectedProduct.additionalProperty",
-    "structured-product",
+  if (!includeVariants || !getSchemaTypes(product).includes("productgroup")) {
+    return undefined;
+  }
+
+  const variants = Array.isArray(product.hasVariant)
+    ? product.hasVariant.filter((variant) => variant && typeof variant === "object")
+    : [];
+  if (variants.length === 0) return undefined;
+
+  const variantCompositions = variants.map((variant) =>
+    extractStructuredProductMaterialComposition(variant, false),
   );
+  if (variantCompositions.some((composition) => !composition)) return undefined;
+
+  const signatures = new Set(
+    variantCompositions.map(getMaterialCompositionSignature),
+  );
+  if (signatures.size !== 1) return undefined;
+
+  return variantCompositions[0];
 }
 
 function hasProductPageEvidence(html, structuredProduct, isMusinsa) {
@@ -1266,6 +1299,7 @@ const EXCLUDED_MATERIAL_PATH_KEYWORDS = [
   "carousel",
   "crosssell",
   "upsell",
+  "hasvariant",
 ];
 
 function isMaterialExtractionDebugEnabled() {
