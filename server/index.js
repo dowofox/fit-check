@@ -611,13 +611,17 @@ function getStructuredProductData(html, productUrl) {
           : typeof imageValue?.contentUrl === "string"
             ? imageValue.contentUrl
             : "";
-    const colorValue = Array.isArray(product.color) ? product.color[0] : product.color;
-    const color =
-      typeof colorValue === "string"
-        ? colorValue
-        : typeof colorValue?.name === "string"
-          ? colorValue.name
-          : "";
+    const colorValues = (Array.isArray(product.color) ? product.color : [product.color])
+      .map((colorValue) =>
+        typeof colorValue === "string"
+          ? colorValue.trim()
+          : typeof colorValue?.name === "string"
+            ? colorValue.name.trim()
+            : ""
+      )
+      .filter(Boolean);
+    const uniqueColorValues = [...new Set(colorValues)];
+    const color = uniqueColorValues.length === 1 ? uniqueColorValues[0] : "";
     const categoryValue = Array.isArray(product.category)
       ? product.category[0]
       : product.category;
@@ -633,7 +637,7 @@ function getStructuredProductData(html, productUrl) {
       name: typeof product.name === "string" ? product.name.trim() : "",
       brand: brand.trim(),
       category: category.trim(),
-      color: color.trim(),
+      color,
       image: image.trim(),
       price:
         typeof offers?.price === "string" || typeof offers?.price === "number"

@@ -137,6 +137,25 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (["/multi-color", "/multi-color-no-meta"].includes(request.url)) {
+    const selectedColorMeta = request.url === "/multi-color"
+      ? '<meta property="product:color" content="Navy">'
+      : "";
+    response.end(`<!doctype html><html><head>
+      ${selectedColorMeta}
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"멀티 컬러 티셔츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "category":"Shirts",
+        "color":["Black","White","Navy"],
+        "image":"/images/multi-color-shirt.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (["/size-flat", "/size-circumference", "/size-generic"].includes(request.url)) {
     const waistHeader = request.url === "/size-flat"
       ? "허리단면"
@@ -237,6 +256,14 @@ async function main() {
       `http://127.0.0.1:${fixturePort}/images/main-pants.jpg`
     );
 
+    const multiColor = await extract("/multi-color");
+    assert.equal(multiColor.response.status, 200);
+    assert.equal(multiColor.body.productColor, "Navy");
+
+    const multiColorWithoutSelection = await extract("/multi-color-no-meta");
+    assert.equal(multiColorWithoutSelection.response.status, 200);
+    assert.equal(multiColorWithoutSelection.body.productColor, "");
+
     const flatSize = await extract("/size-flat");
     const circumferenceSize = await extract("/size-circumference");
     const genericSize = await extract("/size-generic");
@@ -255,7 +282,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 9개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 11개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
