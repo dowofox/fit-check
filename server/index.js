@@ -525,7 +525,8 @@ function collectStructuredProducts(value, depth = 0, path = [], products = []) {
   }
 
   if (typeof value !== "object") return products;
-  if (getSchemaTypes(value).includes("product")) {
+  const schemaTypes = getSchemaTypes(value);
+  if (schemaTypes.includes("product") || schemaTypes.includes("productgroup")) {
     products.push({ product: value, depth, path });
     return products;
   }

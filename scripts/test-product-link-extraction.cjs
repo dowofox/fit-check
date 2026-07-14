@@ -171,6 +171,36 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/product-group") {
+    response.end(`<!doctype html><html><head>
+      <meta property="product:color" content="Navy">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"ProductGroup",
+        "name":"컬러 옵션 스웨트셔츠",
+        "url":"/product-group",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "category":"Apparel > Tops > Sweatshirts",
+        "image":"/images/sweatshirt-group.jpg",
+        "hasVariant":[
+          {
+            "@type":"Product",
+            "name":"레드 스웨트셔츠",
+            "color":"Red",
+            "image":"/images/red-sweatshirt.jpg"
+          },
+          {
+            "@type":"Product",
+            "name":"네이비 스웨트셔츠",
+            "color":"Navy",
+            "image":"/images/navy-sweatshirt.jpg"
+          }
+        ]
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/related-first") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -384,6 +414,17 @@ async function main() {
       { name: "면", percentage: 100 },
     ]);
 
+    const productGroup = await extract("/product-group");
+    assert.equal(productGroup.response.status, 200);
+    assert.equal(productGroup.body.productName, "컬러 옵션 스웨트셔츠");
+    assert.equal(productGroup.body.brand, "NAES");
+    assert.equal(productGroup.body.productCategory, "Apparel > Tops > Sweatshirts");
+    assert.equal(productGroup.body.productColor, "Navy");
+    assert.equal(
+      productGroup.body.productImageUrl,
+      `http://127.0.0.1:${fixturePort}/images/sweatshirt-group.jpg`
+    );
+
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
     assert.equal(metaImageFallback.body.productColor, "네이비");
@@ -439,7 +480,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 18개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 19개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
