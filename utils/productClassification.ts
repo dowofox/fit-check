@@ -3,7 +3,10 @@ import type {
   MaterialComposition,
   ProductClassificationField,
 } from "@/utils/storage";
-import { PRODUCT_CLASSIFICATION_RULES } from "@/utils/productClassificationRules";
+import {
+  PRODUCT_CATEGORY_FALLBACK_RULES,
+  PRODUCT_CLASSIFICATION_RULES,
+} from "@/utils/productClassificationRules";
 
 export type ProductClassificationInput = {
   productName?: string;
@@ -61,8 +64,27 @@ function normalizeSearchText(value?: string) {
     .trim();
 }
 
+function includesKeyword(value: string, keyword: string) {
+  const normalizedKeyword = normalizeSearchText(keyword);
+  const keywordParts = normalizedKeyword.split(/\s+/).filter(Boolean);
+  const isEnglishKeyword = /^[a-z0-9 ]+$/.test(normalizedKeyword);
+
+  if (isEnglishKeyword) {
+    const valueParts = value.split(/\s+/).filter(Boolean);
+    return keywordParts.every((part) => valueParts.includes(part));
+  }
+
+  if (value.includes(normalizedKeyword)) return true;
+
+  if (keywordParts.length < 2 || keywordParts.some((part) => part.length < 2)) {
+    return false;
+  }
+
+  return keywordParts.every((part) => value.includes(part));
+}
+
 function includesAny(value: string, keywords: string[]) {
-  return keywords.some((keyword) => value.includes(keyword));
+  return keywords.some((keyword) => includesKeyword(value, keyword));
 }
 
 function getMaterialSearchText(materialComposition?: MaterialComposition) {
@@ -108,9 +130,14 @@ function getKeywordClassification(
 ) {
   const officialMaterial = getOfficialMaterial(productName, materialComposition);
   const currentTags = currentItem?.styleTags;
-  const matchedRule = PRODUCT_CLASSIFICATION_RULES.find((rule) =>
+  const specificRule = PRODUCT_CLASSIFICATION_RULES.find((rule) =>
     includesAny(productName, rule.keywords)
   );
+  const matchedRule =
+    specificRule ||
+    PRODUCT_CATEGORY_FALLBACK_RULES.find((rule) =>
+      includesAny(productName, rule.keywords)
+    );
   const candidate: ClassificationCandidate = matchedRule
     ? {
         ...matchedRule.attributes,

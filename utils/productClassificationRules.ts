@@ -425,17 +425,6 @@ export const PRODUCT_CLASSIFICATION_RULES: ProductClassificationRule[] = [
     },
   },
   {
-    id: "generic-pants",
-    group: "하의",
-    label: "팬츠",
-    keywords: ["팬츠", "바지", "pants", "trousers"],
-    attributes: {
-      category: "하의",
-      subCategory: "팬츠",
-      detailCategory: "팬츠",
-    },
-  },
-  {
     id: "running-shoes",
     group: "신발",
     label: "러닝화",
@@ -721,6 +710,187 @@ export const PRODUCT_CLASSIFICATION_RULES: ProductClassificationRule[] = [
       subCategory: "스카프",
       detailCategory: "스카프",
       styleTags: ["클래식", "미니멀"],
+    },
+  },
+];
+
+// 세부 규칙이 없을 때만 사용하는 보수적인 기본 분류입니다.
+export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
+  {
+    id: "generic-jacket",
+    group: "아우터",
+    label: "자켓",
+    keywords: ["자켓", "재킷", "jacket"],
+    attributes: {
+      category: "아우터",
+      subCategory: "자켓",
+      detailCategory: "자켓",
+    },
+  },
+  {
+    id: "generic-cardigan",
+    group: "아우터",
+    label: "가디건",
+    keywords: ["가디건", "cardigan"],
+    attributes: {
+      category: "아우터",
+      subCategory: "가디건",
+      detailCategory: "가디건",
+    },
+  },
+  {
+    id: "generic-jumper",
+    group: "아우터",
+    label: "점퍼",
+    keywords: ["점퍼", "jumper"],
+    attributes: {
+      category: "아우터",
+      subCategory: "점퍼",
+      detailCategory: "점퍼",
+    },
+  },
+  {
+    id: "generic-zip-up",
+    group: "아우터",
+    label: "집업",
+    keywords: ["집업", "zip up", "zip-up"],
+    attributes: {
+      category: "아우터",
+      subCategory: "집업",
+      detailCategory: "집업",
+    },
+  },
+  {
+    id: "generic-t-shirt",
+    group: "상의",
+    label: "티셔츠",
+    keywords: ["티셔츠", "t shirt", "t-shirt"],
+    attributes: {
+      category: "상의",
+      subCategory: "티셔츠",
+      detailCategory: "티셔츠",
+    },
+  },
+  {
+    id: "generic-shirt",
+    group: "상의",
+    label: "셔츠",
+    keywords: ["셔츠", "shirt"],
+    attributes: {
+      category: "상의",
+      subCategory: "셔츠",
+      detailCategory: "셔츠",
+    },
+  },
+  {
+    id: "generic-blouse",
+    group: "상의",
+    label: "블라우스",
+    keywords: ["블라우스", "blouse"],
+    attributes: {
+      category: "상의",
+      subCategory: "블라우스",
+      detailCategory: "블라우스",
+    },
+  },
+  {
+    id: "generic-knit",
+    group: "상의",
+    label: "니트",
+    keywords: ["니트", "knit", "sweater"],
+    attributes: {
+      category: "상의",
+      subCategory: "니트",
+      detailCategory: "니트",
+      material: "니트",
+    },
+  },
+  {
+    id: "generic-sweatshirt",
+    group: "상의",
+    label: "맨투맨",
+    keywords: ["맨투맨", "sweatshirt"],
+    attributes: {
+      category: "상의",
+      subCategory: "맨투맨",
+      detailCategory: "맨투맨",
+    },
+  },
+  {
+    id: "generic-hoodie",
+    group: "상의",
+    label: "후드티",
+    keywords: ["후드", "hoodie"],
+    attributes: {
+      category: "상의",
+      subCategory: "후드티",
+      detailCategory: "후드티",
+    },
+  },
+  {
+    id: "generic-pants",
+    group: "하의",
+    label: "팬츠",
+    keywords: ["팬츠", "바지", "pants", "trousers"],
+    attributes: {
+      category: "하의",
+      subCategory: "팬츠",
+      detailCategory: "팬츠",
+    },
+  },
+  {
+    id: "generic-skirt",
+    group: "하의",
+    label: "스커트",
+    keywords: ["스커트", "skirt"],
+    attributes: {
+      category: "하의",
+      subCategory: "스커트",
+      detailCategory: "스커트",
+    },
+  },
+  {
+    id: "generic-bag",
+    group: "가방",
+    label: "가방",
+    keywords: ["가방", "bag"],
+    attributes: {
+      category: "액세서리",
+      subCategory: "가방",
+      detailCategory: "가방",
+    },
+  },
+  {
+    id: "generic-shoes",
+    group: "신발",
+    label: "신발",
+    keywords: ["신발", "shoes", "shoe", "footwear"],
+    attributes: {
+      category: "신발",
+      subCategory: "신발",
+      detailCategory: "신발",
+    },
+  },
+  {
+    id: "generic-hat",
+    group: "모자",
+    label: "모자",
+    keywords: ["모자", "hat"],
+    attributes: {
+      category: "액세서리",
+      subCategory: "모자",
+      detailCategory: "모자",
+    },
+  },
+  {
+    id: "generic-accessory",
+    group: "액세서리",
+    label: "액세서리",
+    keywords: ["액세서리", "accessory", "accessories"],
+    attributes: {
+      category: "액세서리",
+      subCategory: "액세서리",
+      detailCategory: "액세서리",
     },
   },
 ];

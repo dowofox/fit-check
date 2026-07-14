@@ -280,6 +280,44 @@ async function main() {
       }
     );
 
+    const genericProductTargets = [
+      ["RELAXED DAILY SHIRT", "상의", "셔츠"],
+      ["OVERSIZED DAILY JACKET", "아우터", "자켓"],
+      ["PLEATED MIDI SKIRT", "하의", "스커트"],
+      ["DAILY WALKING SHOES", "신발", "신발"],
+      ["CITY DAILY BAG", "액세서리", "가방"],
+      ["SUMMER SUN HAT", "액세서리", "모자"],
+      ["SILVER ACCESSORY", "액세서리", "액세서리"],
+    ];
+
+    genericProductTargets.forEach(([productName, category, subCategory]) => {
+      const target = getProductAnalysisTarget({ productName });
+      assert.equal(target.category, category, productName);
+      assert.equal(target.subCategory, subCategory, productName);
+      assert.equal(
+        applyProductAnalysisTarget(
+          {
+            category: category === "아우터" ? "상의" : "아우터",
+            subCategory: "사진 속 다른 옷",
+            detailCategory: "사진 속 다른 옷",
+          },
+          target
+        ).category,
+        category,
+        `${productName} target anchor`
+      );
+    });
+
+    const specificRuleTarget = getProductAnalysisTarget({
+      productName: "LIGHTWEIGHT RUNNING SHOES",
+    });
+    assert.equal(specificRuleTarget.category, "신발");
+    assert.equal(specificRuleTarget.detailCategory, "러닝화");
+    assert.equal(
+      getProductAnalysisTarget({ productName: "WHATEVER DAILY ITEM" }).category,
+      undefined
+    );
+
     const confirmedProduct = {
       brand: product.brand,
       productName: product.productName,
