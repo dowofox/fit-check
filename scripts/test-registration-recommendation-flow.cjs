@@ -279,16 +279,45 @@ async function main() {
     await saveClosetItem(linkedTop);
     await saveClosetItem(createClosetItem("bottom-denim", "하의"));
     await saveClosetItem(createClosetItem("shoes-white", "신발"));
+    const seasonEditedTop = createClosetItem("top-season-edit", linkedTop.category, {
+      subCategory: linkedTop.subCategory,
+      detailCategory: linkedTop.detailCategory,
+      color: linkedTop.color,
+      material: linkedTop.material,
+      seasons: ["겨울"],
+      season: "겨울",
+      seasonSource: "rule",
+      seasonNeedsReview: false,
+    });
+    await saveClosetItem(seasonEditedTop);
 
     const savedCloset = await getClosetItems();
     const savedTop = savedCloset.find((item) => item.id === linkedTop.id);
     assert.equal(savedTop.confirmedProduct.productName, "린넨 데일리 셔츠");
     assert.equal(savedTop.detailCategory, "린넨 셔츠");
+    const beforeSeasonCorrection = getOutfitRecommendationResult(
+      toRecommendationInputItems(savedCloset),
+      null,
+      linkedTop.seasons[0]
+    );
+    assert.equal(
+      beforeSeasonCorrection.recommendations.some((recommendation) =>
+        recommendation.items.some((item) => item.id === seasonEditedTop.id)
+      ),
+      false
+    );
 
     await updateClosetItem(linkedTop.id, {
       color: "아이보리",
       detailCategory: "린넨 오픈카라 셔츠",
       userEditedClassificationFields: ["detailCategory"],
+    });
+    await updateClosetItem(seasonEditedTop.id, {
+      seasons: linkedTop.seasons,
+      season: linkedTop.season,
+      seasonSource: "user",
+      seasonNeedsReview: false,
+      userEditedClassificationFields: ["season"],
     });
 
     const updatedCloset = await getClosetItems();
@@ -296,6 +325,10 @@ async function main() {
     assert.equal(updatedTop.color, "아이보리");
     assert.equal(updatedTop.detailCategory, "린넨 오픈카라 셔츠");
     assert.equal(updatedTop.confirmedProduct.productName, "린넨 데일리 셔츠");
+    const updatedSeasonTop = updatedCloset.find((item) => item.id === seasonEditedTop.id);
+    assert.deepEqual(updatedSeasonTop.seasons, linkedTop.seasons);
+    assert.equal(updatedSeasonTop.seasonSource, "user");
+    assert.equal(updatedSeasonTop.seasonNeedsReview, false);
 
     const recommendationItems = toRecommendationInputItems(updatedCloset);
     const recommendationResult = getOutfitRecommendationResult(recommendationItems, null, "여름");
@@ -303,6 +336,11 @@ async function main() {
     assert.ok(
       recommendationResult.recommendations.some((recommendation) =>
         recommendation.items.some((item) => item.id === linkedTop.id)
+      )
+    );
+    assert.ok(
+      recommendationResult.recommendations.some((recommendation) =>
+        recommendation.items.some((item) => item.id === seasonEditedTop.id)
       )
     );
 
