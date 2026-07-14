@@ -353,6 +353,33 @@ async function main() {
       }
     );
 
+    const pleatedSkirtTarget = getProductAnalysisTarget({
+      productName: "PLEATED MIDI SKIRT",
+      productCategory: "Apparel > Bottoms > Skirts",
+    });
+    assert.equal(pleatedSkirtTarget.category, "하의");
+    assert.equal(pleatedSkirtTarget.subCategory, "스커트");
+    assert.equal(pleatedSkirtTarget.detailCategory, "플리츠 스커트");
+
+    const denimMiniSkirtTarget = getProductAnalysisTarget({
+      productName: "데님 미니 스커트",
+    });
+    assert.equal(denimMiniSkirtTarget.detailCategory, "미니 스커트");
+    assert.equal(denimMiniSkirtTarget.material, "데님");
+
+    assert.equal(
+      getProductAnalysisTarget({ productName: "A-LINE SKIRT" }).detailCategory,
+      "A라인 스커트"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "MAXI SKIRT" }).detailCategory,
+      "롱 스커트"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "DAILY SKIRT" }).detailCategory,
+      "스커트"
+    );
+
     const genericProductTargets = [
       ["RELAXED DAILY SHIRT", "상의", "셔츠"],
       ["OVERSIZED DAILY JACKET", "아우터", "자켓"],
