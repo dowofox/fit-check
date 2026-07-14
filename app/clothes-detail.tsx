@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from "@/utils/api";
+import { normalizeClosetRegistrationBasics } from "@/utils/closetRegistration";
 import {
   getResolvedItemMaterial,
   getProductClassificationNotice,
@@ -2156,15 +2157,50 @@ export default function ClothesDetailScreen() {
     setEditMode(false);
   }
 
-  async function handleSave() {
+  async function handleSave(allowUncertainValues = false) {
     if (!item) return;
 
+    if (!draft.category.trim()) {
+      Alert.alert("종류를 선택해주세요", "옷의 종류를 선택해야 수정 내용을 저장할 수 있어요.");
+      return;
+    }
+
+    if (!draft.color.trim()) {
+      Alert.alert("색상을 입력해주세요", "대표 색상을 입력하면 코디 추천에 활용할 수 있어요.");
+      return;
+    }
+
+    const registration = normalizeClosetRegistrationBasics({
+      category: draft.category,
+      color: draft.color,
+      seasons: draft.seasons,
+    });
+
+    if (!allowUncertainValues && registration.reviewFields.length > 0) {
+      Alert.alert(
+        "수정 정보를 확인해주세요",
+        "종류, 색상 또는 계절 정보가 불확실해요. 현재 값으로 저장해도 나중에 다시 수정할 수 있어요.",
+        [
+          { text: "돌아가기", style: "cancel" },
+          { text: "현재 값으로 저장", onPress: () => void handleSave(true) },
+        ]
+      );
+      return;
+    }
+
+    const normalizedDraft = {
+      ...draft,
+      category: registration.category,
+      color: registration.color,
+      seasons: registration.seasons,
+    };
+
     try {
-      const userEditedClassificationFields = getUserEditedClassificationFields(item, draft);
+      const userEditedClassificationFields = getUserEditedClassificationFields(item, normalizedDraft);
       const updatedCloset = await updateClosetItem(item.id, {
-        ...draft,
-        style: draft.styleTags[0] || draft.style,
-        season: draft.seasons.join(", "),
+        ...normalizedDraft,
+        style: normalizedDraft.styleTags[0] || normalizedDraft.style,
+        season: normalizedDraft.seasons.join(", "),
         userEditedClassificationFields,
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
@@ -2645,7 +2681,7 @@ export default function ClothesDetailScreen() {
               <Pressable style={styles.cancelButton} onPress={handleCancel}>
                 <Text style={styles.cancelButtonText}>취소</Text>
               </Pressable>
-              <Pressable style={styles.saveButton} onPress={handleSave}>
+              <Pressable style={styles.saveButton} onPress={() => handleSave()}>
                 <Text style={styles.saveButtonText}>저장</Text>
               </Pressable>
             </View>
