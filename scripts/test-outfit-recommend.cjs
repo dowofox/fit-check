@@ -377,6 +377,7 @@ test("경량 추천 입력은 선택 사이즈의 실측 행만 보존한다", (
         unit: "cm",
         sizes: [
           { size: "M", totalLength: 68, shoulder: 46, chest: 54 },
+          { size: "L", totalLength: 71 },
           { size: "L", totalLength: 71, shoulder: 48, chest: 57 },
           { size: "XL", totalLength: 74, shoulder: 50, chest: 60 },
         ],
@@ -409,6 +410,10 @@ test("경량 추천 입력은 선택 사이즈의 실측 행만 보존한다", (
       (measurement) => measurement.size
     ),
     ["L"]
+  );
+  assert.equal(
+    recommendationItems[0].confirmedProduct.productSizeGuide.sizes[0].chest,
+    57
   );
   assert.deepEqual(
     recommendationItems[1].confirmedProduct.productSizeGuide.sizes.map(
