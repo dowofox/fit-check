@@ -77,6 +77,7 @@ export type MaterialComposition = {
 export type ConfirmedProduct = {
   brand: string;
   productName: string;
+  productCategory?: string;
   productColor?: string;
   productUrl?: string;
   productImageUrl?: string;

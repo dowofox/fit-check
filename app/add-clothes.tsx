@@ -169,6 +169,7 @@ type AddMode = "photo" | "link" | "manual";
 type ExtractedProduct = {
   brand?: string;
   productName?: string;
+  productCategory?: string;
   productColor?: string;
   productUrl: string;
   productImageUrl?: string;
@@ -278,6 +279,7 @@ async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | 
   const productContext = product
     ? getProductAnalysisTarget({
         productName: product.productName,
+        productCategory: product.productCategory,
         brand: product.brand,
         productColor: product.productColor,
         materialComposition: product.materialComposition,
@@ -388,6 +390,7 @@ function buildConfirmedProductFromExtractedProduct(product: ExtractedProduct): C
   return {
     brand: product.brand || "",
     productName: product.productName || "",
+    productCategory: product.productCategory,
     productColor: product.productColor,
     productUrl: product.productUrl,
     productImageUrl: product.productImageUrl,
@@ -402,6 +405,7 @@ function buildConfirmedProductFromExtractedProduct(product: ExtractedProduct): C
 function createProductFallbackAnalysis(product: ExtractedProduct): ClothesAnalysis {
   const classification = inferProductAttributesFromConfirmedProduct({
     productName: product.productName,
+    productCategory: product.productCategory,
     brand: product.brand,
     materialComposition: product.materialComposition,
   });
@@ -1029,6 +1033,7 @@ export default function AddClothesScreen() {
       const classification = confirmedProduct
         ? inferProductAttributesFromConfirmedProduct({
             productName: confirmedProduct.productName,
+            productCategory: confirmedProduct.productCategory,
             brand: confirmedProduct.brand,
             materialComposition: confirmedProduct.materialComposition,
             currentItem: initialItem,

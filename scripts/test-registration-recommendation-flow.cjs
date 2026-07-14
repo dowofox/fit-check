@@ -173,6 +173,7 @@ const fixtureServer = http.createServer((request, response) => {
       "@type":"Product",
       "name":"린넨 데일리 셔츠",
       "brand":{"@type":"Brand","name":"NAES"},
+      "category":"Apparel > Shirts",
       "color":"아이보리",
       "image":"/images/linen-shirt.jpg",
       "offers":{"@type":"Offer","price":"59000"}
@@ -261,8 +262,30 @@ async function main() {
     assert.equal(response.status, 200);
     assert.equal(product.productName, "린넨 데일리 셔츠");
     assert.equal(product.brand, "NAES");
+    assert.equal(product.productCategory, "Apparel > Shirts");
     assert.equal(product.productColor, "아이보리");
     assert.equal(product.materialComposition.summary, "린넨 55%, 면 45%");
+
+    const categoryFallbackTarget = getProductAnalysisTarget({
+      productName: "TWO TUCK WIDE",
+      productCategory: "Pants",
+    });
+    assert.equal(categoryFallbackTarget.category, "하의");
+    assert.equal(categoryFallbackTarget.subCategory, "팬츠");
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "LOOK 2026",
+        productCategory: "Apparel > Shirts",
+      }).category,
+      "상의"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "ITEM 123",
+        productCategory: "Outerwear",
+      }).category,
+      "아우터"
+    );
 
     const officialColorTarget = getProductAnalysisTarget({
       productName: product.productName,
@@ -392,6 +415,7 @@ async function main() {
     const confirmedProduct = {
       brand: product.brand,
       productName: product.productName,
+      productCategory: product.productCategory,
       productColor: product.productColor,
       productUrl: product.productUrl,
       productImageUrl: product.productImageUrl,
@@ -400,6 +424,7 @@ async function main() {
     };
     const classification = inferProductAttributesFromConfirmedProduct({
       productName: confirmedProduct.productName,
+      productCategory: confirmedProduct.productCategory,
       brand: confirmedProduct.brand,
       materialComposition: confirmedProduct.materialComposition,
     });
@@ -433,6 +458,7 @@ async function main() {
     const savedCloset = await getClosetItems();
     const savedTop = savedCloset.find((item) => item.id === linkedTop.id);
     assert.equal(savedTop.confirmedProduct.productName, "린넨 데일리 셔츠");
+    assert.equal(savedTop.confirmedProduct.productCategory, "Apparel > Shirts");
     assert.equal(savedTop.confirmedProduct.productColor, "아이보리");
     assert.equal(savedTop.detailCategory, "린넨 셔츠");
     const beforeSeasonCorrection = getOutfitRecommendationResult(

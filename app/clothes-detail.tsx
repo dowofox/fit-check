@@ -88,6 +88,7 @@ type EditableClosetFields = {
 type ConfirmedProductDraft = {
   brand: string;
   productName: string;
+  productCategory?: string;
   productColor?: string;
   productUrl: string;
   productImageUrl: string;
@@ -328,6 +329,7 @@ function getConfirmedProductDraft(item?: ClosetItem | null): ConfirmedProductDra
   return {
     brand: confirmedProduct?.brand || "",
     productName: confirmedProduct?.productName || "",
+    productCategory: confirmedProduct?.productCategory,
     productColor: confirmedProduct?.productColor,
     productUrl: confirmedProduct?.productUrl || "",
     productImageUrl: confirmedProduct?.productImageUrl || "",
@@ -350,6 +352,7 @@ function buildConfirmedProductFromDraft(
   return {
     brand,
     productName,
+    productCategory: draft.productCategory?.trim() || undefined,
     productColor: draft.productColor?.trim() || undefined,
     productUrl: draft.productUrl.trim(),
     productImageUrl: draft.productImageUrl.trim(),
@@ -2339,6 +2342,7 @@ export default function ClothesDetailScreen() {
       };
       const classification = inferProductAttributesFromConfirmedProduct({
         productName: replacementConfirmedProduct.productName,
+        productCategory: replacementConfirmedProduct.productCategory,
         brand: replacementConfirmedProduct.brand,
         materialComposition: replacementConfirmedProduct.materialComposition,
         currentItem: item,
@@ -2602,6 +2606,7 @@ export default function ClothesDetailScreen() {
       const nextDraft: ConfirmedProductDraft = {
         brand: result.brand || "",
         productName: result.productName || "",
+        productCategory: result.productCategory,
         productColor: result.productColor,
         productUrl: result.productUrl || productUrl,
         productImageUrl: result.productImageUrl || "",

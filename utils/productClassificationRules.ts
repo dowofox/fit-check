@@ -717,10 +717,21 @@ export const PRODUCT_CLASSIFICATION_RULES: ProductClassificationRule[] = [
 // 세부 규칙이 없을 때만 사용하는 보수적인 기본 분류입니다.
 export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
   {
+    id: "generic-outerwear",
+    group: "아우터",
+    label: "아우터",
+    keywords: ["아우터", "outerwear"],
+    attributes: {
+      category: "아우터",
+      subCategory: "아우터",
+      detailCategory: "아우터",
+    },
+  },
+  {
     id: "generic-jacket",
     group: "아우터",
     label: "자켓",
-    keywords: ["자켓", "재킷", "jacket"],
+    keywords: ["자켓", "재킷", "jacket", "jackets"],
     attributes: {
       category: "아우터",
       subCategory: "자켓",
@@ -731,7 +742,7 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-cardigan",
     group: "아우터",
     label: "가디건",
-    keywords: ["가디건", "cardigan"],
+    keywords: ["가디건", "cardigan", "cardigans"],
     attributes: {
       category: "아우터",
       subCategory: "가디건",
@@ -775,7 +786,7 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-shirt",
     group: "상의",
     label: "셔츠",
-    keywords: ["셔츠", "shirt"],
+    keywords: ["셔츠", "shirt", "shirts"],
     attributes: {
       category: "상의",
       subCategory: "셔츠",
@@ -786,7 +797,7 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-blouse",
     group: "상의",
     label: "블라우스",
-    keywords: ["블라우스", "blouse"],
+    keywords: ["블라우스", "blouse", "blouses"],
     attributes: {
       category: "상의",
       subCategory: "블라우스",
@@ -797,7 +808,7 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-knit",
     group: "상의",
     label: "니트",
-    keywords: ["니트", "knit", "sweater"],
+    keywords: ["니트", "knit", "sweater", "sweaters"],
     attributes: {
       category: "상의",
       subCategory: "니트",
@@ -820,11 +831,22 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-hoodie",
     group: "상의",
     label: "후드티",
-    keywords: ["후드", "hoodie"],
+    keywords: ["후드", "hoodie", "hoodies"],
     attributes: {
       category: "상의",
       subCategory: "후드티",
       detailCategory: "후드티",
+    },
+  },
+  {
+    id: "generic-top",
+    group: "상의",
+    label: "상의",
+    keywords: ["상의", "top", "tops"],
+    attributes: {
+      category: "상의",
+      subCategory: "상의",
+      detailCategory: "상의",
     },
   },
   {
@@ -842,7 +864,7 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-skirt",
     group: "하의",
     label: "스커트",
-    keywords: ["스커트", "skirt"],
+    keywords: ["스커트", "skirt", "skirts"],
     attributes: {
       category: "하의",
       subCategory: "스커트",
@@ -850,10 +872,21 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     },
   },
   {
+    id: "generic-bottom",
+    group: "하의",
+    label: "하의",
+    keywords: ["하의", "bottom", "bottoms"],
+    attributes: {
+      category: "하의",
+      subCategory: "하의",
+      detailCategory: "하의",
+    },
+  },
+  {
     id: "generic-bag",
     group: "가방",
     label: "가방",
-    keywords: ["가방", "bag"],
+    keywords: ["가방", "bag", "bags"],
     attributes: {
       category: "액세서리",
       subCategory: "가방",
@@ -875,7 +908,7 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-hat",
     group: "모자",
     label: "모자",
-    keywords: ["모자", "hat"],
+    keywords: ["모자", "hat", "hats"],
     attributes: {
       category: "액세서리",
       subCategory: "모자",

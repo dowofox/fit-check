@@ -570,11 +570,21 @@ function getStructuredProductData(html) {
         : typeof colorValue?.name === "string"
           ? colorValue.name
           : "";
+    const categoryValue = Array.isArray(product.category)
+      ? product.category[0]
+      : product.category;
+    const category =
+      typeof categoryValue === "string"
+        ? categoryValue
+        : typeof categoryValue?.name === "string"
+          ? categoryValue.name
+          : "";
     const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
 
     return {
       name: typeof product.name === "string" ? product.name.trim() : "",
       brand: brand.trim(),
+      category: category.trim(),
       color: color.trim(),
       image: image.trim(),
       price:
@@ -2658,6 +2668,10 @@ app.post("/extract-product", async (req, res) => {
         structuredProduct?.color ||
         extractMetaContent(html, ["product:color", "og:color", "color"]) ||
         "";
+      const productCategory =
+        structuredProduct?.category ||
+        extractMetaContent(html, ["product:category", "category"]) ||
+        "";
       const price = extractPrice(html) || structuredProduct?.price || "";
       const productImageMeta = extractMetaContentWithDebug(html, [
         "og:image",
@@ -2770,6 +2784,7 @@ app.post("/extract-product", async (req, res) => {
       const extractedProduct = {
         brand: extractedBrand,
         productName: extractedProductName,
+        productCategory,
         productColor,
         productUrl: finalProductUrl,
         productImageUrl,

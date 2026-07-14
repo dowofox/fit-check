@@ -11,6 +11,7 @@ import { normalizeProductColor } from "@/utils/color";
 
 export type ProductClassificationInput = {
   productName?: string;
+  productCategory?: string;
   brand?: string;
   productColor?: string;
   materialComposition?: MaterialComposition;
@@ -159,15 +160,20 @@ function getKeywordClassification(
 
 export function inferProductAttributesFromConfirmedProduct({
   productName,
+  productCategory,
   brand,
   materialComposition,
   currentItem,
 }: ProductClassificationInput): ProductClassificationResult {
   const normalizedProductName = normalizeSearchText(productName);
-  if (!normalizedProductName && !materialComposition) return {};
+  const normalizedProductCategory = normalizeSearchText(productCategory);
+  const classificationText = [normalizedProductName, normalizedProductCategory]
+    .filter(Boolean)
+    .join(" ");
+  if (!classificationText && !materialComposition) return {};
 
   const { candidate, matchedLabel } = getKeywordClassification(
-    normalizedProductName,
+    classificationText,
     materialComposition,
     currentItem
   );
@@ -200,6 +206,9 @@ export function inferProductAttributesFromConfirmedProduct({
   }
   if (materialComposition?.summary) {
     reasons.push(`공식 소재 정보 '${materialComposition.summary}'를 참고했어요.`);
+  }
+  if (productCategory?.trim()) {
+    reasons.push(`공식 상품 카테고리 '${productCategory.trim()}'를 참고했어요.`);
   }
   if (brand?.trim()) {
     reasons.push(`${brand.trim()}의 확정 상품 정보를 기준으로 판단했어요.`);
