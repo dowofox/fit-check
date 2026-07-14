@@ -1,0 +1,269 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const http = require("node:http");
+const Module = require("node:module");
+const path = require("node:path");
+const { spawn } = require("node:child_process");
+const ts = require("typescript");
+
+const fixturePort = 3922;
+const apiPort = 3921;
+const projectRoot = path.resolve(__dirname, "..");
+const storageMemory = new Map();
+
+global.__DEV__ = false;
+
+const asyncStorage = {
+  async getItem(key) {
+    return storageMemory.has(key) ? storageMemory.get(key) : null;
+  },
+  async setItem(key, value) {
+    storageMemory.set(key, value);
+  },
+  async multiSet(entries) {
+    entries.forEach(([key, value]) => storageMemory.set(key, value));
+  },
+};
+
+const originalLoad = Module._load;
+const originalResolveFilename = Module._resolveFilename;
+
+Module._load = function loadWithMocks(request, parent, isMain) {
+  if (request === "@react-native-async-storage/async-storage") {
+    return { __esModule: true, default: asyncStorage };
+  }
+
+  return originalLoad.call(this, request, parent, isMain);
+};
+
+Module._resolveFilename = function resolveProjectAlias(request, parent, isMain, options) {
+  const resolvedRequest = request.startsWith("@/")
+    ? path.join(projectRoot, request.slice(2))
+    : request;
+
+  return originalResolveFilename.call(this, resolvedRequest, parent, isMain, options);
+};
+
+require.extensions[".ts"] = function loadTypeScript(module, filename) {
+  const source = fs.readFileSync(filename, "utf8");
+  const result = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      jsx: ts.JsxEmit.ReactJSX,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+    fileName: filename,
+  });
+
+  module._compile(result.outputText, filename);
+};
+
+const {
+  getClosetItems,
+  saveClosetItem,
+  updateClosetItem,
+} = require("../utils/storage.ts");
+const {
+  inferProductAttributesFromConfirmedProduct,
+} = require("../utils/productClassification.ts");
+const {
+  getOutfitRecommendationResult,
+} = require("../utils/outfitRecommend.ts");
+
+const createdAt = "2026-07-01T00:00:00.000Z";
+
+function listen(server, port) {
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", resolve);
+  });
+}
+
+function close(server) {
+  return new Promise((resolve) => server.close(resolve));
+}
+
+async function waitForApi() {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      await fetch(`http://127.0.0.1:${apiPort}/`);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  throw new Error("통합 테스트용 상품 추출 서버가 시작되지 않았습니다.");
+}
+
+function createClosetItem(id, category, overrides = {}) {
+  const defaultsByCategory = {
+    상의: {
+      subCategory: "셔츠",
+      detailCategory: "린넨 셔츠",
+      color: "화이트",
+      material: "린넨",
+    },
+    하의: {
+      subCategory: "팬츠",
+      detailCategory: "스트레이트 데님 팬츠",
+      color: "데님",
+      material: "데님",
+    },
+    신발: {
+      subCategory: "스니커즈",
+      detailCategory: "화이트 스니커즈",
+      color: "화이트",
+      material: "가죽",
+    },
+  };
+
+  return {
+    id,
+    imageUri: `file:///${id}.png`,
+    category,
+    style: "캐주얼",
+    styleTags: ["캐주얼", "데일리"],
+    seasons: ["여름"],
+    season: "여름",
+    fit: "레귤러",
+    size: "M",
+    pattern: "무지",
+    graphicDetected: false,
+    graphicSize: "없음",
+    garmentProfile: {
+      silhouette: "regular",
+      volume: 4,
+      visualWeight: 3,
+      lengthBalance: "regular",
+      fitIntent: "trueToSize",
+      pointLevel: 2,
+      structure: "normal",
+      drape: "medium",
+    },
+    createdAt,
+    ...defaultsByCategory[category],
+    ...overrides,
+  };
+}
+
+const fixtureServer = http.createServer((request, response) => {
+  response.setHeader("Content-Type", "text/html; charset=utf-8");
+  response.end(`<!doctype html><html><head>
+    <meta property="og:site_name" content="NAES SHOP">
+    <meta property="og:image" content="/images/linen-shirt.jpg">
+    <script type="application/ld+json">{
+      "@context":"https://schema.org",
+      "@type":"Product",
+      "name":"린넨 데일리 셔츠",
+      "brand":{"@type":"Brand","name":"NAES"},
+      "image":"/images/linen-shirt.jpg",
+      "offers":{"@type":"Offer","price":"59000"}
+    }</script>
+  </head><body><dl><dt>소재</dt><dd>린넨 55%, 면 45%</dd></dl></body></html>`);
+});
+
+async function main() {
+  await listen(fixtureServer, fixturePort);
+  const apiProcess = spawn(process.execPath, ["server/index.js"], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      PORT: String(apiPort),
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || "test-key",
+      ENABLE_PRODUCT_SIZE_GUIDE: "false",
+      DEBUG_SIZE_GUIDE: "false",
+    },
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  let serverError = "";
+  apiProcess.stderr.on("data", (chunk) => {
+    serverError += chunk.toString();
+  });
+
+  try {
+    await waitForApi();
+    const productUrl = `http://127.0.0.1:${fixturePort}/product`;
+    const response = await fetch(`http://127.0.0.1:${apiPort}/extract-product`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: productUrl }),
+    });
+    const product = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(product.productName, "린넨 데일리 셔츠");
+    assert.equal(product.brand, "NAES");
+    assert.equal(product.materialComposition.summary, "린넨 55%, 면 45%");
+
+    const confirmedProduct = {
+      brand: product.brand,
+      productName: product.productName,
+      productUrl: product.productUrl,
+      productImageUrl: product.productImageUrl,
+      materialComposition: product.materialComposition,
+      confirmedAt: createdAt,
+    };
+    const classification = inferProductAttributesFromConfirmedProduct({
+      productName: confirmedProduct.productName,
+      brand: confirmedProduct.brand,
+      materialComposition: confirmedProduct.materialComposition,
+    });
+    const linkedTop = createClosetItem("top-linked", classification.category || "상의", {
+      subCategory: classification.subCategory || "셔츠",
+      detailCategory: classification.detailCategory || "린넨 셔츠",
+      material: classification.material || confirmedProduct.materialComposition.summary,
+      styleTags: classification.styleTags || ["캐주얼", "데일리"],
+      imageUri: confirmedProduct.productImageUrl,
+      confirmedProduct,
+      confirmedBrand: confirmedProduct.brand,
+      brand: confirmedProduct.brand,
+      brandConfidence: 100,
+    });
+
+    await saveClosetItem(linkedTop);
+    await saveClosetItem(createClosetItem("bottom-denim", "하의"));
+    await saveClosetItem(createClosetItem("shoes-white", "신발"));
+
+    const savedCloset = await getClosetItems();
+    const savedTop = savedCloset.find((item) => item.id === linkedTop.id);
+    assert.equal(savedTop.confirmedProduct.productName, "린넨 데일리 셔츠");
+    assert.equal(savedTop.detailCategory, "린넨 셔츠");
+
+    await updateClosetItem(linkedTop.id, {
+      color: "아이보리",
+      detailCategory: "린넨 오픈카라 셔츠",
+      userEditedClassificationFields: ["detailCategory"],
+    });
+
+    const updatedCloset = await getClosetItems();
+    const updatedTop = updatedCloset.find((item) => item.id === linkedTop.id);
+    assert.equal(updatedTop.color, "아이보리");
+    assert.equal(updatedTop.detailCategory, "린넨 오픈카라 셔츠");
+    assert.equal(updatedTop.confirmedProduct.productName, "린넨 데일리 셔츠");
+
+    const recommendationResult = getOutfitRecommendationResult(updatedCloset, null, "여름");
+    assert.ok(recommendationResult.recommendations.length > 0);
+    assert.ok(
+      recommendationResult.recommendations.some((recommendation) =>
+        recommendation.items.some((item) => item.id === linkedTop.id)
+      )
+    );
+
+    console.log("등록부터 추천까지 핵심 흐름 통합 테스트 통과");
+  } finally {
+    apiProcess.kill();
+    await close(fixtureServer);
+  }
+
+  if (serverError) process.stderr.write(serverError);
+}
+
+main().catch(async (error) => {
+  console.error(error);
+  try {
+    await close(fixtureServer);
+  } catch {}
+  process.exitCode = 1;
+});
