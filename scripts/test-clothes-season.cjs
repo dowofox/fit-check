@@ -22,6 +22,27 @@ test("린넨 셔츠와 민소매는 더운 계절 중심으로 정규화한다",
   assert.deepEqual(seasons({ detailCategory: "민소매 탑", seasons: ["봄"] }), ["여름"]);
 });
 
+test("마감과 마이크로화이버를 린넨 계절 근거로 오인하지 않는다", () => {
+  const finishedDescription = resolveClothesSeasons({
+    detailCategory: "긴팔 셔츠",
+    description: "봉제 마감이 깔끔한 셔츠",
+    seasons: ["가을"],
+    confidence: { season: 85 },
+  });
+  const microfiberDescription = resolveClothesSeasons({
+    detailCategory: "기능성 셔츠",
+    description: "마이크로화이버 소재",
+    seasons: ["가을"],
+    confidence: { season: 85 },
+  });
+
+  assert.deepEqual(finishedDescription.seasons, ["봄", "가을"]);
+  assert.equal(finishedDescription.ruleId, "long-sleeve-shirt");
+  assert.equal(finishedDescription.seasons.includes("여름"), false);
+  assert.deepEqual(microfiberDescription.seasons, ["가을"]);
+  assert.equal(microfiberDescription.source, "photo_ai");
+});
+
 test("패딩과 울·플리스는 겨울 계절감을 보수적으로 반영한다", () => {
   assert.deepEqual(seasons({ category: "아우터", detailCategory: "숏 패딩" }), ["겨울"]);
   assert.deepEqual(seasons({ detailCategory: "울 니트", material: "울" }), [

@@ -83,7 +83,7 @@ const SEASON_EVIDENCE_RULES = [
   {
     id: "linen",
     priority: 105,
-    keywords: ["린넨", "마", "linen"],
+    keywords: ["린넨", "linen"],
     seasons: ["봄", "여름"],
   },
   {
