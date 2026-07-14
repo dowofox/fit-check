@@ -3,6 +3,7 @@ import {
   normalizeClosetRegistrationBasics,
 } from "@/utils/closetRegistration";
 import { normalizeProductColor } from "@/utils/color";
+import { doesProductSizeRowMatch } from "@/utils/productSizeMeasurements";
 import type { ClosetItem, SavedOutfit, UserProfile } from "@/utils/storage";
 
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
@@ -39,6 +40,12 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
   const styles = getRecommendationStyles(item);
   const subCategory = getReliableValue(item.subCategory);
   const detailCategory = getReliableValue(item.detailCategory) || subCategory;
+  const productSizeGuide = item.confirmedProduct?.productSizeGuide;
+  const currentSizeMeasurement = item.size
+    ? productSizeGuide?.sizes?.find((measurement) =>
+        doesProductSizeRowMatch(measurement, item.size)
+      )
+    : undefined;
   const confirmedProduct = item.confirmedProduct
     ? {
         brand: item.confirmedProduct.brand,
@@ -46,6 +53,12 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
         confirmedAt: item.confirmedProduct.confirmedAt,
         materialComposition: materialSummary
           ? { summary: materialSummary, source: item.confirmedProduct.materialComposition?.source }
+          : undefined,
+        productSizeGuide: currentSizeMeasurement
+          ? {
+              unit: productSizeGuide?.unit,
+              sizes: [currentSizeMeasurement],
+            }
           : undefined,
       }
     : undefined;

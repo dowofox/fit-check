@@ -43,7 +43,10 @@ const {
   getSavedOutfitUsageCount,
   matchSavedOutfitsWithCloset,
 } = require("../utils/savedOutfitIntegrity.ts");
-const { getSavedOutfitItemIds } = require("../utils/recommendationInput.ts");
+const {
+  getSavedOutfitItemIds,
+  toRecommendationInputItems,
+} = require("../utils/recommendationInput.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -359,6 +362,70 @@ test("의도한 착용감보다 큰 실측 핏은 코디 경고에 반영한다"
   assert.ok(
     result.recommendations[0].warnings.some((warning) =>
       warning.includes("원하는 핏보다 클 수 있어요")
+    )
+  );
+});
+
+test("경량 추천 입력은 선택 사이즈의 실측 행만 보존한다", () => {
+  const top = createItem("measured-top", "상의", {
+    size: "L",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "실측 셔츠",
+      confirmedAt: createdAt,
+      productSizeGuide: {
+        unit: "cm",
+        sizes: [
+          { size: "M", totalLength: 68, shoulder: 46, chest: 54 },
+          { size: "L", totalLength: 71, shoulder: 48, chest: 57 },
+          { size: "XL", totalLength: 74, shoulder: 50, chest: 60 },
+        ],
+      },
+    },
+  });
+  const bottom = createItem("measured-bottom", "하의", {
+    size: "M",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "실측 데님 팬츠",
+      confirmedAt: createdAt,
+      productSizeGuide: {
+        unit: "cm",
+        sizes: [
+          { size: "M", totalLength: 103, waist: 41, hip: 52, thigh: 32 },
+          { size: "L", totalLength: 106, waist: 43, hip: 54, thigh: 34 },
+        ],
+      },
+    },
+  });
+  const recommendationItems = toRecommendationInputItems([
+    top,
+    bottom,
+    createItem("measured-shoes", "신발"),
+  ]);
+
+  assert.deepEqual(
+    recommendationItems[0].confirmedProduct.productSizeGuide.sizes.map(
+      (measurement) => measurement.size
+    ),
+    ["L"]
+  );
+  assert.deepEqual(
+    recommendationItems[1].confirmedProduct.productSizeGuide.sizes.map(
+      (measurement) => measurement.size
+    ),
+    ["M"]
+  );
+
+  const result = getOutfitRecommendationResult(
+    recommendationItems,
+    null,
+    "여름"
+  );
+  assert.ok(result.recommendations.length > 0);
+  assert.ok(
+    result.recommendations[0].reasons.some((reason) =>
+      reason.includes("상품 실측을 기준으로")
     )
   );
 });

@@ -1,4 +1,5 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
+import { doesProductSizeRowMatch } from "@/utils/productSizeMeasurements";
 import { getDetailMaterialAdjustment } from "@/utils/outfitDetailMaterial";
 import { getResolvedItemMaterial } from "@/utils/productClassification";
 import { ClosetItem, GarmentProfile, UserProfile } from "@/utils/storage";
@@ -1005,20 +1006,12 @@ function getFallbackStructure(item: ClosetItem): ResolvedGarmentProfile["structu
   return "normal";
 }
 
-function normalizeMeasurementSize(size?: string) {
-  return String(size || "")
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "");
-}
-
 function getCurrentSizeMeasurement(item: ClosetItem) {
   const sizeGuide = item.confirmedProduct?.productSizeGuide;
-  const itemSize = normalizeMeasurementSize(item.size);
 
-  if (!sizeGuide?.sizes?.length || !itemSize) return undefined;
-  return sizeGuide.sizes.find(
-    (measurement) => normalizeMeasurementSize(measurement.size) === itemSize
+  if (!sizeGuide?.sizes?.length || !item.size) return undefined;
+  return sizeGuide.sizes.find((measurement) =>
+    doesProductSizeRowMatch(measurement, item.size)
   );
 }
 
