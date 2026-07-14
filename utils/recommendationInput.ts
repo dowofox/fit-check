@@ -2,6 +2,7 @@ import {
   getClosetItemReviewFields,
   normalizeClosetRegistrationBasics,
 } from "@/utils/closetRegistration";
+import { normalizeProductColor } from "@/utils/color";
 import type { ClosetItem, SavedOutfit, UserProfile } from "@/utils/storage";
 
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
@@ -34,7 +35,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     : registration.category;
   const color = registration.reviewFields.includes("color")
     ? undefined
-    : registration.color;
+    : normalizeProductColor(registration.color);
   const styles = getRecommendationStyles(item);
   const subCategory = getReliableValue(item.subCategory);
   const detailCategory = getReliableValue(item.detailCategory) || subCategory;

@@ -1,4 +1,5 @@
 import { ClosetItem } from "@/utils/storage";
+import { normalizeProductColor } from "@/utils/color";
 
 export type RecommendedShoppingItem = {
   id: string;
@@ -14,7 +15,7 @@ type RecommendationInput = Omit<RecommendedShoppingItem, "id">;
 type Season = "봄" | "여름" | "가을" | "겨울";
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
-const BASIC_COLORS = ["블랙", "검정", "화이트", "흰색", "아이보리", "그레이", "회색"];
+const BASIC_COLORS = ["블랙", "화이트", "아이보리", "그레이", "네이비", "베이지"];
 
 function getItemText(item: ClosetItem) {
   return [
@@ -22,6 +23,7 @@ function getItemText(item: ClosetItem) {
     item.subCategory,
     item.category,
     item.color,
+    normalizeProductColor(item.color),
     item.style,
     ...(item.styleTags || []),
     ...(item.styleProfile?.mood || []),
@@ -201,7 +203,9 @@ export function getRecommendedShoppingItems(items: ClosetItem[]): RecommendedSho
     });
   }
 
-  const basicColorTops = tops.filter((item) => BASIC_COLORS.some((color) => item.color?.includes(color)));
+  const basicColorTops = tops.filter((item) =>
+    BASIC_COLORS.includes(normalizeProductColor(item.color) || "")
+  );
   const hasLightDenim = bottoms.some((item) => /연청|라이트.*데님|밝은.*데님/.test(itemTexts.get(item.id) || ""));
   if (basicColorTops.length >= 2 && !hasLightDenim) {
     recommendations.push({

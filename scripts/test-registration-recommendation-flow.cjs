@@ -85,6 +85,7 @@ const {
   toRecommendationInputItem,
   toRecommendationInputItems,
 } = require("../utils/recommendationInput.ts");
+const { getRecommendedShoppingItems } = require("../utils/shoppingRecommend.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -231,6 +232,27 @@ async function main() {
   assert.equal(legacyRecommendationItem.seasonNeedsReview, true);
   assert.deepEqual(legacyRecommendationItem.styleTags, ["데일리"]);
   assert.equal(legacyRecommendationItem.pattern, undefined);
+
+  const legacyEnglishColorItem = toRecommendationInputItem({
+    ...createClosetItem("legacy-black-top", "상의"),
+    color: "BLACK",
+  });
+  assert.equal(legacyEnglishColorItem.color, "블랙");
+
+  const legacyColorShoppingRecommendations = getRecommendedShoppingItems([
+    createClosetItem("legacy-shopping-top-black", "상의", { color: "BLACK" }),
+    createClosetItem("legacy-shopping-top-ivory", "상의", { color: "OFF WHITE" }),
+    createClosetItem("legacy-shopping-bottom", "하의", {
+      color: "BROWN",
+      detailCategory: "치노 팬츠",
+      material: "면",
+    }),
+  ]);
+  assert.ok(
+    legacyColorShoppingRecommendations.some(
+      (recommendation) => recommendation.title === "연청 데님팬츠"
+    )
+  );
 
   await listen(fixtureServer, fixturePort);
   const apiProcess = spawn(process.execPath, ["server/index.js"], {
