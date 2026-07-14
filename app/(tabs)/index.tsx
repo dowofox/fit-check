@@ -4,6 +4,7 @@ import PantsIcon from "@/assets/icons/pants.svg";
 import ShirtIcon from "@/assets/icons/shirt.svg";
 import ShoeIcon from "@/assets/icons/sneakers.svg";
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import ClosetItemImage from "@/components/ClosetItemImage";
 import {
   getOutfitDisplayReasons,
   getOutfitRecommendationResult,
@@ -73,10 +74,6 @@ function getItemShortLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
 
-function getItemImageUri(item: ClosetItem) {
-  return item.cleanImageUri || item.imageUri;
-}
-
 function getRecommendationRouteParams(
   recommendation?: OutfitRecommendation,
   weather?: OutfitRecommendationWeather | null
@@ -124,10 +121,11 @@ function RecommendationLookbookCard({
 
         <View style={styles.itemPreviewRow}>
           {coreItems.map((item) => (
-            <Image
+            <ClosetItemImage
               key={item.id}
-              source={{ uri: getItemImageUri(item) }}
+              item={item}
               style={styles.itemPreviewImage}
+              contentFit="contain"
             />
           ))}
         </View>

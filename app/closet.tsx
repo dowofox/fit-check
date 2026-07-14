@@ -1,10 +1,10 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import ClosetItemImage from "@/components/ClosetItemImage";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import {
     ClosetItem,
     deleteClosetItem,
     getClosetItems,
-    getDisplayImageUri,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
@@ -14,7 +14,6 @@ import { useCallback, useState } from "react";
 import {
     Alert,
     Dimensions,
-    Image,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -223,9 +222,10 @@ export default function ClosetScreen() {
                                     onLongPress={() => handleDeleteItem(item.id)}
                                 >
                                     <View style={styles.imageBox}>
-                                        <Image
-                                            source={{ uri: getDisplayImageUri(item) }}
+                                        <ClosetItemImage
+                                            item={item}
                                             style={styles.closetImage}
+                                            contentFit="contain"
                                         />
                                     </View>
 
@@ -417,7 +417,6 @@ const styles = StyleSheet.create({
     closetImage: {
         width: "100%",
         height: "100%",
-        resizeMode: "contain",
     },
     closetCategory: {
         fontSize: 12,

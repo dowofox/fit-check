@@ -2658,27 +2658,34 @@ export default function ClothesDetailScreen() {
 
         {item && (
           <>
-            <ExpoImage
-              source={displayImageUri}
-              style={styles.heroImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              recyclingKey={item.id}
-              onLoadStart={() => {
-                endPerformanceTimer(heroImageTimerRef.current, { restarted: true });
-                heroImageTimerRef.current = startPerformanceTimer(
-                  "clothes-detail.hero-image-load"
-                );
-              }}
-              onLoad={() => {
-                endPerformanceTimer(heroImageTimerRef.current);
-                heroImageTimerRef.current = null;
-              }}
-              onError={() => {
-                endPerformanceTimer(heroImageTimerRef.current, { failed: true });
-                heroImageTimerRef.current = null;
-              }}
-            />
+            {displayImageUri ? (
+              <ExpoImage
+                source={displayImageUri}
+                style={styles.heroImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={item.id}
+                onLoadStart={() => {
+                  endPerformanceTimer(heroImageTimerRef.current, { restarted: true });
+                  heroImageTimerRef.current = startPerformanceTimer(
+                    "clothes-detail.hero-image-load"
+                  );
+                }}
+                onLoad={() => {
+                  endPerformanceTimer(heroImageTimerRef.current);
+                  heroImageTimerRef.current = null;
+                }}
+                onError={() => {
+                  endPerformanceTimer(heroImageTimerRef.current, { failed: true });
+                  heroImageTimerRef.current = null;
+                }}
+              />
+            ) : (
+              <View style={[styles.heroImage, styles.heroImagePlaceholder]}>
+                <Feather name="image" size={28} color="#8c6f47" />
+                <Text style={styles.heroImagePlaceholderText}>등록된 사진이 없어요</Text>
+              </View>
+            )}
 
             <View style={styles.summaryCard}>
               <Text style={styles.itemTitle} numberOfLines={2} ellipsizeMode="tail">
@@ -3063,6 +3070,18 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: "#ddd",
     marginBottom: 16,
+  },
+  heroImagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#f4eee7",
+  },
+  heroImagePlaceholderText: {
+    color: "#777064",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "700",
   },
 
   summaryCard: {

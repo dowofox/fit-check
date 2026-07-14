@@ -1,4 +1,5 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import ClosetItemImage from "@/components/ClosetItemImage";
 import {
   getOutfitDisplayReasons,
   getOutfitRecommendationResult,
@@ -33,7 +34,6 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -191,10 +191,6 @@ function applySituationRecommendationScoring(
       second.score - first.score
     )
     .map(({ situationMatchScore, ...recommendation }) => recommendation);
-}
-
-function getItemImageUri(item: ClosetItem) {
-  return item.cleanImageUri || item.imageUri;
 }
 
 function getSortedItemIds(items: ClosetItem[]) {
@@ -406,10 +402,10 @@ function RecommendationCard({
                 params: { id: item.id },
               })}
             >
-              <Image
-                source={{ uri: getItemImageUri(item) }}
+              <ClosetItemImage
+                item={item}
                 style={styles.itemImage}
-                resizeMode="contain"
+                contentFit="contain"
               />
               <Text style={styles.itemName} numberOfLines={1}>
                 {getItemName(item)}
@@ -529,10 +525,10 @@ function RecommendationCard({
                       params: { id: item.id },
                     })}
                   >
-                    <Image
-                      source={{ uri: getItemImageUri(item) }}
+                    <ClosetItemImage
+                      item={item}
                       style={styles.alternativeItemImage}
-                      resizeMode="contain"
+                      contentFit="contain"
                     />
                     <Text style={styles.alternativeItemName} numberOfLines={1}>
                       {getItemName(item)}

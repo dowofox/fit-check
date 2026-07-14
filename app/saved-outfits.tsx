@@ -1,4 +1,5 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import ClosetItemImage from "@/components/ClosetItemImage";
 import { getShoeRecommendationsForOutfit } from "@/utils/outfitRecommend";
 import {
   ClosetItem,
@@ -14,7 +15,6 @@ import { router, Stack } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -153,7 +153,7 @@ function SavedOutfitCard({
               })
             }
           >
-            <Image source={{ uri: item.imageUri }} style={styles.itemImage} />
+            <ClosetItemImage item={item} style={styles.itemImage} contentFit="contain" />
             <Text style={styles.itemName} numberOfLines={1}>
               {getItemName(item)}
             </Text>
@@ -186,9 +186,10 @@ function SavedOutfitCard({
                     })
                   }
                 >
-                  <Image
-                    source={{ uri: recommendation.shoe.imageUri }}
+                  <ClosetItemImage
+                    item={recommendation.shoe}
                     style={styles.shoeImage}
+                    contentFit="contain"
                   />
                   <View style={styles.shoeInfo}>
                     <Text style={styles.shoeName} numberOfLines={1}>
@@ -217,9 +218,10 @@ function SavedOutfitCard({
                     })
                   }
                 >
-                  <Image
-                    source={{ uri: recommendation.shoe.imageUri }}
+                  <ClosetItemImage
+                    item={recommendation.shoe}
                     style={styles.shoeImage}
+                    contentFit="contain"
                   />
                   <View style={styles.shoeInfo}>
                     <Text style={styles.shoeName} numberOfLines={1}>
