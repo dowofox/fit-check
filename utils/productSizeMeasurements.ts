@@ -47,6 +47,28 @@ const INVALID_PRODUCT_SIZE_KEYWORDS = [
   "브랜드",
 ];
 
+const NAMED_PRODUCT_SIZE_ALIASES: Record<string, string> = {
+  XSMALL: "XS",
+  SMALL: "S",
+  MEDIUM: "M",
+  LARGE: "L",
+  XLARGE: "XL",
+  XXLARGE: "XXL",
+  XXXLARGE: "XXXL",
+  "2XLARGE": "XXL",
+  "3XLARGE": "XXXL",
+};
+
+function getNamedProductSizeAlias(size?: string) {
+  const compactSize = (size || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\(?\s*\d{1,3}(?:\.\d+)?\s*[~～\-–—]\s*\d{1,3}(?:\.\d+)?\s*\)?/g, "")
+    .replace(/[\s_-]+/g, "");
+
+  return NAMED_PRODUCT_SIZE_ALIASES[compactSize];
+}
+
 function isFreeSizeAlias(size?: string) {
   const compactSize = (size || "")
     .trim()
@@ -61,6 +83,8 @@ function isFreeSizeAlias(size?: string) {
 export function normalizeProductSizeForCompare(size?: string) {
   const normalizedSize = (size || "").replace(/\s+/g, "").toUpperCase();
   if (isFreeSizeAlias(size)) return "FREE";
+  const namedSize = getNamedProductSizeAlias(size);
+  if (namedSize) return namedSize;
 
   const letterSize = normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/)?.[0];
   const baseSize = letterSize || normalizedSize;
@@ -74,6 +98,8 @@ export function normalizeProductSizeForCompare(size?: string) {
 function getBaseSizeForStorage(size: string) {
   const normalizedSize = size.replace(/\s+/g, "").toUpperCase();
   if (isFreeSizeAlias(size)) return "FREE";
+  const namedSize = getNamedProductSizeAlias(size);
+  if (namedSize) return namedSize;
 
   return (
     normalizedSize.match(/(?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS)/)?.[0] ||

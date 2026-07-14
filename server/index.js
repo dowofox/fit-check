@@ -886,6 +886,28 @@ function isValidBaseProductSizeName(size) {
   return /^(?:XS|S|M|L|XL|XXL|XXXL|[2-5]XL|FREE|OS|\d{1,3}|2[2-9]\d|3[0-1]\d)$/.test(normalizedSize);
 }
 
+const NAMED_PRODUCT_SIZE_ALIASES = {
+  XSMALL: "XS",
+  SMALL: "S",
+  MEDIUM: "M",
+  LARGE: "L",
+  XLARGE: "XL",
+  XXLARGE: "XXL",
+  XXXLARGE: "XXXL",
+  "2XLARGE": "XXL",
+  "3XLARGE": "XXXL",
+};
+
+function getNamedProductSizeAlias(value) {
+  const compactSize = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\(?\s*\d{1,3}(?:\.\d+)?\s*[~～\-–—]\s*\d{1,3}(?:\.\d+)?\s*\)?/g, "")
+    .replace(/[\s_-]+/g, "");
+
+  return NAMED_PRODUCT_SIZE_ALIASES[compactSize] || "";
+}
+
 function parseProductSizeName(value) {
   const rawSize = String(value || "").trim();
   if (!rawSize) return null;
@@ -897,9 +919,11 @@ function parseProductSizeName(value) {
     .replace(/\(\s*\d{1,3}(?:\.\d+)?\s*\)/g, "")
     .replace(/[\s/_-]+/g, "");
   const isFreeSize = ["FREE", "F", "FREESIZE", "ONESIZE", "OS"].includes(compactSize);
+  const namedSize = getNamedProductSizeAlias(rawSize);
   const letterSize = isFreeSize
     ? "FREE"
-    : normalizedRawSize.match(
+    : namedSize ||
+      normalizedRawSize.match(
         /(?:^|[\s(/])((?:[2-5]XL|XXXL|XXL|XL|XS|S|M|L|FREE|OS))(?=$|[\s()/])/,
       )?.[1];
   const numericOnlySize = /^\d{1,3}$/.test(normalizedRawSize)

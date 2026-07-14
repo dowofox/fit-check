@@ -88,6 +88,39 @@ test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () =
   assert.equal(doesProductSizeRowMatch(measurement, "FREE SIZE"), true);
 });
 
+test("영문 장문 사이즈를 표준 문자 라벨로 비교한다", () => {
+  const aliases = {
+    SMALL: "S",
+    MEDIUM: "M",
+    LARGE: "L",
+    "X-LARGE": "XL",
+    "XX-LARGE": "XXL",
+  };
+
+  Object.entries(aliases).forEach(([size, expected]) => {
+    assert.equal(normalizeSize(size), expected);
+    assert.equal(normalizeProductSizeForCompare(size), expected);
+  });
+
+  const measurement = buildProductSizeMeasurement({
+    size: "X-LARGE",
+    totalLength: "70",
+    shoulder: "50",
+    chest: "58",
+    sleeve: "60",
+    waist: "",
+    hip: "",
+    thigh: "",
+    rise: "",
+    hem: "",
+    footLength: "",
+  });
+
+  assert.equal(measurement?.size, "XL");
+  assert.equal(measurement?.displaySize, "X-LARGE");
+  assert.equal(doesProductSizeRowMatch(measurement, "XL"), true);
+});
+
 function createItem(id, category, sizes, overrides = {}) {
   return {
     id,

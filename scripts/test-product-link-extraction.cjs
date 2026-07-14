@@ -380,6 +380,30 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-english-aliases") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <meta property="og:image" content="/images/english-size-top.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"영문 사이즈 셔츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/english-size-top.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>가슴단면</th></tr>
+        <tr><td>SMALL</td><td>66</td><td>52</td></tr>
+        <tr><td>MEDIUM</td><td>68</td><td>54</td></tr>
+        <tr><td>LARGE</td><td>70</td><td>56</td></tr>
+        <tr><td>X-LARGE</td><td>72</td><td>58</td></tr>
+        <tr><td>XX-LARGE</td><td>74</td><td>60</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   response.end(`<!doctype html><html><head>
     <meta property="og:title" content="패션 뉴스">
     <meta property="og:image" content="/news.jpg">
@@ -554,11 +578,17 @@ async function main() {
       ]
     );
 
+    const englishAliases = await extract("/size-english-aliases");
+    assert.deepEqual(
+      englishAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
+      ["S", "M", "L", "XL", "XXL"]
+    );
+
     const unsupported = await extract("/article");
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 22개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 23개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
