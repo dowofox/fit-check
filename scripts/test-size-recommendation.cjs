@@ -38,6 +38,7 @@ const {
 const {
   buildProductSizeMeasurement,
   getValidProductSizeRows,
+  removeProductSizeMeasurement,
   upsertProductSizeMeasurement,
 } = require("../utils/productSizeMeasurements.ts");
 const {
@@ -319,5 +320,20 @@ test("프로필 신체 치수는 양수 숫자만 정규화하고 잘못된 필�
   assert.equal(
     countValidProfileMeasurements(result.values, ["height"]),
     4
+  );
+});
+
+test("상품 실측 행 삭제는 선택한 사이즈만 제거하고 나머지 행을 유지한다", () => {
+  const rows = [
+    { size: "M", displaySize: "M", totalLength: 68 },
+    { size: "L", displaySize: "L(31~32)", totalLength: 70 },
+    { size: "XL", displaySize: "XL(33~34)", totalLength: 72 },
+  ];
+
+  const nextRows = removeProductSizeMeasurement(rows, rows[1]);
+
+  assert.deepEqual(
+    nextRows.map((row) => row.displaySize),
+    ["M", "XL(33~34)"]
   );
 });

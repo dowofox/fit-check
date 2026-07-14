@@ -15,6 +15,7 @@ import {
   getProductSizeDisplayName,
   getValidProductSizeRows,
   normalizeProductSizeForCompare,
+  removeProductSizeMeasurement,
   type ProductMeasurementDraft,
   upsertProductSizeMeasurement,
 } from "@/utils/productSizeMeasurements";
@@ -1217,6 +1218,7 @@ function ConfirmedProductCard({
   onEdit,
   onOpenUrlForm,
   onOpenMeasurementForm,
+  onDeleteMeasurement,
 }: {
   item: ClosetItem;
   profile?: UserProfile | null;
@@ -1225,6 +1227,7 @@ function ConfirmedProductCard({
   onEdit: () => void;
   onOpenUrlForm: () => void;
   onOpenMeasurementForm: () => void;
+  onDeleteMeasurement: (measurement: ProductSizeMeasurement) => void;
 }) {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const productImageTimerRef = useRef<PerformanceTimer>(null);
@@ -1340,7 +1343,17 @@ function ConfirmedProductCard({
               >
                 <View style={styles.sizeGuideRowHeader}>
                   <Text style={styles.sizeGuideSizeText}>{displaySize}</Text>
-                  {isProfileSize ? <Text style={styles.sizeGuideMySizeBadge}>내 사이즈</Text> : null}
+                  <View style={styles.sizeGuideRowActions}>
+                    {isProfileSize ? <Text style={styles.sizeGuideMySizeBadge}>내 사이즈</Text> : null}
+                    <Pressable
+                      style={styles.sizeGuideDeleteButton}
+                      onPress={() => onDeleteMeasurement(sizeInfo)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${displaySize} 실측 삭제`}
+                    >
+                      <Feather name="trash-2" size={13} color="#b45309" />
+                    </Pressable>
+                  </View>
                 </View>
 
                 <View style={styles.sizeGuideMeasurementGrid}>
@@ -2391,6 +2404,56 @@ export default function ClothesDetailScreen() {
     }
   }
 
+  function handleDeleteProductMeasurement(measurement: ProductSizeMeasurement) {
+    if (!item?.confirmedProduct) return;
+
+    const currentConfirmedProduct = item.confirmedProduct;
+    const displaySize = getProductSizeDisplayName(measurement);
+    Alert.alert(
+      "실측 삭제",
+      `${displaySize} 사이즈 실측을 삭제할까요? 확정 상품 정보는 그대로 유지돼요.`,
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: async () => {
+            const currentRows = getValidProductSizeRows(
+              currentConfirmedProduct.productSizeGuide
+            );
+            const nextRows = removeProductSizeMeasurement(currentRows, measurement);
+            const confirmedProduct: ConfirmedProduct = {
+              ...currentConfirmedProduct,
+              productSizeGuide:
+                nextRows.length > 0
+                  ? { unit: "cm", sizes: nextRows }
+                  : undefined,
+            };
+
+            try {
+              const updatedCloset = await updateClosetItem(item.id, { confirmedProduct });
+              const updatedItem = updatedCloset.find(
+                (closetItem) => closetItem.id === item.id
+              );
+
+              if (!updatedItem) {
+                Alert.alert("삭제 실패", "상품 실측을 삭제하지 못했어요. 다시 시도해주세요.");
+                return;
+              }
+
+              setItem(updatedItem);
+              setConfirmedProductDraft(getConfirmedProductDraft(updatedItem));
+              setMeasurementDraft(getProductMeasurementDraft(updatedItem));
+            } catch (error) {
+              console.error("상품 실측 삭제 실패:", error);
+              Alert.alert("삭제 실패", "상품 실측을 삭제하지 못했어요. 다시 시도해주세요.");
+            }
+          },
+        },
+      ]
+    );
+  }
+
   function handleCancelConfirmedProductForm() {
     setConfirmedProductDraft(getConfirmedProductDraft(item));
     setIsProductFormOpen(false);
@@ -2859,6 +2922,7 @@ export default function ClothesDetailScreen() {
                 onEdit={handleOpenConfirmedProductForm}
                 onOpenUrlForm={handleOpenProductUrlForm}
                 onOpenMeasurementForm={handleOpenMeasurementForm}
+                onDeleteMeasurement={handleDeleteProductMeasurement}
               />
             )}
 
@@ -3938,6 +4002,23 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: "center",
     lineHeight: 17,
+  },
+
+  sizeGuideRowActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+
+  sizeGuideDeleteButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff7ed",
+    borderWidth: 1,
+    borderColor: "#fed7aa",
   },
 
   confirmedProductSecondaryButton: {

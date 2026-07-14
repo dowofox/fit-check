@@ -189,3 +189,19 @@ export function upsertProductSizeMeasurement(
     measurement,
   ];
 }
+
+export function removeProductSizeMeasurement(
+  currentRows: ProductSizeMeasurement[],
+  measurement: ProductSizeMeasurement
+) {
+  const targetKey = [
+    measurement.size,
+    measurement.rawSize || "",
+    measurement.displaySize || "",
+  ].join("|");
+
+  return currentRows.filter(
+    (row) =>
+      [row.size, row.rawSize || "", row.displaySize || ""].join("|") !== targetKey
+  );
+}
