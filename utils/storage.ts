@@ -156,6 +156,24 @@ export type AnalysisQuality = {
   missingHints?: string[];
 };
 
+export function pruneReferenceClothing(
+  referenceClothing: ReferenceClothing | undefined,
+  closetItems: ClosetItem[]
+) {
+  const closetItemIds = new Set(closetItems.map((item) => item.id));
+  const nextReferenceClothing: ReferenceClothing = {};
+
+  (Object.entries(referenceClothing || {}) as [keyof ReferenceClothing, string][]).forEach(
+    ([key, itemId]) => {
+      if (itemId && closetItemIds.has(itemId)) {
+        nextReferenceClothing[key] = itemId;
+      }
+    }
+  );
+
+  return nextReferenceClothing;
+}
+
 export type ProductClassificationField =
   | "category"
   | "subCategory"
@@ -336,10 +354,24 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
 
 export async function deleteClosetItem(id: string) {
   try {
-    const closet = await getClosetItems();
+    const [closet, profile] = await Promise.all([getClosetItems(), getUserProfile()]);
     const filteredCloset = closet.filter((item) => item.id !== id);
+    const nextReferenceClothing = pruneReferenceClothing(
+      profile?.referenceClothing,
+      filteredCloset
+    );
 
-    await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(filteredCloset));
+    if (profile) {
+      await AsyncStorage.multiSet([
+        [CLOSET_KEY, JSON.stringify(filteredCloset)],
+        [
+          PROFILE_KEY,
+          JSON.stringify({ ...profile, referenceClothing: nextReferenceClothing }),
+        ],
+      ]);
+    } else {
+      await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(filteredCloset));
+    }
 
     return filteredCloset;
   } catch (error) {

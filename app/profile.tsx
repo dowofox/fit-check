@@ -8,6 +8,7 @@ import {
   ClosetItem,
   getClosetItems,
   getUserProfile,
+  pruneReferenceClothing,
   ReferenceClothing,
   saveUserProfile,
 } from "@/utils/storage";
@@ -109,6 +110,14 @@ export default function ProfileScreen() {
         setClosetItems(savedClosetItems);
 
         if (profile) {
+          const validReferenceClothing = pruneReferenceClothing(
+            profile.referenceClothing,
+            savedClosetItems
+          );
+          const hadStaleReference = Object.values(profile.referenceClothing || {}).some(
+            (itemId) => itemId && !Object.values(validReferenceClothing).includes(itemId)
+          );
+
           setGender(profile.gender || "남성");
           setAge(profile.age || "");
           setHeight(profile.height || "");
@@ -129,7 +138,14 @@ export default function ProfileScreen() {
               ? String(profile.preferredPantsTotalLength)
               : ""
           );
-          setReferenceClothing(profile.referenceClothing || {});
+          setReferenceClothing(validReferenceClothing);
+
+          if (hadStaleReference) {
+            await saveUserProfile({
+              ...profile,
+              referenceClothing: validReferenceClothing,
+            });
+          }
         } else {
           setReferenceClothing({});
         }

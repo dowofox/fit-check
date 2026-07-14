@@ -45,6 +45,7 @@ const {
   countValidProfileMeasurements,
   validateProfileMeasurementInputs,
 } = require("../utils/profileMeasurements.ts");
+const { pruneReferenceClothing } = require("../utils/storage.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -336,4 +337,25 @@ test("상품 실측 행 삭제는 선택한 사이즈만 제거하고 나머지 
     nextRows.map((row) => row.displaySize),
     ["M", "XL(33~34)"]
   );
+});
+
+test("기준 옷 참조는 옷장에 남아 있는 ID만 유지한다", () => {
+  const referenceClothing = pruneReferenceClothing(
+    {
+      topItemId: "top",
+      bottomItemId: "deleted-bottom",
+      outerItemId: "outer",
+      shoesItemId: "",
+    },
+    [
+      { id: "top" },
+      { id: "outer" },
+      { id: "unrelated" },
+    ]
+  );
+
+  assert.deepEqual(referenceClothing, {
+    topItemId: "top",
+    outerItemId: "outer",
+  });
 });
