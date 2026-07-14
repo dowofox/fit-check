@@ -244,45 +244,62 @@ export default function ClosetScreen() {
                                 </View>
                             </View>
                         ) : (
-                        <View style={styles.closetGrid}>
-                            {filteredItems.map((item) => {
-                                const reviewLabel = getRecommendationInfoReviewLabel(item);
+                            <View style={styles.closetGrid}>
+                                {filteredItems.map((item) => {
+                                    const reviewLabel = getRecommendationInfoReviewLabel(item);
 
-                                return (
-                                    <Pressable
-                                        key={item.id}
-                                        style={styles.closetCard}
-                                        onPress={() => router.push({
-                                            pathname: "/clothes-detail",
-                                            params: { id: item.id },
-                                        })}
-                                        onLongPress={() => handleDeleteItem(item.id)}
-                                    >
-                                        <View style={styles.imageBox}>
-                                            <ClosetItemImage
-                                                item={item}
-                                                style={styles.closetImage}
-                                                contentFit="contain"
-                                            />
-                                            {reviewLabel ? (
-                                                <View style={styles.infoReviewBadge}>
-                                                    <Feather name="alert-circle" size={11} color={colors.warning} />
-                                                    <Text style={styles.infoReviewBadgeText}>{reviewLabel}</Text>
-                                                </View>
-                                            ) : null}
-                                        </View>
+                                    return (
+                                        <Pressable
+                                            key={item.id}
+                                            style={styles.closetCard}
+                                            onPress={() => router.push({
+                                                pathname: "/clothes-detail",
+                                                params: { id: item.id },
+                                            })}
+                                            onLongPress={() => handleDeleteItem(item.id)}
+                                        >
+                                            <View style={styles.imageBox}>
+                                                <ClosetItemImage
+                                                    item={item}
+                                                    style={styles.closetImage}
+                                                    contentFit="contain"
+                                                />
+                                                {reviewLabel ? (
+                                                    <Pressable
+                                                        accessibilityRole="button"
+                                                        accessibilityLabel={`${reviewLabel} 정보 수정`}
+                                                        style={styles.infoReviewBadge}
+                                                        onPress={(event) => {
+                                                            event.stopPropagation();
+                                                            router.push({
+                                                                pathname: "/clothes-detail",
+                                                                params: {
+                                                                    id: item.id,
+                                                                    openEdit:
+                                                                        reviewLabel === "계절 확인"
+                                                                            ? "season"
+                                                                            : "1",
+                                                                },
+                                                            });
+                                                        }}
+                                                    >
+                                                        <Feather name="alert-circle" size={11} color={colors.warning} />
+                                                        <Text style={styles.infoReviewBadgeText}>{reviewLabel}</Text>
+                                                    </Pressable>
+                                                ) : null}
+                                            </View>
 
-                                        <Text style={styles.closetCategory} numberOfLines={1}>
-                                            {getItemTitle(item)}
-                                        </Text>
+                                            <Text style={styles.closetCategory} numberOfLines={1}>
+                                                {getItemTitle(item)}
+                                            </Text>
 
-                                        <Text style={styles.closetSubText} numberOfLines={1}>
-                                            {formatDate(item.createdAt)}
-                                        </Text>
-                                    </Pressable>
-                                );
-                            })}
-                        </View>
+                                            <Text style={styles.closetSubText} numberOfLines={1}>
+                                                {formatDate(item.createdAt)}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
                         )}
                     </View>
                 )}

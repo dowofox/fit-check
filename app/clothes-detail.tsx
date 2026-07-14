@@ -1963,9 +1963,10 @@ function FitSuitabilityCard({
 }
 
 export default function ClothesDetailScreen() {
-  const { id, openMeasurement } = useLocalSearchParams<{
+  const { id, openMeasurement, openEdit } = useLocalSearchParams<{
     id?: string;
     openMeasurement?: string;
+    openEdit?: string;
   }>();
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [referenceItem, setReferenceItem] = useState<ClosetItem | null>(null);
@@ -1991,6 +1992,8 @@ export default function ClothesDetailScreen() {
   );
   const heroImageTimerRef = useRef<PerformanceTimer>(null);
   const shouldOpenMeasurementRef = useRef(openMeasurement === "1");
+  const shouldOpenEditRef = useRef(Boolean(openEdit));
+  const shouldPrioritizeSeasonEdit = openEdit === "season";
 
   useFocusEffect(
     useCallback(() => {
@@ -2016,6 +2019,11 @@ export default function ClothesDetailScreen() {
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
           setConfirmedProductDraft(getConfirmedProductDraft(selectedItem));
+
+          if (shouldOpenEditRef.current) {
+            setEditMode(true);
+            shouldOpenEditRef.current = false;
+          }
 
           if (
             shouldOpenMeasurementRef.current &&
@@ -2800,6 +2808,14 @@ export default function ClothesDetailScreen() {
                       직접 수정한 정보는 상품 링크나 사진 분석보다 우선 적용돼요.
                     </Text>
                   </View>
+                  {shouldPrioritizeSeasonEdit ? (
+                    <MultiChipGroup
+                      label="입기 좋은 계절"
+                      values={draft.seasons}
+                      options={SEASON_OPTIONS}
+                      onSelect={updateDraftSeasons}
+                    />
+                  ) : null}
                   <ChipGroup
                     label="종류"
                     value={draft.category}
@@ -2838,12 +2854,14 @@ export default function ClothesDetailScreen() {
                     options={STYLE_TAG_OPTIONS}
                     onSelect={updateDraftStyleTags}
                   />
-                  <MultiChipGroup
-                    label="계절"
-                    values={draft.seasons}
-                    options={SEASON_OPTIONS}
-                    onSelect={updateDraftSeasons}
-                  />
+                  {!shouldPrioritizeSeasonEdit ? (
+                    <MultiChipGroup
+                      label="계절"
+                      values={draft.seasons}
+                      options={SEASON_OPTIONS}
+                      onSelect={updateDraftSeasons}
+                    />
+                  ) : null}
                   <EditRow
                     label="핏"
                     value={draft.fit}
