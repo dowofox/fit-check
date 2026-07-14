@@ -2,10 +2,12 @@ import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
 import { normalizeClosetRegistrationBasics } from "@/utils/closetRegistration";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
+import { getSavedOutfitUsageCount } from "@/utils/savedOutfitIntegrity";
 import {
     ClosetItem,
     deleteClosetItem,
     getClosetItems,
+    getSavedOutfits,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
@@ -98,10 +100,16 @@ export default function ClosetScreen() {
             (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
         );
 
-    function handleDeleteItem(id: string) {
+    async function handleDeleteItem(id: string) {
+        const savedOutfits = await getSavedOutfits();
+        const savedOutfitUsageCount = getSavedOutfitUsageCount(savedOutfits, id);
+        const description = savedOutfitUsageCount > 0
+            ? `저장한 코디 ${savedOutfitUsageCount}개에 포함된 옷이에요. 삭제 후 해당 코디에는 찾을 수 없는 옷으로 표시돼요.`
+            : "삭제하면 옷장에서 바로 사라져요.";
+
         Alert.alert(
             "옷을 삭제할까요?",
-            "삭제하면 옷장에서 바로 사라져요.",
+            description,
             [
                 { text: "취소", style: "cancel" },
                 {

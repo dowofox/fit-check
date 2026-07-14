@@ -36,7 +36,10 @@ const {
   MIN_DISPLAY_RECOMMENDATION_SCORE,
 } = require("../utils/outfitRecommend.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
-const { matchSavedOutfitsWithCloset } = require("../utils/savedOutfitIntegrity.ts");
+const {
+  getSavedOutfitUsageCount,
+  matchSavedOutfitsWithCloset,
+} = require("../utils/savedOutfitIntegrity.ts");
 const { getSavedOutfitItemIds } = require("../utils/recommendationInput.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
@@ -331,4 +334,15 @@ test("새 추천 제외에는 현재 옷장에 모든 아이템이 남은 저장
   ];
 
   assert.deepEqual(getSavedOutfitItemIds(savedOutfits, wardrobe), [completeIds]);
+});
+
+test("옷 삭제 전 해당 아이템을 사용하는 저장 코디 수를 계산한다", () => {
+  const savedOutfits = [
+    { id: "one", itemIds: ["top", "bottom"] },
+    { id: "two", itemIds: ["top", "shoes"] },
+    { id: "three", itemIds: ["outer", "bottom"] },
+  ];
+
+  assert.equal(getSavedOutfitUsageCount(savedOutfits, "top"), 2);
+  assert.equal(getSavedOutfitUsageCount(savedOutfits, "missing"), 0);
 });

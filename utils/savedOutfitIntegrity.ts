@@ -24,3 +24,10 @@ export function matchSavedOutfitsWithCloset(
     return { ...outfit, items, missingItemIds };
   });
 }
+
+export function getSavedOutfitUsageCount(
+  savedOutfits: SavedOutfit[],
+  itemId: string
+) {
+  return savedOutfits.filter((outfit) => outfit.itemIds.includes(itemId)).length;
+}
