@@ -825,11 +825,20 @@ function extractPrice(html) {
 }
 
 function normalizeProductSizeNumber(value) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : undefined;
+  }
   if (typeof value !== "string") return undefined;
 
-  const normalized = Number(value.replace(/[^0-9.]/g, ""));
-  return Number.isFinite(normalized) ? normalized : undefined;
+  const trimmedValue = value.trim();
+  if (!trimmedValue || /^[-–—−]\s*\d/.test(trimmedValue)) return undefined;
+
+  const decimalNormalized = trimmedValue.replace(/(\d),(\d{1,2})(?!\d)/g, "$1.$2");
+  const numericTokens = decimalNormalized.match(/\d+(?:\.\d+)?/g) || [];
+  if (numericTokens.length !== 1) return undefined;
+
+  const normalized = Number(numericTokens[0]);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : undefined;
 }
 
 function normalizeExtractedBrand(value) {
@@ -986,7 +995,7 @@ function hasProductSizeMeasurements(sizeMeasurement) {
     sizeMeasurement.rise,
     sizeMeasurement.hem,
     sizeMeasurement.footLength,
-  ].some((value) => typeof value === "number" && Number.isFinite(value));
+  ].some((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
 }
 
 function logInvalidSizeRow(reason, row, normalizedRow) {

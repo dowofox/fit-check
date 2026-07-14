@@ -377,6 +377,26 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-number-format") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <meta property="og:image" content="/images/decimal-pants.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"소수 실측 팬츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/decimal-pants.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>허리단면</th><th>엉덩이단면</th><th>허벅지단면</th><th>밑단</th></tr>
+        <tr><td>M</td><td>105,5 cm</td><td>41.5 cm</td><td>52 cm</td><td>34~36 cm</td><td>0</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/size-free-aliases") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -600,6 +620,14 @@ async function main() {
     assert.equal(circumferenceMeasurement.hip, 52);
     assert.equal(genericMeasurement.waist, 41);
     assert.equal(genericMeasurement.hip, 52);
+
+    const numberFormat = await extract("/size-number-format");
+    const formattedMeasurement = numberFormat.body.productSizeGuide.sizes[0];
+    assert.equal(formattedMeasurement.totalLength, 105.5);
+    assert.equal(formattedMeasurement.waist, 41.5);
+    assert.equal(formattedMeasurement.hip, 52);
+    assert.equal(formattedMeasurement.thigh, undefined);
+    assert.equal(formattedMeasurement.hem, undefined);
 
     const freeAliases = await extract("/size-free-aliases");
     assert.deepEqual(
