@@ -1,5 +1,6 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { deleteAnalysis, getAnalysisHistory } from "@/utils/storage";
+import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -17,24 +18,14 @@ function formatDate(createdAt?: string) {
   return `${year}.${month}.${day} ${hour}:${minute}`;
 }
 
-function getRiskStyle(riskLevel?: string) {
-  const risk = String(riskLevel ?? "");
-  if (risk.includes("낮음")) return { backgroundColor: "#edf6df", dotColor: "#84cc16", textColor: "#3f6212" };
-  if (risk.includes("높음")) return { backgroundColor: "#fee2e2", dotColor: "#ef4444", textColor: "#991b1b" };
-  return { backgroundColor: "#fff3d6", dotColor: "#f59e0b", textColor: "#92400e" };
-}
-
-function getScoreColor(score?: number | string) {
-  const numericScore = Number(score);
-  if (numericScore >= 90) return "#b88932";
-  if (numericScore >= 80) return "#111";
-  if (numericScore >= 70) return "#2b2b2b";
-  return "#dc2626";
+function getCreatedAtTime(createdAt?: string) {
+  if (!createdAt) return 0;
+  const time = new Date(createdAt).getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState<any[]>([]);
-  const [sortType, setSortType] = useState<"recent" | "score">("recent");
   const [openedMenuId, setOpenedMenuId] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
@@ -50,13 +41,10 @@ export default function HistoryScreen() {
   );
 
   const sortedHistory = useMemo(() => {
-    if (sortType === "score") return [...history].sort((a, b) => Number(b.score) - Number(a.score));
-    return history;
-  }, [history, sortType]);
+    return [...history].sort((a, b) => getCreatedAtTime(b.createdAt) - getCreatedAtTime(a.createdAt));
+  }, [history]);
 
   const totalCount = history.length;
-  const highestScore = totalCount > 0 ? Math.max(...history.map((item) => Number(item.score))) : 0;
-  const averageScore = totalCount > 0 ? Math.round(history.reduce((sum, item) => sum + Number(item.score), 0) / totalCount) : 0;
 
   const handleDelete = (id: string) => {
     Alert.alert("기록 삭제", "이 코디 기록을 삭제할까요?", [
@@ -96,41 +84,13 @@ export default function HistoryScreen() {
 
         <View style={styles.listPanel}>
           <View style={styles.statsCard}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{totalCount}</Text>
-              <Text style={styles.statLabel}>분석</Text>
+            <View style={styles.statsIconCircle}>
+              <Feather name="archive" size={20} color="#8C6F47" />
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{highestScore}</Text>
-              <Text style={styles.statLabel}>최고</Text>
+            <View style={styles.statsCopy}>
+              <Text style={styles.statValue}>{totalCount}개의 코디 분석</Text>
+              <Text style={styles.statLabel}>최근 기록부터 변화를 살펴보세요.</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{averageScore}</Text>
-              <Text style={styles.statLabel}>평균</Text>
-            </View>
-          </View>
-
-          <View style={styles.filterRow}>
-            <Pressable
-              style={[styles.filterButton, sortType === "recent" && styles.activeFilterButton]}
-              onPress={() => {
-                setSortType("recent");
-                setOpenedMenuId(null);
-              }}
-            >
-              <Text style={[styles.filterText, sortType === "recent" && styles.activeFilterText]}>최근 순</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.filterButton, sortType === "score" && styles.activeFilterButton]}
-              onPress={() => {
-                setSortType("score");
-                setOpenedMenuId(null);
-              }}
-            >
-              <Text style={[styles.filterText, sortType === "score" && styles.activeFilterText]}>높은 점수순</Text>
-            </Pressable>
           </View>
 
           {history.length === 0 ? (
@@ -141,9 +101,9 @@ export default function HistoryScreen() {
             </View>
           ) : (
             sortedHistory.map((item) => {
-              const riskStyle = getRiskStyle(item.riskLevel);
-              const scoreColor = getScoreColor(item.score);
               const isMenuOpen = openedMenuId === item.id;
+              const summary = String(item.summary || "코디 요약을 불러오지 못했어요.");
+              const improvement = String(item.improvement || item.problems || "다음 분석에서 개선점을 확인해보세요.");
               return (
                 <Pressable
                   key={item.id}
@@ -158,16 +118,15 @@ export default function HistoryScreen() {
                 >
                   <Image source={{ uri: item.imageUri }} style={styles.image} />
                   <View style={styles.info}>
-                    <Text style={styles.date}>□ {formatDate(item.createdAt)}</Text>
-                    <View style={styles.scoreRow}>
-                      <Text style={[styles.score, { color: scoreColor }]}>{item.score}</Text>
-                      <Text style={[styles.scoreUnit, { color: scoreColor }]}>점</Text>
+                    <View style={styles.dateRow}>
+                      <Feather name="clock" size={12} color="#8c8c8c" />
+                      <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
                     </View>
-                    <View style={[styles.riskPill, { backgroundColor: riskStyle.backgroundColor }]}> 
-                      <View style={[styles.riskDot, { backgroundColor: riskStyle.dotColor }]} />
-                      <Text style={[styles.risk, { color: riskStyle.textColor }]}>실패 위험 {item.riskLevel}</Text>
+                    <Text style={styles.summary} numberOfLines={3}>{summary}</Text>
+                    <View style={styles.improvementBox}>
+                      <Text style={styles.improvementLabel}>다음에 바꿔볼 점</Text>
+                      <Text style={styles.improvementText} numberOfLines={2}>{improvement}</Text>
                     </View>
-                    <Text style={styles.summary} numberOfLines={2}>{item.summary}</Text>
                   </View>
                   <View style={styles.actionArea}>
                     {isMenuOpen && (
@@ -218,32 +177,25 @@ const styles = StyleSheet.create({
   heroGhostText: { position: "absolute", right: 18, top: 10, color: "#ede8e1", fontSize: 54, fontWeight: "900", letterSpacing: 2 },
   heroStar: { position: "absolute", right: 24, top: 30, color: "#111", fontSize: 19 },
   listPanel: { backgroundColor: "#fff", borderTopLeftRadius: 34, borderTopRightRadius: 34, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 24, minHeight: 540 },
-  statsCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", backgroundColor: "#faf8f5", borderRadius: 24, paddingVertical: 14, marginBottom: 14, borderWidth: 1, borderColor: "#f0eee9" },
-  statItem: { flex: 1, alignItems: "center" },
-  statValue: { fontSize: 23, fontWeight: "900", color: "#111" },
-  statLabel: { marginTop: 3, fontSize: 12, fontWeight: "900", color: "#8c8175" },
-  statDivider: { width: 1, height: 28, backgroundColor: "#e7e1d8" },
-  filterRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", backgroundColor: "#f6f3ef", borderRadius: 999, padding: 5, marginBottom: 18 },
-  filterButton: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 999 },
-  activeFilterButton: { backgroundColor: "#111" },
-  filterText: { color: "#777", fontSize: 14, fontWeight: "900" },
-  activeFilterText: { color: "#fff" },
+  statsCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#faf8f5", borderRadius: 24, padding: 16, marginBottom: 18, borderWidth: 1, borderColor: "#f0eee9" },
+  statsIconCircle: { width: 42, height: 42, borderRadius: 999, backgroundColor: "#F4EEE7", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  statsCopy: { flex: 1, minWidth: 0 },
+  statValue: { fontSize: 18, fontWeight: "800", color: "#111" },
+  statLabel: { marginTop: 3, fontSize: 12, lineHeight: 18, fontWeight: "600", color: "#8c8175" },
   emptyCard: { backgroundColor: "#fff", borderRadius: 24, padding: 34, alignItems: "center", borderWidth: 1, borderColor: "#f0eee9" },
   emptyIcon: { fontSize: 38, color: "#cbb89c", marginBottom: 12 },
   emptyTitle: { fontSize: 20, fontWeight: "900", color: "#111", marginBottom: 8 },
   emptyText: { fontSize: 14, color: "#777", lineHeight: 21, textAlign: "center" },
-  card: { backgroundColor: "#fff", borderRadius: 24, padding: 12, marginBottom: 18, flexDirection: "row", gap: 14, alignItems: "center", borderWidth: 1, borderColor: "#f0eee9", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 3 },
-  image: { width: 96, height: 126, borderRadius: 18, backgroundColor: "#ddd" },
-  info: { flex: 1 },
-  date: { fontSize: 12, fontWeight: "900", color: "#8c8c8c", marginBottom: 4 },
-  scoreRow: { flexDirection: "row", alignItems: "flex-end" },
-  score: { fontSize: 34, fontWeight: "900", letterSpacing: -1 },
-  scoreUnit: { fontSize: 17, fontWeight: "900", marginBottom: 5, marginLeft: 3 },
-  riskPill: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, marginTop: 5 },
-  riskDot: { width: 7, height: 7, borderRadius: 999, marginRight: 6 },
-  risk: { fontSize: 12, fontWeight: "900" },
-  summary: { fontSize: 14, color: "#555", lineHeight: 21, marginTop: 9, fontWeight: "600" },
-  actionArea: { width: 58, alignItems: "flex-end", gap: 8 },
+  card: { backgroundColor: "#fff", borderRadius: 24, padding: 12, marginBottom: 16, flexDirection: "row", gap: 14, alignItems: "flex-start", borderWidth: 1, borderColor: "#f0eee9", shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.035, shadowRadius: 12, elevation: 2 },
+  image: { width: 96, height: 132, borderRadius: 18, backgroundColor: "#ddd" },
+  info: { flex: 1, minWidth: 0, paddingVertical: 3 },
+  dateRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 7 },
+  date: { fontSize: 12, fontWeight: "700", color: "#8c8c8c" },
+  summary: { fontSize: 15, color: "#222", lineHeight: 22, fontWeight: "700" },
+  improvementBox: { backgroundColor: "#F4EEE7", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, marginTop: 9 },
+  improvementLabel: { color: "#8C6F47", fontSize: 10, fontWeight: "800", marginBottom: 3 },
+  improvementText: { color: "#5f5a55", fontSize: 12, lineHeight: 17, fontWeight: "600" },
+  actionArea: { width: 42, alignItems: "flex-end", gap: 8 },
   menuButton: { backgroundColor: "#faf8f5", width: 42, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#ebe3d8" },
   activeMenuButton: { backgroundColor: "#111", borderColor: "#111" },
   menuButtonText: { color: "#8c8175", fontSize: 18, fontWeight: "900", lineHeight: 18, marginTop: -5 },
