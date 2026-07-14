@@ -1222,7 +1222,7 @@ const MATERIAL_DEFINITIONS = [
   { name: "폴리우레탄", aliases: ["폴리우레탄", "스판덱스", "스판", "span", "polyurethane", "elastane"] },
   { name: "폴리에스터", aliases: ["폴리에스터", "폴리에스테르", "polyester", "poly"] },
   { name: "레이온", aliases: ["레이온", "rayon", "viscose"] },
-  { name: "나일론", aliases: ["나일론", "nylon"] },
+  { name: "나일론", aliases: ["나일론", "nylon", "polyamide"] },
   { name: "아크릴", aliases: ["아크릴", "acrylic"] },
   { name: "린넨", aliases: ["린넨", "linen", "마"] },
   { name: "면", aliases: ["코튼", "cotton", "면"] },
@@ -1280,12 +1280,30 @@ function escapeRegularExpression(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function matchesMaterialAlias(value, alias) {
+  const normalizedAlias = String(alias || "").trim().toLowerCase();
+  if (!normalizedAlias) return false;
+
+  const escapedAlias = escapeRegularExpression(normalizedAlias);
+  if (/^[a-z]+$/.test(normalizedAlias)) {
+    return new RegExp(`(?:^|[^a-z])${escapedAlias}(?:$|[^a-z])`, "i").test(value);
+  }
+  if (normalizedAlias.length === 1) {
+    return new RegExp(
+      `(?:^|[\\s,/:()])${escapedAlias}(?=$|[\\s,/:()%\\d])`,
+      "i",
+    ).test(value);
+  }
+
+  return value.includes(normalizedAlias);
+}
+
 function normalizeMaterialName(value) {
   const normalizedValue = String(value || "").trim().toLowerCase();
   if (!normalizedValue) return "";
 
   const definition = MATERIAL_DEFINITIONS.find(({ aliases }) =>
-    aliases.some((alias) => normalizedValue.includes(alias.toLowerCase())),
+    aliases.some((alias) => matchesMaterialAlias(normalizedValue, alias)),
   );
 
   return definition?.name || "";

@@ -126,6 +126,22 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (["/microfiber-material", "/polyamide-material"].includes(request.url)) {
+    const isPolyamide = request.url === "/polyamide-material";
+    const materialName = isPolyamide ? "polyamide" : "마이크로화이버";
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"${isPolyamide ? "나일론 윈드브레이커" : "마이크로화이버 셔츠"}",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "material":[{"name":"${materialName}","percentage":100}],
+        "image":"/images/${isPolyamide ? "nylon-windbreaker" : "microfiber-shirt"}.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/related-first") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -312,6 +328,15 @@ async function main() {
     assert.equal(brandArray.response.status, 200);
     assert.equal(brandArray.body.brand, "NAES / COLLAB");
 
+    const microfiberMaterial = await extract("/microfiber-material");
+    assert.equal(microfiberMaterial.response.status, 200);
+    assert.equal(microfiberMaterial.body.materialComposition, undefined);
+    assert.ok(microfiberMaterial.body.missingFields.includes("materialComposition"));
+
+    const polyamideMaterial = await extract("/polyamide-material");
+    assert.equal(polyamideMaterial.response.status, 200);
+    assert.equal(polyamideMaterial.body.materialComposition.summary, "나일론 100%");
+
     const metaImageFallback = await extract("/meta-image");
     assert.equal(metaImageFallback.response.status, 200);
     assert.equal(metaImageFallback.body.productColor, "네이비");
@@ -367,7 +392,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 14개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 16개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);
