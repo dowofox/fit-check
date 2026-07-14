@@ -296,6 +296,13 @@ async function main() {
     assert.equal(categoryFallbackTarget.subCategory, "팬츠");
     assert.equal(
       getProductAnalysisTarget({
+        productName: "TWO TUCK WIDE",
+        productCategory: "Apparel > Bottoms > Pants",
+      }).category,
+      "하의"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
         productName: "LOOK 2026",
         productCategory: "Apparel > Shirts",
       }).category,

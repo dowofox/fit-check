@@ -129,7 +129,7 @@ const fixtureServer = http.createServer((request, response) => {
         "name":"투턱 와이드 팬츠",
         "url":"/related-first",
         "brand":{"@type":"Brand","name":"NAES"},
-        "category":"Pants",
+        "category":["Apparel","Bottoms","Pants"],
         "color":"Navy",
         "image":"/images/main-pants.jpg"
       }</script>
@@ -250,7 +250,7 @@ async function main() {
     assert.equal(relatedFirst.response.status, 200);
     assert.equal(relatedFirst.body.productName, "투턱 와이드 팬츠");
     assert.equal(relatedFirst.body.brand, "NAES");
-    assert.equal(relatedFirst.body.productCategory, "Pants");
+    assert.equal(relatedFirst.body.productCategory, "Apparel > Bottoms > Pants");
     assert.equal(
       relatedFirst.body.productImageUrl,
       `http://127.0.0.1:${fixturePort}/images/main-pants.jpg`

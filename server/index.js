@@ -622,21 +622,24 @@ function getStructuredProductData(html, productUrl) {
       .filter(Boolean);
     const uniqueColorValues = [...new Set(colorValues)];
     const color = uniqueColorValues.length === 1 ? uniqueColorValues[0] : "";
-    const categoryValue = Array.isArray(product.category)
-      ? product.category[0]
-      : product.category;
-    const category =
-      typeof categoryValue === "string"
-        ? categoryValue
-        : typeof categoryValue?.name === "string"
-          ? categoryValue.name
-          : "";
+    const categoryValues = (Array.isArray(product.category)
+      ? product.category
+      : [product.category])
+      .map((categoryValue) =>
+        typeof categoryValue === "string"
+          ? categoryValue.trim()
+          : typeof categoryValue?.name === "string"
+            ? categoryValue.name.trim()
+            : ""
+      )
+      .filter(Boolean);
+    const category = [...new Set(categoryValues)].join(" > ");
     const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
 
     return {
       name: typeof product.name === "string" ? product.name.trim() : "",
       brand: brand.trim(),
-      category: category.trim(),
+      category,
       color,
       image: image.trim(),
       price:
