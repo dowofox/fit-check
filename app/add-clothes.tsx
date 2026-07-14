@@ -568,6 +568,11 @@ async function saveAnalyzedClosetItem(
     avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
     createdAt: new Date().toISOString(),
   });
+
+  return {
+    needsSeasonReview:
+      analysis.seasonNeedsReview === true || registration.reviewFields.includes("season"),
+  };
 }
 
 export default function AddClothesScreen() {
@@ -837,6 +842,7 @@ export default function AddClothesScreen() {
 
     let savedCount = 0;
     let failedCount = 0;
+    let seasonReviewCount = 0;
 
     try {
       setIsSaving(true);
@@ -847,8 +853,9 @@ export default function AddClothesScreen() {
 
         try {
           const analysis = await requestClothesAnalysis(selectedImage.uri);
-          await saveAnalyzedClosetItem(selectedImage.uri, analysis);
+          const saveResult = await saveAnalyzedClosetItem(selectedImage.uri, analysis);
           savedCount += 1;
+          if (saveResult.needsSeasonReview) seasonReviewCount += 1;
         } catch (error) {
           failedCount += 1;
           console.error("[add-clothes] batch item failed", {
@@ -862,6 +869,27 @@ export default function AddClothesScreen() {
       setProgressText(`완료: ${savedCount}/${selectedImages.length} 저장`);
 
       if (savedCount > 0) {
+        if (seasonReviewCount > 0) {
+          const failedMessage = failedCount > 0 ? `, ${failedCount}개 실패` : "";
+
+          Alert.alert(
+            "일괄 저장 완료",
+            `${savedCount}개 저장${failedMessage}했어요. 계절 확인이 필요한 옷이 ${seasonReviewCount}개 있어요.`,
+            [
+              { text: "나중에", onPress: () => router.replace("/closet") },
+              {
+                text: "확인하러 가기",
+                onPress: () =>
+                  router.replace({
+                    pathname: "/closet",
+                    params: { category: "확인 필요" },
+                  }),
+              },
+            ]
+          );
+          return;
+        }
+
         if (failedCount > 0) {
           Alert.alert("일괄 저장 완료", `${savedCount}개 저장, ${failedCount}개 실패했어요.`);
         }
