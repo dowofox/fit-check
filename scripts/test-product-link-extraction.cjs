@@ -156,6 +156,32 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url?.startsWith("/canonical-product")) {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@graph":[
+          {
+            "@type":"Product",
+            "name":"연관 상품 재킷",
+            "url":"/related-product",
+            "brand":{"@type":"Brand","name":"OTHER"},
+            "image":"/images/related-product.jpg"
+          },
+          {
+            "@type":"Product",
+            "name":"공유 링크 와이드 팬츠",
+            "url":"/canonical-product",
+            "brand":{"@type":"Brand","name":"NAES"},
+            "category":"Pants",
+            "image":"/images/canonical-pants.jpg"
+          }
+        ]
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (["/size-flat", "/size-circumference", "/size-generic"].includes(request.url)) {
     const waistHeader = request.url === "/size-flat"
       ? "허리단면"
@@ -264,6 +290,11 @@ async function main() {
     assert.equal(multiColorWithoutSelection.response.status, 200);
     assert.equal(multiColorWithoutSelection.body.productColor, "");
 
+    const canonicalProduct = await extract("/canonical-product?utm_source=share");
+    assert.equal(canonicalProduct.response.status, 200);
+    assert.equal(canonicalProduct.body.productName, "공유 링크 와이드 팬츠");
+    assert.equal(canonicalProduct.body.brand, "NAES");
+
     const flatSize = await extract("/size-flat");
     const circumferenceSize = await extract("/size-circumference");
     const genericSize = await extract("/size-generic");
@@ -282,7 +313,7 @@ async function main() {
     assert.equal(unsupported.response.status, 422);
     assert.equal(unsupported.body.error, "unsupported_product_page");
 
-    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 11개 통과");
+    console.log("상품 링크 지원 범위 및 실측 기준 회귀 테스트 12개 통과");
   } finally {
     apiProcess.kill();
     await close(fixtureServer);

@@ -549,6 +549,17 @@ function normalizeComparableProductUrl(value, baseUrl) {
   }
 }
 
+function getComparableProductPath(value, baseUrl) {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  try {
+    const url = new URL(value, baseUrl);
+    return `${url.origin}${url.pathname}`.replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+}
+
 function scoreStructuredProductCandidate(candidate, productUrl) {
   const { product, depth, path } = candidate;
   const normalizedPath = path.join(".").toLowerCase();
@@ -557,6 +568,8 @@ function scoreStructuredProductCandidate(candidate, productUrl) {
     productUrl
   );
   const currentUrl = normalizeComparableProductUrl(productUrl, productUrl);
+  const candidatePath = getComparableProductPath(candidateUrl, productUrl);
+  const currentPath = getComparableProductPath(currentUrl, productUrl);
   let score = 0;
 
   if (depth === 0) score += 100;
@@ -569,7 +582,11 @@ function scoreStructuredProductCandidate(candidate, productUrl) {
   ) {
     score -= 120;
   }
-  if (candidateUrl && currentUrl && candidateUrl === currentUrl) score += 140;
+  if (candidateUrl && currentUrl && candidateUrl === currentUrl) {
+    score += 140;
+  } else if (candidatePath && currentPath && candidatePath === currentPath) {
+    score += 120;
+  }
   if (typeof product.name === "string" && product.name.trim()) score += 20;
   if (product.image) score += 10;
   if (product.brand) score += 5;
