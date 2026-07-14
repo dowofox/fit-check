@@ -2725,6 +2725,10 @@ export default function ClothesDetailScreen() {
   const shouldShowFitSuitabilityCard = Boolean(
     fitSuitability &&
       !(
+        fitSuitability.blockedReason === "missing_profile_measurements" &&
+        (sizeRecommendation?.sizeRecommendations.length || 0) > 0
+      ) &&
+      !(
         sizeRecommendation?.blockedReason === "missing_product_measurements" ||
         sizeRecommendation?.blockedReason === "missing_profile_measurements"
       )
