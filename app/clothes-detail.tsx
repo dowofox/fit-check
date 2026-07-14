@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from "@/utils/api";
+import { normalizeProductColor } from "@/utils/color";
 import {
   getClosetItemReviewFields,
   getRegistrationReviewLabels,
@@ -2317,7 +2318,7 @@ export default function ClothesDetailScreen() {
 
     try {
       const confirmedBrand = confirmedProduct.brand.trim();
-      const confirmedColor = confirmedProduct.productColor?.trim();
+      const confirmedColor = normalizeProductColor(confirmedProduct.productColor);
       const confirmedMaterial = confirmedProduct.materialComposition?.summary?.trim();
       const currentMaterial = item.material?.trim() || "";
       const previousConfirmedMaterial =

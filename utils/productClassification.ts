@@ -7,6 +7,7 @@ import {
   PRODUCT_CATEGORY_FALLBACK_RULES,
   PRODUCT_CLASSIFICATION_RULES,
 } from "@/utils/productClassificationRules";
+import { normalizeProductColor } from "@/utils/color";
 
 export type ProductClassificationInput = {
   productName?: string;
@@ -217,7 +218,7 @@ export function getProductAnalysisTarget(
   const classification = inferProductAttributesFromConfirmedProduct(input);
   const productName = input.productName?.trim() || undefined;
   const brand = input.brand?.trim() || undefined;
-  const color = input.productColor?.trim() || undefined;
+  const color = normalizeProductColor(input.productColor);
 
   return {
     productName,

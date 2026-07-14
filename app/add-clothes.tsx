@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from "@/utils/api";
+import { normalizeProductColor } from "@/utils/color";
 import {
   getRegistrationReviewLabels,
   normalizeClosetRegistrationBasics,
@@ -416,7 +417,7 @@ function createProductFallbackAnalysis(product: ExtractedProduct): ClothesAnalys
     category: classification.category || "기타",
     subCategory: classification.subCategory || "분류 확인 필요",
     detailCategory: classification.detailCategory || "상세 종류 확인 필요",
-    color: product.productColor || "색상 확인 필요",
+    color: normalizeProductColor(product.productColor) || "색상 확인 필요",
     style: styleTags[0],
     styleTags,
     season: seasonInference?.seasons.join(", ") || "",

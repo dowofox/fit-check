@@ -80,6 +80,7 @@ const {
   getClosetItemReviewFields,
   normalizeClosetRegistrationBasics,
 } = require("../utils/closetRegistration.ts");
+const { normalizeProductColor } = require("../utils/color.ts");
 const {
   toRecommendationInputItem,
   toRecommendationInputItems,
@@ -192,6 +193,10 @@ async function main() {
     seasons: ["봄", "가을"],
   });
   assert.deepEqual(validRegistration.reviewFields, []);
+  assert.equal(normalizeProductColor("BLACK"), "블랙");
+  assert.equal(normalizeProductColor("OFF WHITE"), "아이보리");
+  assert.equal(normalizeProductColor("GREYISH BLUE"), "블루");
+  assert.equal(normalizeProductColor("STONE WASH"), "STONE WASH");
 
   const conflictedSeasonReviewFields = getClosetItemReviewFields({
     category: "아우터",
@@ -258,6 +263,16 @@ async function main() {
     assert.equal(product.brand, "NAES");
     assert.equal(product.productColor, "아이보리");
     assert.equal(product.materialComposition.summary, "린넨 55%, 면 45%");
+
+    const officialColorTarget = getProductAnalysisTarget({
+      productName: product.productName,
+      productColor: "OFF WHITE",
+    });
+    assert.equal(officialColorTarget.color, "아이보리");
+    assert.equal(
+      applyProductAnalysisTarget({ color: "블랙" }, officialColorTarget).color,
+      "아이보리"
+    );
 
     const pantsTarget = getProductAnalysisTarget({
       productName: "TWO TUCK WIDE PANTS",
