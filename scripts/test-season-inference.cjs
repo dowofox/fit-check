@@ -112,6 +112,10 @@ test("공식 계절 키워드를 품목별로 구분한다", () => {
     ["사계절"]
   );
   assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "올시즌 구스 다운 패딩" }).seasons,
+    ["겨울"]
+  );
+  assert.deepEqual(
     inferSeasonsFromOfficialProduct({ productName: "시어서커 버뮤다 팬츠" }).seasons,
     ["여름"]
   );

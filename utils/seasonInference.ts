@@ -13,11 +13,6 @@ const OFFICIAL_SEASON_RULES: Array<{
   seasons: string[];
 }> = [
   {
-    id: "explicit-all-season",
-    keywords: ["사계절", "올시즌", "all season", "all-season", "year round"],
-    seasons: ["사계절"],
-  },
-  {
     id: "deep-winter",
     keywords: [
       "패딩",
@@ -203,6 +198,11 @@ const OFFICIAL_SEASON_RULES: Array<{
     keywords: ["코트", "coat"],
     excludedKeywords: ["트렌치코트", "트렌치 코트", "trench coat"],
     seasons: ["가을", "겨울"],
+  },
+  {
+    id: "explicit-all-season",
+    keywords: ["사계절", "올시즌", "all season", "all-season", "year round"],
+    seasons: ["사계절"],
   },
 ];
 
