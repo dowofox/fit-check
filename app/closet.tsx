@@ -24,7 +24,8 @@ import {
     View,
 } from "react-native";
 
-const CLOSET_FILTERS = ["전체", "상의", "하의", "신발", "아우터", "액세서리"];
+const REVIEW_FILTER = "확인 필요";
+const CLOSET_FILTERS = ["전체", "상의", "하의", "신발", "아우터", "액세서리", REVIEW_FILTER];
 const SCREEN_HORIZONTAL_PADDING = 18;
 const GRID_GAP = 12;
 const GRID_COLUMN_COUNT = 3;
@@ -84,7 +85,9 @@ export default function ClosetScreen() {
 
     const categoryItems = selectedCategory === "전체"
         ? items
-        : items.filter((item) => item.category === selectedCategory);
+        : selectedCategory === REVIEW_FILTER
+            ? items.filter((item) => getClosetItemReviewFields(item).length > 0)
+            : items.filter((item) => item.category === selectedCategory);
     const detailFilters = [
         "전체",
         ...Array.from(new Set(
@@ -186,7 +189,9 @@ export default function ClosetScreen() {
                             })}
                         </ScrollView>
 
-                        {selectedCategory !== "전체" && detailFilters.length > 1 ? (
+                        {selectedCategory !== "전체" &&
+                        selectedCategory !== REVIEW_FILTER &&
+                        detailFilters.length > 1 ? (
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -221,11 +226,24 @@ export default function ClosetScreen() {
                         <Text style={styles.countText}>
                             {selectedCategory === "전체"
                                 ? `전체 ${items.length}개`
+                                : selectedCategory === REVIEW_FILTER
+                                    ? `${REVIEW_FILTER} ${filteredItems.length}개`
                                 : selectedDetailCategory === "전체"
                                     ? `${selectedCategory} ${filteredItems.length}개`
                                     : `${selectedDetailCategory} ${filteredItems.length}개`}
                         </Text>
 
+                        {selectedCategory === REVIEW_FILTER && filteredItems.length === 0 ? (
+                            <View style={styles.reviewCompleteCard}>
+                                <Feather name="check-circle" size={20} color={colors.point} />
+                                <View style={styles.reviewCompleteTextBox}>
+                                    <Text style={styles.reviewCompleteTitle}>확인할 옷이 없어요</Text>
+                                    <Text style={styles.reviewCompleteText}>
+                                        종류, 색상, 계절 정보가 모두 추천에 사용할 수 있는 상태예요.
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : (
                         <View style={styles.closetGrid}>
                             {filteredItems.map((item) => {
                                 const reviewLabel = getRecommendationInfoReviewLabel(item);
@@ -265,6 +283,7 @@ export default function ClosetScreen() {
                                 );
                             })}
                         </View>
+                        )}
                     </View>
                 )}
             </ScrollView>
@@ -421,6 +440,33 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         color: colors.text,
         marginBottom: 14,
+    },
+    reviewCompleteCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 10,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.card,
+    },
+    reviewCompleteTextBox: {
+        flex: 1,
+        minWidth: 0,
+    },
+    reviewCompleteTitle: {
+        color: colors.text,
+        fontSize: 14,
+        fontWeight: "800",
+    },
+    reviewCompleteText: {
+        color: colors.subText,
+        fontSize: 12,
+        lineHeight: 18,
+        fontWeight: "600",
+        marginTop: 3,
     },
     closetGrid: {
         flexDirection: "row",
