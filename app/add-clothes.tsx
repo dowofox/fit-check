@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from "@/utils/api";
 import { normalizeProductColor } from "@/utils/color";
 import {
+  getProductRegistrationReviewFields,
   getRegistrationReviewLabels,
   normalizeClosetRegistrationBasics,
   normalizeClosetSeasons,
@@ -963,10 +964,14 @@ export default function AddClothesScreen() {
       color: selectedColor || analysis.color,
       seasons: resolvedSeasons,
     });
-    const reviewFields = [...registration.reviewFields];
-    if (resolvedSeasonNeedsReview && !reviewFields.includes("season")) {
-      reviewFields.push("season");
-    }
+    const reviewFields = getProductRegistrationReviewFields({
+      category: registration.category,
+      color: registration.color,
+      seasons: registration.seasons,
+      seasonNeedsReview: resolvedSeasonNeedsReview,
+      missingOfficialFields: extractedProduct?.missingFields,
+      editedFields: manuallyEditedClassificationFields,
+    });
 
     if (!allowUncertainValues && reviewFields.length > 0) {
       Alert.alert(
@@ -1115,15 +1120,14 @@ export default function AddClothesScreen() {
   const sizeOptions = getSizeOptions(selectedCategory || analysis?.category);
   const canContinue = addMode === "manual" ? Boolean(analysis) : Boolean(imageUri);
   const registrationReviewFields = analysis
-    ? (() => {
-        const fields = normalizeClosetRegistrationBasics({
+    ? getProductRegistrationReviewFields({
         category: selectedCategory || analysis.category,
         color: selectedColor || analysis.color,
         seasons: selectedSeasons,
-        }).reviewFields;
-        if (seasonNeedsReview && !fields.includes("season")) fields.push("season");
-        return fields;
-      })()
+        seasonNeedsReview,
+        missingOfficialFields: extractedProduct?.missingFields,
+        editedFields: manuallyEditedClassificationFields,
+      })
     : [];
 
   return (

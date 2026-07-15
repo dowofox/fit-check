@@ -1,4 +1,4 @@
-import type { ClosetItem } from "@/utils/storage";
+import type { ClosetItem, ProductClassificationField } from "@/utils/storage";
 
 const SEASONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
@@ -66,6 +66,47 @@ export function normalizeClosetRegistrationBasics({
 
 export function getRegistrationReviewLabels(fields: RegistrationReviewField[]) {
   return fields.map((field) => REVIEW_FIELD_LABELS[field]);
+}
+
+export function getProductRegistrationReviewFields({
+  category,
+  color,
+  seasons,
+  seasonNeedsReview = false,
+  missingOfficialFields = [],
+  editedFields = [],
+}: ClosetRegistrationBasicsInput & {
+  seasonNeedsReview?: boolean;
+  missingOfficialFields?: string[];
+  editedFields?: ProductClassificationField[];
+}) {
+  const reviewFields = normalizeClosetRegistrationBasics({
+    category,
+    color,
+    seasons,
+  }).reviewFields;
+  const missingFields = new Set(missingOfficialFields);
+  const userEditedFields = new Set(editedFields);
+
+  const officialChecks: [RegistrationReviewField, string][] = [
+    ["category", "productCategory"],
+    ["color", "productColor"],
+  ];
+  officialChecks.forEach(([field, missingField]) => {
+    if (
+      missingFields.has(missingField) &&
+      !userEditedFields.has(field) &&
+      !reviewFields.includes(field)
+    ) {
+      reviewFields.push(field);
+    }
+  });
+
+  if (seasonNeedsReview && !reviewFields.includes("season")) {
+    reviewFields.push("season");
+  }
+
+  return reviewFields;
 }
 
 export function getClosetItemReviewFields(

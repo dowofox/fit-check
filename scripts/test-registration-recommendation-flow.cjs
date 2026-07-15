@@ -79,6 +79,7 @@ const {
 } = require("../server/productAnalysisContext.js");
 const {
   getClosetItemReviewFields,
+  getProductRegistrationReviewFields,
   normalizeClosetRegistrationBasics,
 } = require("../utils/closetRegistration.ts");
 const { normalizeProductColor } = require("../utils/color.ts");
@@ -201,6 +202,23 @@ async function main() {
     seasons: ["봄", "가을"],
   });
   assert.deepEqual(validRegistration.reviewFields, []);
+
+  const missingOfficialClassification = getProductRegistrationReviewFields({
+    category: "아우터",
+    color: "블랙",
+    seasons: ["봄", "가을"],
+    missingOfficialFields: ["productCategory", "productColor"],
+  });
+  assert.deepEqual(missingOfficialClassification, ["category", "color"]);
+
+  const confirmedOfficialClassification = getProductRegistrationReviewFields({
+    category: "하의",
+    color: "네이비",
+    seasons: ["봄", "가을"],
+    missingOfficialFields: ["productCategory", "productColor"],
+    editedFields: ["category", "color"],
+  });
+  assert.deepEqual(confirmedOfficialClassification, []);
   assert.equal(normalizeProductColor("BLACK"), "블랙");
   assert.equal(normalizeProductColor("OFF WHITE"), "아이보리");
   assert.equal(normalizeProductColor("GREYISH BLUE"), "블루");
