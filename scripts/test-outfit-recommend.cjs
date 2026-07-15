@@ -286,6 +286,42 @@ test("날씨 보정 뒤에도 기준 미달 조합은 홈 추천으로 복원하
   assert.equal(content.title, "추천할 만한 조합이 아직 부족해요");
 });
 
+test("공식 충전재가 있는 옷은 고온 날씨 추천 후보에서 제외된다", () => {
+  const filledTop = createItem("hot-weather-filled-top", "상의", {
+    detailCategory: "퀼팅 베스트",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "베이직 퀼팅 베스트",
+      confirmedAt: createdAt,
+      materialComposition: {
+        summary: "겉감: 나일론 100% / 충전재: 폴리에스터 100%",
+        items: [
+          { name: "나일론", percentage: 100, section: "outer" },
+          { name: "폴리에스터", percentage: 100, section: "filling" },
+        ],
+        source: "official",
+      },
+    },
+  });
+  const bottom = createWardrobe().find((item) => item.category === "하의");
+  const result = getOutfitRecommendationResult(
+    [filledTop, bottom],
+    null,
+    "여름",
+    [],
+    {
+      weather: {
+        temperature: 30,
+        condition: "맑음",
+        rainChance: 0,
+      },
+    }
+  );
+
+  assert.equal(result.recommendations.length, 0);
+  assert.equal(result.hasAnyRecommendation, false);
+});
+
 test("현재 계절과 맞지 않는 아이템은 충분한 계절 후보가 있을 때 제외된다", () => {
   const winterTop = createItem("top-winter", "상의", {
     detailCategory: "울 니트",

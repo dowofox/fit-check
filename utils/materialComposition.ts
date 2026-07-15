@@ -87,6 +87,13 @@ function getSignificantItems(materialComposition?: MaterialComposition) {
   );
 }
 
+function getRecommendationMaterialItemText(
+  item: NonNullable<MaterialComposition["items"]>[number]
+) {
+  const name = item.name.trim();
+  return item.section === "filling" ? `충전재 ${name}` : name;
+}
+
 export function hasMaterialSectionData(materialComposition?: MaterialComposition) {
   return getMaterialItems(materialComposition).some((item) => item.section);
 }
@@ -122,7 +129,7 @@ export function getSignificantMaterialText(
   }
 
   return materialItems
-    .map((item) => item.name.trim())
+    .map(getRecommendationMaterialItemText)
     .filter(Boolean)
     .join(" ");
 }

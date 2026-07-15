@@ -67,6 +67,7 @@ const {
 const {
   applyProductAnalysisTarget,
   getProductAnalysisTarget,
+  getRecommendationMaterialText,
   inferProductAttributesFromConfirmedProduct,
 } = require("../utils/productClassification.ts");
 const {
@@ -729,6 +730,25 @@ async function main() {
         materialComposition: trimWoolComposition,
       }).material,
       "면"
+    );
+    const filledOuter = createClosetItem("filled-outer-material", "아우터", {
+      material: "폴리에스터",
+      confirmedProduct: {
+        brand: "NAES",
+        productName: "베이직 퀼팅 재킷",
+        confirmedAt: createdAt,
+        materialComposition: {
+          summary: "겉감: 나일론 100% / 충전재: 폴리에스터 100%",
+          items: [
+            { name: "나일론", percentage: 100, section: "outer" },
+            { name: "폴리에스터", percentage: 100, section: "filling" },
+          ],
+        },
+      },
+    });
+    assert.equal(
+      getRecommendationMaterialText(filledOuter),
+      "나일론 충전재 폴리에스터"
     );
     assert.equal(
       getProductAnalysisTarget({
