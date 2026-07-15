@@ -641,6 +641,33 @@ function getSingleStructuredTextValue(values) {
   return uniqueValues.length === 1 ? uniqueValues[0] : "";
 }
 
+function getStructuredProductBrandFromProduct(product) {
+  const brand = getStructuredProductBrand(product?.brand);
+  if (brand) return brand;
+
+  const brandPropertyLabels = new Set([
+    "브랜드",
+    "브랜드명",
+    "brand",
+    "brandname",
+  ]);
+  const brandValues = (Array.isArray(product?.additionalProperty)
+    ? product.additionalProperty
+    : [product?.additionalProperty]
+  ).flatMap((property) => {
+    if (!property || typeof property !== "object") return [];
+    const label = String(
+      property.name || property.propertyID || property.propertyId || property.label || "",
+    )
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
+    if (!brandPropertyLabels.has(label)) return [];
+    return getStructuredTextValues(property.value).map(normalizeExtractedBrand);
+  });
+
+  return getSingleStructuredTextValue(brandValues.filter(Boolean));
+}
+
 function getStructuredProductColor(product) {
   const directColor = getSingleStructuredTextValue(
     getStructuredTextValues(product?.color),
@@ -745,7 +772,7 @@ function getStructuredProductData(html, productUrl) {
 
   if (product) {
 
-    const brand = getStructuredProductBrand(product.brand);
+    const brand = getStructuredProductBrandFromProduct(product);
     const image = getStructuredProductImage(product.image);
     const color = getStructuredProductColor(product);
     const category = getStructuredProductCategory(product);

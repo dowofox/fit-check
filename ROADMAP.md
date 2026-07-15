@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 111차 작업을 진행한다.
+현재 P0는 112차 작업을 진행한다.
+
+- [x] 구조화 상품의 공식 브랜드 속성 fallback
+  - `additionalProperty`의 `브랜드`, `브랜드명`, `Brand`는 고유 값이 하나일 때만 fallback으로 사용한다.
+  - 명시적인 Schema.org `brand`를 최우선으로 유지하고 여러 속성 후보는 임의로 확정하지 않는다.
+  - `manufacturer`와 제조사 속성은 소비자 브랜드와 다를 수 있으므로 브랜드로 승격하지 않는다.
+
+완료된 P0 111차 항목:
 
 - [x] 구조화 상품의 공식 카테고리 fallback
   - 명시적인 Schema.org `category`가 없을 때 `itemCategory`를 공식 분류 입력으로 사용한다.

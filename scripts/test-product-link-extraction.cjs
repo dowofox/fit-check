@@ -146,6 +146,52 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/manufacturer-brand") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"제조사 브랜드 셔츠",
+        "manufacturer":{"@type":"Organization","name":"OFFICIAL MAKER"},
+        "image":"/images/manufacturer-shirt.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
+  if (request.url === "/brand-priority") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"브랜드 우선순위 셔츠",
+        "brand":{"@type":"Brand","name":"OFFICIAL BRAND"},
+        "manufacturer":{"@type":"Organization","name":"FACTORY NAME"},
+        "image":"/images/brand-priority-shirt.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
+  if (["/additional-property-brand", "/additional-property-multi-brand"].includes(request.url)) {
+    const additionalProperty = request.url === "/additional-property-brand"
+      ? [{ "@type": "PropertyValue", "name": "브랜드명", "value": "PROPERTY BRAND" }]
+      : [
+          { "@type": "PropertyValue", "name": "브랜드", "value": "FIRST BRAND" },
+          { "@type": "PropertyValue", "name": "브랜드", "value": "SECOND BRAND" },
+        ];
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: "공식 속성 브랜드 셔츠",
+        image: "/images/property-brand-shirt.jpg",
+        additionalProperty,
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (["/microfiber-material", "/polyamide-material"].includes(request.url)) {
     const isPolyamide = request.url === "/polyamide-material";
     const materialName = isPolyamide ? "polyamide" : "마이크로화이버";
@@ -943,6 +989,20 @@ async function main() {
     const brandArray = await extract("/brand-array");
     assert.equal(brandArray.response.status, 200);
     assert.equal(brandArray.body.brand, "NAES / COLLAB");
+
+    const manufacturerBrand = await extract("/manufacturer-brand");
+    assert.equal(manufacturerBrand.body.brand, "");
+
+    const brandPriority = await extract("/brand-priority");
+    assert.equal(brandPriority.body.brand, "OFFICIAL BRAND");
+
+    const additionalPropertyBrand = await extract("/additional-property-brand");
+    assert.equal(additionalPropertyBrand.body.brand, "PROPERTY BRAND");
+
+    const ambiguousAdditionalPropertyBrand = await extract(
+      "/additional-property-multi-brand"
+    );
+    assert.equal(ambiguousAdditionalPropertyBrand.body.brand, "");
 
     const microfiberMaterial = await extract("/microfiber-material");
     assert.equal(microfiberMaterial.response.status, 200);
