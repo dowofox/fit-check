@@ -237,6 +237,49 @@ test("구체 품목과 구조화된 두께·보온성 단서가 충돌하면 확
   assert.equal(lightPadding.needsReview, true);
 });
 
+test("구조화된 보온·통기 근거가 서로 충돌하면 AI 결과도 확정하지 않는다", () => {
+  const conflictedAiSeason = resolveClothesSeasons({
+    category: "상의",
+    detailCategory: "블라우스",
+    seasons: ["여름"],
+    confidence: { season: 95 },
+    seasonEvidence: {
+      thickness: "두꺼움",
+      insulation: "높음",
+      breathability: "높음",
+    },
+  });
+  const conflictedWithoutAiSeason = resolveClothesSeasons({
+    category: "상의",
+    detailCategory: "블라우스",
+    seasonEvidence: {
+      thickness: "얇음",
+      insulation: "높음",
+      breathability: "높음",
+    },
+  });
+  const conflictedShortSleeveRule = resolveClothesSeasons({
+    category: "상의",
+    detailCategory: "반팔 티셔츠",
+    seasons: ["여름"],
+    confidence: { season: 95 },
+    seasonEvidence: {
+      thickness: "두꺼움",
+      insulation: "높음",
+      breathability: "높음",
+    },
+  });
+
+  assert.deepEqual(conflictedAiSeason.seasons, ["여름"]);
+  assert.equal(conflictedAiSeason.needsReview, true);
+  assert.match(conflictedAiSeason.reasons[0], /단서가 서로 달라/);
+  assert.deepEqual(conflictedWithoutAiSeason.seasons, []);
+  assert.equal(conflictedWithoutAiSeason.needsReview, true);
+  assert.match(conflictedWithoutAiSeason.reasons[0], /단서가 서로 달라/);
+  assert.deepEqual(conflictedShortSleeveRule.seasons, ["여름"]);
+  assert.equal(conflictedShortSleeveRule.needsReview, true);
+});
+
 test("구체적인 단서가 없으면 AI 계절을 유지하고 사계절 중복을 제거한다", () => {
   assert.deepEqual(seasons({ detailCategory: "블라우스", seasons: ["봄", "가을"] }), [
     "봄",

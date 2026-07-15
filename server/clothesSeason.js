@@ -299,7 +299,7 @@ function findEvidenceRule(input) {
     );
 }
 
-function getSeasonEvidenceFallback(input) {
+function getSeasonEvidenceResolution(input) {
   const seasonEvidence = input.seasonEvidence || {};
   const thickness = String(seasonEvidence.thickness || "").toLowerCase();
   const insulation = String(seasonEvidence.insulation || "").toLowerCase();
@@ -318,28 +318,32 @@ function getSeasonEvidenceFallback(input) {
     /가벼운\s*겉옷|light outer/.test(layeringRole) ||
     /시원/.test(evidenceText);
 
-  if (hasWarmEvidence && hasCoolingEvidence) return [];
+  if (hasWarmEvidence && hasCoolingEvidence) {
+    return { seasons: [], hasConflict: true };
+  }
   if (hasWarmEvidence) {
-    return ["가을", "겨울"];
+    return { seasons: ["가을", "겨울"], hasConflict: false };
   }
   if (hasCoolingEvidence) {
-    return ["봄", "여름"];
+    return { seasons: ["봄", "여름"], hasConflict: false };
   }
 
-  return [];
+  return { seasons: [], hasConflict: false };
 }
 
 function resolveClothesSeasons(input = {}) {
   const aiSeasons = normalizeSeasons(input.seasons || input.season);
   const rule = findEvidenceRule(input);
-  const evidenceFallback = getSeasonEvidenceFallback(input);
+  const evidenceResolution = getSeasonEvidenceResolution(input);
+  const evidenceFallback = evidenceResolution.seasons;
   if (rule) {
     const hasAiConflict =
       aiSeasons.length > 0 &&
       !aiSeasons.some((season) => rule.seasons.includes(season));
     const hasStructuredEvidenceConflict =
-      evidenceFallback.length > 0 &&
-      !evidenceFallback.some((season) => rule.seasons.includes(season));
+      evidenceResolution.hasConflict ||
+      (evidenceFallback.length > 0 &&
+        !evidenceFallback.some((season) => rule.seasons.includes(season)));
     const hasConflict = hasAiConflict || hasStructuredEvidenceConflict;
 
     return {
@@ -347,8 +351,10 @@ function resolveClothesSeasons(input = {}) {
       source: "rule",
       needsReview: hasConflict,
       ruleId: rule.id,
-      reasons: hasStructuredEvidenceConflict
-        ? ["의류 종류와 사진의 두께·보온성·통기성 단서가 달라 확인이 필요합니다."]
+      reasons: evidenceResolution.hasConflict
+        ? ["사진의 두께·보온성·통기성 단서가 서로 달라 확인이 필요합니다."]
+        : hasStructuredEvidenceConflict
+          ? ["의류 종류와 사진의 두께·보온성·통기성 단서가 달라 확인이 필요합니다."]
         : hasAiConflict
           ? ["사진 AI의 계절과 의류 단서 기반 계절이 달라 확인이 필요합니다."]
         : [`${rule.id} 의류 단서를 기준으로 계절을 판단했습니다.`],
@@ -375,10 +381,13 @@ function resolveClothesSeasons(input = {}) {
     return {
       seasons: aiSeasons,
       source: "photo_ai",
-      needsReview: !hasReliableConfidence || isAllSeasonGuess,
+      needsReview:
+        evidenceResolution.hasConflict || !hasReliableConfidence || isAllSeasonGuess,
       ruleId: null,
-      reasons: isAllSeasonGuess
-        ? ["사진만으로 사계절 착용 여부를 확정하기 어려워 확인이 필요합니다."]
+      reasons: evidenceResolution.hasConflict
+        ? ["사진의 두께·보온성·통기성 단서가 서로 달라 확인이 필요합니다."]
+        : isAllSeasonGuess
+          ? ["사진만으로 사계절 착용 여부를 확정하기 어려워 확인이 필요합니다."]
         : ["사진 AI의 의류 특성 분석을 기준으로 판단했습니다."],
     };
   }
@@ -388,7 +397,9 @@ function resolveClothesSeasons(input = {}) {
     source: "photo_ai",
     needsReview: true,
     ruleId: null,
-    reasons: ["사진에서 계절을 판단할 근거를 충분히 찾지 못했습니다."],
+    reasons: evidenceResolution.hasConflict
+      ? ["사진의 두께·보온성·통기성 단서가 서로 달라 확인이 필요합니다."]
+      : ["사진에서 계절을 판단할 근거를 충분히 찾지 못했습니다."],
   };
 }
 
