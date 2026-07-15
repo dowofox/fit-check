@@ -210,6 +210,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/section-material-without-percentages") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"함량 미표기 코튼 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/material-without-percentages.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>제품 소재</dt><dd>겉감: 면, 폴리에스터 / 안감: 폴리에스터</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/detailed-material-source") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -653,6 +668,20 @@ async function main() {
       { name: "면", percentage: 60, section: "outer" },
       { name: "나일론", percentage: 40, section: "outer" },
       { name: "폴리에스터", percentage: 100, section: "lining" },
+    ]);
+
+    const materialWithoutPercentages = await extract(
+      "/section-material-without-percentages"
+    );
+    assert.equal(materialWithoutPercentages.response.status, 200);
+    assert.equal(
+      materialWithoutPercentages.body.materialComposition.summary,
+      "겉감: 면, 폴리에스터 / 안감: 폴리에스터"
+    );
+    assert.deepEqual(materialWithoutPercentages.body.materialComposition.items, [
+      { name: "면", percentage: null, section: "outer" },
+      { name: "폴리에스터", percentage: null, section: "outer" },
+      { name: "폴리에스터", percentage: null, section: "lining" },
     ]);
 
     const detailedMaterialSource = await extract("/detailed-material-source");

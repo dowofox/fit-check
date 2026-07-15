@@ -1489,6 +1489,22 @@ function matchesMaterialAlias(value, alias) {
   return value.includes(normalizedAlias);
 }
 
+function getMaterialAliasIndexes(value, alias) {
+  const normalizedAlias = String(alias || "").trim().toLowerCase();
+  if (!normalizedAlias) return [];
+
+  const escapedAlias = escapeRegularExpression(normalizedAlias);
+  const pattern = /^[a-z]+$/.test(normalizedAlias)
+    ? `(?:^|[^a-z])(${escapedAlias})(?=$|[^a-z])`
+    : normalizedAlias.length === 1
+      ? `(?:^|[\\s,/:()|;])(${escapedAlias})(?=$|[\\s,/:()%\\d|;])`
+      : `(${escapedAlias})`;
+
+  return [...String(value || "").matchAll(new RegExp(pattern, "gi"))].map(
+    (match) => (match.index ?? 0) + match[0].indexOf(match[1]),
+  );
+}
+
 function normalizeMaterialName(value) {
   const normalizedValue = String(value || "").trim().toLowerCase();
   if (!normalizedValue) return "";
@@ -1701,20 +1717,18 @@ function parseMaterialCompositionText(
     return undefined;
   }
 
-  const section = normalizeMaterialSection(contextLabel);
-  const nameItems = MATERIAL_DEFINITIONS.filter(({ aliases: definitionAliases }) =>
-    definitionAliases.some((alias) => {
-      const normalizedAlias = alias.toLowerCase();
-      if (normalizedAlias.length > 1) {
-        return text.toLowerCase().includes(normalizedAlias);
-      }
-
-      return new RegExp(
-        `(?:^|[\\s,/:()])${escapeRegularExpression(normalizedAlias)}(?:$|[\\s,/:()])`,
-        "i",
-      ).test(text);
-    }),
-  ).map(({ name }) => ({ name, percentage: null, section }));
+  const nameItems = MATERIAL_DEFINITIONS.flatMap(({ name, aliases: definitionAliases }) =>
+    definitionAliases.flatMap((alias) =>
+      getMaterialAliasIndexes(text, alias).map((index) => ({
+        name,
+        percentage: null,
+        section: getMaterialSectionAt(text, index, contextLabel),
+        index,
+      })),
+    ),
+  )
+    .sort((first, second) => first.index - second.index)
+    .map(({ name, percentage, section }) => ({ name, percentage, section }));
 
   return buildMaterialComposition(nameItems, source);
 }
