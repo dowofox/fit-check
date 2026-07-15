@@ -521,7 +521,10 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
-  if (request.url === "/size-front-back-rise") {
+  if (["/size-front-back-rise", "/size-parenthesized-rise"].includes(request.url)) {
+    const usesParenthesizedHeaders = request.url === "/size-parenthesized-rise";
+    const frontRiseHeader = usesParenthesizedHeaders ? "밑위(앞)" : "앞밑위";
+    const backRiseHeader = usesParenthesizedHeaders ? "밑위(뒤)" : "뒷밑위";
     response.end(`<!doctype html><html><head>
       <meta property="og:image" content="/images/rise-pants.jpg">
       <script type="application/ld+json">{
@@ -533,7 +536,7 @@ const fixtureServer = http.createServer((request, response) => {
       }</script>
     </head><body>
       <table>
-        <tr><th>사이즈</th><th>총장</th><th>앞밑위</th><th>뒷밑위</th><th>허리단면</th></tr>
+        <tr><th>사이즈</th><th>총장</th><th>${frontRiseHeader}</th><th>${backRiseHeader}</th><th>허리단면</th></tr>
         <tr><td>M</td><td>105</td><td>30</td><td>40</td><td>41</td></tr>
       </table>
     </body></html>`);
@@ -924,6 +927,11 @@ async function main() {
     assert.equal(frontBackRiseMeasurement.rise, 30);
     assert.equal(frontBackRiseMeasurement.totalLength, 105);
     assert.equal(frontBackRiseMeasurement.waist, 41);
+
+    const parenthesizedRiseSize = await extract("/size-parenthesized-rise");
+    const parenthesizedRiseMeasurement =
+      parenthesizedRiseSize.body.productSizeGuide.sizes[0];
+    assert.equal(parenthesizedRiseMeasurement.rise, 30);
 
     const numberFormat = await extract("/size-number-format");
     const formattedMeasurement = numberFormat.body.productSizeGuide.sizes[0];

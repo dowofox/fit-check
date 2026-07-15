@@ -2176,7 +2176,7 @@ function getTableCells(rowHtml) {
 }
 
 function getSizeMeasurementKey(label) {
-  const normalized = label.toLowerCase().replace(/\s+/g, "");
+  const normalized = label.toLowerCase().replace(/[\s()[\]{}_-]+/g, "");
 
   if (normalized.includes("사이즈") || normalized === "size") return "size";
   if (normalized.includes("총장") || normalized.includes("기장") || normalized.includes("length")) return "totalLength";
@@ -2189,16 +2189,23 @@ function getSizeMeasurementKey(label) {
   if (
     normalized.includes("뒷밑위") ||
     normalized.includes("뒤밑위") ||
+    normalized.includes("밑위뒤") ||
     normalized.includes("후면밑위") ||
+    normalized.includes("밑위후면") ||
     normalized.includes("backrise") ||
-    normalized.includes("rearrise")
+    normalized.includes("rearrise") ||
+    normalized.includes("riseback") ||
+    normalized.includes("riserear")
   ) {
     return "";
   }
   if (
     normalized.includes("앞밑위") ||
+    normalized.includes("밑위앞") ||
     normalized.includes("전면밑위") ||
+    normalized.includes("밑위전면") ||
     normalized.includes("frontrise") ||
+    normalized.includes("risefront") ||
     normalized.includes("밑위") ||
     normalized.includes("rise")
   ) {
