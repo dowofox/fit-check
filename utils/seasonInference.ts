@@ -73,7 +73,17 @@ const OFFICIAL_SEASON_RULES: Array<{
   },
   {
     id: "summer-sleeveless-and-bottom",
-    keywords: ["민소매", "슬리브리스", "나시", "탱크탑", "쇼츠", "반바지", "sleeveless", "tank top"],
+    keywords: [
+      "민소매",
+      "슬리브리스",
+      "나시",
+      "탱크탑",
+      "쇼츠",
+      "반바지",
+      "sleeveless",
+      "tank top",
+      "shorts",
+    ],
     seasons: ["여름"],
   },
   {
@@ -299,15 +309,18 @@ function hasConflictingSeasonRules(rules: OfficialSeasonRule[]) {
 
 export function inferSeasonsFromOfficialProduct({
   productName,
+  productCategory,
   materialComposition,
   currentItem,
 }: {
   productName?: string;
+  productCategory?: string;
   materialComposition?: MaterialComposition;
   currentItem?: ClosetItem;
 }): SeasonInferenceResult | null {
   const itemSearchText = normalizeSearchText([
     productName,
+    productCategory,
     currentItem?.detailCategory,
     currentItem?.subCategory,
   ]);
@@ -351,6 +364,7 @@ export function getConfirmedProductSeasonInference(
 
   return inferSeasonsFromOfficialProduct({
     productName: confirmedProduct.productName,
+    productCategory: confirmedProduct.productCategory,
     materialComposition: confirmedProduct.materialComposition,
     currentItem,
   });

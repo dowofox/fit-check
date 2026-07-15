@@ -31,6 +31,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const {
+  getConfirmedProductSeasonInference,
   inferSeasonsFromOfficialProduct,
   resolveRegistrationSeasonInference,
 } = require("../utils/seasonInference.ts");
@@ -78,6 +79,32 @@ test("공식 상품명과 소재는 사진 AI보다 우선한다", () => {
   assert.deepEqual(result.seasons, ["봄", "여름"]);
   assert.equal(result.source, "official_product");
   assert.equal(result.needsReview, false);
+});
+
+test("추상적인 상품명은 공식 카테고리의 계절 근거로 보완한다", () => {
+  const shorts = getConfirmedProductSeasonInference({
+    brand: "NAES",
+    productName: "ESSENTIAL 01",
+    productCategory: "Apparel > Bottoms > Shorts",
+    confirmedAt: "2026-07-15T00:00:00.000Z",
+  });
+  const sandals = getConfirmedProductSeasonInference({
+    brand: "NAES",
+    productName: "DAILY 02",
+    productCategory: "Fashion > Shoes > Sandals",
+    confirmedAt: "2026-07-15T00:00:00.000Z",
+  });
+  const genericPants = getConfirmedProductSeasonInference({
+    brand: "NAES",
+    productName: "ESSENTIAL 03",
+    productCategory: "Apparel > Bottoms > Pants",
+    confirmedAt: "2026-07-15T00:00:00.000Z",
+  });
+
+  assert.deepEqual(shorts.seasons, ["여름"]);
+  assert.equal(shorts.source, "official_product");
+  assert.deepEqual(sandals.seasons, ["여름"]);
+  assert.equal(genericPants, null);
 });
 
 test("공식 품목 계절과 유의미한 공식 소재 계절이 충돌하면 확인 대상으로 남긴다", () => {
