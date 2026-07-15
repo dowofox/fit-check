@@ -1419,6 +1419,15 @@ const MATERIAL_DEFINITIONS = [
     aliases: ["거위 깃털", "거위깃털", "오리 깃털", "오리깃털", "깃털", "feather"],
   },
   { name: "다운", aliases: ["솜털", "down"] },
+  { name: "웰론", aliases: ["웰론", "wellon"] },
+  {
+    name: "신슐레이트",
+    aliases: ["신슐레이트", "씬슐레이트", "thinsulate"],
+  },
+  {
+    name: "프리마로프트",
+    aliases: ["프리마로프트", "프리마 로프트", "primaloft", "prima loft"],
+  },
   { name: "폴리우레탄", aliases: ["폴리우레탄", "스판덱스", "스판", "span", "polyurethane", "elastane"] },
   { name: "폴리에스터", aliases: ["폴리에스터", "폴리에스테르", "polyester", "poly"] },
   { name: "레이온", aliases: ["레이온", "rayon", "viscose"] },

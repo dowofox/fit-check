@@ -255,6 +255,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/synthetic-filling-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"합성 보온재 패딩 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/synthetic-filling-padding.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>제품 소재</dt><dd>겉감: 나일론 100% / 충전재: 웰론 70%, thinsulate 20%, PrimaLoft 10%</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/detailed-material-source") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -735,6 +750,19 @@ async function main() {
       { name: "나일론", percentage: 100, section: "outer" },
       { name: "구스다운", percentage: 80, section: "filling" },
       { name: "깃털", percentage: 20, section: "filling" },
+    ]);
+
+    const syntheticFillingMaterial = await extract("/synthetic-filling-material");
+    assert.equal(syntheticFillingMaterial.response.status, 200);
+    assert.equal(
+      syntheticFillingMaterial.body.materialComposition.summary,
+      "겉감: 나일론 100% / 충전재: 웰론 70%, 신슐레이트 20%, 프리마로프트 10%"
+    );
+    assert.deepEqual(syntheticFillingMaterial.body.materialComposition.items, [
+      { name: "나일론", percentage: 100, section: "outer" },
+      { name: "웰론", percentage: 70, section: "filling" },
+      { name: "신슐레이트", percentage: 20, section: "filling" },
+      { name: "프리마로프트", percentage: 10, section: "filling" },
     ]);
 
     const detailedMaterialSource = await extract("/detailed-material-source");

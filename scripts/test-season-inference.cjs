@@ -196,6 +196,21 @@ test("공식 충전재 정보는 보온 계절 근거로 사용한다", () => {
 
   assert.deepEqual(downResult.seasons, ["겨울"]);
   assert.equal(downResult.needsReview, false);
+
+  const syntheticFillingResult = inferSeasonsFromOfficialProduct({
+    productName: "베이직 퀼팅 재킷",
+    materialComposition: {
+      summary: "겉감: 나일론 100% / 충전재: 웰론 100%",
+      items: [
+        { name: "나일론", percentage: 100, section: "outer" },
+        { name: "웰론", percentage: 100, section: "filling" },
+      ],
+      source: "official",
+    },
+  });
+
+  assert.deepEqual(syntheticFillingResult.seasons, ["겨울"]);
+  assert.equal(syntheticFillingResult.needsReview, false);
 });
 
 test("공식 근거가 없으면 사진 AI 결과와 확인 상태를 유지한다", () => {
