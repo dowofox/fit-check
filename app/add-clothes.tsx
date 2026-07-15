@@ -332,6 +332,28 @@ function getMaterialPreviewText(materialComposition?: ConfirmedProduct["material
   return materialComposition?.summary?.trim() || "";
 }
 
+const MISSING_PRODUCT_INFO_LABELS: Record<string, string> = {
+  brand: "브랜드",
+  productCategory: "카테고리",
+  productColor: "색상",
+  productImageUrl: "상품 이미지",
+  materialComposition: "소재",
+};
+
+function getPartialExtractionNotice(product: ExtractedProduct) {
+  const labels = [...new Set(
+    (product.missingFields || [])
+      .map((field) => MISSING_PRODUCT_INFO_LABELS[field])
+      .filter(Boolean)
+  )];
+
+  if (labels.length === 0) {
+    return "일부 공식 정보를 확인하지 못했어요. 저장 전 아래 등록 정보를 확인해주세요.";
+  }
+
+  return `${labels.join(", ")} 정보를 확인하지 못했어요. 저장 전 아래 등록 정보를 확인해주세요.`;
+}
+
 function getSizeGuidePreviewText(product?: ExtractedProduct | null) {
   if (!product) return "";
 
@@ -1324,7 +1346,7 @@ export default function AddClothesScreen() {
                     <View style={styles.partialExtractionNotice}>
                       <Feather name="info" size={14} color="#8c6f47" />
                       <Text style={styles.partialExtractionNoticeText}>
-                        일부 공식 정보만 확인했어요. 비어 있는 정보는 저장 후 옷 상세에서 수정할 수 있어요.
+                        {getPartialExtractionNotice(extractedProduct)}
                       </Text>
                     </View>
                   ) : null}

@@ -3719,6 +3719,8 @@ app.post("/extract-product", async (req, res) => {
 
       const missingFields = [
         !extractedBrand ? "brand" : "",
+        !productCategory ? "productCategory" : "",
+        !productColor ? "productColor" : "",
         !productImageUrl ? "productImageUrl" : "",
         !materialComposition ? "materialComposition" : "",
       ].filter(Boolean);

@@ -86,6 +86,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/missing-classification") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"공식 분류 누락 상품",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/missing-classification.jpg",
+        "material":"면 100%",
+        "offers":{"@type":"Offer","price":"49000"}
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/structured-image-array") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -1109,6 +1124,15 @@ async function main() {
     assert.equal(partial.body.extractionStatus, "partial");
     assert.ok(partial.body.missingFields.includes("brand"));
     assert.ok(partial.body.missingFields.includes("materialComposition"));
+
+    const missingClassification = await extract("/missing-classification");
+    assert.equal(missingClassification.response.status, 200);
+    assert.equal(missingClassification.body.extractionStatus, "partial");
+    assert.ok(missingClassification.body.missingFields.includes("productCategory"));
+    assert.ok(missingClassification.body.missingFields.includes("productColor"));
+    assert.ok(!missingClassification.body.missingFields.includes("brand"));
+    assert.ok(!missingClassification.body.missingFields.includes("productImageUrl"));
+    assert.ok(!missingClassification.body.missingFields.includes("materialComposition"));
 
     const metaBrand = await extract("/meta-brand");
     assert.equal(metaBrand.response.status, 200);
