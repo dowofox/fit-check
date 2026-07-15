@@ -668,6 +668,24 @@ function getStructuredProductColor(product) {
   return getSingleStructuredTextValue(colorValues);
 }
 
+function getStructuredProductImage(value) {
+  const imageValues = Array.isArray(value) ? value : [value];
+
+  for (const imageValue of imageValues) {
+    const image =
+      typeof imageValue === "string"
+        ? imageValue
+        : typeof imageValue?.url === "string"
+          ? imageValue.url
+          : typeof imageValue?.contentUrl === "string"
+            ? imageValue.contentUrl
+            : "";
+    if (image.trim()) return image.trim();
+  }
+
+  return "";
+}
+
 function getStructuredProductData(html, productUrl) {
   const jsonScripts = extractJsonDataFromScripts(html, true).filter(
     (script) => script.source === "json-script"
@@ -686,15 +704,7 @@ function getStructuredProductData(html, productUrl) {
   if (product) {
 
     const brand = getStructuredProductBrand(product.brand);
-    const imageValue = Array.isArray(product.image) ? product.image[0] : product.image;
-    const image =
-      typeof imageValue === "string"
-        ? imageValue
-        : typeof imageValue?.url === "string"
-          ? imageValue.url
-          : typeof imageValue?.contentUrl === "string"
-            ? imageValue.contentUrl
-            : "";
+    const image = getStructuredProductImage(product.image);
     const color = getStructuredProductColor(product);
     const categoryValues = (Array.isArray(product.category)
       ? product.category
@@ -716,7 +726,7 @@ function getStructuredProductData(html, productUrl) {
       brand,
       category,
       color,
-      image: image.trim(),
+      image,
       price:
         typeof offers?.price === "string" || typeof offers?.price === "number"
           ? String(offers.price)

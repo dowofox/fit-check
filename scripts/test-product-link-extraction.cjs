@@ -86,6 +86,22 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/structured-image-array") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"구조화 이미지 배열 셔츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":[
+          {},
+          {"@type":"ImageObject","contentUrl":"/images/valid-array-shirt.jpg"}
+        ]
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/partial") {
     response.end(`<!doctype html><html><head>
       <meta name="twitter:label1" content="브랜드">
@@ -1059,6 +1075,13 @@ async function main() {
     assert.equal(
       metaImageFallback.body.productImageUrl,
       `http://127.0.0.1:${fixturePort}/images/meta-shirt.jpg`
+    );
+
+    const structuredImageArray = await extract("/structured-image-array");
+    assert.equal(structuredImageArray.response.status, 200);
+    assert.equal(
+      structuredImageArray.body.productImageUrl,
+      `http://127.0.0.1:${fixturePort}/images/valid-array-shirt.jpg`
     );
 
     const relatedFirst = await extract("/related-first");
