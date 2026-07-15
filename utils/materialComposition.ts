@@ -1,30 +1,33 @@
 import type { MaterialComposition, MaterialSection } from "@/utils/storage";
 
 export const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
+const MATERIAL_SECTION_INDEX_PATTERN = "(?:\\s*(?:\\(\\d+\\)|\\d+))?";
 
 function cleanMaterialName(value: string) {
   return value
     .trim()
     .replace(
-      /^(?:겉감|외피|안감|충전재|충전물|배색|부자재|소재|shell|outer|lining|liner|filling|fill|trim)(?:\s*(?:소재|material))?\s*[:：]\s*/i,
+      /^(?:겉감|외피|안감|충전재|충전물|배색|부자재|소재|shell|outer|lining|liner|filling|fill|trim)(?:\s*(?:\(\d+\)|\d+))?(?:\s*(?:소재|material))?(?:\s*(?:\(\d+\)|\d+))?\s*[:：]\s*/i,
       ""
     )
+    .replace(/^[\s():：]+/, "")
     .trim();
 }
 
 function getMaterialSection(value: string): MaterialSection | undefined {
   const normalizedValue = value.trim().toLowerCase();
+  const suffixPattern = `${MATERIAL_SECTION_INDEX_PATTERN}(?:\\s*[:：]|\\s|$)`;
 
-  if (/^(?:겉감|외피|shell|outer)(?:\s*[:：]|\s|$)/.test(normalizedValue)) {
+  if (new RegExp(`^(?:겉감|외피|shell|outer)${suffixPattern}`).test(normalizedValue)) {
     return "outer";
   }
-  if (/^(?:안감|lining|liner)(?:\s*[:：]|\s|$)/.test(normalizedValue)) {
+  if (new RegExp(`^(?:안감|lining|liner)${suffixPattern}`).test(normalizedValue)) {
     return "lining";
   }
-  if (/^(?:충전재|충전물|filling|fill)(?:\s*[:：]|\s|$)/.test(normalizedValue)) {
+  if (new RegExp(`^(?:충전재|충전물|filling|fill)${suffixPattern}`).test(normalizedValue)) {
     return "filling";
   }
-  if (/^(?:배색|부자재|trim)(?:\s*[:：]|\s|$)/.test(normalizedValue)) {
+  if (new RegExp(`^(?:배색|부자재|trim)${suffixPattern}`).test(normalizedValue)) {
     return "trim";
   }
 
@@ -32,8 +35,10 @@ function getMaterialSection(value: string): MaterialSection | undefined {
 }
 
 function getMaterialSectionAt(value: string, index: number) {
-  const sectionPattern =
-    /(?:^|[\s,/|;()])(겉감|외피|안감|충전재|충전물|배색|부자재|shell|outer|lining|liner|filling|fill|trim)(?:\s*(?:소재|material))?\s*[:：]/gi;
+  const sectionPattern = new RegExp(
+    `(?:^|[\\s,/|;()])(겉감|외피|안감|충전재|충전물|배색|부자재|shell|outer|lining|liner|filling|fill|trim)${MATERIAL_SECTION_INDEX_PATTERN}(?:\\s*(?:소재|material))?${MATERIAL_SECTION_INDEX_PATTERN}\\s*[:：]`,
+    "gi"
+  );
   let section: MaterialSection | undefined;
 
   for (const match of value.matchAll(sectionPattern)) {

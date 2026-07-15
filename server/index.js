@@ -1506,6 +1506,7 @@ const MATERIAL_SECTION_DEFINITIONS = [
   },
   { section: "trim", label: "배색", aliases: ["배색", "부자재", "trim"] },
 ];
+const MATERIAL_SECTION_INDEX_PATTERN = "(?:\\s*(?:\\(\\d+\\)|\\d+))?";
 
 function normalizeMaterialSection(value) {
   const normalizedValue = String(value || "").trim().toLowerCase();
@@ -1514,7 +1515,7 @@ function normalizeMaterialSection(value) {
   return MATERIAL_SECTION_DEFINITIONS.find(({ aliases }) =>
     aliases.some((alias) =>
       new RegExp(
-        `(?:^|[\\s,/:()])${escapeRegularExpression(alias)}(?:$|[\\s,/:()])`,
+        `(?:^|[\\s,/:()])${escapeRegularExpression(alias)}${MATERIAL_SECTION_INDEX_PATTERN}(?:$|[\\s,/:()])`,
         "i",
       ).test(normalizedValue),
     ),
@@ -1527,7 +1528,7 @@ function getMaterialSectionAt(text, index, contextLabel = "") {
     .map(escapeRegularExpression)
     .join("|");
   const sectionPattern = new RegExp(
-    `(?:^|[\\s,/|;()])(${aliases})(?:\\s*(?:소재|material))?\\s*[:：]`,
+    `(?:^|[\\s,/|;()])(${aliases})${MATERIAL_SECTION_INDEX_PATTERN}(?:\\s*(?:소재|material))?${MATERIAL_SECTION_INDEX_PATTERN}\\s*[:：]`,
     "gi",
   );
   let section;

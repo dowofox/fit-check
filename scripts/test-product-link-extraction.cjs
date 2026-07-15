@@ -156,7 +156,7 @@ const fixtureServer = http.createServer((request, response) => {
         "image":"/images/layered-windbreaker.jpg"
       }</script>
     </head><body>
-      <dl><dt>소재</dt><dd>겉감: 나일론 60%, 폴리에스터 40% / 안감: 레이온 100%</dd></dl>
+      <dl><dt>소재</dt><dd>겉감1: 나일론 60%, 폴리에스터 40% / 안감(2): 레이온 100%</dd></dl>
     </body></html>`);
     return;
   }
