@@ -918,7 +918,7 @@ function normalizeExtractedBrand(value) {
   return brand;
 }
 
-const FLAT_MEASUREMENT_KEYS = new Set(["chest", "waist", "hip", "thigh"]);
+const FLAT_MEASUREMENT_KEYS = new Set(["chest", "waist", "hip", "thigh", "hem"]);
 
 function normalizeProductSizeMeasurementValue(label, measurementKey, value) {
   const normalizedValue = normalizeProductSizeNumber(value);
@@ -1185,7 +1185,11 @@ function normalizeProductSizeMeasurement(row) {
       ],
       "rise",
     ),
-    hem: getNormalizedProductSizeValue(row, ["hem", "밑단", "밑단단면"], "hem"),
+    hem: getNormalizedProductSizeValue(
+      row,
+      ["hem", "밑단", "밑단단면", "밑단둘레", "hemCircumference"],
+      "hem",
+    ),
     footLength: getNormalizedProductSizeValue(
       row,
       ["footLength", "발길이", "발 길이"],

@@ -499,8 +499,14 @@ const fixtureServer = http.createServer((request, response) => {
         ? "허리둘레"
         : "waist";
     const hipHeader = request.url === "/size-circumference" ? "엉덩이둘레" : "엉덩이단면";
+    const hemHeader = request.url === "/size-flat"
+      ? "밑단단면"
+      : request.url === "/size-circumference"
+        ? "밑단둘레"
+        : "hem";
     const waistValue = request.url === "/size-circumference" ? "82" : "41";
     const hipValue = request.url === "/size-circumference" ? "104" : "52";
+    const hemValue = request.url === "/size-circumference" ? "44" : "22";
 
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -514,8 +520,8 @@ const fixtureServer = http.createServer((request, response) => {
       }</script>
     </head><body>
       <table>
-        <tr><th>사이즈</th><th>총장</th><th>${waistHeader}</th><th>${hipHeader}</th></tr>
-        <tr><td>M</td><td>104</td><td>${waistValue}</td><td>${hipValue}</td></tr>
+        <tr><th>사이즈</th><th>총장</th><th>${waistHeader}</th><th>${hipHeader}</th><th>${hemHeader}</th></tr>
+        <tr><td>M</td><td>104</td><td>${waistValue}</td><td>${hipValue}</td><td>${hemValue}</td></tr>
       </table>
     </body></html>`);
     return;
@@ -537,6 +543,23 @@ const fixtureServer = http.createServer((request, response) => {
         <tr><td>M</td><td>70</td><td></td><td>55</td><td>23</td></tr>
       </table>
     </body></html>`);
+    return;
+  }
+
+  if (request.url === "/size-structured-hem-circumference") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/structured-hem-pants.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"구조화 밑단둘레 팬츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/structured-hem-pants.jpg",
+        "sizeGuide":{"sizes":[
+          {"size":"M","totalLength":104,"hemCircumference":44}
+        ]}
+      }</script>
+    </head><body></body></html>`);
     return;
   }
 
@@ -958,10 +981,19 @@ async function main() {
 
     assert.equal(flatMeasurement.waist, 41);
     assert.equal(flatMeasurement.hip, 52);
+    assert.equal(flatMeasurement.hem, 22);
     assert.equal(circumferenceMeasurement.waist, 41);
     assert.equal(circumferenceMeasurement.hip, 52);
+    assert.equal(circumferenceMeasurement.hem, 22);
     assert.equal(genericMeasurement.waist, 41);
     assert.equal(genericMeasurement.hip, 52);
+    assert.equal(genericMeasurement.hem, 22);
+
+    const structuredHemSize = await extract("/size-structured-hem-circumference");
+    const structuredHemMeasurement =
+      structuredHemSize.body.productSizeGuide.sizes[0];
+    assert.equal(structuredHemMeasurement.totalLength, 104);
+    assert.equal(structuredHemMeasurement.hem, 22);
 
     const emptyMiddleCellSize = await extract("/size-empty-middle-cell");
     const emptyMiddleCellMeasurement =
