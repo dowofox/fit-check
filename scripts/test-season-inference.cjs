@@ -80,6 +80,43 @@ test("공식 상품명과 소재는 사진 AI보다 우선한다", () => {
   assert.equal(result.needsReview, false);
 });
 
+test("공식 품목 계절과 유의미한 공식 소재 계절이 충돌하면 확인 대상으로 남긴다", () => {
+  const woolKnit = resolveRegistrationSeasonInference({
+    selectedSeasons: ["여름"],
+    selectedSource: "photo_ai",
+    selectedNeedsReview: false,
+    userEdited: false,
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "반팔 니트",
+      materialComposition: {
+        summary: "울 100%",
+        items: [{ name: "울", percentage: 100 }],
+        source: "official",
+      },
+      confirmedAt: "2026-07-14T00:00:00.000Z",
+    },
+  });
+  const minorWoolKnit = inferSeasonsFromOfficialProduct({
+    productName: "반팔 니트",
+    materialComposition: {
+      summary: "면 95%, 울 5%",
+      items: [
+        { name: "면", percentage: 95 },
+        { name: "울", percentage: 5 },
+      ],
+      source: "official",
+    },
+  });
+
+  assert.deepEqual(woolKnit.seasons, ["봄", "여름"]);
+  assert.equal(woolKnit.source, "official_product");
+  assert.equal(woolKnit.needsReview, true);
+  assert.match(woolKnit.reasons[0], /상품명과 소재의 계절 단서/);
+  assert.deepEqual(minorWoolKnit.seasons, ["봄", "여름"]);
+  assert.equal(minorWoolKnit.needsReview, false);
+});
+
 test("공식 근거가 없으면 사진 AI 결과와 확인 상태를 유지한다", () => {
   const result = resolveRegistrationSeasonInference({
     selectedSeasons: ["봄", "가을"],

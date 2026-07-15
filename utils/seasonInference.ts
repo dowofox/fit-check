@@ -221,6 +221,8 @@ const OFFICIAL_SEASON_RULES: Array<{
   },
 ];
 
+type OfficialSeasonRule = (typeof OFFICIAL_SEASON_RULES)[number];
+
 function normalizeSearchText(values: Array<string | undefined>) {
   return values
     .filter((value): value is string => Boolean(value?.trim()))
@@ -247,6 +249,25 @@ function includesSeasonKeyword(text: string, keyword: string) {
   return text.includes(normalizedKeyword);
 }
 
+function matchesOfficialSeasonRule(rule: OfficialSeasonRule, searchText: string) {
+  return (
+    !(rule.excludedKeywords || []).some((keyword) =>
+      includesSeasonKeyword(searchText, keyword)
+    ) &&
+    (rule.keywords.some((keyword) => includesSeasonKeyword(searchText, keyword)) ||
+      (rule.keywordGroups || []).some((keywords) =>
+        keywords.every((keyword) => includesSeasonKeyword(searchText, keyword))
+      ))
+  );
+}
+
+function findOfficialSeasonRule(searchText: string) {
+  if (!searchText) return undefined;
+  return OFFICIAL_SEASON_RULES.find((rule) =>
+    matchesOfficialSeasonRule(rule, searchText)
+  );
+}
+
 export function inferSeasonsFromOfficialProduct({
   productName,
   materialComposition,
@@ -256,31 +277,35 @@ export function inferSeasonsFromOfficialProduct({
   materialComposition?: MaterialComposition;
   currentItem?: ClosetItem;
 }): SeasonInferenceResult | null {
-  const searchText = normalizeSearchText([
+  const itemSearchText = normalizeSearchText([
     productName,
-    getSignificantMaterialText(materialComposition),
     currentItem?.detailCategory,
     currentItem?.subCategory,
   ]);
+  const materialSearchText = normalizeSearchText([
+    getSignificantMaterialText(materialComposition),
+  ]);
+  const searchText = [itemSearchText, materialSearchText].filter(Boolean).join(" ");
   if (!searchText) return null;
 
-  const matchedRule = OFFICIAL_SEASON_RULES.find(
-    (rule) =>
-      !(rule.excludedKeywords || []).some((keyword) =>
-        includesSeasonKeyword(searchText, keyword)
-      ) &&
-      (rule.keywords.some((keyword) => includesSeasonKeyword(searchText, keyword)) ||
-        (rule.keywordGroups || []).some((keywords) =>
-          keywords.every((keyword) => includesSeasonKeyword(searchText, keyword))
-        ))
-  );
+  const matchedRule = findOfficialSeasonRule(searchText);
   if (!matchedRule) return null;
+
+  const itemRule = findOfficialSeasonRule(itemSearchText);
+  const materialRule = findOfficialSeasonRule(materialSearchText);
+  const hasConflictingOfficialEvidence = Boolean(
+    itemRule &&
+      materialRule &&
+      !itemRule.seasons.some((season) => materialRule.seasons.includes(season))
+  );
 
   return {
     seasons: [...matchedRule.seasons],
     source: "official_product",
-    needsReview: false,
-    reasons: [`공식 상품명 또는 소재에서 ${matchedRule.id} 계절 근거를 확인했어요.`],
+    needsReview: hasConflictingOfficialEvidence,
+    reasons: hasConflictingOfficialEvidence
+      ? ["공식 상품명과 소재의 계절 단서가 달라 확인이 필요해요."]
+      : [`공식 상품명 또는 소재에서 ${matchedRule.id} 계절 근거를 확인했어요.`],
   };
 }
 
