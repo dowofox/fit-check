@@ -1,6 +1,7 @@
 export type OutfitItemMatcher = {
   categories?: string[];
   keywords?: string[];
+  tokenKeywords?: string[];
   styleTags?: string[];
   colors?: string[];
 };
@@ -45,6 +46,27 @@ const CASUAL_STYLES = ["캐주얼", "데일리", "편안함", "스트릿"];
 
 // detailCategory별 궁합은 이 테이블에 추가합니다. 엔진 코드는 수정하지 않습니다.
 export const OUTFIT_DETAIL_RULES: OutfitDetailRule[] = [
+  {
+    id: "casual-t-shirt",
+    target: {
+      categories: ["상의"],
+      keywords: ["티셔츠", "t shirt", "t-shirt", "tshirt", "tee"],
+    },
+    effects: [
+      {
+        id: "casual-t-shirt-denim",
+        condition: {
+          type: "companion",
+          matcher: {
+            categories: ["하의"],
+            keywords: ["데님 팬츠", "청바지", "denim pants", "jeans"],
+          },
+        },
+        score: 3,
+        reason: "티셔츠와 데님 하의가 자연스러운 캐주얼 흐름을 만들어요.",
+      },
+    ],
+  },
   {
     id: "denim-shirt",
     target: { categories: ["상의"], keywords: ["데님 셔츠", "denim shirt"] },
@@ -188,7 +210,8 @@ export const OUTFIT_DETAIL_RULES: OutfitDetailRule[] = [
           type: "companion",
           matcher: {
             categories: ["상의"],
-            keywords: ["티셔츠", "셔츠", "t shirt", "tshirt", "shirt"],
+            keywords: ["티셔츠", "t shirt", "t-shirt", "tshirt"],
+            tokenKeywords: ["셔츠", "shirt"],
           },
         },
         score: 3,
@@ -395,7 +418,8 @@ export const OUTFIT_DETAIL_RULES: OutfitDetailRule[] = [
           type: "companion",
           matcher: {
             categories: ["상의", "신발"],
-            keywords: ["셔츠", "니트", "로퍼"],
+            keywords: ["니트", "로퍼"],
+            tokenKeywords: ["셔츠", "shirt"],
             styleTags: MINIMAL_STYLES,
           },
         },
@@ -414,7 +438,8 @@ export const OUTFIT_DETAIL_RULES: OutfitDetailRule[] = [
           type: "companion",
           matcher: {
             categories: ["상의", "신발"],
-            keywords: ["니트", "셔츠", "로퍼", "더비"],
+            keywords: ["니트", "로퍼", "더비"],
+            tokenKeywords: ["셔츠", "shirt"],
             styleTags: MINIMAL_STYLES,
           },
         },
@@ -451,7 +476,8 @@ export const OUTFIT_DETAIL_RULES: OutfitDetailRule[] = [
           type: "companion",
           matcher: {
             categories: ["상의", "하의"],
-            keywords: ["슬랙스", "셔츠", "니트"],
+            keywords: ["슬랙스", "니트"],
+            tokenKeywords: ["셔츠", "shirt"],
             styleTags: MINIMAL_STYLES,
           },
         },

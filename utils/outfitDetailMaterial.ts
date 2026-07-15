@@ -31,11 +31,44 @@ function includesAny(value: string, keywords: string[]) {
   return keywords.some((keyword) => value.includes(keyword.toLowerCase()));
 }
 
+function isTokenCharacter(value?: string) {
+  return Boolean(value && /[0-9a-z가-힣ㄱ-ㅎㅏ-ㅣ_-]/i.test(value));
+}
+
+function includesToken(value: string, keyword: string) {
+  const normalizedKeyword = keyword.trim().toLowerCase();
+  if (!normalizedKeyword) return false;
+
+  let startIndex = value.indexOf(normalizedKeyword);
+  while (startIndex >= 0) {
+    const endIndex = startIndex + normalizedKeyword.length;
+    if (
+      !isTokenCharacter(value[startIndex - 1]) &&
+      !isTokenCharacter(value[endIndex])
+    ) {
+      return true;
+    }
+    startIndex = value.indexOf(normalizedKeyword, startIndex + 1);
+  }
+
+  return false;
+}
+
+function includesAnyToken(value: string, keywords: string[]) {
+  return keywords.some((keyword) => includesToken(value, keyword));
+}
+
 function matchesItem(item: ClosetItem, matcher: OutfitItemMatcher) {
   const categoryMatches =
     !matcher.categories?.length || matcher.categories.includes(item.category);
+  const itemText = getItemText(item);
+  const hasKeywordMatcher = Boolean(
+    matcher.keywords?.length || matcher.tokenKeywords?.length
+  );
   const keywordMatches =
-    !matcher.keywords?.length || includesAny(getItemText(item), matcher.keywords);
+    (matcher.keywords?.length && includesAny(itemText, matcher.keywords)) ||
+    (matcher.tokenKeywords?.length &&
+      includesAnyToken(itemText, matcher.tokenKeywords));
   const styleMatches =
     !matcher.styleTags?.length ||
     (item.styleTags || []).some((style) =>
@@ -47,7 +80,7 @@ function matchesItem(item: ClosetItem, matcher: OutfitItemMatcher) {
 
   // keywords/styleTags/colors 중 여러 조건이 있으면 하나 이상의 특징 조건이 맞으면 허용합니다.
   const featureGroups = [
-    matcher.keywords?.length ? keywordMatches : undefined,
+    hasKeywordMatcher ? Boolean(keywordMatches) : undefined,
     matcher.styleTags?.length ? styleMatches : undefined,
     matcher.colors?.length ? colorMatches : undefined,
   ].filter((value): value is boolean => value !== undefined);
