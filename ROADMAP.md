@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 107차 작업을 진행한다.
+현재 P0는 108차 작업을 진행한다.
+
+- [x] 구조화 상품 실측의 키 형식 정규화
+  - `size_name`, `body_length`, `shoulder_width`, `bust_circumference` 같은 snake_case 키를 기존 필드로 읽는다.
+  - 중첩 실측의 `measurement_name`, `size_value`도 같은 규칙으로 처리한다.
+  - 정확한 기존 키를 우선하고 대소문자·공백·밑줄·하이픈 차이만 fallback으로 허용한다.
+
+완료된 P0 107차 항목:
 
 - [x] 구조화 상품 실측의 폭·둘레 별칭 연결
   - `shoulderWidth`, `chestWidth`, `waistWidth`, `hipWidth`, `thighWidth`, `hemWidth`를 기존 단면 실측으로 저장한다.

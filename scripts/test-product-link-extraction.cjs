@@ -600,6 +600,28 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-snake-case-keys") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/snake-case-size.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"Snake Case Size Product",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/snake-case-size.jpg",
+        "size_guide":{"sizes":[
+          {"SIZE_NAME":"M","body_length":70,"shoulder_width":48,"bust_circumference":110,"sleeve_length":61},
+          {"size_name":"L","measurements":[
+            {"measurement_name":"waist_width","size_value":43},
+            {"measurement_name":"hip_width","size_value":54},
+            {"measurement_name":"front_rise_length","size_value":30}
+          ]}
+        ]}
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/size-english-length-headers") {
     response.end(`<!doctype html><html><head>
       <meta property="og:image" content="/images/english-length-shirt.jpg">
@@ -1104,6 +1126,28 @@ async function main() {
         hem: structuredWidthMeasurements[1].hem,
       },
       { shoulder: 50, chest: 57, waist: 43, hip: 54, thigh: 36, hem: 23 }
+    );
+
+    const snakeCaseSize = await extract("/size-snake-case-keys");
+    const snakeCaseMeasurements = snakeCaseSize.body.productSizeGuide.sizes;
+    assert.deepEqual(
+      {
+        size: snakeCaseMeasurements[0].size,
+        totalLength: snakeCaseMeasurements[0].totalLength,
+        shoulder: snakeCaseMeasurements[0].shoulder,
+        chest: snakeCaseMeasurements[0].chest,
+        sleeve: snakeCaseMeasurements[0].sleeve,
+      },
+      { size: "M", totalLength: 70, shoulder: 48, chest: 55, sleeve: 61 }
+    );
+    assert.deepEqual(
+      {
+        size: snakeCaseMeasurements[1].size,
+        waist: snakeCaseMeasurements[1].waist,
+        hip: snakeCaseMeasurements[1].hip,
+        rise: snakeCaseMeasurements[1].rise,
+      },
+      { size: "L", waist: 43, hip: 54, rise: 30 }
     );
 
     const englishLengthSize = await extract("/size-english-length-headers");

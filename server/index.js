@@ -941,6 +941,34 @@ function getProductSizeValue(row, keys) {
   return undefined;
 }
 
+function normalizeProductSizeObjectKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+function getFlexibleProductSizeValue(row, keys) {
+  const exactValue = getProductSizeValue(row, keys);
+  if (exactValue !== undefined) return exactValue;
+  if (!row || typeof row !== "object" || Array.isArray(row)) return undefined;
+
+  const valuesByNormalizedKey = new Map();
+  Object.entries(row).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    const normalizedKey = normalizeProductSizeObjectKey(key);
+    if (normalizedKey && !valuesByNormalizedKey.has(normalizedKey)) {
+      valuesByNormalizedKey.set(normalizedKey, value);
+    }
+  });
+
+  for (const key of keys) {
+    const value = valuesByNormalizedKey.get(normalizeProductSizeObjectKey(key));
+    if (value !== undefined) return value;
+  }
+
+  return undefined;
+}
+
 const INVALID_SIZE_NAME_KEYWORDS = [
   "무신사",
   "단독",
@@ -1114,7 +1142,7 @@ function normalizeProductSizeMeasurement(row) {
   if (!row || typeof row !== "object") return null;
 
   const rawSize = String(
-    getProductSizeValue(row, [
+    getFlexibleProductSizeValue(row, [
       "size",
       "name",
       "label",
@@ -1253,7 +1281,7 @@ function normalizeNestedSizeMeasurement(row) {
     for (const entry of entries) {
       if (!entry || typeof entry !== "object") continue;
 
-      const label = getProductSizeValue(entry, [
+      const label = getFlexibleProductSizeValue(entry, [
         "name",
         "label",
         "key",
@@ -1265,7 +1293,13 @@ function normalizeNestedSizeMeasurement(row) {
       const value = normalizeProductSizeMeasurementValue(
         label,
         key,
-        getProductSizeValue(entry, ["value", "measurement", "sizeValue", "val", "content"]),
+        getFlexibleProductSizeValue(entry, [
+          "value",
+          "measurement",
+          "sizeValue",
+          "val",
+          "content",
+        ]),
       );
 
       if (key && key !== "size" && value !== undefined) {
@@ -2068,12 +2102,20 @@ function extractMaterialCompositionFromProductInfo(html) {
 }
 
 function getNormalizedProductSizeValue(row, keys, measurementKey) {
+  const value = getFlexibleProductSizeValue(row, keys);
+  if (value === undefined) return undefined;
+
   for (const key of keys) {
-    if (row[key] === undefined || row[key] === null || row[key] === "") continue;
-    return normalizeProductSizeMeasurementValue(key, measurementKey, row[key]);
+    const normalizedKey = normalizeProductSizeObjectKey(key);
+    const actualKey = Object.keys(row).find(
+      (rowKey) => normalizeProductSizeObjectKey(rowKey) === normalizedKey,
+    );
+    if (actualKey) {
+      return normalizeProductSizeMeasurementValue(actualKey, measurementKey, value);
+    }
   }
 
-  return undefined;
+  return normalizeProductSizeMeasurementValue(keys[0], measurementKey, value);
 }
 
 function extractMaterialCompositionFromVisibleText(html) {
