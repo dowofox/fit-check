@@ -47,9 +47,11 @@ Android Development Build 설정과 실행 방법은 [NAES_DEV_BUILD.md](./NAES_
 
 우선순위는 [ROADMAP.md](./ROADMAP.md)에서 관리합니다.
 
-작업은 항상 P0의 가장 위 항목부터 하나씩 진행합니다.
+작업은 옷 등록, 옷장 관리, 코디 추천, 핏·사이즈 추천, 사용자 경험·데이터 안전성의 다섯 영역을 번갈아 진행합니다.
 
-여러 기능을 한 번에 구현하지 않습니다.
+긴급한 크래시·데이터 손실·명백한 잘못된 추천이 없다면 ROADMAP의 다음 실행 순서에서 하나만 구현합니다.
+
+개별 상품명과 분류 키워드 예외는 [CLASSIFICATION_ISSUES.md](./CLASSIFICATION_ISSUES.md)에 모아 반복성과 제품 영향을 확인한 뒤 작업으로 승격합니다.
 
 ## 개발 시작
 
