@@ -176,6 +176,25 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/structured-section-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"구조화 소재 패딩 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "outerMaterial":[
+          {"name":"nylon","percentage":60},
+          {"name":"polyester","percentage":40}
+        ],
+        "liningMaterial":{"name":"rayon","percentage":100},
+        "fillingComposition":{"name":"polyester","percentage":100},
+        "image":"/images/structured-material-padding.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/detailed-material-source") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -594,6 +613,19 @@ async function main() {
       { name: "면", percentage: 60, section: "outer" },
       { name: "나일론", percentage: 40, section: "outer" },
       { name: "폴리에스터", percentage: 100, section: "lining" },
+    ]);
+
+    const structuredSectionMaterial = await extract("/structured-section-material");
+    assert.equal(structuredSectionMaterial.response.status, 200);
+    assert.equal(
+      structuredSectionMaterial.body.materialComposition.summary,
+      "겉감: 나일론 60%, 폴리에스터 40% / 안감: 레이온 100% / 충전재: 폴리에스터 100%"
+    );
+    assert.deepEqual(structuredSectionMaterial.body.materialComposition.items, [
+      { name: "나일론", percentage: 60, section: "outer" },
+      { name: "폴리에스터", percentage: 40, section: "outer" },
+      { name: "레이온", percentage: 100, section: "lining" },
+      { name: "폴리에스터", percentage: 100, section: "filling" },
     ]);
 
     const detailedMaterialSource = await extract("/detailed-material-source");

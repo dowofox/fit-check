@@ -751,6 +751,19 @@ function selectMostDetailedMaterialComposition(candidates) {
 function extractStructuredProductMaterialComposition(product, includeVariants = true) {
   if (!product || typeof product !== "object") return undefined;
 
+  const sectionedComposition = extractStructuredMaterialSectionComposition(
+    product,
+    "official",
+  );
+  if (sectionedComposition) {
+    logMaterialExtraction("candidate", {
+      path: "selectedProduct.sectionedMaterial",
+      source: "structured-product",
+      summary: sectionedComposition.summary,
+    });
+    return sectionedComposition;
+  }
+
   const directMaterialKeys = [
     "materialComposition",
     "goodsMaterial",
@@ -1513,6 +1526,18 @@ function normalizeMaterialSection(value) {
   const normalizedValue = String(value || "").trim().toLowerCase();
   if (!normalizedValue) return undefined;
 
+  const compactValue = normalizedValue.replace(/[\s_()[\]{}-]+/g, "");
+  const structuredSection = MATERIAL_SECTION_DEFINITIONS.find(({ aliases }) =>
+    aliases.some((alias) => {
+      const compactAlias = alias.replace(/[\s_()[\]{}-]+/g, "");
+      return new RegExp(
+        `^${escapeRegularExpression(compactAlias)}(?:\\d+)?(?:material|materials|composition|compositions|fabric|fabrics|textile|textiles|소재)?(?:\\d+)?$`,
+        "i",
+      ).test(compactValue);
+    }),
+  );
+  if (structuredSection) return structuredSection.section;
+
   return MATERIAL_SECTION_DEFINITIONS.find(({ aliases }) =>
     aliases.some((alias) =>
       new RegExp(
@@ -1607,6 +1632,23 @@ function buildMaterialComposition(items, source) {
     items: uniqueItems,
     source,
   };
+}
+
+function extractStructuredMaterialSectionComposition(value, source) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+
+  const compositions = Object.entries(value)
+    .map(([key, child]) => {
+      if (!normalizeMaterialSection(key)) return undefined;
+      return normalizeMaterialCompositionValue(child, source, key);
+    })
+    .filter(Boolean);
+
+  if (compositions.length === 0) return undefined;
+  return buildMaterialComposition(
+    compositions.flatMap((composition) => composition.items || []),
+    source,
+  );
 }
 
 function parseMaterialCompositionText(
@@ -1717,7 +1759,7 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
               "area",
               "location",
               "group",
-            ])
+            ]) || contextLabel
           : contextLabel,
     }));
     const structuredComposition = buildMaterialComposition(structuredItems, source);
@@ -1729,6 +1771,9 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
   }
 
   if (!value || typeof value !== "object") return undefined;
+
+  const sectionedComposition = extractStructuredMaterialSectionComposition(value, source);
+  if (sectionedComposition) return sectionedComposition;
 
   const directMaterialComposition = buildMaterialComposition(
     [
