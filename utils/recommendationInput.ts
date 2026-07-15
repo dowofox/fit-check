@@ -7,6 +7,7 @@ import {
   doesProductSizeRowMatch,
   getValidProductSizeRows,
 } from "@/utils/productSizeMeasurements";
+import { getResolvedItemMaterial } from "@/utils/productClassification";
 import type { ClosetItem, SavedOutfit, UserProfile } from "@/utils/storage";
 
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
@@ -28,6 +29,7 @@ function getRecommendationStyles(item: ClosetItem) {
 
 export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
   const materialSummary = item.confirmedProduct?.materialComposition?.summary;
+  const resolvedMaterial = getReliableValue(getResolvedItemMaterial(item));
   const registration = normalizeClosetRegistrationBasics({
     category: item.category,
     color: item.color,
@@ -89,7 +91,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     graphicDetected: item.graphicDetected,
     graphicType: item.graphicType,
     graphicSize: item.graphicSize,
-    material: getReliableValue(materialSummary) || getReliableValue(item.material),
+    material: resolvedMaterial,
     pattern: getReliableValue(item.pattern),
     confirmedProduct,
     styleProfile: item.styleProfile,
@@ -99,7 +101,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
     wearCount: item.wearCount,
     lastWornAt: item.lastWornAt,
     userEditedClassificationFields: item.userEditedClassificationFields?.filter(
-      (field) => field === "season"
+      (field) => field === "season" || field === "material"
     ),
     createdAt: item.createdAt,
   };

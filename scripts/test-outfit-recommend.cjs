@@ -982,6 +982,33 @@ test("사용자가 수정한 소재는 공식 상품 소재보다 우선한다",
   });
 
   assert.equal(getResolvedItemMaterial(item), "린넨 혼방");
+  const [lightweightItem] = toRecommendationInputItems([item]);
+  assert.equal(lightweightItem.material, "린넨 혼방");
+  assert.deepEqual(lightweightItem.userEditedClassificationFields, ["material"]);
+  assert.equal(getResolvedItemMaterial(lightweightItem), "린넨 혼방");
+});
+
+test("사용자 수정이 없으면 경량 추천 입력도 공식 상품 소재를 우선한다", () => {
+  const item = createItem("official-material-top", "상의", {
+    material: "면",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "테스트 니트",
+      confirmedAt: createdAt,
+      materialComposition: {
+        summary: "울 80%, 나일론 20%",
+        items: [
+          { name: "울", percentage: 80 },
+          { name: "나일론", percentage: 20 },
+        ],
+        source: "official",
+      },
+    },
+  });
+
+  const [lightweightItem] = toRecommendationInputItems([item]);
+  assert.equal(lightweightItem.material, "울 80%, 나일론 20%");
+  assert.equal(getResolvedItemMaterial(lightweightItem), "울 80%, 나일론 20%");
 });
 
 test("저장 코디는 삭제된 옷 ID를 누락 상태로 구분한다", () => {
