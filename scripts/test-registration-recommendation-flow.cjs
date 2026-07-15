@@ -764,6 +764,13 @@ async function main() {
       }),
       "면"
     );
+    assert.deepEqual(
+      parseMaterialSummaryItems("겉감: 면 / 안감: 폴리에스터 100%"),
+      [
+        { name: "면", percentage: null, section: "outer" },
+        { name: "폴리에스터", percentage: 100, section: "lining" },
+      ]
+    );
     assert.deepEqual(parseMaterialSummaryItems("소재 판단 어려움"), []);
     assert.equal(
       getPrimaryMaterialText({

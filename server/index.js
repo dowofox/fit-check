@@ -1704,17 +1704,17 @@ function parseMaterialCompositionText(
     })),
   ];
 
-  if (percentageItems.length > 0) {
-    return buildMaterialComposition(percentageItems, source);
-  }
-
   const hasStrongMaterialContext =
     Boolean(contextLabel) &&
     isMaterialCandidateKey(contextLabel) &&
     !String(contextLabel).toLowerCase().includes("goodscontents");
+  const canParseNameItems =
+    !options.requirePercentage && hasMaterialContext && hasStrongMaterialContext;
 
-  if (options.requirePercentage || !hasMaterialContext || !hasStrongMaterialContext) {
-    return undefined;
+  if (!canParseNameItems) {
+    return percentageItems.length > 0
+      ? buildMaterialComposition(percentageItems, source)
+      : undefined;
   }
 
   const nameItems = MATERIAL_DEFINITIONS.flatMap(({ name, aliases: definitionAliases }) =>
@@ -1729,6 +1729,10 @@ function parseMaterialCompositionText(
   )
     .sort((first, second) => first.index - second.index)
     .map(({ name, percentage, section }) => ({ name, percentage, section }));
+
+  if (percentageItems.length > 0) {
+    return buildMaterialComposition([...nameItems, ...percentageItems], source);
+  }
 
   return buildMaterialComposition(nameItems, source);
 }

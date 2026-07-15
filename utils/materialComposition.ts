@@ -1,5 +1,7 @@
 import type { MaterialComposition, MaterialSection } from "@/utils/storage";
 
+type MaterialItem = NonNullable<MaterialComposition["items"]>[number];
+
 export const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
 const MATERIAL_SECTION_INDEX_PATTERN = "(?:\\s*(?:\\(\\d+\\)|\\d+))?";
 const MATERIAL_SECTION_SEPARATOR_PATTERN = "(?:\\s*[:：]\\s*|\\s+)";
@@ -54,7 +56,7 @@ function getMaterialSectionAt(value: string, index: number) {
   return section;
 }
 
-function parseSectionedMaterialNameItems(summary: string) {
+function parseSectionedMaterialNameItems(summary: string): MaterialItem[] {
   const sectionMatches = [
     ...summary.matchAll(
       new RegExp(
@@ -73,13 +75,40 @@ function parseSectionedMaterialNameItems(summary: string) {
     return summary
       .slice(contentStart, contentEnd)
       .split(/[,/|;·\n]+/)
-      .map((name) => name.replace(/^[\s:：()]+|[\s:：()]+$/g, "").trim())
+      .map((name) =>
+        name
+          .replace(/\s*\d+(?:\.\d+)?\s*%\s*$/i, "")
+          .replace(/^[\s:：()]+|[\s:：()]+$/g, "")
+          .trim()
+      )
       .filter(Boolean)
       .map((name) => ({ name, percentage: null, section }));
   });
 }
 
-export function parseMaterialSummaryItems(summary?: string) {
+function mergeMaterialSummaryItems(
+  sectionedItems: MaterialItem[],
+  percentageItems: MaterialItem[]
+) {
+  const mergedItems = sectionedItems.map((item) => ({ ...item }));
+
+  for (const item of percentageItems) {
+    const existingItem = mergedItems.find(
+      (candidate) =>
+        candidate.name.trim().toLowerCase() === item.name.trim().toLowerCase() &&
+        candidate.section === item.section
+    );
+    if (existingItem) {
+      existingItem.percentage = item.percentage;
+    } else {
+      mergedItems.push(item);
+    }
+  }
+
+  return mergedItems;
+}
+
+export function parseMaterialSummaryItems(summary?: string): MaterialItem[] {
   const materialSummary = summary || "";
   const percentageItems = Array.from(
     materialSummary.matchAll(/([^0-9%,/|·;\n]+?)\s*(\d+(?:\.\d+)?)\s*%/gi)
@@ -95,10 +124,11 @@ export function parseMaterialSummaryItems(summary?: string) {
       };
     })
     .filter((item) => item.name && Number.isFinite(item.percentage));
+  const sectionedItems = parseSectionedMaterialNameItems(materialSummary);
 
-  return percentageItems.length > 0
-    ? percentageItems
-    : parseSectionedMaterialNameItems(materialSummary);
+  return sectionedItems.length > 0
+    ? mergeMaterialSummaryItems(sectionedItems, percentageItems)
+    : percentageItems;
 }
 
 function getMaterialItems(materialComposition?: MaterialComposition) {
