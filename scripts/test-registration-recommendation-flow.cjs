@@ -452,6 +452,31 @@ async function main() {
       getProductAnalysisTarget({ productName: "와이드 슬랙스" }).detailCategory,
       "와이드 슬랙스"
     );
+    const bermudaTarget = getProductAnalysisTarget({
+      productName: "BERMUDA DENIM SHORTS",
+    });
+    assert.equal(bermudaTarget.detailCategory, "버뮤다 쇼츠");
+    assert.equal(bermudaTarget.material, "데님");
+    const basicPantsFitCases = [
+      ["배기 팬츠", "배기 팬츠"],
+      ["RELAXED LOOSE FIT PANTS", "루즈 팬츠"],
+      ["STRAIGHT PANTS", "스트레이트 팬츠"],
+    ];
+    basicPantsFitCases.forEach(([productName, detailCategory]) => {
+      assert.equal(
+        getProductAnalysisTarget({ productName }).detailCategory,
+        detailCategory,
+        productName
+      );
+    });
+    assert.equal(
+      getProductAnalysisTarget({ productName: "BAGGY CARGO PANTS" }).detailCategory,
+      "카고 팬츠"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "STRAIGHT DENIM JEANS" }).detailCategory,
+      "스트레이트 데님 팬츠"
+    );
     assert.equal(
       getProductAnalysisTarget({
         productName: "부츠컷 그래픽 티셔츠",

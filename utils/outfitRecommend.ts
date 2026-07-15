@@ -1060,6 +1060,12 @@ function getFallbackSilhouette(item: ClosetItem): ResolvedGarmentProfile["silhou
 
   if (includesAny(text, ["크롭", "짧은 기장", "cropped"])) return "cropped";
   if (includesAny(text, ["세미오버", "세미 오버", "semi oversized"])) return "semiOversized";
+  if (
+    item.category === "하의" &&
+    includesAny(text, ["루즈", "배기", "loose", "relaxed", "baggy"])
+  ) {
+    return "wide";
+  }
   if (includesAny(text, ["오버핏", "오버사이즈", "루즈", "oversized"])) return "oversized";
   if (
     includesAny(text, [
@@ -1088,7 +1094,21 @@ function getFallbackLengthBalance(
 ): ResolvedGarmentProfile["lengthBalance"] {
   const text = getGarmentSearchText(item);
 
-  if (silhouette === "cropped" || includesAny(text, ["크롭", "숏", "짧은 기장"])) return "short";
+  if (
+    silhouette === "cropped" ||
+    includesAny(text, [
+      "크롭",
+      "숏",
+      "짧은 기장",
+      "반바지",
+      "쇼츠",
+      "버뮤다",
+      "shorts",
+      "bermuda",
+    ])
+  ) {
+    return "short";
+  }
   if (silhouette === "long" || includesAny(text, ["롱", "맥시", "긴 기장"])) return "long";
   return "regular";
 }
