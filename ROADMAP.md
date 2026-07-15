@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 115차 작업을 진행한다.
+현재 P0는 116차 작업을 진행한다.
+
+- [x] 구조화 상품의 공식 가격 명세 fallback
+  - Schema.org `offers` 배열의 첫 항목이 비어 있어도 다른 offer의 공식 가격을 확인한다.
+  - `priceSpecification.price`에만 가격이 있는 상품도 링크 등록 가격으로 복원한다.
+  - 서로 다른 공식 가격이 여러 개면 특정 옵션 가격을 임의 선택하지 않고 기존 메타 fallback을 유지한다.
+
+완료된 P0 115차 항목:
 
 - [x] 구조화 상품 그룹의 `@id` 참조 연결
   - Schema.org `@graph`에서 선택 상품의 `isVariantOf.@id`와 별도 `ProductGroup` 노드를 연결한다.

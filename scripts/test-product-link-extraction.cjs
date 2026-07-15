@@ -205,6 +205,32 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (["/structured-price-specification", "/structured-price-conflict"].includes(request.url)) {
+    const offers = request.url === "/structured-price-specification"
+      ? [
+          { "@type": "Offer", availability: "https://schema.org/SoldOut" },
+          {
+            "@type": "Offer",
+            priceSpecification: { "@type": "PriceSpecification", price: "72000" },
+          },
+        ]
+      : [
+          { "@type": "Offer", price: "50000" },
+          { "@type": "Offer", price: "60000" },
+        ];
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: "구조화 가격 니트",
+        url: request.url,
+        image: "/images/structured-price-knit.jpg",
+        offers,
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/partial") {
     response.end(`<!doctype html><html><head>
       <meta name="twitter:label1" content="브랜드">
@@ -1347,6 +1373,16 @@ async function main() {
       referencedParentGroup.body.materialComposition.summary,
       "아크릴 100%"
     );
+
+    const structuredPriceSpecification = await extract(
+      "/structured-price-specification"
+    );
+    assert.equal(structuredPriceSpecification.response.status, 200);
+    assert.equal(structuredPriceSpecification.body.price, "72000");
+
+    const conflictingStructuredPrices = await extract("/structured-price-conflict");
+    assert.equal(conflictingStructuredPrices.response.status, 200);
+    assert.equal(conflictingStructuredPrices.body.price, "");
 
     const relatedFirst = await extract("/related-first");
     assert.equal(relatedFirst.response.status, 200);

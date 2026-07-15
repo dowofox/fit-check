@@ -830,6 +830,34 @@ function getStructuredProductImage(value) {
   return "";
 }
 
+function normalizeStructuredPrice(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value >= 0 ? String(value) : "";
+  }
+  if (typeof value !== "string") return "";
+
+  const price = value.trim();
+  return /^\d+(?:[.,]\d+)*$/.test(price) ? price : "";
+}
+
+function getStructuredProductPrice(offers) {
+  const prices = (Array.isArray(offers) ? offers : [offers]).flatMap((offer) => {
+    if (!offer || typeof offer !== "object") return [];
+    const priceSpecifications = Array.isArray(offer.priceSpecification)
+      ? offer.priceSpecification
+      : [offer.priceSpecification];
+
+    return [
+      normalizeStructuredPrice(offer.price),
+      ...priceSpecifications.map((specification) =>
+        normalizeStructuredPrice(specification?.price),
+      ),
+    ].filter(Boolean);
+  });
+
+  return getSingleStructuredTextValue(prices);
+}
+
 function getStructuredProductCategory(product) {
   const categoryValues = getUniqueStructuredTextValues(
     getStructuredTextValues(product?.category),
@@ -899,7 +927,6 @@ function getStructuredProductData(html, productUrl) {
       getStructuredProductCategory(product) ||
       getStructuredProductCategory(parentProductGroup);
     const offerSource = product.offers || parentProductGroup?.offers;
-    const offers = Array.isArray(offerSource) ? offerSource[0] : offerSource;
     const materialComposition =
       extractStructuredProductMaterialComposition(product) ||
       extractStructuredProductMaterialComposition(parentProductGroup);
@@ -915,10 +942,7 @@ function getStructuredProductData(html, productUrl) {
       category,
       color,
       image,
-      price:
-        typeof offers?.price === "string" || typeof offers?.price === "number"
-          ? String(offers.price)
-          : "",
+      price: getStructuredProductPrice(offerSource),
       materialComposition,
     };
   }
