@@ -5,7 +5,10 @@ export const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
 function cleanMaterialName(value: string) {
   return value
     .trim()
-    .replace(/^(?:겉감|안감|충전재|배색|소재)\s*[:：]\s*/i, "")
+    .replace(
+      /^(?:겉감|외피|안감|충전재|충전물|배색|부자재|소재|shell|outer|lining|liner|filling|fill|trim)(?:\s*(?:소재|material))?\s*[:：]\s*/i,
+      ""
+    )
     .trim();
 }
 
@@ -28,12 +31,29 @@ function getMaterialSection(value: string): MaterialSection | undefined {
   return undefined;
 }
 
+function getMaterialSectionAt(value: string, index: number) {
+  const sectionPattern =
+    /(?:^|[\s,/|;()])(겉감|외피|안감|충전재|충전물|배색|부자재|shell|outer|lining|liner|filling|fill|trim)(?:\s*(?:소재|material))?\s*[:：]/gi;
+  let section: MaterialSection | undefined;
+
+  for (const match of value.matchAll(sectionPattern)) {
+    if ((match.index ?? 0) > index) break;
+    section = getMaterialSection(match[1]);
+  }
+
+  return section;
+}
+
 export function parseMaterialSummaryItems(summary?: string) {
+  const materialSummary = summary || "";
+
   return Array.from(
-    (summary || "").matchAll(/([^0-9%,/|·;\n]+?)\s*(\d+(?:\.\d+)?)\s*%/gi)
+    materialSummary.matchAll(/([^0-9%,/|·;\n]+?)\s*(\d+(?:\.\d+)?)\s*%/gi)
   )
     .map((match) => {
-      const section = getMaterialSection(match[1]);
+      const section =
+        getMaterialSectionAt(materialSummary, match.index ?? 0) ||
+        getMaterialSection(match[1]);
       return {
         name: cleanMaterialName(match[1]),
         percentage: Number(match[2]),

@@ -699,6 +699,22 @@ async function main() {
       }),
       "나일론"
     );
+    assert.deepEqual(
+      parseMaterialSummaryItems(
+        "겉감: 면 60%, 나일론 40% / 안감: 폴리에스터 100%"
+      ),
+      [
+        { name: "면", percentage: 60, section: "outer" },
+        { name: "나일론", percentage: 40, section: "outer" },
+        { name: "폴리에스터", percentage: 100, section: "lining" },
+      ]
+    );
+    assert.equal(
+      getPrimaryMaterialText({
+        summary: "shell: cotton 60%, nylon 40% / lining: polyester 100%",
+      }),
+      "cotton nylon"
+    );
     assert.equal(
       getProductAnalysisTarget({
         productName: "베이직 윈드브레이커",
