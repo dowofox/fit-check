@@ -696,6 +696,58 @@ function getMaterialCompositionSignature(materialComposition) {
   );
 }
 
+function getMaterialCompositionDetailRank(materialComposition) {
+  const items = materialComposition?.items || [];
+  const sectionCount = new Set(items.map((item) => item.section).filter(Boolean)).size;
+  const percentageCount = items.filter(
+    (item) => typeof item.percentage === "number",
+  ).length;
+
+  return [sectionCount > 0 ? 1 : 0, sectionCount, percentageCount, items.length];
+}
+
+function compareMaterialCompositionDetail(first, second) {
+  const firstRank = getMaterialCompositionDetailRank(first);
+  const secondRank = getMaterialCompositionDetailRank(second);
+
+  for (let index = 0; index < firstRank.length; index += 1) {
+    if (firstRank[index] !== secondRank[index]) {
+      return firstRank[index] - secondRank[index];
+    }
+  }
+
+  return 0;
+}
+
+function haveCompatibleMaterialEvidence(first, second) {
+  const firstNames = new Set((first?.items || []).map((item) => item.name));
+  const secondNames = new Set((second?.items || []).map((item) => item.name));
+
+  return [...firstNames].some((name) => secondNames.has(name));
+}
+
+function selectMostDetailedMaterialComposition(candidates) {
+  const availableCandidates = candidates.filter(({ composition }) => composition);
+  if (availableCandidates.length === 0) return undefined;
+
+  const selected = availableCandidates.slice(1).reduce((current, candidate) => {
+    if (!haveCompatibleMaterialEvidence(current.composition, candidate.composition)) {
+      return current;
+    }
+
+    return compareMaterialCompositionDetail(candidate.composition, current.composition) > 0
+      ? candidate
+      : current;
+  }, availableCandidates[0]);
+
+  logMaterialExtraction("selection", {
+    source: selected.label,
+    candidateCount: availableCandidates.length,
+    summary: selected.composition.summary,
+  });
+  return selected.composition;
+}
+
 function extractStructuredProductMaterialComposition(product, includeVariants = true) {
   if (!product || typeof product !== "object") return undefined;
 
@@ -3075,16 +3127,19 @@ app.post("/extract-product", async (req, res) => {
         finalProductUrl
       );
       const productImageUrl = structuredProductImageUrl || metadataProductImageUrl;
-      let materialComposition =
+      const musinsaMaterialComposition =
         isMusinsa && productId
           ? await fetchMusinsaMaterialComposition(productId, finalProductUrl)
           : undefined;
-      if (!materialComposition) {
-        materialComposition = structuredProduct?.materialComposition;
-      }
-      if (!materialComposition) {
-        materialComposition = extractProductMaterialComposition(html);
-      }
+      const productInfoMaterialComposition =
+        extractMaterialCompositionFromProductInfo(html);
+      const pageMaterialComposition = extractProductMaterialComposition(html);
+      let materialComposition = selectMostDetailedMaterialComposition([
+        { label: "musinsa-essential-api", composition: musinsaMaterialComposition },
+        { label: "structured-product", composition: structuredProduct?.materialComposition },
+        { label: "product-info", composition: productInfoMaterialComposition },
+        { label: "page", composition: pageMaterialComposition },
+      ]);
       if (materialComposition) {
         materialComposition = {
           ...materialComposition,

@@ -161,6 +161,22 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/detailed-material-source") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"코튼 블렌드 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "material":{"name":"cotton","percentage":100},
+        "image":"/images/cotton-blend-jacket.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>제품 소재</dt><dd>겉감: 면 60%, 나일론 40% / 안감: 폴리에스터 100%</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/material-object") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -551,6 +567,18 @@ async function main() {
       { name: "나일론", percentage: 60, section: "outer" },
       { name: "폴리에스터", percentage: 40, section: "outer" },
       { name: "레이온", percentage: 100, section: "lining" },
+    ]);
+
+    const detailedMaterialSource = await extract("/detailed-material-source");
+    assert.equal(detailedMaterialSource.response.status, 200);
+    assert.equal(
+      detailedMaterialSource.body.materialComposition.summary,
+      "겉감: 면 60%, 나일론 40% / 안감: 폴리에스터 100%"
+    );
+    assert.deepEqual(detailedMaterialSource.body.materialComposition.items, [
+      { name: "면", percentage: 60, section: "outer" },
+      { name: "나일론", percentage: 40, section: "outer" },
+      { name: "폴리에스터", percentage: 100, section: "lining" },
     ]);
 
     const materialObject = await extract("/material-object");
