@@ -298,9 +298,27 @@ function findOfficialSeasonRules(searchText: string) {
   );
 }
 
-function hasConflictingSeasonRules(rules: OfficialSeasonRule[]) {
+function getSpecificSeasonRules(rules: OfficialSeasonRule[]) {
   const specificRules = rules.filter((rule) => rule.id !== "explicit-all-season");
-  const comparableRules = specificRules.length > 0 ? specificRules : rules;
+  return specificRules.length > 0 ? specificRules : rules;
+}
+
+function haveOverlappingSeasonRules(
+  firstRules: OfficialSeasonRule[],
+  secondRules: OfficialSeasonRule[]
+) {
+  const firstComparableRules = getSpecificSeasonRules(firstRules);
+  const secondComparableRules = getSpecificSeasonRules(secondRules);
+
+  return firstComparableRules.some((rule) =>
+    secondComparableRules.some((otherRule) =>
+      rule.seasons.some((season) => otherRule.seasons.includes(season))
+    )
+  );
+}
+
+function hasConflictingSeasonRules(rules: OfficialSeasonRule[]) {
+  const comparableRules = getSpecificSeasonRules(rules);
 
   return comparableRules.some((rule, index) =>
     comparableRules.slice(index + 1).some(
@@ -321,29 +339,36 @@ export function inferSeasonsFromOfficialProduct({
   materialComposition?: MaterialComposition;
   currentItem?: ClosetItem;
 }): SeasonInferenceResult | null {
-  const itemSearchText = normalizeSearchText([
-    productName,
-    productCategory,
+  const officialItemSearchText = normalizeSearchText([productName, productCategory]);
+  const fallbackItemSearchText = normalizeSearchText([
     currentItem?.detailCategory,
     currentItem?.subCategory,
   ]);
   const materialSearchText = normalizeSearchText([
     getSignificantMaterialText(materialComposition),
   ]);
-  const searchText = [itemSearchText, materialSearchText].filter(Boolean).join(" ");
-  if (!searchText) return null;
-
-  const matchedRule = findOfficialSeasonRule(searchText);
-  if (!matchedRule) return null;
-
-  const itemRules = findOfficialSeasonRules(itemSearchText);
+  const officialItemRules = findOfficialSeasonRules(officialItemSearchText);
+  const fallbackItemRules = findOfficialSeasonRules(fallbackItemSearchText);
+  const itemRules = officialItemRules.length > 0 ? officialItemRules : fallbackItemRules;
   const itemRule = itemRules[0];
   const materialRules = findOfficialSeasonRules(materialSearchText);
   const materialRule = materialRules[0];
+  const matchedRule =
+    itemRule && itemRule.id !== "explicit-all-season"
+      ? itemRule
+      : materialRule || itemRule;
+  if (!matchedRule) return null;
+
   const hasConflictingItemEvidence = hasConflictingSeasonRules(itemRules);
+  const hasConflictingFallbackEvidence = Boolean(
+    officialItemRules.length > 0 &&
+      fallbackItemRules.length > 0 &&
+      !haveOverlappingSeasonRules(officialItemRules, fallbackItemRules)
+  );
   const hasConflictingMaterialEvidence = hasConflictingSeasonRules(materialRules);
   const hasConflictingOfficialEvidence = Boolean(
     hasConflictingItemEvidence ||
+      hasConflictingFallbackEvidence ||
       hasConflictingMaterialEvidence ||
       (itemRule &&
         materialRule &&
@@ -356,11 +381,13 @@ export function inferSeasonsFromOfficialProduct({
     needsReview: hasConflictingOfficialEvidence,
     reasons: hasConflictingItemEvidence
       ? ["공식 상품명과 카테고리의 계절 단서가 달라 확인이 필요해요."]
+      : hasConflictingFallbackEvidence
+        ? ["공식 상품 정보와 기존 사진 분류의 계절 단서가 달라 확인이 필요해요."]
       : hasConflictingMaterialEvidence
-      ? ["공식 소재 구성 안의 계절 단서가 서로 달라 확인이 필요해요."]
-      : hasConflictingOfficialEvidence
-        ? ["공식 상품명과 소재의 계절 단서가 달라 확인이 필요해요."]
-      : [`공식 상품명 또는 소재에서 ${matchedRule.id} 계절 근거를 확인했어요.`],
+        ? ["공식 소재 구성 안의 계절 단서가 서로 달라 확인이 필요해요."]
+        : hasConflictingOfficialEvidence
+          ? ["공식 상품명과 소재의 계절 단서가 달라 확인이 필요해요."]
+          : [`공식 상품명 또는 소재에서 ${matchedRule.id} 계절 근거를 확인했어요.`],
   };
 }
 
