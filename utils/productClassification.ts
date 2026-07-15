@@ -144,18 +144,26 @@ function getKeywordClassification(
   const classificationText = [productName, productCategory].filter(Boolean).join(" ");
   const officialMaterial = getOfficialMaterial(classificationText, materialComposition);
   const currentTags = currentItem?.styleTags;
-  const officialCategoryGroup = PRODUCT_CATEGORY_FALLBACK_RULES.find((rule) =>
-    includesAny(productCategory, rule.keywords)
-  )?.group;
+  const overridingNameRule = PRODUCT_CLASSIFICATION_RULES.find(
+    (rule) =>
+      rule.overridesCategoryGroup && includesAny(productName, rule.keywords)
+  );
+  const officialCategoryGroup =
+    overridingNameRule?.group ||
+    PRODUCT_CATEGORY_FALLBACK_RULES.find((rule) =>
+      includesAny(productCategory, rule.keywords)
+    )?.group;
   const specificRules = officialCategoryGroup
     ? PRODUCT_CLASSIFICATION_RULES.filter((rule) => rule.group === officialCategoryGroup)
     : PRODUCT_CLASSIFICATION_RULES;
   const fallbackRules = officialCategoryGroup
     ? PRODUCT_CATEGORY_FALLBACK_RULES.filter((rule) => rule.group === officialCategoryGroup)
     : PRODUCT_CATEGORY_FALLBACK_RULES;
-  const specificRule = specificRules.find((rule) =>
-    includesAny(classificationText, rule.keywords)
-  );
+  const specificRule =
+    overridingNameRule ||
+    specificRules.find((rule) =>
+      includesAny(classificationText, rule.keywords)
+    );
   const matchedRule =
     specificRule ||
     fallbackRules.find((rule) =>

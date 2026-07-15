@@ -316,6 +316,38 @@ async function main() {
       "아우터"
     );
 
+    const shacketTarget = getProductAnalysisTarget({
+      productName: "DENIM SHACKET",
+      productCategory: "Apparel > Shirts",
+    });
+    assert.equal(shacketTarget.category, "아우터");
+    assert.equal(shacketTarget.detailCategory, "셔켓");
+    assert.equal(shacketTarget.material, "데님");
+    const overshirtTarget = getProductAnalysisTarget({
+      productName: "LINEN OVERSHIRT",
+      productCategory: "Apparel > Shirts",
+    });
+    assert.equal(overshirtTarget.category, "아우터");
+    assert.equal(overshirtTarget.detailCategory, "오버셔츠");
+    assert.equal(overshirtTarget.material, "린넨");
+    const correctedShacketAnalysis = applyProductAnalysisTarget(
+      {
+        category: "상의",
+        subCategory: "셔츠",
+        detailCategory: "데님 셔츠",
+      },
+      shacketTarget
+    );
+    assert.equal(correctedShacketAnalysis.category, "아우터");
+    assert.equal(correctedShacketAnalysis.detailCategory, "셔켓");
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "LINEN SHIRT",
+        productCategory: "Apparel > Shirts",
+      }).category,
+      "상의"
+    );
+
     const officialColorTarget = getProductAnalysisTarget({
       productName: product.productName,
       productColor: "OFF WHITE",

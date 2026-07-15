@@ -3,6 +3,7 @@ export type ProductClassificationRule = {
   group: "상의" | "아우터" | "하의" | "신발" | "가방" | "모자" | "액세서리";
   label: string;
   keywords: string[];
+  overridesCategoryGroup?: boolean;
   attributes: {
     category: string;
     subCategory: string;
@@ -166,6 +167,45 @@ export const PRODUCT_CLASSIFICATION_RULES: ProductClassificationRule[] = [
       subCategory: "코트",
       detailCategory: "코트",
       styleTags: ["클래식", "깔끔함"],
+    },
+  },
+  {
+    id: "shacket",
+    group: "아우터",
+    label: "셔켓",
+    keywords: [
+      "셔켓",
+      "셔츠 자켓",
+      "셔츠 재킷",
+      "shirt jacket",
+      "shirt-jacket",
+      "shacket",
+    ],
+    overridesCategoryGroup: true,
+    attributes: {
+      category: "아우터",
+      subCategory: "자켓",
+      detailCategory: "셔켓",
+      styleTags: ["캐주얼", "워크웨어"],
+    },
+  },
+  {
+    id: "overshirt",
+    group: "아우터",
+    label: "오버셔츠",
+    keywords: [
+      "오버셔츠",
+      "오버 셔츠",
+      "overshirt",
+      "over shirt",
+      "over-shirt",
+    ],
+    overridesCategoryGroup: true,
+    attributes: {
+      category: "아우터",
+      subCategory: "자켓",
+      detailCategory: "오버셔츠",
+      styleTags: ["캐주얼", "데일리"],
     },
   },
   {
