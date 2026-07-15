@@ -1,3 +1,5 @@
+import { MIN_SEASONAL_MATERIAL_PERCENTAGE } from "@/utils/seasonInference";
+
 export type OutfitItemMatcher = {
   categories?: string[];
   keywords?: string[];
@@ -29,6 +31,8 @@ export type OutfitDetailRule = {
 export type MaterialSeasonRule = {
   id: string;
   materialKeywords: string[];
+  percentageSensitiveKeywords?: string[];
+  minimumPercentage?: number;
   positiveSeasons?: string[];
   positiveScore?: number;
   positiveReason?: string;
@@ -556,6 +560,8 @@ export const MATERIAL_SEASON_RULES: MaterialSeasonRule[] = [
   {
     id: "knit-wool",
     materialKeywords: ["니트", "knit", "울", "wool", "모 100", "모100"],
+    percentageSensitiveKeywords: ["울", "wool", "모"],
+    minimumPercentage: MIN_SEASONAL_MATERIAL_PERCENTAGE,
     positiveSeasons: ["가을", "겨울"],
     positiveScore: 2,
     positiveReason: "니트·울 소재의 온도감이 가을·겨울 코디에 잘 맞아요.",

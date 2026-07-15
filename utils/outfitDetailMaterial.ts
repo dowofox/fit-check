@@ -2,6 +2,7 @@ import {
   MATERIAL_SEASON_RULES,
   OUTFIT_DETAIL_RULES,
   type OutfitItemMatcher,
+  type MaterialSeasonRule,
   type OutfitRuleCondition,
 } from "@/utils/outfitDetailMaterialRules";
 import { getResolvedItemMaterial } from "@/utils/productClassification";
@@ -19,6 +20,19 @@ function getItemText(item: ClosetItem) {
     item.subCategory,
     item.detailCategory,
     getResolvedItemMaterial(item),
+    item.fit,
+    ...(item.styleTags || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function getItemDescriptorText(item: ClosetItem) {
+  return [
+    item.category,
+    item.subCategory,
+    item.detailCategory,
     item.fit,
     ...(item.styleTags || []),
   ]
@@ -114,6 +128,77 @@ function getMaterialText(item: ClosetItem) {
   return getResolvedItemMaterial(item).toLowerCase();
 }
 
+function getMaterialPercentageEntries(
+  item: ClosetItem,
+  keywords: string[]
+) {
+  const usesUserMaterial = item.userEditedClassificationFields?.includes("material");
+  const officialItems = usesUserMaterial
+    ? []
+    : item.confirmedProduct?.materialComposition?.items || [];
+  if (officialItems.length > 0) {
+    return {
+      hasPercentageData: officialItems.some(
+        (material) => typeof material.percentage === "number"
+      ),
+      percentages: officialItems
+        .filter((material) =>
+          keywords.some((keyword) =>
+            includesToken(material.name.toLowerCase(), keyword.toLowerCase())
+          )
+        )
+        .map((material) => material.percentage)
+        .filter((percentage): percentage is number => typeof percentage === "number"),
+    };
+  }
+
+  const parsedEntries = getMaterialText(item)
+    .split(/[,/|·;\n]+/)
+    .map((segment) => segment.match(/^\s*(.+?)\s*(\d+(?:\.\d+)?)\s*%\s*$/))
+    .filter((match): match is RegExpMatchArray => Boolean(match));
+
+  return {
+    hasPercentageData: parsedEntries.length > 0,
+    percentages: parsedEntries
+      .filter((match) =>
+        keywords.some((keyword) =>
+          includesToken(match[1].toLowerCase(), keyword.toLowerCase())
+        )
+      )
+      .map((match) => Number(match[2]))
+      .filter(Number.isFinite),
+  };
+}
+
+function matchesMaterialSeasonRule(item: ClosetItem, rule: MaterialSeasonRule) {
+  const materialText = getMaterialText(item);
+  const descriptorText = getItemDescriptorText(item);
+  const percentageKeywords = rule.percentageSensitiveKeywords || [];
+  const minimumPercentage = rule.minimumPercentage;
+
+  if (!percentageKeywords.length || minimumPercentage == null) {
+    return includesAny(`${descriptorText} ${materialText}`, rule.materialKeywords);
+  }
+
+  const constructionKeywords = rule.materialKeywords.filter(
+    (keyword) => !percentageKeywords.includes(keyword)
+  );
+  if (includesAny(`${descriptorText} ${materialText}`, constructionKeywords)) {
+    return true;
+  }
+  if (!includesAny(`${descriptorText} ${materialText}`, percentageKeywords)) {
+    return false;
+  }
+
+  const percentageEvidence = getMaterialPercentageEntries(item, percentageKeywords);
+  return (
+    !percentageEvidence.hasPercentageData ||
+    percentageEvidence.percentages.some(
+      (percentage) => percentage >= minimumPercentage
+    )
+  );
+}
+
 function pushUnique(values: string[], value?: string) {
   if (value && !values.includes(value)) values.push(value);
 }
@@ -148,9 +233,7 @@ export function getDetailMaterialAdjustment(
   });
 
   MATERIAL_SEASON_RULES.forEach((rule) => {
-    const matchingItems = items.filter((item) =>
-      includesAny(`${getItemText(item)} ${getMaterialText(item)}`, rule.materialKeywords)
-    );
+    const matchingItems = items.filter((item) => matchesMaterialSeasonRule(item, rule));
     if (matchingItems.length === 0) return;
 
     if (rule.positiveSeasons?.includes(currentSeason)) {

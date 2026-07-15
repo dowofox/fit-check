@@ -230,7 +230,7 @@ function normalizeSearchText(values: Array<string | undefined>) {
     .trim();
 }
 
-const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
+export const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
 
 function getMaterialText(materialComposition?: MaterialComposition) {
   const materialItems = materialComposition?.items || [];
