@@ -516,23 +516,54 @@ function getSchemaTypes(value) {
     .map((type) => type.toLowerCase());
 }
 
-function collectStructuredProducts(value, depth = 0, path = [], products = []) {
+function collectStructuredProducts(
+  value,
+  depth = 0,
+  path = [],
+  products = [],
+  parentProductGroup,
+) {
   if (!value || depth > 8) return products;
 
   if (Array.isArray(value)) {
-    value.forEach((entry) => collectStructuredProducts(entry, depth + 1, path, products));
+    value.forEach((entry) =>
+      collectStructuredProducts(
+        entry,
+        depth + 1,
+        path,
+        products,
+        parentProductGroup,
+      ),
+    );
     return products;
   }
 
   if (typeof value !== "object") return products;
   const schemaTypes = getSchemaTypes(value);
-  if (schemaTypes.includes("product") || schemaTypes.includes("productgroup")) {
-    products.push({ product: value, depth, path });
+  const isProduct = schemaTypes.includes("product");
+  const isProductGroup = schemaTypes.includes("productgroup");
+  if (isProduct || isProductGroup) {
+    products.push({ product: value, depth, path, parentProductGroup });
+    if (isProductGroup && value.hasVariant) {
+      collectStructuredProducts(
+        value.hasVariant,
+        depth + 1,
+        [...path, "hasVariant"],
+        products,
+        value,
+      );
+    }
     return products;
   }
 
   Object.entries(value).forEach(([key, nestedValue]) => {
-    collectStructuredProducts(nestedValue, depth + 1, [...path, key], products);
+    collectStructuredProducts(
+      nestedValue,
+      depth + 1,
+      [...path, key],
+      products,
+      parentProductGroup,
+    );
   });
 
   return products;
@@ -585,6 +616,7 @@ function scoreStructuredProductCandidate(candidate, productUrl) {
   }
   if (candidateUrl && currentUrl && candidateUrl === currentUrl) {
     score += 140;
+    if (candidate.parentProductGroup) score += 160;
   } else if (candidatePath && currentPath && candidatePath === currentPath) {
     score += 120;
   }
@@ -769,18 +801,34 @@ function getStructuredProductData(html, productUrl) {
       scoreStructuredProductCandidate(first, productUrl)
   )[0];
   const product = selectedCandidate?.product;
+  const parentProductGroup = selectedCandidate?.parentProductGroup;
 
   if (product) {
-
-    const brand = getStructuredProductBrandFromProduct(product);
-    const image = getStructuredProductImage(product.image);
-    const color = getStructuredProductColor(product);
-    const category = getStructuredProductCategory(product);
-    const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
-    const materialComposition = extractStructuredProductMaterialComposition(product);
+    const brand =
+      getStructuredProductBrandFromProduct(product) ||
+      getStructuredProductBrandFromProduct(parentProductGroup);
+    const image =
+      getStructuredProductImage(product.image) ||
+      getStructuredProductImage(parentProductGroup?.image);
+    const color =
+      getStructuredProductColor(product) ||
+      getStructuredProductColor(parentProductGroup);
+    const category =
+      getStructuredProductCategory(product) ||
+      getStructuredProductCategory(parentProductGroup);
+    const offerSource = product.offers || parentProductGroup?.offers;
+    const offers = Array.isArray(offerSource) ? offerSource[0] : offerSource;
+    const materialComposition =
+      extractStructuredProductMaterialComposition(product) ||
+      extractStructuredProductMaterialComposition(parentProductGroup);
 
     return {
-      name: typeof product.name === "string" ? product.name.trim() : "",
+      name:
+        typeof product.name === "string" && product.name.trim()
+          ? product.name.trim()
+          : typeof parentProductGroup?.name === "string"
+            ? parentProductGroup.name.trim()
+            : "",
       brand,
       category,
       color,

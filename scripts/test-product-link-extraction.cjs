@@ -102,6 +102,36 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/product-group-variant") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "ProductGroup",
+        name: "그룹 공통 니트",
+        url: "/product-group-variant?view=group",
+        brand: { "@type": "Brand", name: "GROUP BRAND" },
+        category: "상의 > 니트",
+        image: "/images/group-knit.jpg",
+        hasVariant: [
+          {
+            "@type": "Product",
+            url: "/other-group-variant",
+            color: "블랙",
+            offers: { price: "59000" },
+          },
+          {
+            "@type": "Product",
+            url: "/product-group-variant",
+            color: "아이보리",
+            material: "면 100%",
+            offers: { price: "61000" },
+          },
+        ],
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/partial") {
     response.end(`<!doctype html><html><head>
       <meta name="twitter:label1" content="브랜드">
@@ -1194,6 +1224,22 @@ async function main() {
     assert.equal(
       structuredImageArray.body.productImageUrl,
       `http://127.0.0.1:${fixturePort}/images/valid-array-shirt.jpg`
+    );
+
+    const productGroupVariant = await extract("/product-group-variant");
+    assert.equal(productGroupVariant.response.status, 200);
+    assert.equal(productGroupVariant.body.productName, "그룹 공통 니트");
+    assert.equal(productGroupVariant.body.brand, "GROUP BRAND");
+    assert.equal(productGroupVariant.body.productCategory, "상의 > 니트");
+    assert.equal(productGroupVariant.body.productColor, "아이보리");
+    assert.equal(productGroupVariant.body.price, "61000");
+    assert.equal(
+      productGroupVariant.body.productImageUrl,
+      `http://127.0.0.1:${fixturePort}/images/group-knit.jpg`
+    );
+    assert.equal(
+      productGroupVariant.body.materialComposition.summary,
+      "면 100%"
     );
 
     const relatedFirst = await extract("/related-first");

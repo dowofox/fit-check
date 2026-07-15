@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 112차 작업을 진행한다.
+현재 P0는 113차 작업을 진행한다.
+
+- [x] 구조화 상품 그룹의 선택 variant 연결
+  - Schema.org `ProductGroup.hasVariant`에서 현재 상품 URL과 일치하는 variant를 공식 상품 후보로 선택한다.
+  - variant에 없는 상품명, 브랜드, 이미지, 카테고리는 소속 `ProductGroup`의 공통 정보로만 보완한다.
+  - variant의 색상, 가격, 소재를 우선해 다른 옵션의 정보가 현재 상품에 섞이지 않게 한다.
+
+완료된 P0 112차 항목:
 
 - [x] 구조화 상품의 공식 브랜드 속성 fallback
   - `additionalProperty`의 `브랜드`, `브랜드명`, `Brand`는 고유 값이 하나일 때만 fallback으로 사용한다.
