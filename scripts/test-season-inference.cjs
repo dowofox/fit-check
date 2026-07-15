@@ -143,6 +143,18 @@ test("공식 계절 키워드를 품목별로 구분한다", () => {
     inferSeasonsFromOfficialProduct({ productName: "울 혼방 반팔 셔츠" }).seasons,
     ["여름"]
   );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "코튼 오버셔츠" }).seasons,
+    ["봄", "가을"]
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "린넨 오버셔츠" }).seasons,
+    ["봄", "여름"]
+  );
+  assert.deepEqual(
+    inferSeasonsFromOfficialProduct({ productName: "울 셔켓" }).seasons,
+    ["가을", "겨울"]
+  );
   assert.equal(
     inferSeasonsFromOfficialProduct({ productName: "부츠컷 데님 팬츠" }),
     null
@@ -239,6 +251,8 @@ test("대표 품목은 사진 분석과 공식 상품 보정에서 같은 계절
     { category: "상의", name: "반팔 니트" },
     { category: "상의", name: "울 혼방 반팔 셔츠" },
     { category: "아우터", name: "니트 가디건" },
+    { category: "아우터", name: "코튼 오버셔츠" },
+    { category: "아우터", name: "데일리 셔켓" },
     { category: "아우터", name: "트렌치코트" },
     { category: "아우터", name: "울 코트" },
     { category: "하의", name: "시어서커 버뮤다 팬츠" },

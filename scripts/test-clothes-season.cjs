@@ -88,6 +88,25 @@ test("가디건과 바람막이는 환절기 레이어로 분류한다", () => {
   assert.deepEqual(seasons({ detailCategory: "나일론 바람막이" }), ["봄", "가을"]);
 });
 
+test("셔켓과 오버셔츠는 소재 단서를 우선하는 레이어로 분류한다", () => {
+  assert.deepEqual(seasons({ category: "아우터", detailCategory: "데일리 셔켓" }), [
+    "봄",
+    "가을",
+  ]);
+  assert.deepEqual(seasons({ category: "아우터", detailCategory: "코튼 오버셔츠" }), [
+    "봄",
+    "가을",
+  ]);
+  assert.deepEqual(seasons({ category: "아우터", detailCategory: "린넨 오버셔츠" }), [
+    "봄",
+    "여름",
+  ]);
+  assert.deepEqual(seasons({ category: "아우터", detailCategory: "울 셔켓" }), [
+    "가을",
+    "겨울",
+  ]);
+});
+
 test("하의는 통기성과 보온 단서에 따라 여름용과 겨울용을 구분한다", () => {
   assert.deepEqual(
     seasons({ category: "하의", detailCategory: "시어서커 버뮤다 팬츠" }),
