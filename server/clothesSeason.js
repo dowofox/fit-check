@@ -301,20 +301,28 @@ function findEvidenceRule(input) {
 
 function getSeasonEvidenceFallback(input) {
   const seasonEvidence = input.seasonEvidence || {};
-  const evidenceText = [
-    seasonEvidence.thickness,
-    seasonEvidence.insulation,
-    seasonEvidence.breathability,
-    seasonEvidence.layeringRole,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const thickness = String(seasonEvidence.thickness || "").toLowerCase();
+  const insulation = String(seasonEvidence.insulation || "").toLowerCase();
+  const breathability = String(seasonEvidence.breathability || "").toLowerCase();
+  const layeringRole = String(seasonEvidence.layeringRole || "").toLowerCase();
+  const evidenceText = [thickness, insulation, breathability, layeringRole].join(" ");
+  const hasWarmEvidence =
+    /두꺼|헤비|thick|heavy/.test(thickness) ||
+    /높음|보온|충전|high|insulated/.test(insulation) ||
+    /방한\s*겉옷|winter outer|insulated outer/.test(layeringRole) ||
+    /기모|플리스|후리스|보온|충전|fleece|insulated/.test(evidenceText);
+  const hasCoolingEvidence =
+    /얇|가벼|thin|light/.test(thickness) ||
+    /낮음|low/.test(insulation) ||
+    /높음|통기|high|breathable/.test(breathability) ||
+    /가벼운\s*겉옷|light outer/.test(layeringRole) ||
+    /시원/.test(evidenceText);
 
-  if (/두꺼|헤비|보온|기모|충전|thick|heavy|insulated/.test(evidenceText)) {
+  if (hasWarmEvidence && hasCoolingEvidence) return [];
+  if (hasWarmEvidence) {
     return ["가을", "겨울"];
   }
-  if (/얇|가벼|통기|시원|thin|light|breathable/.test(evidenceText)) {
+  if (hasCoolingEvidence) {
     return ["봄", "여름"];
   }
 
@@ -324,23 +332,29 @@ function getSeasonEvidenceFallback(input) {
 function resolveClothesSeasons(input = {}) {
   const aiSeasons = normalizeSeasons(input.seasons || input.season);
   const rule = findEvidenceRule(input);
+  const evidenceFallback = getSeasonEvidenceFallback(input);
   if (rule) {
-    const hasConflict =
+    const hasAiConflict =
       aiSeasons.length > 0 &&
       !aiSeasons.some((season) => rule.seasons.includes(season));
+    const hasStructuredEvidenceConflict =
+      evidenceFallback.length > 0 &&
+      !evidenceFallback.some((season) => rule.seasons.includes(season));
+    const hasConflict = hasAiConflict || hasStructuredEvidenceConflict;
 
     return {
       seasons: [...rule.seasons],
       source: "rule",
       needsReview: hasConflict,
       ruleId: rule.id,
-      reasons: hasConflict
-        ? ["사진 AI의 계절과 의류 단서 기반 계절이 달라 확인이 필요합니다."]
+      reasons: hasStructuredEvidenceConflict
+        ? ["의류 종류와 사진의 두께·보온성·통기성 단서가 달라 확인이 필요합니다."]
+        : hasAiConflict
+          ? ["사진 AI의 계절과 의류 단서 기반 계절이 달라 확인이 필요합니다."]
         : [`${rule.id} 의류 단서를 기준으로 계절을 판단했습니다.`],
     };
   }
 
-  const evidenceFallback = getSeasonEvidenceFallback(input);
   if (evidenceFallback.length > 0) {
     return {
       seasons: evidenceFallback,
