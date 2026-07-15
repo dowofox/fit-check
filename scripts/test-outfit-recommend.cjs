@@ -710,6 +710,75 @@ test("니트 품목은 울 함량이 낮아도 조직 특성의 여름 감점을
   );
 });
 
+test("소량 린넨 혼방은 계절 소재 가점과 경고를 적용하지 않는다", () => {
+  const minorLinenTop = createItem("minor-linen-top", "상의", {
+    detailCategory: "린넨 혼방 셔츠",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "린넨 혼방 셔츠",
+      confirmedAt: createdAt,
+      materialComposition: {
+        summary: "면 95%, 린넨 5%",
+        items: [
+          { name: "면", percentage: 95 },
+          { name: "린넨", percentage: 5 },
+        ],
+        source: "official",
+      },
+    },
+  });
+  const summerAdjustment = getDetailMaterialAdjustment([minorLinenTop], "여름");
+  const winterAdjustment = getDetailMaterialAdjustment([minorLinenTop], "겨울");
+
+  assert.equal(summerAdjustment.score, 0);
+  assert.equal(
+    winterAdjustment.warnings.includes(
+      "린넨 소재가 포함되어 겨울에는 보온감이 부족할 수 있어요."
+    ),
+    false
+  );
+});
+
+test("린넨 비율이 충분한 혼방은 기존 계절 소재 보정을 유지한다", () => {
+  const linenBlendTop = createItem("linen-blend-top-40", "상의", {
+    detailCategory: "린넨 혼방 셔츠",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "린넨 혼방 셔츠",
+      confirmedAt: createdAt,
+      materialComposition: {
+        summary: "면 60%, 린넨 40%",
+        items: [
+          { name: "면", percentage: 60 },
+          { name: "린넨", percentage: 40 },
+        ],
+        source: "official",
+      },
+    },
+  });
+  const summerAdjustment = getDetailMaterialAdjustment([linenBlendTop], "여름");
+  const winterAdjustment = getDetailMaterialAdjustment([linenBlendTop], "겨울");
+
+  assert.equal(summerAdjustment.score, 1);
+  assert.equal(winterAdjustment.score, -3);
+  assert.equal(
+    winterAdjustment.warnings.includes(
+      "린넨 소재가 포함되어 겨울에는 보온감이 부족할 수 있어요."
+    ),
+    true
+  );
+});
+
+test("혼용률이 없는 린넨 품목은 기존 계절 소재 보정을 유지한다", () => {
+  const linenTop = createItem("unquantified-linen-top", "상의", {
+    detailCategory: "린넨 셔츠",
+    material: "린넨",
+  });
+  const adjustment = getDetailMaterialAdjustment([linenTop], "여름");
+
+  assert.equal(adjustment.score >= 1, true);
+});
+
 test("기본 추천과 다른 버전은 모두 공통 최소 노출 점수를 통과한다", () => {
   const result = getOutfitRecommendationResult(createWardrobe(), null, "여름");
 

@@ -551,6 +551,8 @@ export const MATERIAL_SEASON_RULES: MaterialSeasonRule[] = [
   {
     id: "linen",
     materialKeywords: ["린넨", "linen"],
+    percentageSensitiveKeywords: ["린넨", "linen"],
+    minimumPercentage: MIN_SEASONAL_MATERIAL_PERCENTAGE,
     positiveSeasons: ["봄", "여름"],
     positiveScore: 1,
     negativeSeasons: ["겨울"],
