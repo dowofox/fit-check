@@ -5,8 +5,11 @@ import {
   type MaterialSeasonRule,
   type OutfitRuleCondition,
 } from "@/utils/outfitDetailMaterialRules";
-import { parseMaterialSummaryItems } from "@/utils/materialComposition";
-import { getResolvedItemMaterial } from "@/utils/productClassification";
+import {
+  isRecommendationMaterialSection,
+  parseMaterialSummaryItems,
+} from "@/utils/materialComposition";
+import { getRecommendationMaterialText } from "@/utils/productClassification";
 import type { ClosetItem } from "@/utils/storage";
 
 export type DetailMaterialAdjustment = {
@@ -20,7 +23,7 @@ function getItemText(item: ClosetItem) {
     item.category,
     item.subCategory,
     item.detailCategory,
-    getResolvedItemMaterial(item),
+    getRecommendationMaterialText(item),
     item.fit,
     ...(item.styleTags || []),
   ]
@@ -126,7 +129,7 @@ function conditionMatches(
 }
 
 function getMaterialText(item: ClosetItem) {
-  return getResolvedItemMaterial(item).toLowerCase();
+  return getRecommendationMaterialText(item).toLowerCase();
 }
 
 function getMaterialPercentageEntries(
@@ -136,7 +139,9 @@ function getMaterialPercentageEntries(
   const usesUserMaterial = item.userEditedClassificationFields?.includes("material");
   const officialItems = usesUserMaterial
     ? []
-    : item.confirmedProduct?.materialComposition?.items || [];
+    : (item.confirmedProduct?.materialComposition?.items || []).filter((material) =>
+        isRecommendationMaterialSection(material.section)
+      );
   if (officialItems.length > 0) {
     return {
       hasPercentageData: officialItems.some(

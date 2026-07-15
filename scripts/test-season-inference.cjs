@@ -148,6 +148,22 @@ test("공식 혼용률 안의 계절 근거가 서로 충돌하면 확인 대상
   assert.equal(minorWoolLinen.needsReview, false);
 });
 
+test("배색 소재는 옷 전체의 공식 계절 근거로 사용하지 않는다", () => {
+  const result = inferSeasonsFromOfficialProduct({
+    productName: "베이직 상의",
+    materialComposition: {
+      summary: "겉감: 면 100% / 배색: 울 100%",
+      items: [
+        { name: "면", percentage: 100, section: "outer" },
+        { name: "울", percentage: 100, section: "trim" },
+      ],
+      source: "official",
+    },
+  });
+
+  assert.equal(result, null);
+});
+
 test("공식 근거가 없으면 사진 AI 결과와 확인 상태를 유지한다", () => {
   const result = resolveRegistrationSeasonInference({
     selectedSeasons: ["봄", "가을"],

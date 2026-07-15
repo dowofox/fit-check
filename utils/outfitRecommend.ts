@@ -1,7 +1,7 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
 import { doesProductSizeRowMatch } from "@/utils/productSizeMeasurements";
 import { getDetailMaterialAdjustment } from "@/utils/outfitDetailMaterial";
-import { getResolvedItemMaterial } from "@/utils/productClassification";
+import { getRecommendationMaterialText } from "@/utils/productClassification";
 import { ClosetItem, GarmentProfile, UserProfile } from "@/utils/storage";
 
 export type OutfitRecommendation = {
@@ -650,7 +650,7 @@ function getTemperatureSafetySearchText(item: ClosetItem) {
     item.subCategory,
     item.detailCategory,
     item.description,
-    getResolvedItemMaterial(item),
+    getRecommendationMaterialText(item),
     item.pattern,
   ]
     .filter(Boolean)
@@ -1037,7 +1037,7 @@ type ResolvedGarmentProfile = {
 };
 
 function getGarmentSearchText(item: ClosetItem) {
-  const resolvedMaterial = getResolvedItemMaterial(item);
+  const resolvedMaterial = getRecommendationMaterialText(item);
 
   return [
     item.category,

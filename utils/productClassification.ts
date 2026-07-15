@@ -70,6 +70,18 @@ export function getResolvedItemMaterial(item: ClosetItem) {
   return officialMaterial || itemMaterial || "";
 }
 
+export function getRecommendationMaterialText(item: ClosetItem) {
+  const itemMaterial = item.material?.trim();
+  if (item.userEditedClassificationFields?.includes("material") && itemMaterial) {
+    return itemMaterial;
+  }
+
+  const officialMaterial = getSignificantMaterialText(
+    item.confirmedProduct?.materialComposition
+  );
+  return officialMaterial || itemMaterial || "";
+}
+
 function normalizeSearchText(value?: string) {
   return (value || "")
     .toLowerCase()
@@ -148,8 +160,8 @@ function getOfficialMaterial(
   if (hasOfficialWool) return "울";
   if (includesAny(productName, ["플란넬", "flannel"])) return "플란넬";
   if (includesAny(productName, ["니트", "knit"])) return "니트";
-  if (hasMaterialSectionData(materialComposition) && primaryMaterial) {
-    return primaryMaterial;
+  if (hasMaterialSectionData(materialComposition)) {
+    return primaryMaterial || undefined;
   }
 
   return materialSummary || undefined;

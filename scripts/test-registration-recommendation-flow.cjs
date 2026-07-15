@@ -715,6 +715,21 @@ async function main() {
       }),
       "cotton nylon"
     );
+    const trimWoolComposition = {
+      summary: "겉감: 면 100% / 배색: 울 100%",
+      items: [
+        { name: "면", percentage: 100, section: "outer" },
+        { name: "울", percentage: 100, section: "trim" },
+      ],
+    };
+    assert.equal(getSignificantMaterialText(trimWoolComposition), "면");
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "베이직 상의",
+        materialComposition: trimWoolComposition,
+      }).material,
+      "면"
+    );
     assert.equal(
       getProductAnalysisTarget({
         productName: "베이직 윈드브레이커",

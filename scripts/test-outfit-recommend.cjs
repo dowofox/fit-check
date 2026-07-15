@@ -686,6 +686,33 @@ test("울 비율이 충분한 혼방은 기존 계절 감점을 유지한다", (
   );
 });
 
+test("배색 울은 한여름 울 소재 감점을 만들지 않는다", () => {
+  const trimWoolTop = createItem("trim-wool-top", "상의", {
+    detailCategory: "반팔 티셔츠",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "베이직 반팔 티셔츠",
+      confirmedAt: createdAt,
+      materialComposition: {
+        summary: "겉감: 면 100% / 배색: 울 100%",
+        items: [
+          { name: "면", percentage: 100, section: "outer" },
+          { name: "울", percentage: 100, section: "trim" },
+        ],
+        source: "official",
+      },
+    },
+  });
+  const adjustment = getDetailMaterialAdjustment([trimWoolTop], "여름");
+
+  assert.equal(
+    adjustment.warnings.includes(
+      "니트·울 소재는 한여름에 덥고 무겁게 느껴질 수 있어요."
+    ),
+    false
+  );
+});
+
 test("공식 혼용률에 울이 없으면 과거 울 분류만으로 감점하지 않는다", () => {
   const correctedMaterialTop = createItem("official-cotton-top", "상의", {
     detailCategory: "울 혼방 반팔 티셔츠",

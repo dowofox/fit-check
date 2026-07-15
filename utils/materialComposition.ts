@@ -74,11 +74,16 @@ function getMaterialItems(materialComposition?: MaterialComposition) {
   return officialItems.length > 0 ? officialItems : parsedSummaryItems;
 }
 
+export function isRecommendationMaterialSection(section?: MaterialSection) {
+  return section !== "trim";
+}
+
 function getSignificantItems(materialComposition?: MaterialComposition) {
   return getMaterialItems(materialComposition).filter(
     (item) =>
-      item.percentage == null ||
-      item.percentage >= MIN_SEASONAL_MATERIAL_PERCENTAGE
+      isRecommendationMaterialSection(item.section) &&
+      (item.percentage == null ||
+        item.percentage >= MIN_SEASONAL_MATERIAL_PERCENTAGE)
   );
 }
 
@@ -89,11 +94,14 @@ export function hasMaterialSectionData(materialComposition?: MaterialComposition
 export function getPrimaryMaterialText(
   materialComposition?: MaterialComposition
 ) {
+  const materialItems = getMaterialItems(materialComposition);
   const significantItems = getSignificantItems(materialComposition);
   const outerItems = significantItems.filter((item) => item.section === "outer");
   const primaryItems = outerItems.length > 0 ? outerItems : significantItems;
 
-  if (primaryItems.length === 0) return materialComposition?.summary?.trim() || "";
+  if (primaryItems.length === 0) {
+    return materialItems.length === 0 ? materialComposition?.summary?.trim() || "" : "";
+  }
 
   return primaryItems
     .map((item) => item.name.trim())
@@ -104,9 +112,14 @@ export function getPrimaryMaterialText(
 export function getSignificantMaterialText(
   materialComposition?: MaterialComposition
 ) {
+  const allMaterialItems = getMaterialItems(materialComposition);
   const materialItems = getSignificantItems(materialComposition);
 
-  if (materialItems.length === 0) return materialComposition?.summary?.trim() || "";
+  if (materialItems.length === 0) {
+    return allMaterialItems.length === 0
+      ? materialComposition?.summary?.trim() || ""
+      : "";
+  }
 
   return materialItems
     .map((item) => item.name.trim())
