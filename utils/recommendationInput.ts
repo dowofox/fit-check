@@ -43,6 +43,7 @@ function getRecommendationMaterialComposition(
     .map((material) => ({
       name: material.name.trim(),
       percentage: material.percentage,
+      ...(material.section ? { section: material.section } : {}),
     }))
     .filter((material) => material.name);
 

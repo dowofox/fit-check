@@ -545,11 +545,11 @@ async function main() {
     assert.equal(layeredMaterial.response.status, 200);
     assert.equal(
       layeredMaterial.body.materialComposition.summary,
-      "나일론 100%, 폴리에스터 100%"
+      "겉감: 나일론 100% / 안감: 폴리에스터 100%"
     );
     assert.deepEqual(layeredMaterial.body.materialComposition.items, [
-      { name: "나일론", percentage: 100 },
-      { name: "폴리에스터", percentage: 100 },
+      { name: "나일론", percentage: 100, section: "outer" },
+      { name: "폴리에스터", percentage: 100, section: "lining" },
     ]);
 
     const materialObject = await extract("/material-object");

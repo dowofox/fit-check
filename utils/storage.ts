@@ -65,11 +65,14 @@ export type ProductSizeGuide = {
   sizes: ProductSizeMeasurement[];
 };
 
+export type MaterialSection = "outer" | "lining" | "filling" | "trim";
+
 export type MaterialComposition = {
   summary?: string;
   items?: {
     name: string;
     percentage?: number | null;
+    section?: MaterialSection;
   }[];
   source?: string;
 };

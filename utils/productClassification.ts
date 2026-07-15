@@ -8,7 +8,11 @@ import {
   PRODUCT_CLASSIFICATION_RULES,
 } from "@/utils/productClassificationRules";
 import { normalizeProductColor } from "@/utils/color";
-import { getSignificantMaterialText } from "@/utils/materialComposition";
+import {
+  getPrimaryMaterialText,
+  getSignificantMaterialText,
+  hasMaterialSectionData,
+} from "@/utils/materialComposition";
 
 export type ProductClassificationInput = {
   productName?: string;
@@ -105,7 +109,7 @@ function includesAny(value: string, keywords: string[]) {
 }
 
 function getMaterialSearchText(materialComposition?: MaterialComposition) {
-  return normalizeSearchText(getSignificantMaterialText(materialComposition));
+  return normalizeSearchText(getPrimaryMaterialText(materialComposition));
 }
 
 function getOfficialMaterial(
@@ -115,6 +119,7 @@ function getOfficialMaterial(
   const materialText = getMaterialSearchText(materialComposition);
   const materialSummary =
     materialComposition?.summary?.trim() || getSignificantMaterialText(materialComposition);
+  const primaryMaterial = getPrimaryMaterialText(materialComposition);
   const hasNamedLinen = includesAny(productName, ["린넨", "linen"]);
   const hasNamedWool = includesAny(productName, [
     "울 ",
@@ -143,6 +148,9 @@ function getOfficialMaterial(
   if (hasOfficialWool) return "울";
   if (includesAny(productName, ["플란넬", "flannel"])) return "플란넬";
   if (includesAny(productName, ["니트", "knit"])) return "니트";
+  if (hasMaterialSectionData(materialComposition) && primaryMaterial) {
+    return primaryMaterial;
+  }
 
   return materialSummary || undefined;
 }

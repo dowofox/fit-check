@@ -82,6 +82,7 @@ const {
 } = require("../utils/closetRegistration.ts");
 const { normalizeProductColor } = require("../utils/color.ts");
 const {
+  getPrimaryMaterialText,
   getSignificantMaterialText,
   parseMaterialSummaryItems,
 } = require("../utils/materialComposition.ts");
@@ -691,6 +692,25 @@ async function main() {
         summary: "겉감: 나일론 100% / 안감: 폴리에스터 100%",
       }),
       "나일론 폴리에스터"
+    );
+    assert.equal(
+      getPrimaryMaterialText({
+        summary: "겉감: 나일론 100% / 안감: 울 100%",
+      }),
+      "나일론"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "베이직 윈드브레이커",
+        materialComposition: {
+          summary: "겉감: 나일론 100% / 안감: 울 100%",
+          items: [
+            { name: "나일론", percentage: 100, section: "outer" },
+            { name: "울", percentage: 100, section: "lining" },
+          ],
+        },
+      }).material,
+      "나일론"
     );
     assert.equal(
       getSignificantMaterialText({ summary: "린넨 혼방" }),

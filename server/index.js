@@ -686,8 +686,13 @@ function getMaterialCompositionSignature(materialComposition) {
       .map((item) => ({
         name: item.name,
         percentage: item.percentage ?? null,
+        section: item.section || null,
       }))
-      .sort((first, second) => first.name.localeCompare(second.name)),
+      .sort((first, second) =>
+        `${first.section || ""}:${first.name}`.localeCompare(
+          `${second.section || ""}:${second.name}`,
+        ),
+      ),
   );
 }
 
@@ -1439,6 +1444,82 @@ function normalizeMaterialPercentage(value) {
     : null;
 }
 
+const MATERIAL_SECTION_DEFINITIONS = [
+  { section: "outer", label: "겉감", aliases: ["겉감", "외피", "shell", "outer"] },
+  { section: "lining", label: "안감", aliases: ["안감", "lining", "liner"] },
+  {
+    section: "filling",
+    label: "충전재",
+    aliases: ["충전재", "충전물", "filling", "fill"],
+  },
+  { section: "trim", label: "배색", aliases: ["배색", "부자재", "trim"] },
+];
+
+function normalizeMaterialSection(value) {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  if (!normalizedValue) return undefined;
+
+  return MATERIAL_SECTION_DEFINITIONS.find(({ aliases }) =>
+    aliases.some((alias) =>
+      new RegExp(
+        `(?:^|[\\s,/:()])${escapeRegularExpression(alias)}(?:$|[\\s,/:()])`,
+        "i",
+      ).test(normalizedValue),
+    ),
+  )?.section;
+}
+
+function getMaterialSectionAt(text, index, contextLabel = "") {
+  const aliases = MATERIAL_SECTION_DEFINITIONS.flatMap(({ aliases: values }) => values)
+    .sort((first, second) => second.length - first.length)
+    .map(escapeRegularExpression)
+    .join("|");
+  const sectionPattern = new RegExp(
+    `(?:^|[\\s,/|;()])(${aliases})(?:\\s*(?:소재|material))?\\s*[:：]`,
+    "gi",
+  );
+  let section;
+
+  for (const match of text.matchAll(sectionPattern)) {
+    if ((match.index ?? 0) > index) break;
+    section = normalizeMaterialSection(match[1]);
+  }
+
+  return section || normalizeMaterialSection(contextLabel);
+}
+
+function getMaterialSectionLabel(section) {
+  return MATERIAL_SECTION_DEFINITIONS.find(
+    (definition) => definition.section === section,
+  )?.label;
+}
+
+function buildMaterialSummary(items) {
+  const groups = [];
+
+  for (const item of items) {
+    const key = item.section || "material";
+    let group = groups.find((candidate) => candidate.key === key);
+    if (!group) {
+      group = { key, section: item.section, items: [] };
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+
+  return groups
+    .map((group) => {
+      const materialText = group.items
+        .map((item) =>
+          item.percentage == null ? item.name : `${item.name} ${item.percentage}%`,
+        )
+        .join(", ");
+      const sectionLabel = getMaterialSectionLabel(group.section);
+      return sectionLabel ? `${sectionLabel}: ${materialText}` : materialText;
+    })
+    .join(" / ");
+}
+
 function buildMaterialComposition(items, source) {
   const uniqueItems = [];
 
@@ -1447,7 +1528,10 @@ function buildMaterialComposition(items, source) {
     if (!name) continue;
 
     const percentage = normalizeMaterialPercentage(item?.percentage);
-    const existingItem = uniqueItems.find((candidate) => candidate.name === name);
+    const section = normalizeMaterialSection(item?.section);
+    const existingItem = uniqueItems.find(
+      (candidate) => candidate.name === name && candidate.section === section,
+    );
 
     if (existingItem) {
       if (existingItem.percentage == null && percentage != null) {
@@ -1456,16 +1540,16 @@ function buildMaterialComposition(items, source) {
       continue;
     }
 
-    uniqueItems.push({ name, percentage });
+    uniqueItems.push({
+      name,
+      percentage,
+      ...(section ? { section } : {}),
+    });
   }
 
   if (uniqueItems.length === 0) return undefined;
   return {
-    summary: uniqueItems
-      .map((item) =>
-        item.percentage == null ? item.name : `${item.name} ${item.percentage}%`,
-      )
-      .join(", "),
+    summary: buildMaterialSummary(uniqueItems),
     items: uniqueItems,
     source,
   };
@@ -1499,10 +1583,12 @@ function parseMaterialCompositionText(
     ...[...text.matchAll(percentagePattern)].map((match) => ({
       name: match[1],
       percentage: match[2],
+      section: getMaterialSectionAt(text, match.index ?? 0, contextLabel),
     })),
     ...[...text.matchAll(reversePercentagePattern)].map((match) => ({
       name: match[2],
       percentage: match[1],
+      section: getMaterialSectionAt(text, match.index ?? 0, contextLabel),
     })),
   ];
 
@@ -1519,6 +1605,7 @@ function parseMaterialCompositionText(
     return undefined;
   }
 
+  const section = normalizeMaterialSection(contextLabel);
   const nameItems = MATERIAL_DEFINITIONS.filter(({ aliases: definitionAliases }) =>
     definitionAliases.some((alias) => {
       const normalizedAlias = alias.toLowerCase();
@@ -1531,7 +1618,7 @@ function parseMaterialCompositionText(
         "i",
       ).test(text);
     }),
-  ).map(({ name }) => ({ name, percentage: null }));
+  ).map(({ name }) => ({ name, percentage: null, section }));
 
   return buildMaterialComposition(nameItems, source);
 }
@@ -1567,6 +1654,17 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
               "value",
             ])
           : null,
+      section:
+        item && typeof item === "object"
+          ? getProductSizeValue(item, [
+              "section",
+              "part",
+              "component",
+              "area",
+              "location",
+              "group",
+            ])
+          : contextLabel,
     }));
     const structuredComposition = buildMaterialComposition(structuredItems, source);
 
@@ -1599,6 +1697,15 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
           "percent",
           "value",
         ]),
+        section:
+          getProductSizeValue(value, [
+            "section",
+            "part",
+            "component",
+            "area",
+            "location",
+            "group",
+          ]) || contextLabel,
       },
     ],
     source,
