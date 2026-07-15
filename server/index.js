@@ -611,12 +611,73 @@ function getComparableProductPath(value, baseUrl) {
   }
 }
 
+function normalizeStructuredNodeId(value, baseUrl) {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  try {
+    return new URL(value.trim(), baseUrl).toString();
+  } catch {
+    return value.trim();
+  }
+}
+
+function getStructuredNodeReferences(value, baseUrl) {
+  return getUniqueStructuredTextValues(
+    (Array.isArray(value) ? value : [value])
+      .flatMap((entry) => {
+        if (typeof entry === "string") return [entry];
+        if (!entry || typeof entry !== "object") return [];
+        return [entry["@id"], entry.url];
+      })
+      .map((entry) => normalizeStructuredNodeId(entry, baseUrl))
+      .filter(Boolean),
+  );
+}
+
+function findReferencedParentProductGroup(product, candidates, productUrl) {
+  const parentReferences = new Set(
+    getStructuredNodeReferences(product?.isVariantOf, productUrl),
+  );
+  if (parentReferences.size === 0) return undefined;
+
+  const matchingGroups = candidates
+    .map((candidate) => candidate.product)
+    .filter(
+      (candidateProduct) =>
+        candidateProduct !== product &&
+        getSchemaTypes(candidateProduct).includes("productgroup") &&
+        getStructuredNodeReferences(
+          [candidateProduct["@id"], candidateProduct.url],
+          productUrl,
+        ).some((reference) => parentReferences.has(reference)),
+    );
+  const uniqueGroups = [...new Set(matchingGroups)];
+
+  return uniqueGroups.length === 1 ? uniqueGroups[0] : undefined;
+}
+
+function getStructuredProductCandidateUrl(product) {
+  if (typeof product?.url === "string" && product.url.trim()) {
+    return product.url;
+  }
+
+  if (
+    typeof product?.["@id"] === "string" &&
+    product["@id"].trim() &&
+    !product["@id"].trim().startsWith("#")
+  ) {
+    return product["@id"];
+  }
+
+  return "";
+}
+
 function scoreStructuredProductCandidate(candidate, productUrl) {
   const { product, depth, path } = candidate;
   const normalizedPath = path.join(".").toLowerCase();
   const candidateUrl = normalizeComparableProductUrl(
-    typeof product.url === "string" ? product.url : product["@id"],
-    productUrl
+    getStructuredProductCandidateUrl(product),
+    productUrl,
   );
   const currentUrl = normalizeComparableProductUrl(productUrl, productUrl);
   const candidatePath = getComparableProductPath(candidateUrl, productUrl);
@@ -820,7 +881,9 @@ function getStructuredProductData(html, productUrl) {
       scoreStructuredProductCandidate(first, productUrl)
   )[0];
   const product = selectedCandidate?.product;
-  const parentProductGroup = selectedCandidate?.parentProductGroup;
+  const parentProductGroup =
+    selectedCandidate?.parentProductGroup ||
+    findReferencedParentProductGroup(product, candidates, productUrl);
 
   if (product) {
     const brand =

@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 114차 작업을 진행한다.
+현재 P0는 115차 작업을 진행한다.
+
+- [x] 구조화 상품 그룹의 `@id` 참조 연결
+  - Schema.org `@graph`에서 선택 상품의 `isVariantOf.@id`와 별도 `ProductGroup` 노드를 연결한다.
+  - 부모 그룹 참조가 정확히 하나일 때만 공통 브랜드, 이미지, 카테고리, 소재를 보완한다.
+  - `#group` 같은 문서 내부 식별자는 상품 URL 점수에 사용하지 않아 선택 variant를 가로채지 않게 한다.
+
+완료된 P0 114차 항목:
 
 - [x] 선택 상품의 인라인 부모 그룹 fallback
   - Schema.org `Product.isVariantOf`에 명시된 단일 `ProductGroup`의 공통 공식 정보를 연결한다.

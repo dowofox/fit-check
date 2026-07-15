@@ -177,6 +177,34 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/product-group-reference") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "ProductGroup",
+            "@id": "#referenced-knit-group",
+            name: "참조 공통 니트",
+            brand: { "@type": "Brand", name: "REFERENCE BRAND" },
+            category: "상의 > 니트",
+            image: "/images/referenced-group-knit.jpg",
+            material: "아크릴 100%",
+          },
+          {
+            "@type": "Product",
+            name: "네이비 선택 니트",
+            url: "/product-group-reference",
+            color: "네이비",
+            offers: { price: "68000" },
+            isVariantOf: { "@id": "#referenced-knit-group" },
+          },
+        ],
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/partial") {
     response.end(`<!doctype html><html><head>
       <meta name="twitter:label1" content="브랜드">
@@ -1303,6 +1331,22 @@ async function main() {
     const ambiguousParentGroup = await extract("/product-is-variant-of-multiple");
     assert.equal(ambiguousParentGroup.response.status, 200);
     assert.equal(ambiguousParentGroup.body.brand, "");
+
+    const referencedParentGroup = await extract("/product-group-reference");
+    assert.equal(referencedParentGroup.response.status, 200);
+    assert.equal(referencedParentGroup.body.productName, "네이비 선택 니트");
+    assert.equal(referencedParentGroup.body.brand, "REFERENCE BRAND");
+    assert.equal(referencedParentGroup.body.productCategory, "상의 > 니트");
+    assert.equal(referencedParentGroup.body.productColor, "네이비");
+    assert.equal(referencedParentGroup.body.price, "68000");
+    assert.equal(
+      referencedParentGroup.body.productImageUrl,
+      `http://127.0.0.1:${fixturePort}/images/referenced-group-knit.jpg`
+    );
+    assert.equal(
+      referencedParentGroup.body.materialComposition.summary,
+      "아크릴 100%"
+    );
 
     const relatedFirst = await extract("/related-first");
     assert.equal(relatedFirst.response.status, 200);
