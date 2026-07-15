@@ -1168,7 +1168,20 @@ function normalizeProductSizeMeasurement(row) {
       ["thigh", "허벅지", "허벅지단면", "허벅지둘레", "thighCircumference"],
       "thigh",
     ),
-    rise: getNormalizedProductSizeValue(row, ["rise", "밑위", "밑위길이"], "rise"),
+    rise: getNormalizedProductSizeValue(
+      row,
+      [
+        "frontRise",
+        "front_rise",
+        "앞밑위",
+        "앞 밑위",
+        "전면밑위",
+        "rise",
+        "밑위",
+        "밑위길이",
+      ],
+      "rise",
+    ),
     hem: getNormalizedProductSizeValue(row, ["hem", "밑단", "밑단단면"], "hem"),
     footLength: getNormalizedProductSizeValue(
       row,
@@ -2173,7 +2186,24 @@ function getSizeMeasurementKey(label) {
   if (normalized.includes("허리") || normalized.includes("waist")) return "waist";
   if (normalized.includes("엉덩이") || normalized.includes("힙") || normalized.includes("hip")) return "hip";
   if (normalized.includes("허벅지") || normalized.includes("thigh")) return "thigh";
-  if (normalized.includes("밑위") || normalized.includes("rise")) return "rise";
+  if (
+    normalized.includes("뒷밑위") ||
+    normalized.includes("뒤밑위") ||
+    normalized.includes("후면밑위") ||
+    normalized.includes("backrise") ||
+    normalized.includes("rearrise")
+  ) {
+    return "";
+  }
+  if (
+    normalized.includes("앞밑위") ||
+    normalized.includes("전면밑위") ||
+    normalized.includes("frontrise") ||
+    normalized.includes("밑위") ||
+    normalized.includes("rise")
+  ) {
+    return "rise";
+  }
   if (normalized.includes("밑단") || normalized.includes("hem")) return "hem";
   if (normalized.includes("발길이") || normalized.includes("footlength")) return "footLength";
 

@@ -521,6 +521,25 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-front-back-rise") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/rise-pants.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"앞뒤 밑위 실측 팬츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/rise-pants.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>앞밑위</th><th>뒷밑위</th><th>허리단면</th></tr>
+        <tr><td>M</td><td>105</td><td>30</td><td>40</td><td>41</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/size-number-format") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -899,6 +918,12 @@ async function main() {
     assert.equal(circumferenceMeasurement.hip, 52);
     assert.equal(genericMeasurement.waist, 41);
     assert.equal(genericMeasurement.hip, 52);
+
+    const frontBackRiseSize = await extract("/size-front-back-rise");
+    const frontBackRiseMeasurement = frontBackRiseSize.body.productSizeGuide.sizes[0];
+    assert.equal(frontBackRiseMeasurement.rise, 30);
+    assert.equal(frontBackRiseMeasurement.totalLength, 105);
+    assert.equal(frontBackRiseMeasurement.waist, 41);
 
     const numberFormat = await extract("/size-number-format");
     const formattedMeasurement = numberFormat.body.productSizeGuide.sizes[0];
