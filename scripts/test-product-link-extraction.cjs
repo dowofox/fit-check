@@ -466,6 +466,27 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (["/additional-property-color", "/additional-property-multi-color"].includes(request.url)) {
+    const additionalProperty = request.url === "/additional-property-color"
+      ? [{ "@type": "PropertyValue", "name": "컬러", "value": "딥 네이비" }]
+      : [
+          { "@type": "PropertyValue", "name": "Color", "value": "Black" },
+          { "@type": "PropertyValue", "name": "Color", "value": "White" },
+        ];
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/property-color-shirt.jpg">
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: "공식 속성 색상 셔츠",
+        brand: { "@type": "Brand", name: "NAES" },
+        image: "/images/property-color-shirt.jpg",
+        additionalProperty,
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url?.startsWith("/canonical-product")) {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -1063,6 +1084,14 @@ async function main() {
     const multiColorWithoutSelection = await extract("/multi-color-no-meta");
     assert.equal(multiColorWithoutSelection.response.status, 200);
     assert.equal(multiColorWithoutSelection.body.productColor, "");
+
+    const additionalPropertyColor = await extract("/additional-property-color");
+    assert.equal(additionalPropertyColor.body.productColor, "딥 네이비");
+
+    const ambiguousAdditionalPropertyColor = await extract(
+      "/additional-property-multi-color"
+    );
+    assert.equal(ambiguousAdditionalPropertyColor.body.productColor, "");
 
     const canonicalProduct = await extract("/canonical-product?utm_source=share");
     assert.equal(canonicalProduct.response.status, 200);

@@ -610,6 +610,64 @@ function getStructuredProductBrand(value) {
   return [...new Set(brandValues)].join(" / ");
 }
 
+function getStructuredTextValues(value) {
+  return (Array.isArray(value) ? value : [value])
+    .flatMap((entry) => {
+      if (typeof entry === "string") return [entry.trim()];
+      if (!entry || typeof entry !== "object") return [];
+      if (typeof entry.name === "string") return [entry.name.trim()];
+      if (typeof entry.value === "string") return [entry.value.trim()];
+      return [];
+    })
+    .filter(Boolean);
+}
+
+function getSingleStructuredTextValue(values) {
+  const uniqueValues = [];
+  const normalizedValues = new Set();
+
+  values.forEach((value) => {
+    const normalized = value.toLowerCase();
+    if (normalizedValues.has(normalized)) return;
+    normalizedValues.add(normalized);
+    uniqueValues.push(value);
+  });
+
+  return uniqueValues.length === 1 ? uniqueValues[0] : "";
+}
+
+function getStructuredProductColor(product) {
+  const directColor = getSingleStructuredTextValue(
+    getStructuredTextValues(product?.color),
+  );
+  if (directColor) return directColor;
+
+  const colorPropertyLabels = new Set([
+    "색상",
+    "색상명",
+    "컬러",
+    "color",
+    "colorname",
+    "colour",
+    "colourname",
+  ]);
+  const colorValues = (Array.isArray(product?.additionalProperty)
+    ? product.additionalProperty
+    : [product?.additionalProperty]
+  ).flatMap((property) => {
+    if (!property || typeof property !== "object") return [];
+    const label = String(
+      property.name || property.propertyID || property.propertyId || property.label || "",
+    )
+      .toLowerCase()
+      .replace(/\s+/g, "");
+    if (!colorPropertyLabels.has(label)) return [];
+    return getStructuredTextValues(property.value);
+  });
+
+  return getSingleStructuredTextValue(colorValues);
+}
+
 function getStructuredProductData(html, productUrl) {
   const jsonScripts = extractJsonDataFromScripts(html, true).filter(
     (script) => script.source === "json-script"
@@ -637,17 +695,7 @@ function getStructuredProductData(html, productUrl) {
           : typeof imageValue?.contentUrl === "string"
             ? imageValue.contentUrl
             : "";
-    const colorValues = (Array.isArray(product.color) ? product.color : [product.color])
-      .map((colorValue) =>
-        typeof colorValue === "string"
-          ? colorValue.trim()
-          : typeof colorValue?.name === "string"
-            ? colorValue.name.trim()
-            : ""
-      )
-      .filter(Boolean);
-    const uniqueColorValues = [...new Set(colorValues)];
-    const color = uniqueColorValues.length === 1 ? uniqueColorValues[0] : "";
+    const color = getStructuredProductColor(product);
     const categoryValues = (Array.isArray(product.category)
       ? product.category
       : [product.category])

@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 108차 작업을 진행한다.
+현재 P0는 109차 작업을 진행한다.
+
+- [x] 구조화 상품의 공식 색상 속성 추출
+  - Schema.org `additionalProperty`의 `색상`, `컬러`, `Color`, `Colour` 값을 상품 색상으로 사용한다.
+  - 명시적인 `product.color` 단일값은 계속 우선하고, 속성 fallback은 고유 색상이 하나일 때만 허용한다.
+  - 여러 색상 후보가 있으면 임의 선택하지 않아 다른 옵션 색상을 대표색으로 저장하지 않는다.
+
+완료된 P0 108차 항목:
 
 - [x] 구조화 상품 실측의 키 형식 정규화
   - `size_name`, `body_length`, `shoulder_width`, `bust_circumference` 같은 snake_case 키를 기존 필드로 읽는다.
