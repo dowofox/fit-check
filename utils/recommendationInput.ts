@@ -8,7 +8,12 @@ import {
   getValidProductSizeRows,
 } from "@/utils/productSizeMeasurements";
 import { getResolvedItemMaterial } from "@/utils/productClassification";
-import type { ClosetItem, SavedOutfit, UserProfile } from "@/utils/storage";
+import type {
+  ClosetItem,
+  MaterialComposition,
+  SavedOutfit,
+  UserProfile,
+} from "@/utils/storage";
 
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
 
@@ -27,8 +32,31 @@ function getRecommendationStyles(item: ClosetItem) {
   return uniqueStyles.length > 0 ? uniqueStyles : ["데일리"];
 }
 
+function getRecommendationMaterialComposition(
+  item: ClosetItem
+): MaterialComposition | undefined {
+  const composition = item.confirmedProduct?.materialComposition;
+  if (!composition) return undefined;
+
+  const summary = composition.summary?.trim() || undefined;
+  const items = (composition.items || [])
+    .map((material) => ({
+      name: material.name.trim(),
+      percentage: material.percentage,
+    }))
+    .filter((material) => material.name);
+
+  if (!summary && items.length === 0) return undefined;
+
+  return {
+    summary,
+    items: items.length > 0 ? items : undefined,
+    source: composition.source,
+  };
+}
+
 export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
-  const materialSummary = item.confirmedProduct?.materialComposition?.summary;
+  const materialComposition = getRecommendationMaterialComposition(item);
   const resolvedMaterial = getReliableValue(getResolvedItemMaterial(item));
   const registration = normalizeClosetRegistrationBasics({
     category: item.category,
@@ -57,9 +85,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
         brand: item.confirmedProduct.brand,
         productName: item.confirmedProduct.productName,
         confirmedAt: item.confirmedProduct.confirmedAt,
-        materialComposition: materialSummary
-          ? { summary: materialSummary, source: item.confirmedProduct.materialComposition?.source }
-          : undefined,
+        materialComposition,
         productSizeGuide: currentSizeMeasurement
           ? {
               unit: productSizeGuide?.unit,

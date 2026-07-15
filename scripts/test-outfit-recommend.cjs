@@ -1011,6 +1011,51 @@ test("사용자 수정이 없으면 경량 추천 입력도 공식 상품 소재
   assert.equal(getResolvedItemMaterial(lightweightItem), "울 80%, 나일론 20%");
 });
 
+test("요약이 없는 공식 혼용률도 경량 추천 입력과 계절 보정에 보존한다", () => {
+  const createItemsOnlyTop = (id, items) =>
+    createItem(id, "상의", {
+      detailCategory: "반팔 티셔츠",
+      material: "울",
+      confirmedProduct: {
+        brand: "NAES",
+        productName: "베이직 반팔 티셔츠",
+        confirmedAt: createdAt,
+        materialComposition: {
+          items,
+          source: "official",
+        },
+      },
+    });
+  const minorWoolTop = createItemsOnlyTop("items-only-minor-wool", [
+    { name: "면", percentage: 95 },
+    { name: "울", percentage: 5 },
+  ]);
+  const substantialWoolTop = createItemsOnlyTop("items-only-substantial-wool", [
+    { name: "폴리에스터", percentage: 60 },
+    { name: "울", percentage: 40 },
+  ]);
+  const [lightweightMinorWool, lightweightSubstantialWool] =
+    toRecommendationInputItems([minorWoolTop, substantialWoolTop]);
+
+  assert.equal(lightweightMinorWool.material, "면");
+  assert.deepEqual(lightweightMinorWool.confirmedProduct.materialComposition.items, [
+    { name: "면", percentage: 95 },
+    { name: "울", percentage: 5 },
+  ]);
+  assert.equal(
+    getDetailMaterialAdjustment([lightweightMinorWool], "여름").warnings.includes(
+      "니트·울 소재는 한여름에 덥고 무겁게 느껴질 수 있어요."
+    ),
+    false
+  );
+  assert.equal(
+    getDetailMaterialAdjustment([lightweightSubstantialWool], "여름").warnings.includes(
+      "니트·울 소재는 한여름에 덥고 무겁게 느껴질 수 있어요."
+    ),
+    true
+  );
+});
+
 test("저장 코디는 삭제된 옷 ID를 누락 상태로 구분한다", () => {
   const wardrobe = createWardrobe();
   const savedOutfit = {

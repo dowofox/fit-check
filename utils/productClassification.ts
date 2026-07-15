@@ -59,7 +59,11 @@ export function getResolvedItemMaterial(item: ClosetItem) {
 
   if (userEditedMaterial && itemMaterial) return itemMaterial;
 
-  return item.confirmedProduct?.materialComposition?.summary?.trim() || itemMaterial || "";
+  const officialComposition = item.confirmedProduct?.materialComposition;
+  const officialMaterial =
+    officialComposition?.summary?.trim() || getSignificantMaterialText(officialComposition);
+
+  return officialMaterial || itemMaterial || "";
 }
 
 function normalizeSearchText(value?: string) {
