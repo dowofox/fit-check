@@ -1061,7 +1061,21 @@ function getFallbackSilhouette(item: ClosetItem): ResolvedGarmentProfile["silhou
   if (includesAny(text, ["크롭", "짧은 기장", "cropped"])) return "cropped";
   if (includesAny(text, ["세미오버", "세미 오버", "semi oversized"])) return "semiOversized";
   if (includesAny(text, ["오버핏", "오버사이즈", "루즈", "oversized"])) return "oversized";
-  if (includesAny(text, ["와이드", "배기", "wide"])) return "wide";
+  if (
+    includesAny(text, [
+      "와이드",
+      "배기",
+      "벌룬",
+      "배럴",
+      "커브드",
+      "balloon",
+      "barrel",
+      "curved",
+      "wide",
+    ])
+  ) {
+    return "wide";
+  }
   if (includesAny(text, ["슬림", "스키니", "타이트", "slim"])) return "slim";
   if (includesAny(text, ["롱", "긴 기장", "맥시", "long"])) return "long";
 

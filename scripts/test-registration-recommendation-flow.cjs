@@ -332,7 +332,7 @@ async function main() {
     });
     assert.equal(pantsTarget.category, "하의");
     assert.equal(pantsTarget.subCategory, "팬츠");
-    assert.equal(pantsTarget.detailCategory, "팬츠");
+    assert.equal(pantsTarget.detailCategory, "와이드 팬츠");
     assert.deepEqual(
       applyProductAnalysisTarget(
         {
@@ -347,9 +347,10 @@ async function main() {
       {
         category: "하의",
         subCategory: "팬츠",
-        detailCategory: "팬츠",
+        detailCategory: "와이드 팬츠",
         color: "블랙",
-        styleTags: ["포멀"],
+        style: "캐주얼",
+        styleTags: ["캐주얼", "미니멀", "포멀"],
       }
     );
 
@@ -423,6 +424,41 @@ async function main() {
       },
     });
     assert.equal(protectedBalloonClassification.detailCategory, undefined);
+
+    const bottomSilhouetteCases = [
+      ["투턱 와이드 팬츠", "와이드 팬츠"],
+      ["테이퍼드 코튼 팬츠", "테이퍼드 팬츠"],
+      ["슬림핏 팬츠", "슬림 팬츠"],
+      ["스키니 데님 팬츠", "스키니 팬츠"],
+      ["부츠컷 데님 팬츠", "부츠컷 팬츠"],
+      ["플레어 팬츠", "플레어 팬츠"],
+    ];
+    bottomSilhouetteCases.forEach(([productName, detailCategory]) => {
+      assert.equal(
+        getProductAnalysisTarget({ productName }).detailCategory,
+        detailCategory,
+        productName
+      );
+    });
+    assert.equal(
+      getProductAnalysisTarget({ productName: "스키니 데님 팬츠" }).material,
+      "데님"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "와이드 데님 팬츠" }).detailCategory,
+      "와이드 데님 팬츠"
+    );
+    assert.equal(
+      getProductAnalysisTarget({ productName: "와이드 슬랙스" }).detailCategory,
+      "와이드 슬랙스"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "부츠컷 그래픽 티셔츠",
+        productCategory: "Apparel > Tops > T-Shirts",
+      }).category,
+      "상의"
+    );
 
     const pleatedSkirtTarget = getProductAnalysisTarget({
       productName: "PLEATED MIDI SKIRT",
