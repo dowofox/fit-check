@@ -2171,8 +2171,7 @@ async function fetchMusinsaMaterialComposition(productId, productUrl) {
 
 function getTableCells(rowHtml) {
   return [...rowHtml.matchAll(/<(?:th|td)[^>]*>([\s\S]*?)<\/(?:th|td)>/gi)]
-    .map((match) => stripHtml(match[1]))
-    .filter(Boolean);
+    .map((match) => stripHtml(match[1]));
 }
 
 function getSizeMeasurementKey(label) {

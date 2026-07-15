@@ -521,6 +521,25 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-empty-middle-cell") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/empty-cell-shirt.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"빈 실측 셀 셔츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/empty-cell-shirt.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>어깨</th><th>가슴단면</th><th>소매</th></tr>
+        <tr><td>M</td><td>70</td><td></td><td>55</td><td>23</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   if (["/size-front-back-rise", "/size-parenthesized-rise"].includes(request.url)) {
     const usesParenthesizedHeaders = request.url === "/size-parenthesized-rise";
     const frontRiseHeader = usesParenthesizedHeaders ? "밑위(앞)" : "앞밑위";
@@ -921,6 +940,14 @@ async function main() {
     assert.equal(circumferenceMeasurement.hip, 52);
     assert.equal(genericMeasurement.waist, 41);
     assert.equal(genericMeasurement.hip, 52);
+
+    const emptyMiddleCellSize = await extract("/size-empty-middle-cell");
+    const emptyMiddleCellMeasurement =
+      emptyMiddleCellSize.body.productSizeGuide.sizes[0];
+    assert.equal(emptyMiddleCellMeasurement.totalLength, 70);
+    assert.equal(emptyMiddleCellMeasurement.shoulder, undefined);
+    assert.equal(emptyMiddleCellMeasurement.chest, 55);
+    assert.equal(emptyMiddleCellMeasurement.sleeve, 23);
 
     const frontBackRiseSize = await extract("/size-front-back-rise");
     const frontBackRiseMeasurement = frontBackRiseSize.body.productSizeGuide.sizes[0];
