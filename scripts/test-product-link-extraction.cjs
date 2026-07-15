@@ -503,6 +503,58 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/item-category") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/item-category-pants.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"아이템 카테고리 팬츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "itemCategory":["Apparel","Bottoms","Pants"],
+        "image":"/images/item-category-pants.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
+  if (request.url === "/category-priority") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/category-priority-pants.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"카테고리 우선순위 팬츠",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "category":"Pants",
+        "itemCategory":["Apparel","Bottoms"],
+        "image":"/images/category-priority-pants.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
+  if (["/additional-property-category", "/additional-property-multi-category"].includes(request.url)) {
+    const additionalProperty = request.url === "/additional-property-category"
+      ? [{ "@type": "PropertyValue", "name": "품목명", "value": "Apparel > Bottoms > Pants" }]
+      : [
+          { "@type": "PropertyValue", "name": "품목", "value": "Pants" },
+          { "@type": "PropertyValue", "name": "품목", "value": "Jackets" },
+        ];
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/property-category-product.jpg">
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: "공식 속성 품목 상품",
+        brand: { "@type": "Brand", name: "NAES" },
+        image: "/images/property-category-product.jpg",
+        additionalProperty,
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url?.startsWith("/canonical-product")) {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -1115,6 +1167,23 @@ async function main() {
       "/additional-property-multi-color"
     );
     assert.equal(ambiguousAdditionalPropertyColor.body.productColor, "");
+
+    const itemCategory = await extract("/item-category");
+    assert.equal(itemCategory.body.productCategory, "Apparel > Bottoms > Pants");
+
+    const categoryPriority = await extract("/category-priority");
+    assert.equal(categoryPriority.body.productCategory, "Pants");
+
+    const additionalPropertyCategory = await extract("/additional-property-category");
+    assert.equal(
+      additionalPropertyCategory.body.productCategory,
+      "Apparel > Bottoms > Pants"
+    );
+
+    const ambiguousAdditionalPropertyCategory = await extract(
+      "/additional-property-multi-category"
+    );
+    assert.equal(ambiguousAdditionalPropertyCategory.body.productCategory, "");
 
     const canonicalProduct = await extract("/canonical-product?utm_source=share");
     assert.equal(canonicalProduct.response.status, 200);
