@@ -988,32 +988,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 5,
   },
-  breakdownBox: {
-    backgroundColor: colors.softCard,
-    borderRadius: 14,
-    paddingVertical: 9,
-    paddingHorizontal: 11,
-    marginBottom: 12,
-  },
-  breakdownText: {
-    color: colors.subText,
-    fontSize: 11,
-    fontWeight: "900",
-    lineHeight: 17,
-  },
-  breakdownDescription: {
-    color: colors.subText,
-    fontSize: 10,
-    fontWeight: "700",
-    lineHeight: 15,
-    marginTop: 3,
-  },
-  penaltyText: {
-    color: colors.warning,
-    fontSize: 11,
-    fontWeight: "900",
-    marginTop: 3,
-  },
   itemShowcase: {
     backgroundColor: colors.softCard,
     borderRadius: 22,

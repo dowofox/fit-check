@@ -1017,6 +1017,13 @@ const DRAPE_LABELS: Record<NonNullable<GarmentProfile["drape"]>, string> = {
   high: "높음",
 };
 
+function getVolumeImpression(volume?: number) {
+  if (typeof volume !== "number") return "";
+  if (volume <= 3) return "가벼운 편";
+  if (volume <= 6) return "보통";
+  return "풍성한 편";
+}
+
 function GarmentProfileCard({ item }: { item: ClosetItem }) {
   const profile = item.garmentProfile;
   if (!profile) return null;
@@ -1028,19 +1035,11 @@ function GarmentProfileCard({ item }: { item: ClosetItem }) {
     },
     {
       label: "볼륨감",
-      value: typeof profile.volume === "number" ? `${profile.volume} / 10` : "",
+      value: getVolumeImpression(profile.volume),
     },
     {
       label: "기장감",
       value: profile.lengthBalance ? LENGTH_BALANCE_LABELS[profile.lengthBalance] : "",
-    },
-    {
-      label: "포인트 강도",
-      value: typeof profile.pointLevel === "number" ? `${profile.pointLevel} / 10` : "",
-    },
-    {
-      label: "시각적 무게감",
-      value: typeof profile.visualWeight === "number" ? `${profile.visualWeight} / 10` : "",
     },
     {
       label: "소재 구조감",
