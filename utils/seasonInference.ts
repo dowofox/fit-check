@@ -262,9 +262,22 @@ function matchesOfficialSeasonRule(rule: OfficialSeasonRule, searchText: string)
 }
 
 function findOfficialSeasonRule(searchText: string) {
-  if (!searchText) return undefined;
-  return OFFICIAL_SEASON_RULES.find((rule) =>
+  return findOfficialSeasonRules(searchText)[0];
+}
+
+function findOfficialSeasonRules(searchText: string) {
+  if (!searchText) return [];
+  return OFFICIAL_SEASON_RULES.filter((rule) =>
     matchesOfficialSeasonRule(rule, searchText)
+  );
+}
+
+function hasConflictingSeasonRules(rules: OfficialSeasonRule[]) {
+  return rules.some((rule, index) =>
+    rules.slice(index + 1).some(
+      (otherRule) =>
+        !rule.seasons.some((season) => otherRule.seasons.includes(season))
+    )
   );
 }
 
@@ -292,19 +305,24 @@ export function inferSeasonsFromOfficialProduct({
   if (!matchedRule) return null;
 
   const itemRule = findOfficialSeasonRule(itemSearchText);
-  const materialRule = findOfficialSeasonRule(materialSearchText);
+  const materialRules = findOfficialSeasonRules(materialSearchText);
+  const materialRule = materialRules[0];
+  const hasConflictingMaterialEvidence = hasConflictingSeasonRules(materialRules);
   const hasConflictingOfficialEvidence = Boolean(
-    itemRule &&
-      materialRule &&
-      !itemRule.seasons.some((season) => materialRule.seasons.includes(season))
+    hasConflictingMaterialEvidence ||
+      (itemRule &&
+        materialRule &&
+        !itemRule.seasons.some((season) => materialRule.seasons.includes(season)))
   );
 
   return {
     seasons: [...matchedRule.seasons],
     source: "official_product",
     needsReview: hasConflictingOfficialEvidence,
-    reasons: hasConflictingOfficialEvidence
-      ? ["공식 상품명과 소재의 계절 단서가 달라 확인이 필요해요."]
+    reasons: hasConflictingMaterialEvidence
+      ? ["공식 소재 구성 안의 계절 단서가 서로 달라 확인이 필요해요."]
+      : hasConflictingOfficialEvidence
+        ? ["공식 상품명과 소재의 계절 단서가 달라 확인이 필요해요."]
       : [`공식 상품명 또는 소재에서 ${matchedRule.id} 계절 근거를 확인했어요.`],
   };
 }

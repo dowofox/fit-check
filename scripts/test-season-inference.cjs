@@ -117,6 +117,37 @@ test("공식 품목 계절과 유의미한 공식 소재 계절이 충돌하면 
   assert.equal(minorWoolKnit.needsReview, false);
 });
 
+test("공식 혼용률 안의 계절 근거가 서로 충돌하면 확인 대상으로 남긴다", () => {
+  const balancedLinenWool = inferSeasonsFromOfficialProduct({
+    productName: "베이직 셔츠",
+    materialComposition: {
+      summary: "린넨 50%, 울 50%",
+      items: [
+        { name: "린넨", percentage: 50 },
+        { name: "울", percentage: 50 },
+      ],
+      source: "official",
+    },
+  });
+  const minorWoolLinen = inferSeasonsFromOfficialProduct({
+    productName: "베이직 셔츠",
+    materialComposition: {
+      summary: "린넨 95%, 울 5%",
+      items: [
+        { name: "린넨", percentage: 95 },
+        { name: "울", percentage: 5 },
+      ],
+      source: "official",
+    },
+  });
+
+  assert.deepEqual(balancedLinenWool.seasons, ["봄", "여름"]);
+  assert.equal(balancedLinenWool.needsReview, true);
+  assert.match(balancedLinenWool.reasons[0], /소재 구성 안의 계절 단서/);
+  assert.deepEqual(minorWoolLinen.seasons, ["봄", "여름"]);
+  assert.equal(minorWoolLinen.needsReview, false);
+});
+
 test("공식 근거가 없으면 사진 AI 결과와 확인 상태를 유지한다", () => {
   const result = resolveRegistrationSeasonInference({
     selectedSeasons: ["봄", "가을"],
