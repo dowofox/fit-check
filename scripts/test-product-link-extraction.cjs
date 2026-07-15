@@ -161,6 +161,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/colonless-layered-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"콜론 없는 레이어드 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/colonless-layered-jacket.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>소재</dt><dd>겉감 1 면 60%, 나일론 40% / 안감(2) 폴리에스터 100%</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/detailed-material-source") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -567,6 +582,18 @@ async function main() {
       { name: "나일론", percentage: 60, section: "outer" },
       { name: "폴리에스터", percentage: 40, section: "outer" },
       { name: "레이온", percentage: 100, section: "lining" },
+    ]);
+
+    const colonlessLayeredMaterial = await extract("/colonless-layered-material");
+    assert.equal(colonlessLayeredMaterial.response.status, 200);
+    assert.equal(
+      colonlessLayeredMaterial.body.materialComposition.summary,
+      "겉감: 면 60%, 나일론 40% / 안감: 폴리에스터 100%"
+    );
+    assert.deepEqual(colonlessLayeredMaterial.body.materialComposition.items, [
+      { name: "면", percentage: 60, section: "outer" },
+      { name: "나일론", percentage: 40, section: "outer" },
+      { name: "폴리에스터", percentage: 100, section: "lining" },
     ]);
 
     const detailedMaterialSource = await extract("/detailed-material-source");

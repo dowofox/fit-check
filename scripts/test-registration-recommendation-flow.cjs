@@ -729,6 +729,25 @@ async function main() {
         { name: "polyester", percentage: 100, section: "lining" },
       ]
     );
+    assert.deepEqual(
+      parseMaterialSummaryItems(
+        "겉감 1 면 60%, 나일론 40% / 안감(2) 폴리에스터 100%"
+      ),
+      [
+        { name: "면", percentage: 60, section: "outer" },
+        { name: "나일론", percentage: 40, section: "outer" },
+        { name: "폴리에스터", percentage: 100, section: "lining" },
+      ]
+    );
+    assert.deepEqual(
+      parseMaterialSummaryItems(
+        "shell 1 cotton 100% / lining (2) polyester 100%"
+      ),
+      [
+        { name: "cotton", percentage: 100, section: "outer" },
+        { name: "polyester", percentage: 100, section: "lining" },
+      ]
+    );
     assert.equal(
       getPrimaryMaterialText({
         summary: "shell: cotton 60%, nylon 40% / lining: polyester 100%",
