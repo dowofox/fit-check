@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 105차 작업을 진행한다.
+현재 P0는 106차 작업을 진행한다.
+
+- [x] 구조화 상품 실측의 길이 별칭 연결
+  - `bodyLength`, `garmentLength`, `outseam`을 기존 총장 필드로 정규화한다.
+  - `sleeveLength`, `armLength`를 소매 실측으로, `frontRiseLength`를 앞밑위로 연결한다.
+  - 쇼핑몰 JSON의 공식 실측값이 키 이름 차이로 누락되지 않게 한다.
+
+완료된 P0 105차 항목:
 
 - [x] 영문 길이 실측 헤더 충돌 방지
   - `Sleeve Length`, `Arm Length`는 총장이 아니라 소매 실측으로 저장한다.

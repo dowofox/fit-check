@@ -1138,7 +1138,19 @@ function normalizeProductSizeMeasurement(row) {
     ...parsedSize,
     totalLength: getNormalizedProductSizeValue(
       row,
-      ["totalLength", "length", "총장", "기장", "옷길이"],
+      [
+        "totalLength",
+        "bodyLength",
+        "garmentLength",
+        "outseam",
+        "length",
+        "총장",
+        "기장",
+        "총길이",
+        "전체길이",
+        "옷길이",
+        "몸길이",
+      ],
       "totalLength",
     ),
     shoulder: getNormalizedProductSizeValue(
@@ -1153,7 +1165,7 @@ function normalizeProductSizeMeasurement(row) {
     ),
     sleeve: getNormalizedProductSizeValue(
       row,
-      ["sleeve", "arm", "소매", "소매길이"],
+      ["sleeve", "sleeveLength", "arm", "armLength", "소매", "소매길이"],
       "sleeve",
     ),
     waist: getNormalizedProductSizeValue(
@@ -1175,6 +1187,7 @@ function normalizeProductSizeMeasurement(row) {
       row,
       [
         "frontRise",
+        "frontRiseLength",
         "front_rise",
         "앞밑위",
         "앞 밑위",

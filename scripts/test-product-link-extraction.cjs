@@ -563,6 +563,25 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-structured-length-aliases") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/structured-lengths.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"구조화 길이 별칭 상품",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/structured-lengths.jpg",
+        "sizeGuide":{"sizes":[
+          {"size":"M","bodyLength":70,"sleeveLength":61},
+          {"size":"L","garmentLength":72,"armLength":62},
+          {"size":"32","outseam":105,"frontRiseLength":30}
+        ]}
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/size-english-length-headers") {
     response.end(`<!doctype html><html><head>
       <meta property="og:image" content="/images/english-length-shirt.jpg">
@@ -1032,6 +1051,16 @@ async function main() {
       structuredHemSize.body.productSizeGuide.sizes[0];
     assert.equal(structuredHemMeasurement.totalLength, 104);
     assert.equal(structuredHemMeasurement.hem, 22);
+
+    const structuredLengthSize = await extract("/size-structured-length-aliases");
+    const structuredLengthMeasurements =
+      structuredLengthSize.body.productSizeGuide.sizes;
+    assert.equal(structuredLengthMeasurements[0].totalLength, 70);
+    assert.equal(structuredLengthMeasurements[0].sleeve, 61);
+    assert.equal(structuredLengthMeasurements[1].totalLength, 72);
+    assert.equal(structuredLengthMeasurements[1].sleeve, 62);
+    assert.equal(structuredLengthMeasurements[2].totalLength, 105);
+    assert.equal(structuredLengthMeasurements[2].rise, 30);
 
     const englishLengthSize = await extract("/size-english-length-headers");
     const englishLengthMeasurement =
