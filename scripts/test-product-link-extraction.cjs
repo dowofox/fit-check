@@ -195,6 +195,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/structured-material-map") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"맵 소재 코튼 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "outerMaterial":{"cotton":"60%","nylon":40},
+        "liningMaterial":{"polyester":100},
+        "image":"/images/material-map-jacket.jpg"
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/detailed-material-source") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -626,6 +641,18 @@ async function main() {
       { name: "폴리에스터", percentage: 40, section: "outer" },
       { name: "레이온", percentage: 100, section: "lining" },
       { name: "폴리에스터", percentage: 100, section: "filling" },
+    ]);
+
+    const structuredMaterialMap = await extract("/structured-material-map");
+    assert.equal(structuredMaterialMap.response.status, 200);
+    assert.equal(
+      structuredMaterialMap.body.materialComposition.summary,
+      "겉감: 면 60%, 나일론 40% / 안감: 폴리에스터 100%"
+    );
+    assert.deepEqual(structuredMaterialMap.body.materialComposition.items, [
+      { name: "면", percentage: 60, section: "outer" },
+      { name: "나일론", percentage: 40, section: "outer" },
+      { name: "폴리에스터", percentage: 100, section: "lining" },
     ]);
 
     const detailedMaterialSource = await extract("/detailed-material-source");

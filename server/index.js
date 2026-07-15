@@ -1821,6 +1821,7 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
       name: key,
       percentage:
         typeof child === "string" || typeof child === "number" ? child : null,
+      section: contextLabel,
     }))
     .filter((item) => normalizeMaterialName(item.name));
   const keyedComposition = buildMaterialComposition(keyedMaterialItems, source);
