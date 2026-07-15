@@ -582,6 +582,24 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-structured-width-aliases") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/structured-widths.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"구조화 폭 별칭 상품",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/structured-widths.jpg",
+        "sizeGuide":{"sizes":[
+          {"size":"M","shoulderWidth":48,"chestWidth":55,"waistWidth":41,"hipWidth":52,"thighWidth":34,"hemWidth":22},
+          {"size":"L","shoulderWidth":50,"bustCircumference":114,"waistCircumference":86,"hipCircumference":108,"thighCircumference":72,"hemCircumference":46}
+        ]}
+      }</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/size-english-length-headers") {
     response.end(`<!doctype html><html><head>
       <meta property="og:image" content="/images/english-length-shirt.jpg">
@@ -1061,6 +1079,32 @@ async function main() {
     assert.equal(structuredLengthMeasurements[1].sleeve, 62);
     assert.equal(structuredLengthMeasurements[2].totalLength, 105);
     assert.equal(structuredLengthMeasurements[2].rise, 30);
+
+    const structuredWidthSize = await extract("/size-structured-width-aliases");
+    const structuredWidthMeasurements =
+      structuredWidthSize.body.productSizeGuide.sizes;
+    assert.deepEqual(
+      {
+        shoulder: structuredWidthMeasurements[0].shoulder,
+        chest: structuredWidthMeasurements[0].chest,
+        waist: structuredWidthMeasurements[0].waist,
+        hip: structuredWidthMeasurements[0].hip,
+        thigh: structuredWidthMeasurements[0].thigh,
+        hem: structuredWidthMeasurements[0].hem,
+      },
+      { shoulder: 48, chest: 55, waist: 41, hip: 52, thigh: 34, hem: 22 }
+    );
+    assert.deepEqual(
+      {
+        shoulder: structuredWidthMeasurements[1].shoulder,
+        chest: structuredWidthMeasurements[1].chest,
+        waist: structuredWidthMeasurements[1].waist,
+        hip: structuredWidthMeasurements[1].hip,
+        thigh: structuredWidthMeasurements[1].thigh,
+        hem: structuredWidthMeasurements[1].hem,
+      },
+      { shoulder: 50, chest: 57, waist: 43, hip: 54, thigh: 36, hem: 23 }
+    );
 
     const englishLengthSize = await extract("/size-english-length-headers");
     const englishLengthMeasurement =

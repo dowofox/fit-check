@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 106차 작업을 진행한다.
+현재 P0는 107차 작업을 진행한다.
+
+- [x] 구조화 상품 실측의 폭·둘레 별칭 연결
+  - `shoulderWidth`, `chestWidth`, `waistWidth`, `hipWidth`, `thighWidth`, `hemWidth`를 기존 단면 실측으로 저장한다.
+  - `bustCircumference`를 가슴둘레로 인식해 단면값으로 정규화한다.
+  - 구조화 API의 공식 폭 실측이 키 이름 차이로 누락되지 않게 한다.
+
+완료된 P0 106차 항목:
 
 - [x] 구조화 상품 실측의 길이 별칭 연결
   - `bodyLength`, `garmentLength`, `outseam`을 기존 총장 필드로 정규화한다.

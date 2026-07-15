@@ -1155,12 +1155,22 @@ function normalizeProductSizeMeasurement(row) {
     ),
     shoulder: getNormalizedProductSizeValue(
       row,
-      ["shoulder", "어깨", "어깨너비"],
+      ["shoulder", "shoulderWidth", "어깨", "어깨너비"],
       "shoulder",
     ),
     chest: getNormalizedProductSizeValue(
       row,
-      ["chest", "bust", "가슴", "가슴단면", "가슴둘레", "chestCircumference"],
+      [
+        "chest",
+        "chestWidth",
+        "bust",
+        "bustWidth",
+        "가슴",
+        "가슴단면",
+        "가슴둘레",
+        "chestCircumference",
+        "bustCircumference",
+      ],
       "chest",
     ),
     sleeve: getNormalizedProductSizeValue(
@@ -1170,17 +1180,32 @@ function normalizeProductSizeMeasurement(row) {
     ),
     waist: getNormalizedProductSizeValue(
       row,
-      ["waist", "허리", "허리단면", "허리둘레", "waistCircumference"],
+      ["waist", "waistWidth", "허리", "허리단면", "허리둘레", "waistCircumference"],
       "waist",
     ),
     hip: getNormalizedProductSizeValue(
       row,
-      ["hip", "엉덩이", "엉덩이단면", "힙", "엉덩이둘레", "hipCircumference"],
+      [
+        "hip",
+        "hipWidth",
+        "엉덩이",
+        "엉덩이단면",
+        "힙",
+        "엉덩이둘레",
+        "hipCircumference",
+      ],
       "hip",
     ),
     thigh: getNormalizedProductSizeValue(
       row,
-      ["thigh", "허벅지", "허벅지단면", "허벅지둘레", "thighCircumference"],
+      [
+        "thigh",
+        "thighWidth",
+        "허벅지",
+        "허벅지단면",
+        "허벅지둘레",
+        "thighCircumference",
+      ],
       "thigh",
     ),
     rise: getNormalizedProductSizeValue(
@@ -1200,7 +1225,7 @@ function normalizeProductSizeMeasurement(row) {
     ),
     hem: getNormalizedProductSizeValue(
       row,
-      ["hem", "밑단", "밑단단면", "밑단둘레", "hemCircumference"],
+      ["hem", "hemWidth", "밑단", "밑단단면", "밑단둘레", "hemCircumference"],
       "hem",
     ),
     footLength: getNormalizedProductSizeValue(
