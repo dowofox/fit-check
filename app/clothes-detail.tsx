@@ -661,8 +661,14 @@ function getDisplayStyleText(item: ClosetItem) {
   return item.style?.trim() || "";
 }
 
-function getBooleanLabel(value?: boolean) {
-  return value ? "감지됨" : "없음";
+type AiAnalysisRow = { label: string; value: string };
+
+function hasMeaningfulAiAnalysisValue(value?: string) {
+  const normalized = value?.trim();
+  return Boolean(
+    normalized &&
+      !["없음", "미분석", "판단 어려움", "확정 없음", "추정 없음"].includes(normalized)
+  );
 }
 
 function getAiAnalysisRows(item: ClosetItem) {
@@ -672,29 +678,40 @@ function getAiAnalysisRows(item: ClosetItem) {
     item.confirmedProduct?.materialComposition
   );
 
-  return [
-    { label: "확정 브랜드", value: confirmedBrand || "확정 없음" },
+  const rows: AiAnalysisRow[] = [
+    { label: "확정 브랜드", value: confirmedBrand },
+    { label: "추정 브랜드", value: confirmedBrand ? "" : item.inferredBrand || "" },
+    { label: "추정 상품명", value: item.inferredProductName || "" },
     {
-      label: "추정 브랜드",
-      value: confirmedBrand ? "확정 브랜드 우선" : item.inferredBrand || "추정 없음",
+      label: "로고",
+      value: item.logoDetected
+        ? item.logoText?.trim()
+          ? `감지됨 · ${item.logoText.trim()}`
+          : "감지됨"
+        : "",
     },
-    { label: "추정 상품명", value: item.inferredProductName || "추정 없음" },
-    { label: "로고", value: getBooleanLabel(item.logoDetected) },
-    { label: "로고 텍스트", value: item.logoText || "없음" },
-    { label: "프린팅/그래픽", value: item.graphicType || "판단 어려움" },
-    { label: "그래픽 크기", value: item.graphicSize || "판단 어려움" },
+    {
+      label: "프린팅/그래픽",
+      value: item.graphicDetected ? item.graphicType || "감지됨" : "",
+    },
+    {
+      label: "그래픽 크기",
+      value: item.graphicDetected ? item.graphicSize || "" : "",
+    },
     {
       label: "소재",
-      value:
-        officialMaterial ||
-        item.material ||
-        "판단 어려움",
+      value: officialMaterial || item.material || "",
     },
-    { label: "패턴", value: item.pattern || "판단 어려움" },
+    { label: "패턴", value: item.pattern || "" },
   ];
+
+  return rows.filter((row) => hasMeaningfulAiAnalysisValue(row.value));
 }
 
 function AiDetailCard({ item }: { item: ClosetItem }) {
+  const rows = getAiAnalysisRows(item);
+  if (rows.length === 0) return null;
+
   return (
     <View style={styles.aiDetailCard}>
       <View style={styles.tipHeader}>
@@ -703,12 +720,12 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>AI 상세 분석</Text>
-          <Text style={styles.aiDetailSubtitle}>명확한 로고/텍스트가 있을 때만 브랜드를 확정해요.</Text>
+          <Text style={styles.aiDetailSubtitle}>추천에 참고한 유효한 분석 정보만 보여드려요.</Text>
         </View>
       </View>
 
       <View style={styles.aiDetailGrid}>
-        {getAiAnalysisRows(item).map((row) => (
+        {rows.map((row) => (
           <View key={row.label} style={styles.aiDetailPill}>
             <Text style={styles.aiDetailLabel}>{row.label}</Text>
             <Text style={styles.aiDetailValue} numberOfLines={2}>
@@ -719,6 +736,17 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
       </View>
     </View>
   );
+}
+
+function hasMeaningfulNestedValue(value: unknown): boolean {
+  if (typeof value === "string") return Boolean(value.trim());
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.some(hasMeaningfulNestedValue);
+  if (value && typeof value === "object") {
+    return Object.values(value).some(hasMeaningfulNestedValue);
+  }
+  return false;
 }
 
 function hasLowProductConfidence(item: ClosetItem) {
@@ -888,12 +916,13 @@ function AiAnalysisAccordion({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const analysisRows = getAiAnalysisRows(item);
   const hasContent = Boolean(
-    item.analysisQuality ||
-      item.analysisWarnings?.length ||
-      item.garmentProfile ||
-      item.styleProfile ||
-      getAiAnalysisRows(item).length
+    item.analysisWarnings?.length ||
+      hasMeaningfulNestedValue(item.analysisQuality) ||
+      hasMeaningfulNestedValue(item.garmentProfile) ||
+      hasMeaningfulNestedValue(item.styleProfile) ||
+      analysisRows.length
   );
 
   if (!hasContent) return null;
