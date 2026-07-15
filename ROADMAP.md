@@ -15,7 +15,14 @@
 
 ## P0
 
-현재 P0는 113차 작업을 진행한다.
+현재 P0는 114차 작업을 진행한다.
+
+- [x] 선택 상품의 인라인 부모 그룹 fallback
+  - Schema.org `Product.isVariantOf`에 명시된 단일 `ProductGroup`의 공통 공식 정보를 연결한다.
+  - 선택 상품에 없는 브랜드, 이미지, 카테고리, 소재만 부모 그룹에서 보완한다.
+  - 부모 그룹 후보가 여러 개면 임의 선택하지 않고 기존 메타데이터 fallback을 유지한다.
+
+완료된 P0 113차 항목:
 
 - [x] 구조화 상품 그룹의 선택 variant 연결
   - Schema.org `ProductGroup.hasVariant`에서 현재 상품 URL과 일치하는 variant를 공식 상품 후보로 선택한다.

@@ -516,6 +516,17 @@ function getSchemaTypes(value) {
     .map((type) => type.toLowerCase());
 }
 
+function getInlineParentProductGroup(value) {
+  const parentGroups = (Array.isArray(value) ? value : [value]).filter(
+    (entry) =>
+      entry &&
+      typeof entry === "object" &&
+      getSchemaTypes(entry).includes("productgroup"),
+  );
+
+  return parentGroups.length === 1 ? parentGroups[0] : undefined;
+}
+
 function collectStructuredProducts(
   value,
   depth = 0,
@@ -543,7 +554,15 @@ function collectStructuredProducts(
   const isProduct = schemaTypes.includes("product");
   const isProductGroup = schemaTypes.includes("productgroup");
   if (isProduct || isProductGroup) {
-    products.push({ product: value, depth, path, parentProductGroup });
+    const resolvedParentProductGroup =
+      parentProductGroup ||
+      (isProduct ? getInlineParentProductGroup(value.isVariantOf) : undefined);
+    products.push({
+      product: value,
+      depth,
+      path,
+      parentProductGroup: resolvedParentProductGroup,
+    });
     if (isProductGroup && value.hasVariant) {
       collectStructuredProducts(
         value.hasVariant,

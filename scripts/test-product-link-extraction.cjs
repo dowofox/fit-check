@@ -132,6 +132,51 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/product-is-variant-of") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: "아이보리 선택 니트",
+        url: "/product-is-variant-of",
+        color: "아이보리",
+        offers: { price: "64000" },
+        isVariantOf: {
+          "@type": "ProductGroup",
+          name: "공통 니트 그룹",
+          brand: { "@type": "Brand", name: "PARENT BRAND" },
+          category: "상의 > 니트",
+          image: "/images/parent-group-knit.jpg",
+          material: "울 100%",
+        },
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
+  if (request.url === "/product-is-variant-of-multiple") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: "부모 후보가 여러 개인 니트",
+        url: "/product-is-variant-of-multiple",
+        image: "/images/ambiguous-parent-knit.jpg",
+        isVariantOf: [
+          {
+            "@type": "ProductGroup",
+            brand: { "@type": "Brand", name: "FIRST PARENT" },
+          },
+          {
+            "@type": "ProductGroup",
+            brand: { "@type": "Brand", name: "SECOND PARENT" },
+          },
+        ],
+      })}</script>
+    </head><body></body></html>`);
+    return;
+  }
+
   if (request.url === "/partial") {
     response.end(`<!doctype html><html><head>
       <meta name="twitter:label1" content="브랜드">
@@ -1241,6 +1286,23 @@ async function main() {
       productGroupVariant.body.materialComposition.summary,
       "면 100%"
     );
+
+    const productIsVariantOf = await extract("/product-is-variant-of");
+    assert.equal(productIsVariantOf.response.status, 200);
+    assert.equal(productIsVariantOf.body.productName, "아이보리 선택 니트");
+    assert.equal(productIsVariantOf.body.brand, "PARENT BRAND");
+    assert.equal(productIsVariantOf.body.productCategory, "상의 > 니트");
+    assert.equal(productIsVariantOf.body.productColor, "아이보리");
+    assert.equal(productIsVariantOf.body.price, "64000");
+    assert.equal(
+      productIsVariantOf.body.productImageUrl,
+      `http://127.0.0.1:${fixturePort}/images/parent-group-knit.jpg`
+    );
+    assert.equal(productIsVariantOf.body.materialComposition.summary, "울 100%");
+
+    const ambiguousParentGroup = await extract("/product-is-variant-of-multiple");
+    assert.equal(ambiguousParentGroup.response.status, 200);
+    assert.equal(ambiguousParentGroup.body.brand, "");
 
     const relatedFirst = await extract("/related-first");
     assert.equal(relatedFirst.response.status, 200);
