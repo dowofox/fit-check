@@ -75,9 +75,9 @@ function parseSectionedMaterialNameItems(summary: string): MaterialItem[] {
     return summary
       .slice(contentStart, contentEnd)
       .split(/[,/|;·\n]+/)
+      .filter((name) => !name.includes("%"))
       .map((name) =>
         name
-          .replace(/\s*\d+(?:\.\d+)?\s*%\s*$/i, "")
           .replace(/^[\s:：()]+|[\s:：()]+$/g, "")
           .trim()
       )
