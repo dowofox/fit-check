@@ -113,20 +113,38 @@ function getOfficialMaterial(
   materialComposition?: MaterialComposition
 ) {
   const materialText = getMaterialSearchText(materialComposition);
-  const combinedText = `${productName} ${materialText}`;
+  const materialSummary =
+    materialComposition?.summary?.trim() || getSignificantMaterialText(materialComposition);
+  const hasNamedLinen = includesAny(productName, ["린넨", "linen"]);
+  const hasNamedWool = includesAny(productName, [
+    "울 ",
+    "울100",
+    "울 100",
+    "wool",
+    "모 ",
+    "모100",
+    "모 100",
+  ]);
+  const hasOfficialLinen = includesAny(materialText, ["린넨", "linen"]);
+  const hasOfficialWool = includesAny(materialText, [
+    "울",
+    "wool",
+    "모 ",
+    "모100",
+    "모 100",
+  ]);
 
   if (includesAny(productName, ["데님", "denim", "jeans", "청바지"])) return "데님";
-  if (includesAny(combinedText, ["린넨", "linen"])) return "린넨";
-  if (
-    includesAny(productName, ["울 ", "울100", "울 100", "wool"]) ||
-    includesAny(materialText, ["울", "wool", "모 ", "모100", "모 100"])
-  ) {
-    return "울";
-  }
+  if (hasNamedLinen && hasNamedWool) return materialSummary || "린넨 울";
+  if (hasNamedLinen) return "린넨";
+  if (hasNamedWool) return "울";
+  if (hasOfficialLinen && hasOfficialWool) return materialSummary || "린넨 울";
+  if (hasOfficialLinen) return "린넨";
+  if (hasOfficialWool) return "울";
   if (includesAny(productName, ["플란넬", "flannel"])) return "플란넬";
   if (includesAny(productName, ["니트", "knit"])) return "니트";
 
-  return materialComposition?.summary?.trim() || undefined;
+  return materialSummary || undefined;
 }
 
 function mergeStyleTags(inferredTags: string[], currentTags?: string[]) {

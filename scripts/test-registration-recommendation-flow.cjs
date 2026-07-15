@@ -730,6 +730,47 @@ async function main() {
       }).material,
       "울"
     );
+    const balancedLinenWoolComposition = {
+      summary: "린넨 50%, 울 50%",
+      items: [
+        { name: "린넨", percentage: 50 },
+        { name: "울", percentage: 50 },
+      ],
+    };
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "베이직 셔츠",
+        materialComposition: balancedLinenWoolComposition,
+      }).material,
+      "린넨 50%, 울 50%"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "울 블렌드 셔츠",
+        materialComposition: balancedLinenWoolComposition,
+      }).material,
+      "울"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "린넨 블렌드 셔츠",
+        materialComposition: balancedLinenWoolComposition,
+      }).material,
+      "린넨"
+    );
+    assert.equal(
+      getProductAnalysisTarget({
+        productName: "베이직 셔츠",
+        materialComposition: {
+          summary: "린넨 95%, 울 5%",
+          items: [
+            { name: "린넨", percentage: 95 },
+            { name: "울", percentage: 5 },
+          ],
+        },
+      }).material,
+      "린넨"
+    );
 
     const normalizedPantsContext = normalizeProductAnalysisContext({
       productName: "TWO TUCK WIDE PANTS",
