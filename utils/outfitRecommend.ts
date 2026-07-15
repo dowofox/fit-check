@@ -1074,15 +1074,30 @@ function getFallbackSilhouette(item: ClosetItem): ResolvedGarmentProfile["silhou
       "벌룬",
       "배럴",
       "커브드",
+      "큐롯",
       "balloon",
       "barrel",
       "curved",
+      "culotte",
       "wide",
     ])
   ) {
     return "wide";
   }
-  if (includesAny(text, ["슬림", "스키니", "타이트", "slim"])) return "slim";
+  if (
+    includesAny(text, [
+      "슬림",
+      "스키니",
+      "타이트",
+      "레깅스",
+      "제깅스",
+      "slim",
+      "leggings",
+      "jeggings",
+    ])
+  ) {
+    return "slim";
+  }
   if (includesAny(text, ["롱", "긴 기장", "맥시", "long"])) return "long";
 
   return "regular";
@@ -1093,19 +1108,24 @@ function getFallbackLengthBalance(
   silhouette: ResolvedGarmentProfile["silhouette"]
 ): ResolvedGarmentProfile["lengthBalance"] {
   const text = getGarmentSearchText(item);
-
-  if (
-    silhouette === "cropped" ||
+  const isShortBottom =
+    item.category === "하의" &&
     includesAny(text, [
-      "크롭",
-      "숏",
-      "짧은 기장",
       "반바지",
       "쇼츠",
       "버뮤다",
+      "카프리",
+      "7부 팬츠",
+      "칠부 팬츠",
       "shorts",
       "bermuda",
-    ])
+      "capri",
+    ]);
+
+  if (
+    silhouette === "cropped" ||
+    includesAny(text, ["크롭", "숏", "짧은 기장"]) ||
+    isShortBottom
   ) {
     return "short";
   }

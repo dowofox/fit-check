@@ -477,6 +477,39 @@ async function main() {
       getProductAnalysisTarget({ productName: "STRAIGHT DENIM JEANS" }).detailCategory,
       "스트레이트 데님 팬츠"
     );
+    const additionalBottomTypeCases = [
+      ["DENIM JEGGINGS", "제깅스"],
+      ["DAILY LEGGINGS", "레깅스"],
+      ["CAPRI PANTS", "카프리 팬츠"],
+      ["PLEATED CULOTTES", "큐롯 팬츠"],
+    ];
+    additionalBottomTypeCases.forEach(([productName, detailCategory]) => {
+      assert.equal(
+        getProductAnalysisTarget({ productName }).detailCategory,
+        detailCategory,
+        productName
+      );
+    });
+    assert.equal(
+      getProductAnalysisTarget({ productName: "DENIM JEGGINGS" }).material,
+      "데님"
+    );
+    const officialLeggingsTarget = getProductAnalysisTarget({
+      productName: "LOOK 2026",
+      productCategory: "Fashion > Leggings",
+    });
+    assert.equal(officialLeggingsTarget.category, "하의");
+    assert.equal(officialLeggingsTarget.detailCategory, "레깅스");
+    const correctedLeggingsAnalysis = applyProductAnalysisTarget(
+      {
+        category: "아우터",
+        subCategory: "자켓",
+        detailCategory: "테일러드 재킷",
+      },
+      officialLeggingsTarget
+    );
+    assert.equal(correctedLeggingsAnalysis.category, "하의");
+    assert.equal(correctedLeggingsAnalysis.detailCategory, "레깅스");
     assert.equal(
       getProductAnalysisTarget({
         productName: "부츠컷 그래픽 티셔츠",
