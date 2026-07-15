@@ -8,6 +8,7 @@ import {
   PRODUCT_CLASSIFICATION_RULES,
 } from "@/utils/productClassificationRules";
 import { normalizeProductColor } from "@/utils/color";
+import { getSignificantMaterialText } from "@/utils/materialComposition";
 
 export type ProductClassificationInput = {
   productName?: string;
@@ -100,14 +101,7 @@ function includesAny(value: string, keywords: string[]) {
 }
 
 function getMaterialSearchText(materialComposition?: MaterialComposition) {
-  return normalizeSearchText(
-    [
-      materialComposition?.summary,
-      ...(materialComposition?.items || []).map((item) => item.name),
-    ]
-      .filter(Boolean)
-      .join(" ")
-  );
+  return normalizeSearchText(getSignificantMaterialText(materialComposition));
 }
 
 function getOfficialMaterial(

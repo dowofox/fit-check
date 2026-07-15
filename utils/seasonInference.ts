@@ -4,6 +4,7 @@ import type {
   MaterialComposition,
   SeasonInferenceResult,
 } from "@/utils/storage";
+import { getSignificantMaterialText } from "@/utils/materialComposition";
 
 const OFFICIAL_SEASON_RULES: Array<{
   id: string;
@@ -230,23 +231,6 @@ function normalizeSearchText(values: Array<string | undefined>) {
     .trim();
 }
 
-export const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
-
-function getMaterialText(materialComposition?: MaterialComposition) {
-  const materialItems = materialComposition?.items || [];
-  if (materialItems.length === 0) return materialComposition?.summary || "";
-
-  return materialItems
-    .filter(
-      (item) =>
-        item.percentage == null ||
-        item.percentage >= MIN_SEASONAL_MATERIAL_PERCENTAGE,
-    )
-    .map((item) => item.name)
-    .filter(Boolean)
-    .join(" ");
-}
-
 function includesSeasonKeyword(text: string, keyword: string) {
   const normalizedKeyword = keyword.toLowerCase();
   if (normalizedKeyword === "기모") {
@@ -274,7 +258,7 @@ export function inferSeasonsFromOfficialProduct({
 }): SeasonInferenceResult | null {
   const searchText = normalizeSearchText([
     productName,
-    getMaterialText(materialComposition),
+    getSignificantMaterialText(materialComposition),
     currentItem?.detailCategory,
     currentItem?.subCategory,
   ]);

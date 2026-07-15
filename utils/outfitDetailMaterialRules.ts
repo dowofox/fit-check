@@ -1,4 +1,4 @@
-import { MIN_SEASONAL_MATERIAL_PERCENTAGE } from "@/utils/seasonInference";
+import { MIN_SEASONAL_MATERIAL_PERCENTAGE } from "@/utils/materialComposition";
 
 export type OutfitItemMatcher = {
   categories?: string[];
