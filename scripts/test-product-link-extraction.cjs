@@ -563,6 +563,44 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-english-length-headers") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/english-length-shirt.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"English Length Shirt",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/english-length-shirt.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>Size</th><th>Body Length</th><th>Shoulder</th><th>Chest</th><th>Sleeve Length</th></tr>
+        <tr><td>M</td><td>70</td><td>48</td><td>55</td><td>61</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
+  if (request.url === "/size-english-foot-length") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:image" content="/images/english-shoes.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"English Size Shoes",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/english-shoes.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>Size</th><th>Foot Length</th></tr>
+        <tr><td>270</td><td>27</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   if (["/size-front-back-rise", "/size-parenthesized-rise"].includes(request.url)) {
     const usesParenthesizedHeaders = request.url === "/size-parenthesized-rise";
     const frontRiseHeader = usesParenthesizedHeaders ? "밑위(앞)" : "앞밑위";
@@ -994,6 +1032,20 @@ async function main() {
       structuredHemSize.body.productSizeGuide.sizes[0];
     assert.equal(structuredHemMeasurement.totalLength, 104);
     assert.equal(structuredHemMeasurement.hem, 22);
+
+    const englishLengthSize = await extract("/size-english-length-headers");
+    const englishLengthMeasurement =
+      englishLengthSize.body.productSizeGuide.sizes[0];
+    assert.equal(englishLengthMeasurement.totalLength, 70);
+    assert.equal(englishLengthMeasurement.shoulder, 48);
+    assert.equal(englishLengthMeasurement.chest, 55);
+    assert.equal(englishLengthMeasurement.sleeve, 61);
+
+    const englishFootLengthSize = await extract("/size-english-foot-length");
+    const englishFootLengthMeasurement =
+      englishFootLengthSize.body.productSizeGuide.sizes[0];
+    assert.equal(englishFootLengthMeasurement.totalLength, undefined);
+    assert.equal(englishFootLengthMeasurement.footLength, 27);
 
     const emptyMiddleCellSize = await extract("/size-empty-middle-cell");
     const emptyMiddleCellMeasurement =

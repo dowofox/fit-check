@@ -2185,10 +2185,15 @@ function getSizeMeasurementKey(label) {
   const normalized = label.toLowerCase().replace(/[\s()[\]{}_-]+/g, "");
 
   if (normalized.includes("사이즈") || normalized === "size") return "size";
-  if (normalized.includes("총장") || normalized.includes("기장") || normalized.includes("length")) return "totalLength";
   if (normalized.includes("어깨") || normalized.includes("shoulder")) return "shoulder";
   if (normalized.includes("가슴") || normalized.includes("chest") || normalized.includes("bust")) return "chest";
-  if (normalized.includes("소매") || normalized.includes("sleeve")) return "sleeve";
+  if (
+    normalized.includes("소매") ||
+    normalized.includes("sleeve") ||
+    normalized.includes("armlength")
+  ) {
+    return "sleeve";
+  }
   if (normalized.includes("허리") || normalized.includes("waist")) return "waist";
   if (normalized.includes("엉덩이") || normalized.includes("힙") || normalized.includes("hip")) return "hip";
   if (normalized.includes("허벅지") || normalized.includes("thigh")) return "thigh";
@@ -2219,6 +2224,18 @@ function getSizeMeasurementKey(label) {
   }
   if (normalized.includes("밑단") || normalized.includes("hem")) return "hem";
   if (normalized.includes("발길이") || normalized.includes("footlength")) return "footLength";
+  if (
+    normalized.includes("총장") ||
+    normalized.includes("기장") ||
+    normalized.includes("총길이") ||
+    normalized.includes("전체길이") ||
+    normalized.includes("옷길이") ||
+    normalized.includes("몸길이") ||
+    normalized.includes("length") ||
+    normalized.includes("outseam")
+  ) {
+    return "totalLength";
+  }
 
   return "";
 }
