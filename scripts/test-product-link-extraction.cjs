@@ -628,6 +628,28 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/size-korean-free-aliases") {
+    response.end(`<!doctype html><html><head>
+      <meta property="og:site_name" content="NAES SHOP">
+      <meta property="og:image" content="/images/korean-free-top.jpg">
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"한글 프리사이즈 니트",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/korean-free-top.jpg"
+      }</script>
+    </head><body>
+      <table>
+        <tr><th>사이즈</th><th>총장</th><th>가슴단면</th></tr>
+        <tr><td>프리</td><td>68</td><td>55</td></tr>
+        <tr><td>프리 사이즈</td><td>69</td><td>56</td></tr>
+        <tr><td>원사이즈</td><td>70</td><td>57</td></tr>
+      </table>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/size-english-aliases") {
     response.end(`<!doctype html><html><head>
       <meta property="og:site_name" content="NAES SHOP">
@@ -983,6 +1005,12 @@ async function main() {
     assert.deepEqual(
       freeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.numericRange),
       [{ min: 44, max: 66 }]
+    );
+
+    const koreanFreeAliases = await extract("/size-korean-free-aliases");
+    assert.deepEqual(
+      koreanFreeAliases.body.productSizeGuide.sizes.map((measurement) => measurement.size),
+      ["FREE"]
     );
 
     const englishAliases = await extract("/size-english-aliases");

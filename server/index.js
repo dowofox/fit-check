@@ -1009,8 +1009,11 @@ function parseProductSizeName(value) {
     "FREE",
     "F",
     "FREESIZE",
+    "프리",
+    "프리사이즈",
     "ONESIZE",
     "ONESIZEFITSALL",
+    "원사이즈",
     "OS",
     "OSFA",
   ].includes(compactSize);

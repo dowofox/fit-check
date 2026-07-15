@@ -66,9 +66,18 @@ export function normalizeSize(size?: string) {
     .replace(/[-_/]+/g, "");
 
   if (
-    ["FREE", "F", "FREESIZE", "ONESIZE", "ONESIZEFITSALL", "OS", "OSFA"].includes(
-      compactFreeSize
-    )
+    [
+      "FREE",
+      "F",
+      "FREESIZE",
+      "프리",
+      "프리사이즈",
+      "ONESIZE",
+      "ONESIZEFITSALL",
+      "원사이즈",
+      "OS",
+      "OSFA",
+    ].includes(compactFreeSize)
   ) {
     return "FREE";
   }

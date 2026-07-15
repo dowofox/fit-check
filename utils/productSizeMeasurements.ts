@@ -85,9 +85,18 @@ function isFreeSizeAlias(size?: string) {
     .replace(/\(\s*\d{1,3}(?:\.\d+)?\s*\)/g, "")
     .replace(/[\s/_-]+/g, "");
 
-  return ["FREE", "F", "FREESIZE", "ONESIZE", "ONESIZEFITSALL", "OS", "OSFA"].includes(
-    compactSize
-  );
+  return [
+    "FREE",
+    "F",
+    "FREESIZE",
+    "프리",
+    "프리사이즈",
+    "ONESIZE",
+    "ONESIZEFITSALL",
+    "원사이즈",
+    "OS",
+    "OSFA",
+  ].includes(compactSize);
 }
 
 export function normalizeProductSizeForCompare(size?: string) {

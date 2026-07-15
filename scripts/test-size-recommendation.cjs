@@ -56,7 +56,12 @@ test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () =
   [
     "FREE",
     "FREE SIZE",
+    "프리",
+    "프리 사이즈",
+    "프리사이즈",
     "ONE SIZE",
+    "원 사이즈",
+    "원사이즈",
     "ONE-SIZE",
     "ONE SIZE FITS ALL",
     "ONE-SIZE-FITS-ALL",
