@@ -1406,6 +1406,19 @@ function stripHtml(value = "") {
 }
 
 const MATERIAL_DEFINITIONS = [
+  {
+    name: "구스다운",
+    aliases: ["거위 솜털", "거위솜털", "구스 다운", "구스다운", "goose down"],
+  },
+  {
+    name: "덕다운",
+    aliases: ["오리 솜털", "오리솜털", "덕 다운", "덕다운", "duck down"],
+  },
+  {
+    name: "깃털",
+    aliases: ["거위 깃털", "거위깃털", "오리 깃털", "오리깃털", "깃털", "feather"],
+  },
+  { name: "다운", aliases: ["솜털", "down"] },
   { name: "폴리우레탄", aliases: ["폴리우레탄", "스판덱스", "스판", "span", "polyurethane", "elastane"] },
   { name: "폴리에스터", aliases: ["폴리에스터", "폴리에스테르", "polyester", "poly"] },
   { name: "레이온", aliases: ["레이온", "rayon", "viscose"] },

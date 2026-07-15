@@ -240,6 +240,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/down-filling-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"구스다운 패딩 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/goose-down-padding.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>제품 소재</dt><dd>겉감: 나일론 100% / 충전재: 거위솜털 80%, 거위깃털 20%</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/detailed-material-source") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -708,6 +723,18 @@ async function main() {
     assert.deepEqual(mixedPercentageMaterial.body.materialComposition.items, [
       { name: "면", percentage: null, section: "outer" },
       { name: "폴리에스터", percentage: 100, section: "lining" },
+    ]);
+
+    const downFillingMaterial = await extract("/down-filling-material");
+    assert.equal(downFillingMaterial.response.status, 200);
+    assert.equal(
+      downFillingMaterial.body.materialComposition.summary,
+      "겉감: 나일론 100% / 충전재: 구스다운 80%, 깃털 20%"
+    );
+    assert.deepEqual(downFillingMaterial.body.materialComposition.items, [
+      { name: "나일론", percentage: 100, section: "outer" },
+      { name: "구스다운", percentage: 80, section: "filling" },
+      { name: "깃털", percentage: 20, section: "filling" },
     ]);
 
     const detailedMaterialSource = await extract("/detailed-material-source");

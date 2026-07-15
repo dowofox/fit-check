@@ -180,6 +180,22 @@ test("공식 충전재 정보는 보온 계절 근거로 사용한다", () => {
   assert.deepEqual(result.seasons, ["겨울"]);
   assert.equal(result.source, "official_product");
   assert.equal(result.needsReview, false);
+
+  const downResult = inferSeasonsFromOfficialProduct({
+    productName: "베이직 퀼팅 재킷",
+    materialComposition: {
+      summary: "겉감: 나일론 100% / 충전재: 구스다운 80%, 깃털 20%",
+      items: [
+        { name: "나일론", percentage: 100, section: "outer" },
+        { name: "구스다운", percentage: 80, section: "filling" },
+        { name: "깃털", percentage: 20, section: "filling" },
+      ],
+      source: "official",
+    },
+  });
+
+  assert.deepEqual(downResult.seasons, ["겨울"]);
+  assert.equal(downResult.needsReview, false);
 });
 
 test("공식 근거가 없으면 사진 AI 결과와 확인 상태를 유지한다", () => {
