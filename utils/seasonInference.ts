@@ -299,8 +299,11 @@ function findOfficialSeasonRules(searchText: string) {
 }
 
 function hasConflictingSeasonRules(rules: OfficialSeasonRule[]) {
-  return rules.some((rule, index) =>
-    rules.slice(index + 1).some(
+  const specificRules = rules.filter((rule) => rule.id !== "explicit-all-season");
+  const comparableRules = specificRules.length > 0 ? specificRules : rules;
+
+  return comparableRules.some((rule, index) =>
+    comparableRules.slice(index + 1).some(
       (otherRule) =>
         !rule.seasons.some((season) => otherRule.seasons.includes(season))
     )
@@ -333,12 +336,15 @@ export function inferSeasonsFromOfficialProduct({
   const matchedRule = findOfficialSeasonRule(searchText);
   if (!matchedRule) return null;
 
-  const itemRule = findOfficialSeasonRule(itemSearchText);
+  const itemRules = findOfficialSeasonRules(itemSearchText);
+  const itemRule = itemRules[0];
   const materialRules = findOfficialSeasonRules(materialSearchText);
   const materialRule = materialRules[0];
+  const hasConflictingItemEvidence = hasConflictingSeasonRules(itemRules);
   const hasConflictingMaterialEvidence = hasConflictingSeasonRules(materialRules);
   const hasConflictingOfficialEvidence = Boolean(
-    hasConflictingMaterialEvidence ||
+    hasConflictingItemEvidence ||
+      hasConflictingMaterialEvidence ||
       (itemRule &&
         materialRule &&
         !itemRule.seasons.some((season) => materialRule.seasons.includes(season)))
@@ -348,7 +354,9 @@ export function inferSeasonsFromOfficialProduct({
     seasons: [...matchedRule.seasons],
     source: "official_product",
     needsReview: hasConflictingOfficialEvidence,
-    reasons: hasConflictingMaterialEvidence
+    reasons: hasConflictingItemEvidence
+      ? ["공식 상품명과 카테고리의 계절 단서가 달라 확인이 필요해요."]
+      : hasConflictingMaterialEvidence
       ? ["공식 소재 구성 안의 계절 단서가 서로 달라 확인이 필요해요."]
       : hasConflictingOfficialEvidence
         ? ["공식 상품명과 소재의 계절 단서가 달라 확인이 필요해요."]
