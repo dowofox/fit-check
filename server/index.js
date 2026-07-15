@@ -1443,6 +1443,9 @@ const MATERIAL_DEFINITIONS = [
   { name: "데님", aliases: ["데님", "denim"] },
   { name: "플리스", aliases: ["플리스", "후리스", "fleece"] },
   { name: "캐시미어", aliases: ["캐시미어", "cashmere"] },
+  { name: "알파카", aliases: ["알파카", "alpaca"] },
+  { name: "모헤어", aliases: ["모헤어", "mohair"] },
+  { name: "앙고라", aliases: ["앙고라", "angora"] },
   { name: "실크", aliases: ["실크", "silk"] },
 ];
 const MATERIAL_CONTEXT_KEYWORDS = [

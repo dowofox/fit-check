@@ -213,6 +213,23 @@ test("공식 충전재 정보는 보온 계절 근거로 사용한다", () => {
   assert.equal(syntheticFillingResult.needsReview, false);
 });
 
+test("알파카 계열 공식 소재는 유의미한 함량에서 보온 계절 근거로 사용한다", () => {
+  const result = inferSeasonsFromOfficialProduct({
+    productName: "베이직 블렌드 상의",
+    materialComposition: {
+      summary: "겉감: 면 50%, 알파카 50%",
+      items: [
+        { name: "면", percentage: 50, section: "outer" },
+        { name: "알파카", percentage: 50, section: "outer" },
+      ],
+      source: "official",
+    },
+  });
+
+  assert.deepEqual(result.seasons, ["가을", "겨울"]);
+  assert.equal(result.needsReview, false);
+});
+
 test("공식 근거가 없으면 사진 AI 결과와 확인 상태를 유지한다", () => {
   const result = resolveRegistrationSeasonInference({
     selectedSeasons: ["봄", "가을"],

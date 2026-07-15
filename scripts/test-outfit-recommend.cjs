@@ -722,6 +722,33 @@ test("울 비율이 충분한 혼방은 기존 계절 감점을 유지한다", (
   );
 });
 
+test("알파카 비율이 충분한 혼방은 울 계열 계절 감점을 적용한다", () => {
+  const alpacaBlendTop = createItem("alpaca-blend-top-40", "상의", {
+    detailCategory: "알파카 혼방 반팔 티셔츠",
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "알파카 혼방 반팔 티셔츠",
+      confirmedAt: createdAt,
+      materialComposition: {
+        summary: "면 60%, 알파카 40%",
+        items: [
+          { name: "면", percentage: 60 },
+          { name: "알파카", percentage: 40 },
+        ],
+        source: "official",
+      },
+    },
+  });
+  const adjustment = getDetailMaterialAdjustment([alpacaBlendTop], "여름");
+
+  assert.equal(
+    adjustment.warnings.includes(
+      "니트·울 소재는 한여름에 덥고 무겁게 느껴질 수 있어요."
+    ),
+    true
+  );
+});
+
 test("배색 울은 한여름 울 소재 감점을 만들지 않는다", () => {
   const trimWoolTop = createItem("trim-wool-top", "상의", {
     detailCategory: "반팔 티셔츠",

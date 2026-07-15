@@ -270,6 +270,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/animal-fiber-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"동물성 섬유 블렌드 니트",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/animal-fiber-knit.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>제품 소재</dt><dd>겉감: 면 40%, alpaca 20%, mohair 20%, angora 20%</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/detailed-material-source") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -763,6 +778,19 @@ async function main() {
       { name: "웰론", percentage: 70, section: "filling" },
       { name: "신슐레이트", percentage: 20, section: "filling" },
       { name: "프리마로프트", percentage: 10, section: "filling" },
+    ]);
+
+    const animalFiberMaterial = await extract("/animal-fiber-material");
+    assert.equal(animalFiberMaterial.response.status, 200);
+    assert.equal(
+      animalFiberMaterial.body.materialComposition.summary,
+      "겉감: 면 40%, 알파카 20%, 모헤어 20%, 앙고라 20%"
+    );
+    assert.deepEqual(animalFiberMaterial.body.materialComposition.items, [
+      { name: "면", percentage: 40, section: "outer" },
+      { name: "알파카", percentage: 20, section: "outer" },
+      { name: "모헤어", percentage: 20, section: "outer" },
+      { name: "앙고라", percentage: 20, section: "outer" },
     ]);
 
     const detailedMaterialSource = await extract("/detailed-material-source");
