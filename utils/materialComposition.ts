@@ -3,6 +3,8 @@ import type { MaterialComposition, MaterialSection } from "@/utils/storage";
 export const MIN_SEASONAL_MATERIAL_PERCENTAGE = 20;
 const MATERIAL_SECTION_INDEX_PATTERN = "(?:\\s*(?:\\(\\d+\\)|\\d+))?";
 const MATERIAL_SECTION_SEPARATOR_PATTERN = "(?:\\s*[:：]\\s*|\\s+)";
+const MATERIAL_SECTION_NAME_PATTERN =
+  "겉감|외피|안감|충전재|충전물|배색|부자재|shell|outer|lining|liner|filling|fill|trim";
 
 function cleanMaterialName(value: string) {
   return value
@@ -36,13 +38,15 @@ function getMaterialSection(value: string): MaterialSection | undefined {
 }
 
 function getMaterialSectionAt(value: string, index: number) {
-  const sectionPattern = new RegExp(
-    `(?:^|[\\s,/|;()])(겉감|외피|안감|충전재|충전물|배색|부자재|shell|outer|lining|liner|filling|fill|trim)${MATERIAL_SECTION_INDEX_PATTERN}(?:\\s*(?:소재|material))?${MATERIAL_SECTION_INDEX_PATTERN}${MATERIAL_SECTION_SEPARATOR_PATTERN}`,
-    "gi"
+  const sectionMatches = value.matchAll(
+    new RegExp(
+      `(?:^|[\\s,/|;()])(${MATERIAL_SECTION_NAME_PATTERN})${MATERIAL_SECTION_INDEX_PATTERN}(?:\\s*(?:소재|material))?${MATERIAL_SECTION_INDEX_PATTERN}${MATERIAL_SECTION_SEPARATOR_PATTERN}`,
+      "gi"
+    )
   );
   let section: MaterialSection | undefined;
 
-  for (const match of value.matchAll(sectionPattern)) {
+  for (const match of sectionMatches) {
     if ((match.index ?? 0) > index) break;
     section = getMaterialSection(match[1]);
   }
@@ -50,10 +54,34 @@ function getMaterialSectionAt(value: string, index: number) {
   return section;
 }
 
+function parseSectionedMaterialNameItems(summary: string) {
+  const sectionMatches = [
+    ...summary.matchAll(
+      new RegExp(
+        `(?:^|[\\s,/|;()])(${MATERIAL_SECTION_NAME_PATTERN})${MATERIAL_SECTION_INDEX_PATTERN}(?:\\s*(?:소재|material))?${MATERIAL_SECTION_INDEX_PATTERN}${MATERIAL_SECTION_SEPARATOR_PATTERN}`,
+        "gi"
+      )
+    ),
+  ];
+
+  return sectionMatches.flatMap((match, index) => {
+    const section = getMaterialSection(match[1]);
+    if (!section) return [];
+
+    const contentStart = (match.index ?? 0) + match[0].length;
+    const contentEnd = sectionMatches[index + 1]?.index ?? summary.length;
+    return summary
+      .slice(contentStart, contentEnd)
+      .split(/[,/|;·\n]+/)
+      .map((name) => name.replace(/^[\s:：()]+|[\s:：()]+$/g, "").trim())
+      .filter(Boolean)
+      .map((name) => ({ name, percentage: null, section }));
+  });
+}
+
 export function parseMaterialSummaryItems(summary?: string) {
   const materialSummary = summary || "";
-
-  return Array.from(
+  const percentageItems = Array.from(
     materialSummary.matchAll(/([^0-9%,/|·;\n]+?)\s*(\d+(?:\.\d+)?)\s*%/gi)
   )
     .map((match) => {
@@ -67,6 +95,10 @@ export function parseMaterialSummaryItems(summary?: string) {
       };
     })
     .filter((item) => item.name && Number.isFinite(item.percentage));
+
+  return percentageItems.length > 0
+    ? percentageItems
+    : parseSectionedMaterialNameItems(materialSummary);
 }
 
 function getMaterialItems(materialComposition?: MaterialComposition) {

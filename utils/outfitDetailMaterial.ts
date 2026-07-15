@@ -161,7 +161,9 @@ function getMaterialPercentageEntries(
   const parsedEntries = parseMaterialSummaryItems(getMaterialText(item));
 
   return {
-    hasPercentageData: parsedEntries.length > 0,
+    hasPercentageData: parsedEntries.some(
+      (material) => typeof material.percentage === "number"
+    ),
     percentages: parsedEntries
       .filter((material) =>
         keywords.some((keyword) =>
@@ -169,7 +171,7 @@ function getMaterialPercentageEntries(
         )
       )
       .map((material) => material.percentage)
-      .filter(Number.isFinite),
+      .filter((percentage): percentage is number => typeof percentage === "number"),
   };
 }
 
