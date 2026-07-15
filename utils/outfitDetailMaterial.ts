@@ -5,6 +5,7 @@ import {
   type MaterialSeasonRule,
   type OutfitRuleCondition,
 } from "@/utils/outfitDetailMaterialRules";
+import { parseMaterialSummaryItems } from "@/utils/materialComposition";
 import { getResolvedItemMaterial } from "@/utils/productClassification";
 import type { ClosetItem } from "@/utils/storage";
 
@@ -152,20 +153,17 @@ function getMaterialPercentageEntries(
     };
   }
 
-  const parsedEntries = getMaterialText(item)
-    .split(/[,/|·;\n]+/)
-    .map((segment) => segment.match(/^\s*(.+?)\s*(\d+(?:\.\d+)?)\s*%\s*$/))
-    .filter((match): match is RegExpMatchArray => Boolean(match));
+  const parsedEntries = parseMaterialSummaryItems(getMaterialText(item));
 
   return {
     hasPercentageData: parsedEntries.length > 0,
     percentages: parsedEntries
-      .filter((match) =>
+      .filter((material) =>
         keywords.some((keyword) =>
-          includesToken(match[1].toLowerCase(), keyword.toLowerCase())
+          includesToken(material.name.toLowerCase(), keyword.toLowerCase())
         )
       )
-      .map((match) => Number(match[2]))
+      .map((material) => material.percentage)
       .filter(Number.isFinite),
   };
 }

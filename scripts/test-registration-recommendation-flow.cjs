@@ -82,6 +82,10 @@ const {
 } = require("../utils/closetRegistration.ts");
 const { normalizeProductColor } = require("../utils/color.ts");
 const {
+  getSignificantMaterialText,
+  parseMaterialSummaryItems,
+} = require("../utils/materialComposition.ts");
+const {
   toRecommendationInputItem,
   toRecommendationInputItems,
 } = require("../utils/recommendationInput.ts");
@@ -673,6 +677,24 @@ async function main() {
         },
       }).material,
       "울"
+    );
+    assert.deepEqual(parseMaterialSummaryItems("면 95% 울 5%"), [
+      { name: "면", percentage: 95 },
+      { name: "울", percentage: 5 },
+    ]);
+    assert.equal(
+      getSignificantMaterialText({ summary: "cotton 95% wool 5%" }),
+      "cotton"
+    );
+    assert.equal(
+      getSignificantMaterialText({
+        summary: "겉감: 나일론 100% / 안감: 폴리에스터 100%",
+      }),
+      "나일론 폴리에스터"
+    );
+    assert.equal(
+      getSignificantMaterialText({ summary: "린넨 혼방" }),
+      "린넨 혼방"
     );
     const minorWoolComposition = {
       summary: "면 95%, 울 5%",

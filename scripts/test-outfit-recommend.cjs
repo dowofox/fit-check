@@ -644,6 +644,21 @@ test("소량 울 혼방은 한여름 울 소재 감점을 적용하지 않는다
   );
 });
 
+test("구분자 없는 소량 울 혼방 문자열도 한여름 감점을 적용하지 않는다", () => {
+  const minorWoolTop = createItem("minor-wool-no-separator", "상의", {
+    detailCategory: "울 혼방 반팔 티셔츠",
+    material: "면 95% 울 5%",
+  });
+  const adjustment = getDetailMaterialAdjustment([minorWoolTop], "여름");
+
+  assert.equal(
+    adjustment.warnings.includes(
+      "니트·울 소재는 한여름에 덥고 무겁게 느껴질 수 있어요."
+    ),
+    false
+  );
+});
+
 test("울 비율이 충분한 혼방은 기존 계절 감점을 유지한다", () => {
   const woolBlendTop = createItem("wool-blend-top-40", "상의", {
     detailCategory: "울 혼방 티셔츠",
