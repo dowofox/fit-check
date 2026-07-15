@@ -197,6 +197,56 @@ export const OUTFIT_DETAIL_RULES: OutfitDetailRule[] = [
     ],
   },
   {
+    id: "shirt-outerwear",
+    target: {
+      categories: ["아우터"],
+      keywords: [
+        "셔켓",
+        "오버셔츠",
+        "오버 셔츠",
+        "shirt jacket",
+        "shirt-jacket",
+        "shacket",
+        "overshirt",
+      ],
+    },
+    effects: [
+      {
+        id: "shirt-outerwear-layering",
+        condition: {
+          type: "companion",
+          matcher: {
+            categories: ["상의"],
+            keywords: [
+              "티셔츠",
+              "맨투맨",
+              "얇은 니트",
+              "t shirt",
+              "t-shirt",
+              "tee",
+              "sweatshirt",
+            ],
+          },
+        },
+        score: 3,
+        reason: "셔츠형 아우터를 티셔츠 위에 가볍게 레이어링해 자연스러운 깊이가 생겨요.",
+      },
+      {
+        id: "shirt-outerwear-casual-bottom",
+        condition: {
+          type: "companion",
+          matcher: {
+            categories: ["하의"],
+            keywords: ["치노", "데님 팬츠", "청바지", "카고", "스트레이트"],
+            styleTags: CASUAL_STYLES,
+          },
+        },
+        score: 2,
+        reason: "셔츠형 아우터의 편안한 구조가 캐주얼 하의와 자연스럽게 이어져요.",
+      },
+    ],
+  },
+  {
     id: "denim-pants",
     target: {
       categories: ["하의"],

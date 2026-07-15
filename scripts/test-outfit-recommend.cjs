@@ -40,6 +40,9 @@ const {
 } = require("../utils/outfitRecommendationEmptyState.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
 const {
+  getDetailMaterialAdjustment,
+} = require("../utils/outfitDetailMaterial.ts");
+const {
   getSavedOutfitUsageCount,
   matchSavedOutfitsWithCloset,
 } = require("../utils/savedOutfitIntegrity.ts");
@@ -506,6 +509,52 @@ test("큐롯 하의를 와이드 실루엣으로 추천 fallback에 반영한다
       reason.includes("하체에 여유가 있어 실루엣 대비가 안정적")
     ),
     true
+  );
+});
+
+test("셔켓·오버셔츠의 레이어링과 캐주얼 하의 궁합을 추천 이유에 반영한다", () => {
+  const top = createItem("layering-t-shirt", "상의", {
+    detailCategory: "반팔 티셔츠",
+  });
+  const bottom = createItem("casual-chino", "하의", {
+    detailCategory: "치노 팬츠",
+    material: "면",
+    styleTags: ["캐주얼", "데일리"],
+  });
+  const shacket = createItem("layering-shacket", "아우터", {
+    detailCategory: "데님 셔켓",
+    material: "데님",
+    styleTags: ["캐주얼", "워크웨어"],
+  });
+  const adjustment = getDetailMaterialAdjustment([top, bottom, shacket], "봄");
+
+  assert.equal(adjustment.score >= 5, true);
+  assert.equal(
+    adjustment.reasons.includes(
+      "셔츠형 아우터를 티셔츠 위에 가볍게 레이어링해 자연스러운 깊이가 생겨요."
+    ),
+    true
+  );
+  assert.equal(
+    adjustment.reasons.includes(
+      "셔츠형 아우터의 편안한 구조가 캐주얼 하의와 자연스럽게 이어져요."
+    ),
+    true
+  );
+});
+
+test("일반 셔츠는 셔츠형 아우터 레이어링 규칙을 적용하지 않는다", () => {
+  const shirt = createItem("regular-shirt", "상의", {
+    detailCategory: "데님 셔츠",
+  });
+  const bottom = createItem("regular-shirt-bottom", "하의", {
+    detailCategory: "치노 팬츠",
+  });
+  const adjustment = getDetailMaterialAdjustment([shirt, bottom], "봄");
+
+  assert.equal(
+    adjustment.reasons.some((reason) => reason.includes("셔츠형 아우터")),
+    false
   );
 });
 
