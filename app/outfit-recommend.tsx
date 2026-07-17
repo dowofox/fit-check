@@ -38,7 +38,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -602,8 +602,11 @@ export default function OutfitRecommendScreen() {
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
   const [selectedSituation, setSelectedSituation] = useState<SituationId>("all");
+  const recommendationLoadRequestRef = useRef(0);
 
   const loadRecommendations = useCallback(async () => {
+    const requestId = recommendationLoadRequestRef.current + 1;
+    recommendationLoadRequestRef.current = requestId;
     setIsLoaded(false);
     setHasLoadError(false);
 
@@ -625,6 +628,8 @@ export default function OutfitRecommendScreen() {
       getSavedOutfitsLoadResult(),
       getOutfitRecommendationFeedbacksLoadResult(),
     ]);
+    if (requestId !== recommendationLoadRequestRef.current) return;
+
     if (
       closetResult.status === "failed" ||
       profileResult.status === "failed" ||
@@ -645,6 +650,8 @@ export default function OutfitRecommendScreen() {
     const weather = useWeather
       ? await getWeatherForRecommendation(paramsWeather)
       : undefined;
+    if (requestId !== recommendationLoadRequestRef.current) return;
+
     const recommendationResult = getOutfitRecommendationResult(
       recommendationItems,
       profile,
@@ -767,7 +774,10 @@ export default function OutfitRecommendScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadRecommendations();
+      void loadRecommendations();
+      return () => {
+        recommendationLoadRequestRef.current += 1;
+      };
     }, [loadRecommendations])
   );
 
