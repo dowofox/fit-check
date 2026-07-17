@@ -209,6 +209,88 @@ test("하의는 선호 총장과 신체 실측에 가까운 사이즈를 우선�
   assert.equal(result.sizeRecommendations[0].rank, 1);
 });
 
+test("상의·아우터·하의의 추천 사이즈와 현재 사이즈 설명은 같은 실측 결론을 사용한다", () => {
+  const upperProfile = {
+    height: "175",
+    topSize: "105",
+    shoulderWidth: "47",
+    chestCircumference: "100",
+    armLength: "60",
+  };
+  const bottomProfile = {
+    height: "175",
+    bottomSize: "34",
+    waistCircumference: "82",
+    hipCircumference: "104",
+    thighCircumference: "64",
+    inseam: "78",
+    preferredPantsTotalLength: 104,
+  };
+  const scenarios = [
+    {
+      item: createItem(
+        "measured-top",
+        "상의",
+        [
+          { size: "M", totalLength: 66, shoulder: 44, chest: 49, sleeve: 58 },
+          { size: "L", totalLength: 69, shoulder: 47, chest: 53, sleeve: 60 },
+          { size: "XL", totalLength: 73, shoulder: 51, chest: 58, sleeve: 63 },
+        ],
+        { size: "L", intendedFit: "딱 맞게" }
+      ),
+      profile: upperProfile,
+      reasonPattern: /어깨 실측.*정핏|가슴단면.*여유/,
+    },
+    {
+      item: createItem(
+        "measured-outer",
+        "아우터",
+        [
+          { size: "M", totalLength: 67, shoulder: 45, chest: 51, sleeve: 58 },
+          { size: "L", totalLength: 71, shoulder: 49, chest: 56, sleeve: 61 },
+          { size: "XL", totalLength: 75, shoulder: 53, chest: 61, sleeve: 64 },
+        ],
+        {
+          size: "L",
+          subCategory: "자켓",
+          detailCategory: "긴팔 자켓",
+          intendedFit: "여유 있게",
+        }
+      ),
+      profile: upperProfile,
+      reasonPattern: /어깨.*세미오버|여유 있는 착용감/,
+    },
+    {
+      item: createItem(
+        "measured-bottom",
+        "하의",
+        [
+          { size: "M", totalLength: 100, waist: 38, hip: 49, thigh: 30 },
+          { size: "L", totalLength: 104, waist: 41, hip: 52, thigh: 33 },
+          { size: "XL", totalLength: 109, waist: 45, hip: 57, thigh: 37 },
+        ],
+        { size: "L", intendedFit: "딱 맞게" }
+      ),
+      profile: bottomProfile,
+      reasonPattern: /평소 잘 맞는 바지 총장.*거의 같|허리단면.*무난/,
+    },
+  ];
+
+  scenarios.forEach(({ item, profile, reasonPattern }) => {
+    const recommendation = getRecommendedProductSize(item, profile);
+    const currentFit = getFitSuitability(item, profile);
+    const topRecommendation = recommendation.sizeRecommendations[0];
+
+    assert.equal(recommendation.recommendedSize, "L");
+    assert.equal(recommendation.recommendedDisplaySize, "L");
+    assert.equal(topRecommendation.fitResult, currentFit.fitResult);
+    assert.equal(topRecommendation.lengthResult, currentFit.lengthResult);
+    assert.equal(topRecommendation.widthResult, currentFit.widthResult);
+    assert.match(topRecommendation.reasons.join(" "), reasonPattern);
+    assert.match(currentFit.description, reasonPattern);
+  });
+});
+
 test("FREE 단일 상품은 라벨 변환 없이 FREE를 추천하고 실측 핏을 계산한다", () => {
   const item = createItem(
     "free-top",
