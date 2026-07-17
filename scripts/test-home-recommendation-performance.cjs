@@ -67,6 +67,8 @@ const {
 } = require("../utils/homeRecommendationIndex.ts");
 const {
   deleteClosetItem,
+  deleteOutfitWearRecord,
+  getClosetItems,
   getClosetRecommendationIndex,
   getOutfitRecommendationFeedbacks,
   getOutfitWearRecords,
@@ -261,9 +263,38 @@ test("옷장·프로필·저장 코디 변경은 각 revision과 추천 키를 �
     1
   );
 
+  const secondWearDate = new Date(2026, 6, 18, 10, 0, 0);
+  const secondWearResult = await recordSavedOutfitWear(wornOutfit, secondWearDate);
+  assert.equal(secondWearResult.status, "recorded");
+  assert.equal(
+    (await getClosetItems()).find((closetItem) => closetItem.id === item.id)?.wearCount,
+    2
+  );
+
+  const deleteLatestWearResult = await deleteOutfitWearRecord(
+    secondWearResult.records[0].id
+  );
+  const itemAfterLatestWearDelete = (await getClosetItems()).find(
+    (closetItem) => closetItem.id === item.id
+  );
+  assert.equal(deleteLatestWearResult.status, "deleted");
+  assert.equal(itemAfterLatestWearDelete?.wearCount, 1);
+  assert.equal(itemAfterLatestWearDelete?.lastWornAt, wearResult.records[0].wornAt);
+
+  const deleteWearResult = await deleteOutfitWearRecord(wearResult.records[0].id);
+  const afterWearDelete = await getRecommendationRevisionState();
+  const itemAfterWearDelete = (await getClosetItems()).find(
+    (closetItem) => closetItem.id === item.id
+  );
+  assert.equal(deleteWearResult.status, "deleted");
+  assert.deepEqual(await getOutfitWearRecords(), []);
+  assert.equal(afterWearDelete.closetRevision, 6);
+  assert.equal(itemAfterWearDelete?.wearCount, 0);
+  assert.equal(itemAfterWearDelete?.lastWornAt, undefined);
+
   await deleteClosetItem(item.id);
   const afterDelete = await getRecommendationRevisionState();
-  assert.equal(afterDelete.closetRevision, 4);
+  assert.equal(afterDelete.closetRevision, 7);
   assert.equal(afterDelete.profileRevision, 2);
   assert.equal((await getClosetRecommendationIndex()).index.recommendationItems.length, 0);
 });

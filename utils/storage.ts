@@ -690,6 +690,61 @@ export async function recordSavedOutfitWear(
   }
 }
 
+export type DeleteOutfitWearRecordResult =
+  | { status: "deleted"; records: OutfitWearRecord[] }
+  | { status: "not_found"; records: OutfitWearRecord[] }
+  | { status: "failed"; records: OutfitWearRecord[] };
+
+export async function deleteOutfitWearRecord(
+  recordId: string
+): Promise<DeleteOutfitWearRecordResult> {
+  try {
+    const [closet, records, currentRevisions] = await Promise.all([
+      getClosetItems(),
+      getOutfitWearRecords(),
+      getRecommendationRevisionState(),
+    ]);
+    const targetRecord = records.find((record) => record.id === recordId);
+
+    if (!targetRecord) {
+      return { status: "not_found", records };
+    }
+
+    const updatedRecords = records.filter((record) => record.id !== recordId);
+    const targetItemIds = new Set(targetRecord.itemIds);
+    const updatedCloset = closet.map((item) => {
+      if (!targetItemIds.has(item.id)) return item;
+
+      const remainingLastWornAt = updatedRecords
+        .filter((record) => record.itemIds.includes(item.id))
+        .map((record) => record.wornAt)
+        .sort((first, second) => second.localeCompare(first))[0];
+      const shouldRecalculateLastWornAt = item.lastWornAt === targetRecord.wornAt;
+
+      return {
+        ...item,
+        wearCount: Math.max(0, (item.wearCount || 0) - 1),
+        lastWornAt: shouldRecalculateLastWornAt
+          ? remainingLastWornAt
+          : item.lastWornAt,
+      };
+    });
+    const revisions = incrementRecommendationRevisions(currentRevisions, [
+      "closetRevision",
+    ]);
+
+    await AsyncStorage.multiSet([
+      [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(updatedRecords)],
+      ...getClosetStorageEntries(updatedCloset, revisions),
+    ]);
+
+    return { status: "deleted", records: updatedRecords };
+  } catch (error) {
+    console.error("착용 기록 삭제 실패:", error);
+    return { status: "failed", records: [] };
+  }
+}
+
 export async function getSavedOutfits(): Promise<SavedOutfit[]> {
   const timer = startPerformanceTimer("storage.getSavedOutfits");
 

@@ -7,6 +7,7 @@ import {
 } from "@/utils/savedOutfitIntegrity";
 import {
   ClosetItem,
+  deleteOutfitWearRecord,
   deleteSavedOutfit,
   getClosetItems,
   getOutfitWearRecords,
@@ -46,6 +47,93 @@ function getDefaultOutfitName(createdAt: string) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `코디 ${year}.${month}.${day}`;
+}
+
+function getWearRecordDateLabel(record: OutfitWearRecord) {
+  const date = new Date(record.wornAt);
+
+  if (Number.isNaN(date.getTime())) return record.dateKey;
+
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
+
+function WearHistorySection({
+  records,
+  savedOutfits,
+  closetItems,
+  onDelete,
+}: {
+  records: OutfitWearRecord[];
+  savedOutfits: SavedOutfitWithItems[];
+  closetItems: ClosetItem[];
+  onDelete: (record: OutfitWearRecord) => void;
+}) {
+  if (records.length === 0) return null;
+
+  const closetItemsById = new Map(closetItems.map((item) => [item.id, item]));
+  const outfitsById = new Map(savedOutfits.map((outfit) => [outfit.id, outfit]));
+
+  return (
+    <View style={styles.wearHistorySection}>
+      <View style={styles.wearHistoryHeader}>
+        <View>
+          <Text style={styles.wearHistoryTitle}>최근 착용 기록</Text>
+          <Text style={styles.wearHistoryDescription}>
+            잘못 남긴 기록은 취소할 수 있어요.
+          </Text>
+        </View>
+        <Feather name="clock" size={18} color="#8C6F47" />
+      </View>
+
+      {records.slice(0, 5).map((record) => {
+        const savedOutfit = record.savedOutfitId
+          ? outfitsById.get(record.savedOutfitId)
+          : undefined;
+        const recordItems = record.itemIds
+          .map((itemId) => closetItemsById.get(itemId))
+          .filter((item): item is ClosetItem => Boolean(item));
+        const recordTitle = savedOutfit
+          ? savedOutfit.name || getDefaultOutfitName(savedOutfit.createdAt)
+          : "기록한 코디";
+
+        return (
+          <View key={record.id} style={styles.wearHistoryRow}>
+            <View style={styles.wearHistoryImages}>
+              {recordItems.slice(0, 3).map((item, index) => (
+                <ClosetItemImage
+                  key={item.id}
+                  item={item}
+                  style={[
+                    styles.wearHistoryImage,
+                    index > 0 && styles.wearHistoryImageOverlap,
+                  ]}
+                  contentFit="contain"
+                />
+              ))}
+            </View>
+            <View style={styles.wearHistoryText}>
+              <Text style={styles.wearHistoryDate}>{getWearRecordDateLabel(record)}</Text>
+              <Text style={styles.wearHistoryOutfitName} numberOfLines={1}>
+                {recordTitle}
+              </Text>
+              <Text style={styles.wearHistoryItemCount}>
+                아이템 {record.itemIds.length}개
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${recordTitle} 착용 기록 취소`}
+              hitSlop={8}
+              style={styles.cancelWearButton}
+              onPress={() => onDelete(record)}
+            >
+              <Text style={styles.cancelWearButtonText}>기록 취소</Text>
+            </Pressable>
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 function SavedOutfitCard({
@@ -396,6 +484,37 @@ export default function SavedOutfitsScreen() {
     Alert.alert("기록했어요", "오늘 입은 코디로 기록했어요.");
   }
 
+  function handleDeleteWearRecord(record: OutfitWearRecord) {
+    Alert.alert("착용 기록을 취소할까요?", "추천에 반영된 회전율도 함께 되돌려요.", [
+      { text: "유지", style: "cancel" },
+      {
+        text: "기록 취소",
+        style: "destructive",
+        onPress: async () => {
+          const result = await deleteOutfitWearRecord(record.id);
+
+          if (result.status === "failed") {
+            Alert.alert("취소 실패", "착용 기록을 취소하지 못했어요. 다시 시도해주세요.");
+            return;
+          }
+
+          if (result.status === "not_found") {
+            setWearRecords(result.records);
+            Alert.alert("이미 정리된 기록이에요");
+            return;
+          }
+
+          const updatedClosetItems = await getClosetItems();
+          setClosetItems(updatedClosetItems);
+          setSavedOutfits((currentOutfits) =>
+            matchSavedOutfitsWithCloset(currentOutfits, updatedClosetItems)
+          );
+          setWearRecords(result.records);
+        },
+      },
+    ]);
+  }
+
   useFocusEffect(
     useCallback(() => {
       loadSavedOutfits();
@@ -426,6 +545,13 @@ export default function SavedOutfitsScreen() {
             <Text style={styles.countPillText}>{savedOutfits.length}</Text>
           </View>
         </View>
+
+        <WearHistorySection
+          records={wearRecords}
+          savedOutfits={savedOutfits}
+          closetItems={closetItems}
+          onDelete={handleDeleteWearRecord}
+        />
 
         {isLoaded && savedOutfits.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -539,6 +665,93 @@ const styles = StyleSheet.create({
     color: "#8C6F47",
     fontSize: 12,
     fontWeight: "700",
+  },
+  wearHistorySection: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    padding: 14,
+    marginBottom: 14,
+  },
+  wearHistoryHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 4,
+  },
+  wearHistoryTitle: {
+    color: "#111",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  wearHistoryDescription: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  wearHistoryRow: {
+    minHeight: 68,
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#F4EEE7",
+    paddingTop: 10,
+    marginTop: 10,
+  },
+  wearHistoryImages: {
+    width: 70,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  wearHistoryImage: {
+    width: 34,
+    height: 44,
+    borderRadius: 9,
+    backgroundColor: "#F4EEE7",
+    borderWidth: 1,
+    borderColor: "#fff",
+  },
+  wearHistoryImageOverlap: {
+    marginLeft: -16,
+  },
+  wearHistoryText: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
+  },
+  wearHistoryDate: {
+    color: "#8C6F47",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  wearHistoryOutfitName: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  wearHistoryItemCount: {
+    color: "#777064",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  cancelWearButton: {
+    minHeight: 34,
+    borderRadius: 12,
+    backgroundColor: "#F4EEE7",
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelWearButtonText: {
+    color: "#8C6F47",
+    fontSize: 11,
+    fontWeight: "800",
   },
   listArea: {
     gap: 14,
