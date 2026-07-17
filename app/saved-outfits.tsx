@@ -10,7 +10,7 @@ import {
   deleteOutfitWearRecord,
   deleteSavedOutfit,
   getClosetItemsLoadResult,
-  getOutfitWearRecords,
+  getOutfitWearRecordsLoadResult,
   getSavedOutfitsLoadResult,
   type OutfitWearRecord,
   type SavedOutfit,
@@ -424,20 +424,24 @@ export default function SavedOutfitsScreen() {
 
   async function loadSavedOutfits() {
     setHasLoadError(false);
-    const [outfitsResult, closetResult, records] = await Promise.all([
+    const [outfitsResult, closetResult, wearRecordsResult] = await Promise.all([
       getSavedOutfitsLoadResult(),
       getClosetItemsLoadResult(),
-      getOutfitWearRecords(),
+      getOutfitWearRecordsLoadResult(),
     ]);
 
-    if (outfitsResult.status === "failed" || closetResult.status === "failed") {
+    if (
+      outfitsResult.status === "failed" ||
+      closetResult.status === "failed" ||
+      wearRecordsResult.status === "failed"
+    ) {
       setHasLoadError(true);
       setIsLoaded(true);
       return;
     }
 
     setClosetItems(closetResult.items);
-    setWearRecords(records);
+    setWearRecords(wearRecordsResult.records);
     setSavedOutfits(
       matchSavedOutfitsWithCloset(outfitsResult.outfits, closetResult.items)
     );

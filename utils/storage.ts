@@ -956,16 +956,28 @@ export function saveOutfit(outfit: SavedOutfit): Promise<SaveOutfitResult> {
   });
 }
 
-export async function getOutfitWearRecords(): Promise<OutfitWearRecord[]> {
+export type OutfitWearRecordsLoadResult = {
+  status: "loaded" | "failed";
+  records: OutfitWearRecord[];
+};
+
+export async function getOutfitWearRecordsLoadResult(): Promise<
+  OutfitWearRecordsLoadResult
+> {
   try {
     const data = await AsyncStorage.getItem(OUTFIT_WEAR_RECORDS_KEY);
-    const parsedRecords = data ? JSON.parse(data) : [];
-
-    return normalizeOutfitWearRecords(parsedRecords);
+    return {
+      status: "loaded",
+      records: parseStoredWearRecordsForMutation(data),
+    };
   } catch (error) {
     console.error("착용 기록 불러오기 실패:", error);
-    return [];
+    return { status: "failed", records: [] };
   }
+}
+
+export async function getOutfitWearRecords(): Promise<OutfitWearRecord[]> {
+  return (await getOutfitWearRecordsLoadResult()).records;
 }
 
 export type RecordOutfitWearResult =

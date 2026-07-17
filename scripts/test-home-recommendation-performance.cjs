@@ -99,6 +99,7 @@ const {
   getOutfitRecommendationFeedbacks,
   getOutfitRecommendationFeedbacksLoadResult,
   getOutfitWearRecords,
+  getOutfitWearRecordsLoadResult,
   getRecommendationRevisionState,
   getSavedOutfits,
   getSavedOutfitsLoadResult,
@@ -324,6 +325,32 @@ test("wear record mutations preserve history when the source read fails", async 
 
   assert.equal((await getOutfitWearRecords()).length, 1);
   assert.equal((await getClosetItems())[0].wearCount, 1);
+});
+
+test("wear record reads distinguish storage failures from empty history", async () => {
+  const item = createClosetItem("wear-load-result");
+  const outfit = createSavedOutfit("wear-load-outfit", [item.id]);
+  await saveClosetItem(item);
+  await recordSavedOutfitWear(outfit, new Date(2026, 6, 17, 10, 0, 0));
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  let failedResult;
+  try {
+    failNextGetItemKey = OUTFIT_WEAR_RECORDS_KEY;
+    failedResult = await getOutfitWearRecordsLoadResult();
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(failedResult, { status: "failed", records: [] });
+  assert.equal((await getOutfitWearRecordsLoadResult()).records.length, 1);
+
+  storageMemory.delete(OUTFIT_WEAR_RECORDS_KEY);
+  assert.deepEqual(await getOutfitWearRecordsLoadResult(), {
+    status: "loaded",
+    records: [],
+  });
 });
 
 test("저장 코디 변경 실패는 정상적인 빈 목록과 구분한다", async () => {
