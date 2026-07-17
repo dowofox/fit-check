@@ -5,6 +5,7 @@ import {
   parseNaesBackupJson,
   type NaesBackupPayload,
 } from "@/utils/dataBackup";
+import { deleteUnusedClosetImages } from "@/utils/closetImageFiles";
 import {
   getNaesBackupDataSnapshot,
   restoreNaesBackupDataSnapshot,
@@ -82,17 +83,39 @@ export async function restoreNaesBackup(payload: NaesBackupPayload) {
     throw new Error("복원한 사진을 저장할 공간을 찾지 못했어요.");
   }
 
+  const previousSnapshot = await getNaesBackupDataSnapshot();
   const restoreDirectory = `${FileSystem.documentDirectory}naes-restored-assets/${Date.now()}/`;
+  let didRestoreData = false;
+
   await FileSystem.makeDirectoryAsync(restoreDirectory, { intermediates: true });
 
-  const data = await materializeNaesBackupData(payload, async (asset, index) => {
-    const fileUri = `${restoreDirectory}image-${index + 1}.${asset.extension}`;
-    await FileSystem.writeAsStringAsync(fileUri, asset.base64, {
-      encoding: FileSystem.EncodingType.Base64,
+  try {
+    const data = await materializeNaesBackupData(payload, async (asset, index) => {
+      const fileUri = `${restoreDirectory}image-${index + 1}.${asset.extension}`;
+      await FileSystem.writeAsStringAsync(fileUri, asset.base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return fileUri;
     });
-    return fileUri;
-  });
 
-  await restoreNaesBackupDataSnapshot(data);
-  return getNaesBackupSummary(payload);
+    await restoreNaesBackupDataSnapshot(data);
+    didRestoreData = true;
+
+    try {
+      await deleteUnusedClosetImages(previousSnapshot.closetItems, data.closetItems);
+    } catch (cleanupError) {
+      console.error("백업 복원 이전 이미지 정리 실패:", cleanupError);
+    }
+
+    return getNaesBackupSummary(payload);
+  } catch (error) {
+    if (!didRestoreData) {
+      try {
+        await FileSystem.deleteAsync(restoreDirectory, { idempotent: true });
+      } catch (cleanupError) {
+        console.error("실패한 백업 복원 파일 정리 실패:", cleanupError);
+      }
+    }
+    throw error;
+  }
 }

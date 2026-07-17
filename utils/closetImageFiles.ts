@@ -50,12 +50,20 @@ export async function deleteUnusedClosetItemImages(
   deletedItem: ClosetItem,
   remainingItems: ClosetItem[]
 ) {
+  return deleteUnusedClosetImages([deletedItem], remainingItems);
+}
+
+export async function deleteUnusedClosetImages(
+  previousItems: ClosetItem[],
+  remainingItems: ClosetItem[]
+) {
   const documentDirectory = FileSystem.documentDirectory;
   if (!documentDirectory) return;
 
   const remainingUris = new Set(remainingItems.flatMap(getStoredItemImageUris));
   const localUris = new Set(
-    [deletedItem.imageUri, deletedItem.cleanImageUri]
+    previousItems
+      .flatMap((item) => [item.imageUri, item.cleanImageUri])
       .map((uri) => uri?.trim())
       .filter((uri): uri is string => {
         if (!uri) return false;
