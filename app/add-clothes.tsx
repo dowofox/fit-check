@@ -564,10 +564,24 @@ export default function AddClothesScreen() {
   const [productLinkFailure, setProductLinkFailure] = useState<ProductLinkFailure | null>(null);
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
   const productExtractionRequestRef = useRef(0);
+  const savingOperationRef = useRef(false);
 
   function invalidateProductExtraction() {
     productExtractionRequestRef.current += 1;
     setIsExtractingProduct(false);
+  }
+
+  function beginSavingOperation() {
+    if (savingOperationRef.current) return false;
+
+    savingOperationRef.current = true;
+    setIsSaving(true);
+    return true;
+  }
+
+  function finishSavingOperation() {
+    savingOperationRef.current = false;
+    setIsSaving(false);
   }
 
   function resetAnalysisState() {
@@ -587,7 +601,7 @@ export default function AddClothesScreen() {
   }
 
   function switchAddMode(nextMode: AddMode) {
-    if (nextMode === addMode || isSaving) return;
+    if (nextMode === addMode || savingOperationRef.current) return;
 
     invalidateProductExtraction();
     setAddMode(nextMode);
@@ -668,6 +682,8 @@ export default function AddClothesScreen() {
   }
 
   async function pickImage() {
+    if (savingOperationRef.current) return;
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: !extractedProduct,
@@ -697,6 +713,8 @@ export default function AddClothesScreen() {
   }
 
   async function takePhoto() {
+    if (savingOperationRef.current) return;
+
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permission.granted) {
@@ -730,6 +748,8 @@ export default function AddClothesScreen() {
   }
 
   async function extractProductFromUrl() {
+    if (savingOperationRef.current) return;
+
     const validatedUrl = validateProductUrlInput(productUrlInput);
 
     if (!validatedUrl.ok) {
@@ -799,15 +819,16 @@ export default function AddClothesScreen() {
   }
 
   async function analyzeItem() {
-    if (!imageUri || isSaving) return;
+    if (!imageUri || savingOperationRef.current) return;
 
     if (selectedImages.length > 1) {
       await analyzeAndSaveBatch();
       return;
     }
 
+    if (!beginSavingOperation()) return;
+
     try {
-      setIsSaving(true);
       const nextAnalysis = await requestClothesAnalysis(imageUri, extractedProduct);
       applyAnalysisToForm({ ...nextAnalysis, source: "image" });
     } catch (error) {
@@ -823,20 +844,21 @@ export default function AddClothesScreen() {
         Alert.alert("분석 실패", "옷 분석 중 문제가 생겼어요. 다시 시도해주세요.");
       }
     } finally {
-      setIsSaving(false);
+      finishSavingOperation();
     }
   }
 
   async function analyzeAndSaveBatch() {
-    if (selectedImages.length === 0 || isSaving) return;
+    if (selectedImages.length === 0 || savingOperationRef.current) return;
 
     let savedCount = 0;
     let failedCount = 0;
     let seasonReviewCount = 0;
     const failedImages: SelectedImage[] = [];
 
+    if (!beginSavingOperation()) return;
+
     try {
-      setIsSaving(true);
       setAnalysis(null);
 
       for (const [index, selectedImage] of selectedImages.entries()) {
@@ -902,12 +924,16 @@ export default function AddClothesScreen() {
 
       Alert.alert("저장 실패", "선택한 사진은 그대로 두었어요. 다시 시도해주세요.");
     } finally {
-      setIsSaving(false);
+      finishSavingOperation();
     }
   }
 
   async function saveItem(allowUncertainValues = false) {
-    if ((!imageUri && addMode !== "manual") || !analysis || isSaving) return;
+    if (
+      (!imageUri && addMode !== "manual") ||
+      !analysis ||
+      savingOperationRef.current
+    ) return;
 
     if (addMode === "manual" && !selectedCategory.trim()) {
       Alert.alert("종류를 선택해주세요", "옷의 카테고리를 선택해야 저장할 수 있어요.");
@@ -963,8 +989,9 @@ export default function AddClothesScreen() {
     let cleanImageUri: string | undefined;
     let didPersistClosetItem = false;
 
+    if (!beginSavingOperation()) return;
+
     try {
-      setIsSaving(true);
       cleanImageUri = await getOptionalCleanImageUri(analysis);
       const itemId = createClosetItemId();
       persistedImageUri = await persistClosetImage(imageUri, itemId);
@@ -1107,7 +1134,7 @@ export default function AddClothesScreen() {
       console.error("옷 저장 실패:", error);
       Alert.alert("저장 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
     } finally {
-      setIsSaving(false);
+      finishSavingOperation();
     }
   }
 
@@ -1329,6 +1356,7 @@ export default function AddClothesScreen() {
               placeholderTextColor="#b2aaa1"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!isSaving}
             />
             <Text style={styles.linkSupportText}>
               무신사 등 공개된 상품 페이지나 공유 링크를 사용할 수 있어요. 소재와 실측은 페이지에 공개된 경우에만 가져와요.
@@ -1337,10 +1365,10 @@ export default function AddClothesScreen() {
             <Pressable
               style={[
                 styles.linkExtractButton,
-                isExtractingProduct && styles.linkExtractButtonDisabled,
+                (isExtractingProduct || isSaving) && styles.linkExtractButtonDisabled,
               ]}
               onPress={extractProductFromUrl}
-              disabled={isExtractingProduct}
+              disabled={isExtractingProduct || isSaving}
             >
               {isExtractingProduct ? (
                 <ActivityIndicator size="small" color="#fff" />
