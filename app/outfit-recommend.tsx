@@ -8,9 +8,9 @@ import {
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import {
-  getOutfitFeedbackRankingAdjustment,
   type OutfitFeedbackValue,
 } from "@/utils/outfitFeedback";
+import { applyOutfitSituationRanking } from "@/utils/outfitSituation";
 import { openProductSearch } from "@/utils/productSearch";
 import {
   getRecommendedShoppingItems,
@@ -81,112 +81,6 @@ type SituationId = (typeof SITUATION_OPTIONS)[number]["id"];
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
-}
-
-function getRecommendationSearchText(recommendation: OutfitRecommendation) {
-  return [
-    recommendation.title,
-    ...recommendation.tags,
-    ...recommendation.reasons,
-    ...recommendation.items.flatMap((item) => [
-      item.category,
-      item.subCategory,
-      item.detailCategory,
-      item.style,
-      ...(item.styleTags || []),
-      item.material,
-      item.color,
-    ]),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
-
-function getRecommendationGrade(score: number): OutfitRecommendation["grade"] {
-  if (score >= 92) return "S";
-  if (score >= 82) return "A";
-  if (score >= 70) return "B";
-  if (score >= 55) return "C";
-  return "D";
-}
-
-function getSituationMatchScore(
-  recommendation: OutfitRecommendation,
-  keywords: readonly string[]
-) {
-  const searchText = getRecommendationSearchText(recommendation);
-
-  return keywords.reduce((score, keyword) => {
-    const normalizedKeyword = keyword.toLowerCase();
-    const matches = searchText.split(normalizedKeyword).length - 1;
-
-    return score + matches;
-  }, 0);
-}
-
-function applySituationRecommendationScoring(
-  recommendations: OutfitRecommendation[],
-  situationId: SituationId
-) {
-  const situation = SITUATION_OPTIONS.find((option) => option.id === situationId);
-  if (!situation || situation.id === "all") return recommendations;
-
-  const scoredRecommendations: (OutfitRecommendation & { situationMatchScore: number })[] = [];
-
-  recommendations.forEach((recommendation) => {
-    const situationMatchScore = getSituationMatchScore(recommendation, situation.keywords);
-    if (situationMatchScore <= 0) return;
-
-    const adjustedScore = Math.min(100, recommendation.score + Math.min(10, situationMatchScore * 2));
-    const situationReason = situation.reason;
-    const reasons = recommendation.reasons.includes(situationReason)
-      ? recommendation.reasons
-      : [situationReason, ...recommendation.reasons];
-    const alternatives = (recommendation.alternatives || [])
-      .map((alternative) => {
-        const alternativeMatchScore = getSituationMatchScore(
-          alternative,
-          situation.keywords
-        );
-        if (alternativeMatchScore <= 0) return null;
-
-        const alternativeScore = Math.min(
-          100,
-          alternative.score + Math.min(10, alternativeMatchScore * 2)
-        );
-
-        return {
-          ...alternative,
-          score: alternativeScore,
-          grade: getRecommendationGrade(alternativeScore),
-          tags: Array.from(new Set([situation.label, ...alternative.tags])).slice(0, 3),
-        };
-      })
-      .filter((alternative): alternative is OutfitRecommendation => Boolean(alternative));
-
-    scoredRecommendations.push({
-      ...recommendation,
-      score: adjustedScore,
-      grade: getRecommendationGrade(adjustedScore),
-      reasons,
-      tags: Array.from(new Set([situation.label, ...recommendation.tags])).slice(0, 3),
-      alternatives,
-      alternativeCount: alternatives.length,
-      situationMatchScore,
-    });
-  });
-
-  return scoredRecommendations
-    .sort((first, second) =>
-      second.situationMatchScore - first.situationMatchScore ||
-      getOutfitFeedbackRankingAdjustment(second.feedbackPreference) -
-        getOutfitFeedbackRankingAdjustment(first.feedbackPreference) ||
-      (second.feedbackTrendAdjustment || 0) -
-        (first.feedbackTrendAdjustment || 0) ||
-      second.score - first.score
-    )
-    .map(({ situationMatchScore, ...recommendation }) => recommendation);
 }
 
 function getSortedItemIds(items: ClosetItem[]) {
@@ -765,9 +659,9 @@ export default function OutfitRecommendScreen() {
       }
     }
 
-    const situationRecommendations = applySituationRecommendationScoring(
+    const situationRecommendations = applyOutfitSituationRanking(
       nextRecommendations,
-      selectedSituation
+      SITUATION_OPTIONS.find((option) => option.id === selectedSituation)
     );
 
     setRecommendations(situationRecommendations);

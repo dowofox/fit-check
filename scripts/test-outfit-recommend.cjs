@@ -46,6 +46,9 @@ const {
 const {
   getOutfitRecommendationEmptyContent,
 } = require("../utils/outfitRecommendationEmptyState.ts");
+const {
+  applyOutfitSituationRanking,
+} = require("../utils/outfitSituation.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
 const {
   getDetailMaterialAdjustment,
@@ -68,6 +71,43 @@ test("날씨 추천은 홈에서 이어진 경로에만 적용한다", () => {
   assert.equal(shouldUseRecommendationWeather("home"), true);
   assert.equal(shouldUseRecommendationWeather(undefined), false);
   assert.equal(shouldUseRecommendationWeather("outfit"), false);
+});
+
+test("상황 적합성은 추천 순서만 바꾸고 품질 점수와 등급은 유지한다", () => {
+  const alternative = {
+    id: "alternative",
+    title: "캐주얼 대체 코디",
+    tags: ["캐주얼"],
+    reasons: [],
+    items: [{ category: "상의", styleTags: ["캐주얼"] }],
+    score: 70,
+    grade: "B",
+  };
+  const recommendation = {
+    id: "base",
+    title: "캐주얼 데일리 코디",
+    tags: ["캐주얼", "데일리"],
+    reasons: [],
+    items: [{ category: "상의", styleTags: ["캐주얼", "데일리"] }],
+    score: 72,
+    grade: "B",
+    alternatives: [alternative],
+    alternativeCount: 1,
+  };
+
+  const [ranked] = applyOutfitSituationRanking([recommendation], {
+    id: "daily",
+    label: "데일리",
+    keywords: ["캐주얼", "데일리"],
+    reason: "데일리 상황에 맞는 조합이에요.",
+  });
+
+  assert.equal(ranked.score, 72);
+  assert.equal(ranked.grade, "B");
+  assert.equal(ranked.alternatives[0].score, 70);
+  assert.equal(ranked.alternatives[0].grade, "B");
+  assert.equal(ranked.alternativeCount, 1);
+  assert.equal(ranked.reasons[0], "데일리 상황에 맞는 조합이에요.");
 });
 
 function createItem(id, category, overrides = {}) {
