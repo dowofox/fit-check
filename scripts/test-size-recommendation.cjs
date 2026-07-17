@@ -33,6 +33,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 
 const {
   getFitSuitability,
+  getMeasurementComparison,
   getRecommendedProductSize,
   getSizeRecommendationMissingInfo,
   hasSelectedClosetSize,
@@ -535,10 +536,14 @@ test("신발은 실측표가 있어도 자동 사이즈 추천 대상에서 제�
   );
 
   const result = getRecommendedProductSize(item, { shoeSize: "270" });
+  const comparison = getMeasurementComparison(item, { shoeSize: "270" });
 
   assert.equal(result.recommendedSize, undefined);
   assert.deepEqual(result.sizeRecommendations, []);
   assert.deepEqual(result.missingFields, []);
+  assert.equal(comparison.fitResult, "unknown");
+  assert.deepEqual(comparison.comparisons, []);
+  assert.equal(comparison.description, "신발은 자동 핏 비교에서 제외돼요.");
 });
 
 test("프로필 실측이 부족해도 같은 카테고리 기준 옷 실측으로 비교한다", () => {

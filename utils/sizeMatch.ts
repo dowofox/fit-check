@@ -985,6 +985,28 @@ export function getMeasurementComparison(
   profile?: UserProfile | null,
   context?: SizeRecommendationContext
 ): MeasurementComparisonResult {
+  if (isAccessoryOrBagItem(item)) {
+    return {
+      comparisons: [],
+      unavailableFields: [],
+      lengthResult: "unknown",
+      widthResult: "unknown",
+      fitResult: "unknown",
+      description: "액세서리와 가방은 의류 실측 비교에서 제외돼요.",
+    };
+  }
+
+  if (isShoeCategory(item)) {
+    return {
+      comparisons: [],
+      unavailableFields: [],
+      lengthResult: "unknown",
+      widthResult: "unknown",
+      fitResult: "unknown",
+      description: "신발은 자동 핏 비교에서 제외돼요.",
+    };
+  }
+
   const garmentMeasurement = getCurrentProductMeasurement(item);
   const userMeasurements = getUserFitMeasurements(profile);
   const comparableUserMeasurements = getComparableUserMeasurements(profile);
