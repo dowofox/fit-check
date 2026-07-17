@@ -12,7 +12,10 @@ import {
   normalizeClosetSeasons,
   wasClosetItemSaved,
 } from "@/utils/closetRegistration";
-import { persistLocalClosetImage } from "@/utils/closetImageFiles";
+import {
+  deleteManagedClosetImageFiles,
+  persistLocalClosetImage,
+} from "@/utils/closetImageFiles";
 import {
   applyProductAnalysisTarget,
   getProductAnalysisTarget,
@@ -482,44 +485,58 @@ async function saveAnalyzedClosetItem(
     seasons,
   });
   const itemId = createClosetItemId();
-  const persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
+  let persistedImageUri = imageUri;
 
-  const savedItems = await saveClosetItem({
-    id: itemId,
-    imageUri: persistedImageUri,
-    cleanImageUri,
-    category: registration.category,
-    subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
-    detailCategory: generalizeBrandTerms(
-      analysis.detailCategory || analysis.subCategory,
-      "상세 분류 전"
-    ),
-    color: registration.color,
-    style: styleTags[0] || analysis.style || "스타일 미분석",
-    styleTags,
-    season: registration.seasons.join(", "),
-    seasons: registration.seasons,
-    seasonSource: analysis.seasonSource || "photo_ai",
-    seasonNeedsReview: analysis.seasonNeedsReview ?? registration.reviewFields.includes("season"),
-    fit: analysis.fit || "핏 미분석",
-    size: normalizeClosetItemSize(size),
-    ...getAnalysisDetailFields(analysis),
-    styleProfile: analysis.styleProfile || undefined,
-    garmentProfile: analysis.garmentProfile || undefined,
-    description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
-    matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
-    avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
-    createdAt: new Date().toISOString(),
-  });
+  try {
+    persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
+    const savedItems = await saveClosetItem({
+      id: itemId,
+      imageUri: persistedImageUri,
+      cleanImageUri,
+      category: registration.category,
+      subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
+      detailCategory: generalizeBrandTerms(
+        analysis.detailCategory || analysis.subCategory,
+        "상세 분류 전"
+      ),
+      color: registration.color,
+      style: styleTags[0] || analysis.style || "스타일 미분석",
+      styleTags,
+      season: registration.seasons.join(", "),
+      seasons: registration.seasons,
+      seasonSource: analysis.seasonSource || "photo_ai",
+      seasonNeedsReview:
+        analysis.seasonNeedsReview ?? registration.reviewFields.includes("season"),
+      fit: analysis.fit || "핏 미분석",
+      size: normalizeClosetItemSize(size),
+      ...getAnalysisDetailFields(analysis),
+      styleProfile: analysis.styleProfile || undefined,
+      garmentProfile: analysis.garmentProfile || undefined,
+      description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
+      matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
+      avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
+      createdAt: new Date().toISOString(),
+    });
 
-  if (!wasClosetItemSaved(savedItems, itemId)) {
-    throw new Error("closet item was not persisted");
+    if (!wasClosetItemSaved(savedItems, itemId)) {
+      throw new Error("closet item was not persisted");
+    }
+
+    return {
+      needsSeasonReview:
+        analysis.seasonNeedsReview === true || registration.reviewFields.includes("season"),
+    };
+  } catch (error) {
+    try {
+      await deleteManagedClosetImageFiles([
+        persistedImageUri !== imageUri ? persistedImageUri : undefined,
+        cleanImageUri,
+      ]);
+    } catch (cleanupError) {
+      console.error("실패한 옷 등록 이미지 정리 실패:", cleanupError);
+    }
+    throw error;
   }
-
-  return {
-    needsSeasonReview:
-      analysis.seasonNeedsReview === true || registration.reviewFields.includes("season"),
-  };
 }
 
 export default function AddClothesScreen() {
@@ -926,11 +943,15 @@ export default function AddClothesScreen() {
       return;
     }
 
+    let persistedImageUri = imageUri;
+    let cleanImageUri: string | undefined;
+    let didPersistClosetItem = false;
+
     try {
       setIsSaving(true);
-      const cleanImageUri = await getOptionalCleanImageUri(analysis);
+      cleanImageUri = await getOptionalCleanImageUri(analysis);
       const itemId = createClosetItemId();
-      const persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
+      persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
       const confirmedProductBrand = confirmedProduct?.brand?.trim() || undefined;
       const confirmedMaterial = confirmedProduct?.materialComposition?.summary?.trim();
       const shouldApplyConfirmedMaterial =
@@ -1023,6 +1044,7 @@ export default function AddClothesScreen() {
       if (!wasClosetItemSaved(savedItems, finalItem.id)) {
         throw new Error("closet item was not persisted");
       }
+      didPersistClosetItem = true;
 
       const needsManualSizeGuide =
         Boolean(confirmedProduct) &&
@@ -1056,6 +1078,16 @@ export default function AddClothesScreen() {
         router.replace("/closet");
       }
     } catch (error) {
+      if (!didPersistClosetItem) {
+        try {
+          await deleteManagedClosetImageFiles([
+            persistedImageUri !== imageUri ? persistedImageUri : undefined,
+            cleanImageUri,
+          ]);
+        } catch (cleanupError) {
+          console.error("실패한 옷 등록 이미지 정리 실패:", cleanupError);
+        }
+      }
       console.error("옷 저장 실패:", error);
       Alert.alert("저장 실패", "옷 정보를 저장하지 못했어요. 다시 시도해주세요.");
     } finally {

@@ -31,6 +31,21 @@ export async function persistLocalClosetImage(imageUri: string, itemId: string) 
   return targetUri;
 }
 
+export async function deleteManagedClosetImageFiles(imageUris: (string | undefined)[]) {
+  const documentDirectory = FileSystem.documentDirectory;
+  if (!documentDirectory) return;
+
+  const localUris = new Set(
+    imageUris
+      .map((uri) => uri?.trim())
+      .filter((uri): uri is string => Boolean(uri?.startsWith(documentDirectory)))
+  );
+
+  await Promise.all(
+    [...localUris].map((uri) => FileSystem.deleteAsync(uri, { idempotent: true }))
+  );
+}
+
 export async function deleteUnusedClosetItemImages(
   deletedItem: ClosetItem,
   remainingItems: ClosetItem[]
@@ -48,7 +63,5 @@ export async function deleteUnusedClosetItemImages(
       })
   );
 
-  await Promise.all(
-    [...localUris].map((uri) => FileSystem.deleteAsync(uri, { idempotent: true }))
-  );
+  await deleteManagedClosetImageFiles([...localUris]);
 }
