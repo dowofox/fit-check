@@ -265,7 +265,7 @@ export default function ProfileScreen() {
     if (measurementValidation.invalidFields.length > 0) {
       Alert.alert(
         "입력 확인",
-        `${measurementValidation.invalidFields.join(", ")} 값은 0보다 큰 숫자로 입력해주세요.`
+        `${measurementValidation.invalidFields.join(", ")} 값을 cm 단위로 다시 확인해주세요.`
       );
       return;
     }
