@@ -66,6 +66,9 @@ const {
   RECOMMENDATION_REVISIONS_STORAGE_KEY,
 } = require("../utils/homeRecommendationIndex.ts");
 const {
+  canReuseHomeDashboardData,
+} = require("../utils/homeDashboardRefresh.ts");
+const {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
   getHomeRecommendationCacheSnapshot,
@@ -158,6 +161,34 @@ function createSavedOutfit(id, itemIds) {
 test.beforeEach(() => {
   storageMemory.clear();
   storageReadCounts.clear();
+});
+
+test("홈 재진입은 추천 revision이 같을 때만 메모리 데이터를 재사용한다", () => {
+  const revisions = {
+    version: 1,
+    closetRevision: 4,
+    profileRevision: 2,
+    savedOutfitRevision: 3,
+    feedbackRevision: 1,
+  };
+  const dataKey = getRecommendationRevisionKey(revisions);
+
+  assert.equal(canReuseHomeDashboardData(dataKey, revisions), true);
+  assert.equal(
+    canReuseHomeDashboardData(dataKey, {
+      ...revisions,
+      closetRevision: revisions.closetRevision + 1,
+    }),
+    false
+  );
+  assert.equal(
+    canReuseHomeDashboardData(dataKey, {
+      ...revisions,
+      feedbackRevision: revisions.feedbackRevision + 1,
+    }),
+    false
+  );
+  assert.equal(canReuseHomeDashboardData(undefined, revisions), false);
 });
 
 test("기존 옷장은 경량 인덱스를 한 번 생성한 뒤 전체 JSON을 다시 읽지 않는다", async () => {

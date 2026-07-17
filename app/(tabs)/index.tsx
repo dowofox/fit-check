@@ -14,6 +14,7 @@ import type {
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
+import { canReuseHomeDashboardData } from "@/utils/homeDashboardRefresh";
 import {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
@@ -40,6 +41,7 @@ import {
   getClosetRecommendationIndex,
   getOutfitRecommendationFeedbacks,
   getRecommendationRevisionKey,
+  getRecommendationRevisionState,
   getSavedOutfits,
   getUserProfile,
   SavedOutfit,
@@ -202,6 +204,13 @@ export default function HomeScreen() {
   });
   const persistentCacheWriteRef = useRef<Promise<void>>(Promise.resolve());
   const recommendationExecutionCountRef = useRef({ initial: 0, weather: 0 });
+  const dashboardContextRef = useRef<{
+    dataKey: string;
+    items: ClosetItem[];
+    profile: Awaited<ReturnType<typeof getUserProfile>>;
+    savedOutfitItemIds: string[][];
+    feedbacks: OutfitRecommendationFeedback[];
+  } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -515,6 +524,59 @@ export default function HomeScreen() {
 
       async function loadDashboard() {
         try {
+          const cachedDashboardContext = dashboardContextRef.current;
+
+          if (cachedDashboardContext) {
+            const revisionTimer = startPerformanceTimer(
+              "home.storage.revision-check"
+            );
+            const currentRevisions = await getRecommendationRevisionState();
+            const canReuseDashboard = canReuseHomeDashboardData(
+              cachedDashboardContext.dataKey,
+              currentRevisions
+            );
+            endPerformanceTimer(revisionTimer, {
+              cacheHit: canReuseDashboard,
+              cacheMissReason: canReuseDashboard ? null : "revision_changed",
+            });
+
+            if (canReuseDashboard) {
+              if (!isActive) return;
+
+              setIsRecommendationPreparing(false);
+              logPerformanceMetric("home.focus-reload.skipped", {
+                reason: "recommendation revision unchanged",
+                itemCount: cachedDashboardContext.items.length,
+              });
+
+              frameRequest = requestAnimationFrame(() => {
+                if (!isActive) return;
+
+                const details = {
+                  itemCount: cachedDashboardContext.items.length,
+                  cacheHit: true,
+                  cacheMissReason: null,
+                  fullDataReloadSkipped: true,
+                };
+                endBaseRenderTimers(details);
+                endFullLoadTimers({
+                  ...details,
+                  initialRecommendationReady: true,
+                  recommendationExecutionCount:
+                    recommendationExecutionCountRef.current.initial,
+                });
+                void refreshWeatherRecommendation(
+                  cachedDashboardContext.items,
+                  cachedDashboardContext.profile,
+                  cachedDashboardContext.dataKey,
+                  cachedDashboardContext.savedOutfitItemIds,
+                  cachedDashboardContext.feedbacks
+                );
+              });
+              return;
+            }
+          }
+
           const baseDataTimer = startPerformanceTimer("screen.home.base-data");
           const [
             indexLoad,
@@ -622,6 +684,13 @@ export default function HomeScreen() {
           setClosetItems(recommendationItems);
           setCategoryCounts(indexLoad.index.categoryCounts);
           setSavedOutfits(nextSavedOutfits);
+          dashboardContextRef.current = {
+            dataKey,
+            items: recommendationItems,
+            profile: nextProfile,
+            savedOutfitItemIds,
+            feedbacks,
+          };
           const cacheRestored = restoreCachedRecommendation(
             dataKey,
             recommendationCacheSnapshot,
