@@ -10,8 +10,9 @@ import {
   deleteOutfitWearRecord,
   deleteSavedOutfit,
   getClosetItems,
+  getClosetItemsLoadResult,
   getOutfitWearRecords,
-  getSavedOutfits,
+  getSavedOutfitsLoadResult,
   type OutfitWearRecord,
   recordSavedOutfitWear,
   updateSavedOutfit,
@@ -419,17 +420,27 @@ export default function SavedOutfitsScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [wearRecords, setWearRecords] = useState<OutfitWearRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasLoadError, setHasLoadError] = useState(false);
 
   async function loadSavedOutfits() {
-    const [outfits, closetItems, records] = await Promise.all([
-      getSavedOutfits(),
-      getClosetItems(),
+    setHasLoadError(false);
+    const [outfitsResult, closetResult, records] = await Promise.all([
+      getSavedOutfitsLoadResult(),
+      getClosetItemsLoadResult(),
       getOutfitWearRecords(),
     ]);
 
-    setClosetItems(closetItems);
+    if (outfitsResult.status === "failed" || closetResult.status === "failed") {
+      setHasLoadError(true);
+      setIsLoaded(true);
+      return;
+    }
+
+    setClosetItems(closetResult.items);
     setWearRecords(records);
-    setSavedOutfits(matchSavedOutfitsWithCloset(outfits, closetItems));
+    setSavedOutfits(
+      matchSavedOutfitsWithCloset(outfitsResult.outfits, closetResult.items)
+    );
     setIsLoaded(true);
   }
 
@@ -556,6 +567,21 @@ export default function SavedOutfitsScreen() {
           </View>
         </View>
 
+        {hasLoadError ? (
+          <View style={styles.loadErrorCard}>
+            <Feather name="alert-circle" size={20} color="#B45309" />
+            <View style={styles.loadErrorTextArea}>
+              <Text style={styles.loadErrorTitle}>저장한 코디를 불러오지 못했어요</Text>
+              <Text style={styles.loadErrorText}>
+                저장된 데이터는 그대로 있어요. 잠시 후 다시 시도해주세요.
+              </Text>
+            </View>
+            <Pressable style={styles.loadErrorAction} onPress={loadSavedOutfits}>
+              <Text style={styles.loadErrorActionText}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <WearHistorySection
           records={wearRecords}
           savedOutfits={savedOutfits}
@@ -563,7 +589,7 @@ export default function SavedOutfitsScreen() {
           onDelete={handleDeleteWearRecord}
         />
 
-        {isLoaded && savedOutfits.length === 0 ? (
+        {isLoaded && savedOutfits.length === 0 && !hasLoadError ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIconCircle}>
               <Feather name="bookmark" size={26} color="#8c6f47" />
@@ -1131,5 +1157,46 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "900",
+  },
+  loadErrorCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    backgroundColor: "#fff",
+  },
+  loadErrorTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  loadErrorTitle: {
+    color: "#111",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  loadErrorText: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 3,
+  },
+  loadErrorAction: {
+    minHeight: 30,
+    justifyContent: "center",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    backgroundColor: "#F4EEE7",
+    flexShrink: 0,
+  },
+  loadErrorActionText: {
+    color: "#8C6F47",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });

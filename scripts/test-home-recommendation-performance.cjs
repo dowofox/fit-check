@@ -100,6 +100,7 @@ const {
   getOutfitWearRecords,
   getRecommendationRevisionState,
   getSavedOutfits,
+  getSavedOutfitsLoadResult,
   getUserProfile,
   getUserProfileLoadResult,
   recordSavedOutfitWear,
@@ -363,6 +364,30 @@ test("saved outfit mutations preserve existing data when the source read fails",
   assert.equal(savedOutfits.length, 1);
   assert.equal(savedOutfits[0].id, outfit.id);
   assert.equal(savedOutfits[0].name, undefined);
+});
+
+test("saved outfit reads distinguish storage failures from an empty list", async () => {
+  const outfit = createSavedOutfit("saved-outfit-load-result", ["top-1", "bottom-1"]);
+  await saveOutfit(outfit);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  let failedResult;
+  try {
+    failNextGetItemKey = SAVED_OUTFITS_KEY;
+    failedResult = await getSavedOutfitsLoadResult();
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(failedResult, { status: "failed", outfits: [] });
+  assert.equal((await getSavedOutfits()).length, 1);
+
+  storageMemory.delete(SAVED_OUTFITS_KEY);
+  assert.deepEqual(await getSavedOutfitsLoadResult(), {
+    status: "loaded",
+    outfits: [],
+  });
 });
 
 test("saved outfit mutations do not replace malformed stored data", async () => {

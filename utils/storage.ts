@@ -455,6 +455,32 @@ function parseStoredSavedOutfits(rawValue: string | null) {
   return Array.isArray(parsedValue) ? parsedValue.filter(isStoredSavedOutfit) : [];
 }
 
+export type SavedOutfitsLoadResult = {
+  status: "loaded" | "failed";
+  outfits: SavedOutfit[];
+};
+
+function parseStoredSavedOutfitsLoadResult(
+  rawValue: string | null
+): SavedOutfitsLoadResult {
+  if (rawValue === null) return { status: "loaded", outfits: [] };
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as unknown;
+
+    if (!Array.isArray(parsedValue)) {
+      return { status: "failed", outfits: [] };
+    }
+
+    return {
+      status: "loaded",
+      outfits: parsedValue.filter(isStoredSavedOutfit),
+    };
+  } catch {
+    return { status: "failed", outfits: [] };
+  }
+}
+
 function parseStoredSavedOutfitsForMutation(rawValue: string | null) {
   if (!rawValue) return [];
 
@@ -1033,23 +1059,28 @@ export function deleteOutfitWearRecord(
   });
 }
 
-export async function getSavedOutfits(): Promise<SavedOutfit[]> {
+export async function getSavedOutfitsLoadResult(): Promise<SavedOutfitsLoadResult> {
   const timer = startPerformanceTimer("storage.getSavedOutfits");
 
   try {
     const data = await AsyncStorage.getItem(SAVED_OUTFITS_KEY);
-    const savedOutfits = parseStoredSavedOutfits(data);
+    const result = parseStoredSavedOutfitsLoadResult(data);
 
     endPerformanceTimer(timer, {
-      outfitCount: savedOutfits.length,
+      outfitCount: result.outfits.length,
+      status: result.status,
       jsonCharacters: data?.length || 0,
     });
-    return savedOutfits;
+    return result;
   } catch (error) {
     endPerformanceTimer(timer, { failed: true });
     console.error("저장된 코디 불러오기 실패:", error);
-    return [];
+    return { status: "failed", outfits: [] };
   }
+}
+
+export async function getSavedOutfits(): Promise<SavedOutfit[]> {
+  return (await getSavedOutfitsLoadResult()).outfits;
 }
 
 export async function getOutfitRecommendationFeedbacks(): Promise<
