@@ -32,7 +32,17 @@ const CLOSET_KEY = "naes_closet";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
+let closetMutationQueue: Promise<void> = Promise.resolve();
 let savedOutfitMutationQueue: Promise<void> = Promise.resolve();
+
+function runClosetMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = closetMutationQueue.then(operation, operation);
+  closetMutationQueue = result.then(
+    () => undefined,
+    () => undefined
+  );
+  return result;
+}
 
 function runSavedOutfitMutation<T>(operation: () => Promise<T>): Promise<T> {
   const result = savedOutfitMutationQueue.then(operation, operation);
@@ -623,8 +633,9 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   }
 }
 
-export async function saveClosetItem(item: ClosetItem) {
-  try {
+export function saveClosetItem(item: ClosetItem) {
+  return runClosetMutation(async () => {
+    try {
     const [existing, revisions] = await Promise.all([
       AsyncStorage.getItem(CLOSET_KEY),
       getIncrementedRecommendationRevisions(["closetRevision"]),
@@ -636,10 +647,11 @@ export async function saveClosetItem(item: ClosetItem) {
     await AsyncStorage.multiSet(getClosetStorageEntries(closet, revisions));
 
     return closet;
-  } catch (error) {
-    console.error("옷장 저장 실패:", error);
-    return [];
-  }
+    } catch (error) {
+      console.error("옷장 저장 실패:", error);
+      return [];
+    }
+  });
 }
 
 export async function getClosetItems(): Promise<ClosetItem[]> {
@@ -662,8 +674,9 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
   }
 }
 
-export async function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
-  try {
+export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
+  return runClosetMutation(async () => {
+    try {
     const [closet, profile, currentRevisions] = await Promise.all([
       getClosetItemsForMutation(),
       getUserProfile(),
@@ -690,14 +703,16 @@ export async function deleteClosetItem(id: string): Promise<ClosetItem[] | null>
     await AsyncStorage.multiSet(entries);
 
     return filteredCloset;
-  } catch (error) {
-    console.error("옷장 삭제 실패:", error);
-    return null;
-  }
+    } catch (error) {
+      console.error("옷장 삭제 실패:", error);
+      return null;
+    }
+  });
 }
 
-export async function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
-  try {
+export function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
+  return runClosetMutation(async () => {
+    try {
     const [closet, revisions] = await Promise.all([
       getClosetItemsForMutation(),
       getIncrementedRecommendationRevisions(["closetRevision"]),
@@ -709,10 +724,11 @@ export async function updateClosetItem(id: string, updatedItem: Partial<ClosetIt
     await AsyncStorage.multiSet(getClosetStorageEntries(updatedCloset, revisions));
 
     return updatedCloset;
-  } catch (error) {
-    console.error("옷장 수정 실패:", error);
-    return [];
-  }
+    } catch (error) {
+      console.error("옷장 수정 실패:", error);
+      return [];
+    }
+  });
 }
 
 export function saveOutfit(outfit: SavedOutfit): Promise<SaveOutfitResult> {
@@ -763,11 +779,12 @@ export type RecordOutfitWearResult =
   | { status: "missing_items"; records: OutfitWearRecord[] }
   | { status: "failed"; records: OutfitWearRecord[] };
 
-export async function recordSavedOutfitWear(
+export function recordSavedOutfitWear(
   outfit: SavedOutfit,
   wornAt = new Date()
 ): Promise<RecordOutfitWearResult> {
-  try {
+  return runClosetMutation(async () => {
+    try {
     if (Number.isNaN(wornAt.getTime())) {
       return { status: "failed", records: [] };
     }
@@ -822,10 +839,11 @@ export async function recordSavedOutfitWear(
     ]);
 
     return { status: "recorded", records: updatedRecords };
-  } catch (error) {
-    console.error("착용 기록 저장 실패:", error);
-    return { status: "failed", records: [] };
-  }
+    } catch (error) {
+      console.error("착용 기록 저장 실패:", error);
+      return { status: "failed", records: [] };
+    }
+  });
 }
 
 export type DeleteOutfitWearRecordResult =
@@ -833,10 +851,11 @@ export type DeleteOutfitWearRecordResult =
   | { status: "not_found"; records: OutfitWearRecord[] }
   | { status: "failed"; records: OutfitWearRecord[] };
 
-export async function deleteOutfitWearRecord(
+export function deleteOutfitWearRecord(
   recordId: string
 ): Promise<DeleteOutfitWearRecordResult> {
-  try {
+  return runClosetMutation(async () => {
+    try {
     const [closet, records, currentRevisions] = await Promise.all([
       getClosetItemsForMutation(),
       getOutfitWearRecords(),
@@ -877,10 +896,11 @@ export async function deleteOutfitWearRecord(
     ]);
 
     return { status: "deleted", records: updatedRecords };
-  } catch (error) {
-    console.error("착용 기록 삭제 실패:", error);
-    return { status: "failed", records: [] };
-  }
+    } catch (error) {
+      console.error("착용 기록 삭제 실패:", error);
+      return { status: "failed", records: [] };
+    }
+  });
 }
 
 export async function getSavedOutfits(): Promise<SavedOutfit[]> {

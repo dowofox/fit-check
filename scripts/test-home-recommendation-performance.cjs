@@ -337,6 +337,29 @@ test("closet mutations do not replace malformed stored data with an empty list",
   assert.equal(storageMemory.get(CLOSET_KEY), malformedCloset);
 });
 
+test("concurrent closet mutations preserve every completed change", async () => {
+  const firstItem = createClosetItem("concurrent-closet-1");
+  const secondItem = createClosetItem("concurrent-closet-2");
+
+  await Promise.all([saveClosetItem(firstItem), saveClosetItem(secondItem)]);
+
+  let closet = await getClosetItems();
+  assert.deepEqual(
+    new Set(closet.map((item) => item.id)),
+    new Set([firstItem.id, secondItem.id])
+  );
+
+  await Promise.all([
+    updateClosetItem(firstItem.id, { color: "블랙" }),
+    updateClosetItem(firstItem.id, { size: "L" }),
+  ]);
+
+  closet = await getClosetItems();
+  const updatedItem = closet.find((item) => item.id === firstItem.id);
+  assert.equal(updatedItem?.color, "블랙");
+  assert.equal(updatedItem?.size, "L");
+});
+
 test("대표 이미지 후보는 배경제거, 상품, 원본 순서로 중복 없이 유지한다", () => {
   const item = createClosetItem("image-fallback", {
     cleanImageUri: "file:///clean.png",
