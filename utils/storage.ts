@@ -409,6 +409,22 @@ function parseStoredSavedOutfits(rawValue: string | null) {
   return Array.isArray(parsedValue) ? parsedValue.filter(isStoredSavedOutfit) : [];
 }
 
+function parseStoredSavedOutfitsForMutation(rawValue: string | null) {
+  if (!rawValue) return [];
+
+  const parsedValue = JSON.parse(rawValue) as unknown;
+  if (!Array.isArray(parsedValue) || !parsedValue.every(isStoredSavedOutfit)) {
+    throw new Error("Stored saved outfit data is invalid");
+  }
+
+  return parsedValue;
+}
+
+async function getSavedOutfitsForMutation() {
+  const rawSavedOutfits = await AsyncStorage.getItem(SAVED_OUTFITS_KEY);
+  return parseStoredSavedOutfitsForMutation(rawSavedOutfits);
+}
+
 function parseStoredUserProfile(rawValue: string | null): UserProfile | null {
   const parsedValue = parseStoredJson(rawValue);
   return isStoredRecord(parsedValue) ? (parsedValue as UserProfile) : null;
@@ -702,7 +718,7 @@ export async function updateClosetItem(id: string, updatedItem: Partial<ClosetIt
 export function saveOutfit(outfit: SavedOutfit): Promise<SaveOutfitResult> {
   return runSavedOutfitMutation(async () => {
     try {
-      const savedOutfits = await getSavedOutfits();
+      const savedOutfits = await getSavedOutfitsForMutation();
       const itemKey = [...outfit.itemIds].sort().join("|");
       const isDuplicate = savedOutfits.some(
         (savedOutfit) => [...savedOutfit.itemIds].sort().join("|") === itemKey
@@ -942,7 +958,7 @@ export async function deleteSavedOutfit(id: string): Promise<SavedOutfit[] | nul
   return runSavedOutfitMutation(async () => {
     try {
       const [savedOutfits, revisions] = await Promise.all([
-        getSavedOutfits(),
+        getSavedOutfitsForMutation(),
         getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
       ]);
       const filteredOutfits = savedOutfits.filter((outfit) => outfit.id !== id);
@@ -967,7 +983,7 @@ export async function updateSavedOutfit(
   return runSavedOutfitMutation(async () => {
     try {
       const [savedOutfits, revisions] = await Promise.all([
-        getSavedOutfits(),
+        getSavedOutfitsForMutation(),
         getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
       ]);
       const updatedOutfits = savedOutfits.map((outfit) =>

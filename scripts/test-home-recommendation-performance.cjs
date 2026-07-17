@@ -110,6 +110,7 @@ const {
 } = require("../utils/storage.ts");
 
 const CLOSET_KEY = "naes_closet";
+const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 
 function createClosetItem(id, overrides = {}) {
   return {
@@ -231,6 +232,49 @@ test("동시에 같은 코디를 저장해도 저장 경계에서 한 번만 기
     ["saved", "duplicate"]
   );
   assert.equal((await getSavedOutfits()).length, 1);
+});
+
+test("saved outfit mutations preserve existing data when the source read fails", async () => {
+  const outfit = createSavedOutfit("saved-read-failure", ["top-1", "bottom-1"]);
+  await saveOutfit(outfit);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextGetItemKey = SAVED_OUTFITS_KEY;
+    assert.equal(
+      (await saveOutfit(createSavedOutfit("new-outfit", ["top-2", "bottom-2"]))).status,
+      "failed"
+    );
+
+    failNextGetItemKey = SAVED_OUTFITS_KEY;
+    assert.equal(await updateSavedOutfit(outfit.id, { name: "수정 이름" }), null);
+
+    failNextGetItemKey = SAVED_OUTFITS_KEY;
+    assert.equal(await deleteSavedOutfit(outfit.id), null);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  const savedOutfits = await getSavedOutfits();
+  assert.equal(savedOutfits.length, 1);
+  assert.equal(savedOutfits[0].id, outfit.id);
+  assert.equal(savedOutfits[0].name, undefined);
+});
+
+test("saved outfit mutations do not replace malformed stored data", async () => {
+  const malformedSavedOutfits = "[not-valid-json";
+  storageMemory.set(SAVED_OUTFITS_KEY, malformedSavedOutfits);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    assert.equal(await deleteSavedOutfit("missing-outfit"), null);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(storageMemory.get(SAVED_OUTFITS_KEY), malformedSavedOutfits);
 });
 
 test("옷 삭제 실패는 마지막 옷을 정상 삭제한 빈 목록과 구분한다", async () => {
