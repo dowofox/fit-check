@@ -68,10 +68,12 @@ const {
 const {
   deleteClosetItem,
   getClosetRecommendationIndex,
+  getOutfitRecommendationFeedbacks,
   getRecommendationRevisionState,
   saveClosetItem,
   saveOutfit,
   saveUserProfile,
+  setOutfitRecommendationFeedback,
   updateClosetItem,
 } = require("../utils/storage.ts");
 
@@ -202,6 +204,26 @@ test("옷장·프로필·저장 코디 변경은 각 revision과 추천 키를 �
   const afterOutfitSave = await getRecommendationRevisionState();
   assert.equal(afterOutfitSave.savedOutfitRevision, 1);
 
+  await setOutfitRecommendationFeedback(["bottom-1", item.id], "like");
+  const afterFeedbackSave = await getRecommendationRevisionState();
+  const savedFeedbacks = await getOutfitRecommendationFeedbacks();
+  assert.equal(afterFeedbackSave.feedbackRevision, 1);
+  assert.equal(savedFeedbacks.length, 1);
+  assert.deepEqual(savedFeedbacks[0].itemIds, ["bottom-1", item.id].sort());
+  assert.equal(savedFeedbacks[0].value, "like");
+
+  await setOutfitRecommendationFeedback([item.id, "bottom-1"], "less");
+  const replacedFeedbacks = await getOutfitRecommendationFeedbacks();
+  const afterFeedbackReplace = await getRecommendationRevisionState();
+  assert.equal(afterFeedbackReplace.feedbackRevision, 2);
+  assert.equal(replacedFeedbacks.length, 1);
+  assert.equal(replacedFeedbacks[0].value, "less");
+
+  await setOutfitRecommendationFeedback(["bottom-1", item.id], null);
+  const afterFeedbackClear = await getRecommendationRevisionState();
+  assert.equal(afterFeedbackClear.feedbackRevision, 3);
+  assert.deepEqual(await getOutfitRecommendationFeedbacks(), []);
+
   await saveOutfit(createSavedOutfit("worn-1", [item.id]), true);
   const afterWearHistory = await getRecommendationRevisionState();
   assert.equal(afterWearHistory.closetRevision, 3);
@@ -262,6 +284,7 @@ test("revision 키는 전체 추천 입력 직렬화보다 작고 동일 입력 
     closetRevision: 7,
     profileRevision: 3,
     savedOutfitRevision: 4,
+    feedbackRevision: 5,
   };
   const revisionKey = getRecommendationRevisionKey(revisions);
   const previousDataKey = JSON.stringify({

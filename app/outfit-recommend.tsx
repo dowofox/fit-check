@@ -7,6 +7,10 @@ import {
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
+import {
+  getOutfitFeedbackRankingAdjustment,
+  type OutfitFeedbackValue,
+} from "@/utils/outfitFeedback";
 import { openProductSearch } from "@/utils/productSearch";
 import {
   getRecommendedShoppingItems,
@@ -19,9 +23,11 @@ import {
 import {
   ClosetItem,
   getClosetItems,
+  getOutfitRecommendationFeedbacks,
   getSavedOutfits,
   getUserProfile,
   saveOutfit,
+  setOutfitRecommendationFeedback,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import {
@@ -173,6 +179,8 @@ function applySituationRecommendationScoring(
   return scoredRecommendations
     .sort((first, second) =>
       second.situationMatchScore - first.situationMatchScore ||
+      getOutfitFeedbackRankingAdjustment(second.feedbackPreference) -
+        getOutfitFeedbackRankingAdjustment(first.feedbackPreference) ||
       second.score - first.score
     )
     .map(({ situationMatchScore, ...recommendation }) => recommendation);
@@ -307,10 +315,15 @@ function RecommendationCard({
   recommendation,
   index,
   onSave,
+  onFeedback,
 }: {
   recommendation: OutfitRecommendation;
   index: number;
   onSave: (recommendation: OutfitRecommendation) => void;
+  onFeedback: (
+    recommendation: OutfitRecommendation,
+    value: OutfitFeedbackValue
+  ) => void;
 }) {
   const [isAlternativeOpen, setIsAlternativeOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -531,6 +544,48 @@ function RecommendationCard({
         </View>
       )}
 
+      <View style={styles.feedbackBox}>
+        <View style={styles.feedbackHeader}>
+          <Text style={styles.feedbackTitle}>이 추천은 어때요?</Text>
+          <Text style={styles.feedbackHint}>다음 추천 순서에 반영해요.</Text>
+        </View>
+        <View style={styles.feedbackButtonRow}>
+          {([
+            { value: "like", label: "좋아요", icon: "thumbs-up" },
+            { value: "less", label: "덜 추천", icon: "eye-off" },
+          ] as const).map((option) => {
+            const isActive = recommendation.feedbackPreference === option.value;
+
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
+                style={[
+                  styles.feedbackButton,
+                  isActive && styles.feedbackButtonActive,
+                ]}
+                onPress={() => onFeedback(recommendation, option.value)}
+              >
+                <Feather
+                  name={option.icon}
+                  size={15}
+                  color={isActive ? colors.card : colors.point}
+                />
+                <Text
+                  style={[
+                    styles.feedbackButtonText,
+                    isActive && styles.feedbackButtonTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       <Pressable
         style={styles.saveOutfitButton}
         onPress={() => onSave(recommendation)}
@@ -659,10 +714,11 @@ export default function OutfitRecommendScreen() {
           weatherRainChance: weatherRainChanceParam,
         })
       : null;
-    const [items, profile, savedOutfits] = await Promise.all([
+    const [items, profile, savedOutfits, feedbacks] = await Promise.all([
       getClosetItems(),
       getUserProfile(),
       getSavedOutfits(),
+      getOutfitRecommendationFeedbacks(),
     ]);
     const recommendationItems = toRecommendationInputItems(items);
     const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits, items);
@@ -672,7 +728,7 @@ export default function OutfitRecommendScreen() {
       profile,
       undefined,
       savedOutfitItemIds,
-      weather ? { weather } : undefined
+      { weather, feedbacks }
     );
     let nextRecommendations = moveSelectedRecommendationFirst(
       recommendationResult.recommendations,
@@ -692,7 +748,7 @@ export default function OutfitRecommendScreen() {
         profile,
         undefined,
         [],
-        weather ? { weather } : undefined
+        { weather, feedbacks }
       );
       const selectedRecommendation = allRecommendationResult.recommendations.find(
         (recommendation) => isRecommendationSameAsSelected(recommendation, selectedItemIds)
@@ -762,6 +818,44 @@ export default function OutfitRecommendScreen() {
     await loadRecommendations();
 
     Alert.alert("저장 완료", "추천 코디를 저장했어요.");
+  }
+
+  async function handleRecommendationFeedback(
+    recommendation: OutfitRecommendation,
+    value: OutfitFeedbackValue
+  ) {
+    const nextValue = recommendation.feedbackPreference === value ? null : value;
+    const updatedFeedbacks = await setOutfitRecommendationFeedback(
+      getSortedItemIds(recommendation.items),
+      nextValue
+    );
+
+    if (updatedFeedbacks === null) {
+      Alert.alert("저장 실패", "추천 피드백을 저장하지 못했어요. 다시 시도해주세요.");
+      return;
+    }
+
+    const targetItemIds = getSortedItemIds(recommendation.items);
+    const applyFeedbackState = (candidate: OutfitRecommendation) =>
+      isSameItemCombination(
+        getSortedItemIds(candidate.items),
+        targetItemIds
+      )
+        ? { ...candidate, feedbackPreference: nextValue || undefined }
+        : candidate;
+
+    setRecommendations((currentRecommendations) =>
+      currentRecommendations.map((currentRecommendation) => {
+        const updatedRecommendation = applyFeedbackState(currentRecommendation);
+        const updatedAlternatives = currentRecommendation.alternatives?.map(
+          applyFeedbackState
+        );
+
+        return updatedAlternatives
+          ? { ...updatedRecommendation, alternatives: updatedAlternatives }
+          : updatedRecommendation;
+      })
+    );
   }
 
   useFocusEffect(
@@ -839,6 +933,7 @@ export default function OutfitRecommendScreen() {
                 recommendation={recommendation}
                 index={index}
                 onSave={handleSaveOutfit}
+                onFeedback={handleRecommendationFeedback}
               />
             ))}
           </View>
@@ -1309,6 +1404,61 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "600",
+  },
+  feedbackBox: {
+    backgroundColor: colors.softCard,
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  feedbackHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 9,
+  },
+  feedbackTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  feedbackHint: {
+    color: colors.subText,
+    fontSize: 11,
+    fontWeight: "600",
+    flexShrink: 1,
+    textAlign: "right",
+  },
+  feedbackButtonRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  feedbackButton: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+  },
+  feedbackButtonActive: {
+    backgroundColor: colors.point,
+    borderColor: colors.point,
+  },
+  feedbackButtonText: {
+    color: colors.point,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  feedbackButtonTextActive: {
+    color: colors.card,
   },
   saveOutfitButton: {
     backgroundColor: colors.point,

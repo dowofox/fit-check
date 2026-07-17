@@ -15,6 +15,7 @@ import type {
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
+import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
 import {
   endPerformanceTimer,
   logPerformanceMetric,
@@ -27,6 +28,7 @@ import { isHomeRecommendationCacheKeyForRevision } from "@/utils/homeRecommendat
 import {
   ClosetItem,
   getClosetRecommendationIndex,
+  getOutfitRecommendationFeedbacks,
   getRecommendationRevisionKey,
   getSavedOutfits,
   getUserProfile,
@@ -274,6 +276,7 @@ export default function HomeScreen() {
         weather: OutfitRecommendationWeather | null,
         dataKey: string,
         savedOutfitItemIds: string[][],
+        feedbacks: OutfitRecommendationFeedback[],
         weatherSource: "none" | "cache" | "live" = "none"
       ) {
         const kind = weather ? "weather" : "initial";
@@ -304,7 +307,7 @@ export default function HomeScreen() {
           profile,
           undefined,
           savedOutfitItemIds,
-          weather ? { weather } : undefined
+          { weather, feedbacks }
         );
         const recommendations = recommendationResult.recommendations.slice(0, 5);
         const nextWeatherLabel = formatWeatherRecommendationLabel(weather);
@@ -343,7 +346,8 @@ export default function HomeScreen() {
         items: ClosetItem[],
         profile: Awaited<ReturnType<typeof getUserProfile>>,
         dataKey: string,
-        savedOutfitItemIds: string[][]
+        savedOutfitItemIds: string[][],
+        feedbacks: OutfitRecommendationFeedback[]
       ) {
         const weatherTimer = startPerformanceTimer("home.weather-background-refresh");
         let weatherSource = "none";
@@ -365,6 +369,7 @@ export default function HomeScreen() {
                 cachedWeather,
                 dataKey,
                 savedOutfitItemIds,
+                feedbacks,
                 "cache"
               );
               weatherSource = "cache";
@@ -394,6 +399,7 @@ export default function HomeScreen() {
                 currentWeather,
                 dataKey,
                 savedOutfitItemIds,
+                feedbacks,
                 "live"
               );
               weatherSource = "current";
@@ -421,7 +427,7 @@ export default function HomeScreen() {
       async function loadDashboard() {
         try {
           const baseDataTimer = startPerformanceTimer("screen.home.base-data");
-          const [indexLoad, nextSavedOutfits, nextProfile] = await Promise.all([
+          const [indexLoad, nextSavedOutfits, nextProfile, feedbacks] = await Promise.all([
             (async () => {
               const timer = startPerformanceTimer("home.storage.closet-load");
               const result = await getClosetRecommendationIndex();
@@ -451,6 +457,15 @@ export default function HomeScreen() {
               const result = await getUserProfile();
               endPerformanceTimer(timer, {
                 itemCount: result ? 1 : 0,
+                serializedCharacters: JSON.stringify(result).length,
+              });
+              return result;
+            })(),
+            (async () => {
+              const timer = startPerformanceTimer("home.storage.feedback-load");
+              const result = await getOutfitRecommendationFeedbacks();
+              endPerformanceTimer(timer, {
+                itemCount: result.length,
                 serializedCharacters: JSON.stringify(result).length,
               });
               return result;
@@ -521,7 +536,8 @@ export default function HomeScreen() {
               recommendationItems,
               nextProfile,
               dataKey,
-              savedOutfitItemIds
+              savedOutfitItemIds,
+              feedbacks
             );
           };
 
@@ -548,7 +564,8 @@ export default function HomeScreen() {
                 nextProfile,
                 null,
                 dataKey,
-                savedOutfitItemIds
+                savedOutfitItemIds,
+                feedbacks
               );
               endFullLoadTimers({
                 initialRecommendationReady: true,

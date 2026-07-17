@@ -14,12 +14,14 @@ export type RecommendationRevisionState = {
   closetRevision: number;
   profileRevision: number;
   savedOutfitRevision: number;
+  feedbackRevision: number;
 };
 
 export type RecommendationRevisionField =
   | "closetRevision"
   | "profileRevision"
-  | "savedOutfitRevision";
+  | "savedOutfitRevision"
+  | "feedbackRevision";
 
 export type RecommendationRevisionReadResult = {
   state: RecommendationRevisionState;
@@ -45,6 +47,7 @@ export function createDefaultRecommendationRevisionState(): RecommendationRevisi
     closetRevision: 0,
     profileRevision: 0,
     savedOutfitRevision: 0,
+    feedbackRevision: 0,
   };
 }
 
@@ -68,7 +71,9 @@ export function parseRecommendationRevisionState(
       value.version === RECOMMENDATION_REVISIONS_VERSION &&
       isNonNegativeInteger(value.closetRevision) &&
       isNonNegativeInteger(value.profileRevision) &&
-      isNonNegativeInteger(value.savedOutfitRevision);
+      isNonNegativeInteger(value.savedOutfitRevision) &&
+      (value.feedbackRevision === undefined ||
+        isNonNegativeInteger(value.feedbackRevision));
 
     if (!isValid) {
       return {
@@ -78,7 +83,10 @@ export function parseRecommendationRevisionState(
     }
 
     return {
-      state: value as RecommendationRevisionState,
+      state: {
+        ...(value as RecommendationRevisionState),
+        feedbackRevision: value.feedbackRevision ?? 0,
+      },
       status: "valid",
     };
   } catch {
@@ -110,6 +118,7 @@ export function getRecommendationRevisionKey(
     `c${revisions.closetRevision}`,
     `p${revisions.profileRevision}`,
     `s${revisions.savedOutfitRevision}`,
+    `f${revisions.feedbackRevision}`,
   ].join("|");
 }
 

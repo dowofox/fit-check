@@ -1146,6 +1146,50 @@ test("요약이 없는 공식 혼용률도 경량 추천 입력과 계절 보정
   );
 });
 
+test("코디 피드백은 품질 점수를 바꾸지 않고 같은 조합의 추천 순서에만 반영한다", () => {
+  const wardrobe = createWardrobe();
+  const baseline = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름"
+  ).recommendations;
+  const target = baseline[0];
+  const targetKey = itemKey(target);
+  const feedbackBase = {
+    itemIds: target.items.map((item) => item.id),
+    updatedAt: "2026-07-17T12:00:00.000Z",
+  };
+  const liked = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    { feedbacks: [{ ...feedbackBase, value: "like" }] }
+  ).recommendations;
+
+  assert.equal(itemKey(liked[0]), targetKey);
+  assert.equal(liked[0].feedbackPreference, "like");
+  assert.equal(liked[0].score, target.score);
+  assert.equal(liked[0].grade, target.grade);
+
+  const lessPreferred = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    { feedbacks: [{ ...feedbackBase, value: "less" }] }
+  ).recommendations;
+
+  assert.notEqual(itemKey(lessPreferred[0]), targetKey);
+  const markedRecommendations = lessPreferred.flatMap((recommendation) => [
+    recommendation,
+    ...(recommendation.alternatives || []),
+  ]).filter((recommendation) => recommendation.feedbackPreference === "less");
+
+  assert.ok(markedRecommendations.every((recommendation) => itemKey(recommendation) === targetKey));
+  assert.ok(markedRecommendations.every((recommendation) => recommendation.score === target.score));
+});
+
 test("저장 코디는 삭제된 옷 ID를 누락 상태로 구분한다", () => {
   const wardrobe = createWardrobe();
   const savedOutfit = {

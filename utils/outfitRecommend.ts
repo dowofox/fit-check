@@ -1,6 +1,12 @@
 import { getFitSuitability } from "@/utils/sizeMatch";
 import { doesProductSizeRowMatch } from "@/utils/productSizeMeasurements";
 import { getDetailMaterialAdjustment } from "@/utils/outfitDetailMaterial";
+import {
+  getOutfitFeedbackKey,
+  getOutfitFeedbackRankingAdjustment,
+  type OutfitFeedbackValue,
+  type OutfitRecommendationFeedback,
+} from "@/utils/outfitFeedback";
 import { getRecommendationMaterialText } from "@/utils/productClassification";
 import { ClosetItem, GarmentProfile, UserProfile } from "@/utils/storage";
 
@@ -23,6 +29,7 @@ export type OutfitRecommendation = {
   grade: "S" | "A" | "B" | "C" | "D";
   alternativeCount?: number;
   alternatives?: OutfitRecommendation[];
+  feedbackPreference?: OutfitFeedbackValue;
   penalty?: number;
   reasons: string[];
   warnings: string[];
@@ -104,6 +111,7 @@ export type OutfitRecommendationWeather = {
 
 export type OutfitRecommendationOptions = {
   weather?: OutfitRecommendationWeather | null;
+  feedbacks?: OutfitRecommendationFeedback[];
 };
 
 export const MIN_DISPLAY_RECOMMENDATION_SCORE = 70;
@@ -1983,8 +1991,45 @@ function hasCategory(recommendation: OutfitRecommendation, category: string) {
   return recommendation.items.some((item) => item.category === category);
 }
 
+function applyOutfitRecommendationFeedback(
+  recommendation: OutfitRecommendation,
+  feedbackByKey: ReadonlyMap<string, OutfitFeedbackValue>
+) {
+  const feedbackPreference = feedbackByKey.get(
+    getOutfitFeedbackKey(recommendation.items.map((item) => item.id))
+  );
+
+  return feedbackPreference
+    ? { ...recommendation, feedbackPreference }
+    : recommendation;
+}
+
+function applyRecommendationOptions(
+  recommendations: OutfitRecommendation[],
+  options: OutfitRecommendationOptions
+) {
+  const feedbackByKey = new Map<string, OutfitFeedbackValue>(
+    (options.feedbacks || []).map((feedback) => [
+      getOutfitFeedbackKey(feedback.itemIds),
+      feedback.value,
+    ])
+  );
+
+  return recommendations
+    .map((recommendation) =>
+      applyWeatherAdjustment(recommendation, options.weather)
+    )
+    .map((recommendation) =>
+      applyOutfitRecommendationFeedback(recommendation, feedbackByKey)
+    );
+}
+
 function compareRecommendations(a: OutfitRecommendation, b: OutfitRecommendation) {
-  const scoreDiff = b.score - a.score;
+  const firstRankingScore =
+    a.score + getOutfitFeedbackRankingAdjustment(a.feedbackPreference);
+  const secondRankingScore =
+    b.score + getOutfitFeedbackRankingAdjustment(b.feedbackPreference);
+  const scoreDiff = secondRankingScore - firstRankingScore;
   if (scoreDiff !== 0) return scoreDiff;
 
   const shoeDiff = Number(hasCategory(b, "신발")) - Number(hasCategory(a, "신발"));
@@ -2397,10 +2442,14 @@ export function getOutfitRecommendations(
   items: ClosetItem[],
   profile?: UserProfile | null,
   currentSeason = getCurrentSeason(),
-  savedOutfitItemIds: string[][] = []
+  savedOutfitItemIds: string[][] = [],
+  options: OutfitRecommendationOptions = {}
 ): OutfitRecommendation[] {
   return selectRecommendations(
-    buildRecommendationCandidatesWithFallback(items, profile, currentSeason),
+    applyRecommendationOptions(
+      buildRecommendationCandidatesWithFallback(items, profile, currentSeason, options),
+      options
+    ),
     savedOutfitItemIds
   );
 }
@@ -2412,8 +2461,10 @@ export function getOutfitRecommendationResult(
   savedOutfitItemIds: string[][] = [],
   options: OutfitRecommendationOptions = {}
 ): OutfitRecommendationResult {
-  const recommendationCandidates = buildRecommendationCandidatesWithFallback(items, profile, currentSeason, options)
-    .map((recommendation) => applyWeatherAdjustment(recommendation, options.weather));
+  const recommendationCandidates = applyRecommendationOptions(
+    buildRecommendationCandidatesWithFallback(items, profile, currentSeason, options),
+    options
+  );
   const allRecommendations = selectRecommendations(recommendationCandidates);
   const recommendations = savedOutfitItemIds.length > 0
     ? selectRecommendations(recommendationCandidates, savedOutfitItemIds)

@@ -12,11 +12,20 @@ import {
   type RecommendationRevisionState,
 } from "@/utils/homeRecommendationIndex";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
+import {
+  getOutfitFeedbackKey,
+  normalizeOutfitRecommendationFeedbacks,
+  type OutfitFeedbackValue,
+  type OutfitRecommendationFeedback,
+} from "@/utils/outfitFeedback";
 
 const STORAGE_KEY = "analysis_history";
 const PROFILE_KEY = "naes_profile";
 const CLOSET_KEY = "naes_closet";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
+const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
+
+export type { OutfitFeedbackValue, OutfitRecommendationFeedback };
 
 export type ReferenceClothing = {
   topItemId?: string;
@@ -624,6 +633,58 @@ export async function getSavedOutfits(): Promise<SavedOutfit[]> {
     endPerformanceTimer(timer, { failed: true });
     console.error("저장된 코디 불러오기 실패:", error);
     return [];
+  }
+}
+
+export async function getOutfitRecommendationFeedbacks(): Promise<
+  OutfitRecommendationFeedback[]
+> {
+  try {
+    const data = await AsyncStorage.getItem(OUTFIT_FEEDBACK_KEY);
+    const parsedFeedbacks = data ? JSON.parse(data) : [];
+
+    return normalizeOutfitRecommendationFeedbacks(parsedFeedbacks);
+  } catch (error) {
+    console.error("코디 추천 피드백 불러오기 실패:", error);
+    return [];
+  }
+}
+
+export async function setOutfitRecommendationFeedback(
+  itemIds: string[],
+  value: OutfitFeedbackValue | null
+): Promise<OutfitRecommendationFeedback[] | null> {
+  try {
+    const key = getOutfitFeedbackKey(itemIds);
+    if (!key) return null;
+
+    const [feedbacks, revisions] = await Promise.all([
+      getOutfitRecommendationFeedbacks(),
+      getIncrementedRecommendationRevisions(["feedbackRevision"]),
+    ]);
+    const remainingFeedbacks = feedbacks.filter(
+      (feedback) => getOutfitFeedbackKey(feedback.itemIds) !== key
+    );
+    const updatedFeedbacks = value
+      ? [
+          {
+            itemIds: key.split("|"),
+            value,
+            updatedAt: new Date().toISOString(),
+          },
+          ...remainingFeedbacks,
+        ]
+      : remainingFeedbacks;
+
+    await AsyncStorage.multiSet([
+      [OUTFIT_FEEDBACK_KEY, JSON.stringify(updatedFeedbacks)],
+      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+    ]);
+
+    return updatedFeedbacks;
+  } catch (error) {
+    console.error("코디 추천 피드백 저장 실패:", error);
+    return null;
   }
 }
 
