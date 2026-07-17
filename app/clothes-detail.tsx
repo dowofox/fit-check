@@ -2113,6 +2113,7 @@ export default function ClothesDetailScreen() {
   );
   const heroImageTimerRef = useRef<PerformanceTimer>(null);
   const productExtractionRequestRef = useRef(0);
+  const clothesDetailLoadRequestRef = useRef(0);
   const shouldOpenMeasurementRef = useRef(openMeasurement === "1");
   const shouldOpenEditRef = useRef(Boolean(openEdit));
   const shouldPrioritizeSeasonEdit = openEdit === "season";
@@ -2127,11 +2128,21 @@ export default function ClothesDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       async function loadItem() {
+        const requestId = clothesDetailLoadRequestRef.current + 1;
+        clothesDetailLoadRequestRef.current = requestId;
         const timer = startPerformanceTimer("screen.clothes-detail.load-item");
         const [closetResult, profileResult] = await Promise.all([
           getClosetItemsLoadResult(),
           getUserProfileLoadResult(),
         ]);
+        if (requestId !== clothesDetailLoadRequestRef.current) {
+          endPerformanceTimer(timer, {
+            closetStatus: closetResult.status,
+            profileStatus: profileResult.status,
+            stale: true,
+          });
+          return;
+        }
         if (closetResult.status === "failed") {
           setHasClosetLoadError(true);
           setIsLoaded(true);
@@ -2195,8 +2206,15 @@ export default function ClothesDetailScreen() {
       }
 
       loadItem();
+      return () => {
+        clothesDetailLoadRequestRef.current += 1;
+      };
     }, [closetLoadRevision, id, profileLoadRevision])
   );
+
+  function invalidateClothesDetailLoad() {
+    clothesDetailLoadRequestRef.current += 1;
+  }
 
   function updateDraft<K extends keyof EditableClosetFields>(field: K, value: EditableClosetFields[K]) {
     setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
@@ -2273,6 +2291,7 @@ export default function ClothesDetailScreen() {
         selectedImageUri,
         `${item.id}-${Date.now()}`
       );
+      invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         imageUri: persistedImageUri,
       });
@@ -2353,6 +2372,7 @@ export default function ClothesDetailScreen() {
         userEditedClassificationFields.push("season");
       }
       const seasonWasEdited = userEditedClassificationFields.includes("season");
+      invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         ...normalizedDraft,
         style: normalizedDraft.styleTags[0] || normalizedDraft.style,
@@ -2385,6 +2405,7 @@ export default function ClothesDetailScreen() {
 
     try {
       setIsSavingRecommendationPreference(true);
+      invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         recommendationPreference: preference,
       });
@@ -2420,6 +2441,7 @@ export default function ClothesDetailScreen() {
 
     try {
       setIsSavingReferenceClothing(true);
+      invalidateClothesDetailLoad();
       const didSave = await saveUserProfile(nextProfile);
       if (!didSave) {
         Alert.alert("저장 실패", "기준 옷을 저장하지 못했어요. 다시 시도해주세요.");
@@ -2500,6 +2522,7 @@ export default function ClothesDetailScreen() {
           : {}),
       };
       const classificationNotice = getProductClassificationNotice(classification, item);
+      invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         confirmedProduct: replacementConfirmedProduct,
         confirmedBrand,
@@ -2572,6 +2595,7 @@ export default function ClothesDetailScreen() {
 
     try {
       setIsSavingArchiveStatus(true);
+      invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, { isArchived });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
@@ -2665,6 +2689,7 @@ export default function ClothesDetailScreen() {
     };
 
     try {
+      invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         confirmedProduct,
         size: resolveClosetSizeAfterMeasurementSave(item.size, measurement.size),
@@ -2714,6 +2739,7 @@ export default function ClothesDetailScreen() {
             };
 
             try {
+              invalidateClothesDetailLoad();
               const updatedCloset = await updateClosetItem(item.id, { confirmedProduct });
               const updatedItem = updatedCloset.find(
                 (closetItem) => closetItem.id === item.id
