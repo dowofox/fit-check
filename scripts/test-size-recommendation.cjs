@@ -540,6 +540,37 @@ test("기존 실측표의 잘못된 값은 숨기고 같은 사이즈 입력은 
   assert.equal(nextRows[0].totalLength, 74);
 });
 
+test("숫자 범위가 겹쳐도 서로 다른 상품 사이즈 행은 덮어쓰지 않는다", () => {
+  const rangedSize = {
+    size: "XL",
+    displaySize: "XL(33~34)",
+    numericRange: { min: 33, max: 34 },
+    totalLength: 108,
+    waist: 44,
+  };
+  const numericSize = buildProductSizeMeasurement({
+    size: "33",
+    totalLength: "106",
+    shoulder: "",
+    chest: "",
+    sleeve: "",
+    waist: "42",
+    hip: "",
+    thigh: "",
+    rise: "",
+    hem: "",
+    footLength: "",
+  });
+
+  assert.ok(numericSize);
+  const rows = upsertProductSizeMeasurement([rangedSize], numericSize);
+
+  assert.deepEqual(
+    rows.map((row) => row.size),
+    ["XL", "33"]
+  );
+});
+
 test("같은 사이즈의 분리된 실측 행은 유효 필드를 합쳐 보존한다", () => {
   const [mergedRow] = getValidProductSizeRows({
     unit: "cm",

@@ -291,8 +291,12 @@ export function upsertProductSizeMeasurement(
   currentRows: ProductSizeMeasurement[],
   measurement: ProductSizeMeasurement
 ) {
+  const measurementSizeKey = normalizeProductSizeForCompare(measurement.size);
+
   return [
-    ...currentRows.filter((row) => !doesProductSizeRowMatch(row, measurement.size)),
+    ...currentRows.filter(
+      (row) => normalizeProductSizeForCompare(row.size) !== measurementSizeKey
+    ),
     measurement,
   ];
 }
