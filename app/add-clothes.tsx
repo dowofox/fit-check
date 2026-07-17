@@ -435,6 +435,30 @@ async function saveCleanImageToFile(base64?: string | null) {
   }
 }
 
+function getClosetImageExtension(uri: string) {
+  const cleanUri = uri.split(/[?#]/, 1)[0];
+  const extension = cleanUri.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase();
+
+  return extension && ["jpg", "jpeg", "png", "webp", "heic"].includes(extension)
+    ? extension
+    : "jpg";
+}
+
+async function persistLocalClosetImage(imageUri: string, itemId: string) {
+  if (
+    !imageUri ||
+    !FileSystem.documentDirectory ||
+    imageUri.startsWith(FileSystem.documentDirectory) ||
+    (!imageUri.startsWith("file://") && !imageUri.startsWith("content://"))
+  ) {
+    return imageUri;
+  }
+
+  const targetUri = `${FileSystem.documentDirectory}closet-${itemId}.${getClosetImageExtension(imageUri)}`;
+  await FileSystem.copyAsync({ from: imageUri, to: targetUri });
+  return targetUri;
+}
+
 async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {
   if (!AUTO_APPLY_BACKGROUND_REMOVAL) {
     return undefined;
@@ -481,10 +505,11 @@ async function saveAnalyzedClosetItem(
     seasons,
   });
   const itemId = createClosetItemId();
+  const persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
 
   const savedItems = await saveClosetItem({
     id: itemId,
-    imageUri,
+    imageUri: persistedImageUri,
     cleanImageUri,
     category: registration.category,
     subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
@@ -927,6 +952,8 @@ export default function AddClothesScreen() {
     try {
       setIsSaving(true);
       const cleanImageUri = await getOptionalCleanImageUri(analysis);
+      const itemId = createClosetItemId();
+      const persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
       const confirmedProductBrand = confirmedProduct?.brand?.trim() || undefined;
       const confirmedMaterial = confirmedProduct?.materialComposition?.summary?.trim();
       const shouldApplyConfirmedMaterial =
@@ -939,8 +966,8 @@ export default function AddClothesScreen() {
       ];
       const manualDetailCategory = selectedDetailCategory.trim() || selectedCategory.trim();
       const initialItem: ClosetItem = {
-        id: createClosetItemId(),
-        imageUri,
+        id: itemId,
+        imageUri: persistedImageUri,
         cleanImageUri,
         category: registration.category,
         subCategory:
