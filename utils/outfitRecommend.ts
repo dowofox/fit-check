@@ -2187,7 +2187,8 @@ function stripAlternatives(recommendation: OutfitRecommendation): OutfitRecommen
 
 function getAlternativeRecommendations(
   baseRecommendation: OutfitRecommendation,
-  recommendations: OutfitRecommendation[]
+  recommendations: OutfitRecommendation[],
+  reservedItemKeys = new Set<string>()
 ) {
   const baseCoreKey = getCoreOutfitKey(baseRecommendation);
   const baseItemKey = getItemCombinationKey(baseRecommendation);
@@ -2201,6 +2202,7 @@ function getAlternativeRecommendations(
 
     if (itemKey === baseItemKey) continue;
     if (getCoreOutfitKey(recommendation) === baseCoreKey) continue;
+    if (reservedItemKeys.has(itemKey)) continue;
     if (usedItemKeys.has(itemKey)) continue;
 
     usedItemKeys.add(itemKey);
@@ -2223,11 +2225,28 @@ function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation
     }
   });
 
-  return Array.from(bestRecommendationByCore.values()).map((bestRecommendation) => {
-    const alternatives = getAlternativeRecommendations(bestRecommendation, sortedRecommendations);
+  return Array.from(bestRecommendationByCore.values()).map(stripAlternatives);
+}
+
+function attachAlternativeRecommendations(
+  baseRecommendations: OutfitRecommendation[],
+  allRecommendations: OutfitRecommendation[]
+) {
+  const reservedItemKeys = new Set(baseRecommendations.map(getItemCombinationKey));
+
+  return baseRecommendations.map((baseRecommendation) => {
+    const alternatives = getAlternativeRecommendations(
+      baseRecommendation,
+      allRecommendations,
+      reservedItemKeys
+    );
+
+    alternatives.forEach((alternative) => {
+      reservedItemKeys.add(getItemCombinationKey(alternative));
+    });
 
     return {
-      ...bestRecommendation,
+      ...baseRecommendation,
       alternativeCount: alternatives.length,
       alternatives,
     };
@@ -2509,8 +2528,12 @@ function selectRecommendations(
     displayableRecommendations
   )
     .sort(compareRecommendations);
+  const diversifiedRecommendations = diversifyRecommendations(sortedRecommendations, 5);
 
-  return diversifyRecommendations(sortedRecommendations, 5);
+  return attachAlternativeRecommendations(
+    diversifiedRecommendations,
+    [...displayableRecommendations].sort(compareRecommendations)
+  );
 }
 
 function buildRecommendationCandidatesWithFallback(

@@ -1162,6 +1162,19 @@ test("다른 버전은 기본 추천과 핵심 조합이 다르고 서로 완전
   });
 });
 
+test("다른 버전은 화면의 대표 추천이나 다른 카드의 대체 조합을 반복하지 않는다", () => {
+  const recommendations = getOutfitRecommendations(createWardrobe(), null, "여름");
+  const mainItemKeys = new Set(recommendations.map(itemKey));
+  const alternativeItemKeys = recommendations.flatMap((recommendation) =>
+    (recommendation.alternatives || []).map(itemKey)
+  );
+
+  alternativeItemKeys.forEach((alternativeItemKey) => {
+    assert.equal(mainItemKeys.has(alternativeItemKey), false);
+  });
+  assert.equal(new Set(alternativeItemKeys).size, alternativeItemKeys.length);
+});
+
 test("저장한 전체 아이템 조합은 새 추천과 다른 버전에서 제외된다", () => {
   const wardrobe = createWardrobe();
   const initialResult = getOutfitRecommendationResult(wardrobe, null, "여름");
