@@ -84,6 +84,9 @@ const {
 } = require("../utils/closetRegistration.ts");
 const { normalizeProductColor } = require("../utils/color.ts");
 const {
+  getProductExtractionSummary,
+} = require("../utils/productExtractionSummary.ts");
+const {
   getPrimaryMaterialText,
   getSignificantMaterialText,
   parseMaterialSummaryItems,
@@ -190,6 +193,33 @@ const fixtureServer = http.createServer((request, response) => {
 });
 
 async function main() {
+  const completeExtractionSummary = getProductExtractionSummary({
+    productName: "린넨 데일리 셔츠",
+    productImageUrl: "https://example.com/shirt.jpg",
+    materialComposition: { summary: "린넨 55%, 면 45%" },
+    productSizeGuide: { sizes: [{ size: "M" }] },
+  });
+  assert.equal(completeExtractionSummary.isComplete, true);
+  assert.ok(completeExtractionSummary.items.every((item) => item.available));
+
+  const partialExtractionSummary = getProductExtractionSummary({
+    productName: "데일리 티셔츠",
+    productImageUrl: "https://example.com/tshirt.jpg",
+  });
+  assert.equal(partialExtractionSummary.isComplete, false);
+  assert.deepEqual(
+    partialExtractionSummary.items
+      .filter((item) => !item.available)
+      .map((item) => item.key),
+    ["material", "sizeGuide"]
+  );
+  assert.match(partialExtractionSummary.message, /저장 후 상세 화면/);
+
+  const missingImageExtractionSummary = getProductExtractionSummary({
+    productName: "대표 이미지 없는 셔츠",
+  });
+  assert.match(missingImageExtractionSummary.message, /옷 사진을 추가/);
+
   const emptyRegistration = normalizeClosetRegistrationBasics({});
   assert.equal(emptyRegistration.category, "기타");
   assert.equal(emptyRegistration.color, "색상 확인 필요");

@@ -12,6 +12,7 @@ import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
+import { getProductExtractionSummary } from "@/utils/productExtractionSummary";
 import {
   getConfirmedProductSeasonInference,
   resolveRegistrationSeasonInference,
@@ -327,41 +328,6 @@ function normalizeStyleTags(styleTags?: string[], style?: string) {
   if (style) return [style].filter((tag) => STYLE_TAG_OPTIONS.includes(tag)).slice(0, 3);
 
   return ["데일리"];
-}
-
-function getMaterialPreviewText(materialComposition?: ConfirmedProduct["materialComposition"]) {
-  return materialComposition?.summary?.trim() || "";
-}
-
-const MISSING_PRODUCT_INFO_LABELS: Record<string, string> = {
-  brand: "브랜드",
-  productCategory: "카테고리",
-  productColor: "색상",
-  productImageUrl: "상품 이미지",
-  materialComposition: "소재",
-};
-
-function getPartialExtractionNotice(product: ExtractedProduct) {
-  const labels = [...new Set(
-    (product.missingFields || [])
-      .map((field) => MISSING_PRODUCT_INFO_LABELS[field])
-      .filter(Boolean)
-  )];
-
-  if (labels.length === 0) {
-    return "일부 공식 정보를 확인하지 못했어요. 저장 전 아래 등록 정보를 확인해주세요.";
-  }
-
-  return `${labels.join(", ")} 정보를 확인하지 못했어요. 저장 전 아래 등록 정보를 확인해주세요.`;
-}
-
-function getSizeGuidePreviewText(product?: ExtractedProduct | null) {
-  if (!product) return "";
-
-  return getProductSizeGuideStatusMessage(
-    product.sizeGuideStatus,
-    Boolean(product.productSizeGuide?.sizes?.length)
-  );
 }
 
 function escapeRegExp(value: string) {
@@ -1134,6 +1100,9 @@ export default function AddClothesScreen() {
         editedFields: manuallyEditedClassificationFields,
       })
     : [];
+  const extractionSummary = extractedProduct
+    ? getProductExtractionSummary(extractedProduct)
+    : null;
 
   return (
     <View style={styles.screen}>
@@ -1189,7 +1158,7 @@ export default function AddClothesScreen() {
           </View>
           <Text style={styles.linkHeroTitle}>상품 링크로 정확하게 등록</Text>
           <Text style={styles.linkHeroText}>
-            상품 링크를 붙여넣으면 공식 상품명, 브랜드, 이미지, 소재와 실측표를 가져와 더 정확한 코디와 사이즈 추천에 활용해요.
+            공개 상품 페이지의 상품명과 대표 이미지를 우선 가져와요. 공식 소재와 실측은 쇼핑몰 제공 방식에 따라 함께 확인해요.
           </Text>
         </View>
 
@@ -1335,7 +1304,7 @@ export default function AddClothesScreen() {
               autoCorrect={false}
             />
             <Text style={styles.linkSupportText}>
-              상품 페이지 URL을 길게 눌러 붙여넣거나 공유 링크를 붙여넣어 주세요.
+              무신사 등 공개된 상품 페이지나 공유 링크를 사용할 수 있어요. 소재와 실측은 페이지에 공개된 경우에만 가져와요.
             </Text>
 
             <Pressable
@@ -1379,14 +1348,6 @@ export default function AddClothesScreen() {
                   <Image source={{ uri: extractedProduct.productImageUrl }} style={styles.linkPreviewImage} />
                 ) : null}
                 <View style={styles.linkPreviewBody}>
-                  {extractedProduct.extractionStatus === "partial" ? (
-                    <View style={styles.partialExtractionNotice}>
-                      <Feather name="info" size={14} color="#8c6f47" />
-                      <Text style={styles.partialExtractionNoticeText}>
-                        {getPartialExtractionNotice(extractedProduct)}
-                      </Text>
-                    </View>
-                  ) : null}
                   <Text style={styles.linkProductBrand} numberOfLines={1}>
                     {extractedProduct.brand || "브랜드 정보 없음"}
                   </Text>
@@ -1394,24 +1355,49 @@ export default function AddClothesScreen() {
                     {extractedProduct.productName || "상품명 정보 없음"}
                   </Text>
 
-                  <View style={styles.linkPreviewMetaList}>
-                    <Text style={styles.linkPreviewMetaText}>
-                      쇼핑몰: {extractedProduct.mallName || "확인 필요"}
+                  {extractedProduct.mallName || extractedProduct.price ? (
+                    <Text style={styles.linkProductMeta} numberOfLines={1}>
+                      {[extractedProduct.mallName, extractedProduct.price]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </Text>
-                    <Text style={styles.linkPreviewMetaText}>
-                      가격: {extractedProduct.price || "확인 필요"}
-                    </Text>
-                    <Text style={styles.linkPreviewMetaText}>
-                      소재: {getMaterialPreviewText(extractedProduct.materialComposition) || "확인 필요"}
-                    </Text>
-                    <Text style={styles.linkPreviewMetaText}>
-                      {getSizeGuidePreviewText(extractedProduct)}
-                    </Text>
-                  </View>
+                  ) : null}
 
-                  <Text style={styles.linkProductUrl} numberOfLines={1}>
-                    {extractedProduct.productUrl}
-                  </Text>
+                  {extractionSummary ? (
+                    <View style={styles.extractionSummaryCard}>
+                      <View style={styles.extractionSummaryHeader}>
+                        <Feather
+                          name={extractionSummary.isComplete ? "check-circle" : "info"}
+                          size={15}
+                          color="#8c6f47"
+                        />
+                        <Text style={styles.extractionSummaryTitle}>가져온 정보</Text>
+                      </View>
+                      <View style={styles.extractionStatusGrid}>
+                        {extractionSummary.items.map((status) => (
+                          <View key={status.key} style={styles.extractionStatusItem}>
+                            <Feather
+                              name={status.available ? "check" : "minus"}
+                              size={13}
+                              color={status.available ? "#8c6f47" : "#a39a8f"}
+                            />
+                            <Text style={styles.extractionStatusLabel}>{status.label}</Text>
+                            <Text
+                              style={[
+                                styles.extractionStatusValue,
+                                !status.available && styles.extractionStatusValueMissing,
+                              ]}
+                            >
+                              {status.available ? "완료" : "확인 필요"}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      <Text style={styles.extractionSummaryMessage}>
+                        {extractionSummary.message}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             )}
@@ -2155,22 +2141,70 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: "800",
   },
-  linkProductUrl: {
+  linkProductMeta: {
     color: "#777064",
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
   },
-  linkPreviewMetaList: {
-    gap: 4,
+  extractionSummaryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 11,
+    gap: 9,
     marginTop: 4,
-    marginBottom: 2,
   },
-  linkPreviewMetaText: {
+  extractionSummaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  extractionSummaryTitle: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  extractionStatusGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  extractionStatusItem: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#f4eee7",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  extractionStatusLabel: {
+    flex: 1,
+    minWidth: 0,
     color: "#625a51",
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "700",
+  },
+  extractionStatusValue: {
+    flexShrink: 0,
+    color: "#8c6f47",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  extractionStatusValueMissing: {
+    color: "#777064",
+  },
+  extractionSummaryMessage: {
+    color: "#777064",
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
   },
   selectedListCard: {
     backgroundColor: "#fff",
