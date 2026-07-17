@@ -106,6 +106,7 @@ export default function ProfileScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isProfileReady, setIsProfileReady] = useState(false);
   const [hasProfileLoadError, setHasProfileLoadError] = useState(false);
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
@@ -273,6 +274,8 @@ export default function ProfileScreen() {
   };
 
   const handleSave = async () => {
+    if (isSavingProfile) return;
+
     if (!isProfileReady || hasProfileLoadError) {
       Alert.alert(
         "프로필을 불러온 뒤 저장해주세요",
@@ -298,52 +301,57 @@ export default function ProfileScreen() {
       ? Number(normalizedMeasurements.preferredPantsTotalLength)
       : undefined;
 
-    const didSave = await saveUserProfile({
-      gender,
-      age,
-      height: normalizedMeasurements.height,
-      weight,
-      bodyType,
-      topSize: normalizedTopSize,
-      bottomSize: normalizedBottomSize,
-      shoeSize: normalizedShoeSize,
-      shoulderWidth: normalizedMeasurements.shoulderWidth,
-      chestCircumference: normalizedMeasurements.chestCircumference,
-      waistCircumference: normalizedMeasurements.waistCircumference,
-      hipCircumference: normalizedMeasurements.hipCircumference,
-      armLength: normalizedMeasurements.armLength,
-      inseam: normalizedMeasurements.inseam,
-      thighCircumference: normalizedMeasurements.thighCircumference,
-      preferredPantsTotalLength: normalizedPreferredPantsTotalLength,
-      referenceClothing,
-    });
+    setIsSavingProfile(true);
+    try {
+      const didSave = await saveUserProfile({
+        gender,
+        age,
+        height: normalizedMeasurements.height,
+        weight,
+        bodyType,
+        topSize: normalizedTopSize,
+        bottomSize: normalizedBottomSize,
+        shoeSize: normalizedShoeSize,
+        shoulderWidth: normalizedMeasurements.shoulderWidth,
+        chestCircumference: normalizedMeasurements.chestCircumference,
+        waistCircumference: normalizedMeasurements.waistCircumference,
+        hipCircumference: normalizedMeasurements.hipCircumference,
+        armLength: normalizedMeasurements.armLength,
+        inseam: normalizedMeasurements.inseam,
+        thighCircumference: normalizedMeasurements.thighCircumference,
+        preferredPantsTotalLength: normalizedPreferredPantsTotalLength,
+        referenceClothing,
+      });
 
-    if (!didSave) {
-      Alert.alert(
-        "저장 실패",
-        "프로필 정보를 저장하지 못했어요. 입력한 값은 그대로 두었으니 다시 시도해주세요."
+      if (!didSave) {
+        Alert.alert(
+          "저장 실패",
+          "프로필 정보를 저장하지 못했어요. 입력한 값은 그대로 두었으니 다시 시도해주세요."
+        );
+        return;
+      }
+
+      setTopSize(normalizedTopSize);
+      setBottomSize(normalizedBottomSize);
+      setShoeSize(normalizedShoeSize);
+      setHeight(normalizedMeasurements.height);
+      setShoulderWidth(normalizedMeasurements.shoulderWidth);
+      setChestCircumference(normalizedMeasurements.chestCircumference);
+      setWaistCircumference(normalizedMeasurements.waistCircumference);
+      setHipCircumference(normalizedMeasurements.hipCircumference);
+      setArmLength(normalizedMeasurements.armLength);
+      setInseam(normalizedMeasurements.inseam);
+      setThighCircumference(normalizedMeasurements.thighCircumference);
+      setPreferredPantsTotalLength(
+        normalizedPreferredPantsTotalLength !== undefined
+          ? String(normalizedPreferredPantsTotalLength)
+          : ""
       );
-      return;
+
+      Alert.alert("저장 완료", "내 프로필 정보가 저장됐어요.");
+    } finally {
+      setIsSavingProfile(false);
     }
-
-    setTopSize(normalizedTopSize);
-    setBottomSize(normalizedBottomSize);
-    setShoeSize(normalizedShoeSize);
-    setHeight(normalizedMeasurements.height);
-    setShoulderWidth(normalizedMeasurements.shoulderWidth);
-    setChestCircumference(normalizedMeasurements.chestCircumference);
-    setWaistCircumference(normalizedMeasurements.waistCircumference);
-    setHipCircumference(normalizedMeasurements.hipCircumference);
-    setArmLength(normalizedMeasurements.armLength);
-    setInseam(normalizedMeasurements.inseam);
-    setThighCircumference(normalizedMeasurements.thighCircumference);
-    setPreferredPantsTotalLength(
-      normalizedPreferredPantsTotalLength !== undefined
-        ? String(normalizedPreferredPantsTotalLength)
-        : ""
-    );
-
-    Alert.alert("저장 완료", "내 프로필 정보가 저장됐어요.");
   };
 
   return (
@@ -701,12 +709,15 @@ export default function ProfileScreen() {
         <Pressable
           style={[
             styles.saveButton,
-            (!isProfileReady || hasProfileLoadError) && styles.saveButtonDisabled,
+            (!isProfileReady || hasProfileLoadError || isSavingProfile) &&
+              styles.saveButtonDisabled,
           ]}
           onPress={handleSave}
-          disabled={!isProfileReady || hasProfileLoadError}
+          disabled={!isProfileReady || hasProfileLoadError || isSavingProfile}
         >
-          <Text style={styles.saveButtonText}>저장하기</Text>
+          <Text style={styles.saveButtonText}>
+            {isSavingProfile ? "저장 중..." : "저장하기"}
+          </Text>
         </Pressable>
 
         <View style={styles.dataManagementCard}>
