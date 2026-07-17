@@ -1,6 +1,7 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
 import { getClosetItemReviewFields } from "@/utils/closetRegistration";
+import { filterClosetItemsByQuery } from "@/utils/closetSearch";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import { getSavedOutfitUsageCount } from "@/utils/savedOutfitIntegrity";
 import {
@@ -21,6 +22,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     View,
 } from "react-native";
 
@@ -74,6 +76,8 @@ export default function ClosetScreen() {
     const [items, setItems] = useState<ClosetItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("전체");
     const [selectedDetailCategory, setSelectedDetailCategory] = useState("전체");
+    const [isSearchVisible, setIsSearchVisible] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useFocusEffect(
         useCallback(() => {
@@ -108,11 +112,13 @@ export default function ClosetScreen() {
                 .filter((detail): detail is string => Boolean(detail?.trim()))
         )),
     ];
-    const filteredItems = selectedDetailCategory === "전체"
+    const detailFilteredItems = selectedDetailCategory === "전체"
         ? categoryItems
         : categoryItems.filter(
             (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
         );
+    const filteredItems = filterClosetItemsByQuery(detailFilteredItems, searchQuery);
+    const hasSearchQuery = searchQuery.trim().length > 0;
 
     async function handleDeleteItem(id: string) {
         const savedOutfits = await getSavedOutfits();
@@ -147,14 +153,53 @@ export default function ClosetScreen() {
                     <Text style={styles.headerTitle}>옷장</Text>
 
                     <View style={styles.headerActions}>
-                        <Pressable style={styles.iconButton}>
-                            <Feather name="search" size={22} color={colors.text} />
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={isSearchVisible ? "옷장 검색 닫기" : "옷장 검색"}
+                            style={styles.iconButton}
+                            onPress={() => {
+                                setIsSearchVisible((visible) => {
+                                    if (visible) setSearchQuery("");
+                                    return !visible;
+                                });
+                            }}
+                        >
+                            <Feather
+                                name={isSearchVisible ? "x" : "search"}
+                                size={22}
+                                color={colors.text}
+                            />
                         </Pressable>
                         <Pressable style={styles.iconButton} onPress={() => router.push("/add-clothes")}>
                             <Feather name="plus" size={24} color={colors.text} />
                         </Pressable>
                     </View>
                 </View>
+
+                {isSearchVisible && items.length > 0 ? (
+                    <View style={styles.searchBox}>
+                        <Feather name="search" size={17} color={colors.subText} />
+                        <TextInput
+                            autoFocus
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="종류, 상품명, 브랜드, 색상 검색"
+                            placeholderTextColor={colors.subText}
+                            returnKeyType="search"
+                            style={styles.searchInput}
+                        />
+                        {hasSearchQuery ? (
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel="검색어 지우기"
+                                hitSlop={8}
+                                onPress={() => setSearchQuery("")}
+                            >
+                                <Feather name="x-circle" size={17} color={colors.subText} />
+                            </Pressable>
+                        ) : null}
+                    </View>
+                ) : null}
 
                 {items.length === 0 ? (
                     <View style={styles.emptyCard}>
@@ -237,7 +282,9 @@ export default function ClosetScreen() {
                         ) : null}
 
                         <Text style={styles.countText}>
-                            {selectedCategory === "전체"
+                            {hasSearchQuery
+                                ? `검색 결과 ${filteredItems.length}개`
+                                : selectedCategory === "전체"
                                 ? `전체 ${items.length}개`
                                 : selectedCategory === REVIEW_FILTER
                                     ? `${REVIEW_FILTER} ${filteredItems.length}개`
@@ -248,7 +295,17 @@ export default function ClosetScreen() {
                                     : `${selectedDetailCategory} ${filteredItems.length}개`}
                         </Text>
 
-                        {selectedCategory === REVIEW_FILTER && filteredItems.length === 0 ? (
+                        {hasSearchQuery && filteredItems.length === 0 ? (
+                            <View style={styles.reviewCompleteCard}>
+                                <Feather name="search" size={20} color={colors.point} />
+                                <View style={styles.reviewCompleteTextBox}>
+                                    <Text style={styles.reviewCompleteTitle}>검색 결과가 없어요</Text>
+                                    <Text style={styles.reviewCompleteText}>
+                                        다른 종류, 상품명, 브랜드나 색상으로 검색해보세요.
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : selectedCategory === REVIEW_FILTER && filteredItems.length === 0 ? (
                             <View style={styles.reviewCompleteCard}>
                                 <Feather name="check-circle" size={20} color={colors.point} />
                                 <View style={styles.reviewCompleteTextBox}>
@@ -376,6 +433,27 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "flex-end",
         gap: 18,
+    },
+    searchBox: {
+        minHeight: 44,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.card,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 9,
+        paddingHorizontal: 13,
+        marginTop: -10,
+        marginBottom: 18,
+    },
+    searchInput: {
+        flex: 1,
+        minWidth: 0,
+        paddingVertical: 10,
+        color: colors.text,
+        fontSize: 13,
+        fontWeight: "600",
     },
     iconButton: {
         width: 24,
