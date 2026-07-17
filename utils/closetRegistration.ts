@@ -64,6 +64,10 @@ export function normalizeClosetRegistrationBasics({
   };
 }
 
+export function wasClosetItemSaved(items: ClosetItem[], itemId: string) {
+  return items.some((item) => item.id === itemId);
+}
+
 export function getRegistrationReviewLabels(fields: RegistrationReviewField[]) {
   return fields.map((field) => REVIEW_FIELD_LABELS[field]);
 }

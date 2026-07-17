@@ -81,6 +81,7 @@ const {
   getClosetItemReviewFields,
   getProductRegistrationReviewFields,
   normalizeClosetRegistrationBasics,
+  wasClosetItemSaved,
 } = require("../utils/closetRegistration.ts");
 const { normalizeProductColor } = require("../utils/color.ts");
 const {
@@ -193,6 +194,11 @@ const fixtureServer = http.createServer((request, response) => {
 });
 
 async function main() {
+  const savedItem = createClosetItem("saved-item", "상의");
+  assert.equal(wasClosetItemSaved([savedItem], savedItem.id), true);
+  assert.equal(wasClosetItemSaved([], savedItem.id), false);
+  assert.equal(wasClosetItemSaved([savedItem], "missing-item"), false);
+
   const completeExtractionSummary = getProductExtractionSummary({
     productName: "린넨 데일리 셔츠",
     productImageUrl: "https://example.com/shirt.jpg",

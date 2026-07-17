@@ -5,6 +5,7 @@ import {
   getRegistrationReviewLabels,
   normalizeClosetRegistrationBasics,
   normalizeClosetSeasons,
+  wasClosetItemSaved,
 } from "@/utils/closetRegistration";
 import {
   applyProductAnalysisTarget,
@@ -534,9 +535,10 @@ async function saveAnalyzedClosetItem(
     color: analysis.color,
     seasons,
   });
+  const itemId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  await saveClosetItem({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  const savedItems = await saveClosetItem({
+    id: itemId,
     imageUri,
     cleanImageUri,
     category: registration.category,
@@ -562,6 +564,10 @@ async function saveAnalyzedClosetItem(
     avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
     createdAt: new Date().toISOString(),
   });
+
+  if (!wasClosetItemSaved(savedItems, itemId)) {
+    throw new Error("closet item was not persisted");
+  }
 
   return {
     needsSeasonReview:
@@ -842,6 +848,7 @@ export default function AddClothesScreen() {
     let savedCount = 0;
     let failedCount = 0;
     let seasonReviewCount = 0;
+    const failedImages: SelectedImage[] = [];
 
     try {
       setIsSaving(true);
@@ -857,6 +864,7 @@ export default function AddClothesScreen() {
           if (saveResult.needsSeasonReview) seasonReviewCount += 1;
         } catch (error) {
           failedCount += 1;
+          failedImages.push(selectedImage);
           console.error("[add-clothes] batch item failed", {
             index: index + 1,
             uri: selectedImage.uri,
@@ -866,6 +874,20 @@ export default function AddClothesScreen() {
       }
 
       setProgressText(`완료: ${savedCount}/${selectedImages.length} 저장`);
+
+      if (failedImages.length > 0) {
+        setSelectedImages(failedImages);
+        setImageUri(failedImages[0]?.uri || "");
+        setProgressText(`${savedCount}개 저장 · ${failedCount}개 다시 시도 필요`);
+
+        Alert.alert(
+          savedCount > 0 ? "일부 옷을 저장했어요" : "저장하지 못했어요",
+          savedCount > 0
+            ? `저장하지 못한 사진 ${failedCount}개를 화면에 남겨뒀어요. 다시 분석해주세요.`
+            : "선택한 사진은 그대로 두었어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요."
+        );
+        return;
+      }
 
       if (savedCount > 0) {
         if (seasonReviewCount > 0) {
@@ -889,15 +911,11 @@ export default function AddClothesScreen() {
           return;
         }
 
-        if (failedCount > 0) {
-          Alert.alert("일괄 저장 완료", `${savedCount}개 저장, ${failedCount}개 실패했어요.`);
-        }
-
         router.replace("/closet");
         return;
       }
 
-      Alert.alert("저장 실패", "선택한 사진을 저장하지 못했어요. 서버 로그를 확인해주세요.");
+      Alert.alert("저장 실패", "선택한 사진은 그대로 두었어요. 다시 시도해주세요.");
     } finally {
       setIsSaving(false);
     }
@@ -1047,7 +1065,10 @@ export default function AddClothesScreen() {
         initialItem
       );
 
-      await saveClosetItem(finalItem);
+      const savedItems = await saveClosetItem(finalItem);
+      if (!wasClosetItemSaved(savedItems, finalItem.id)) {
+        throw new Error("closet item was not persisted");
+      }
 
       const needsManualSizeGuide =
         Boolean(confirmedProduct) &&
