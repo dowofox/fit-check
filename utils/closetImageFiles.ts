@@ -78,12 +78,10 @@ export async function deleteUnusedClosetImages(
   const remainingUris = new Set(remainingItems.flatMap(getStoredItemImageUris));
   const localUris = new Set(
     previousItems
-      .flatMap((item) => [item.imageUri, item.cleanImageUri])
-      .map((uri) => uri?.trim())
-      .filter((uri): uri is string => {
-        if (!uri) return false;
-        return uri.startsWith(documentDirectory) && !remainingUris.has(uri);
-      })
+      .flatMap(getStoredItemImageUris)
+      .filter(
+        (uri) => uri.startsWith(documentDirectory) && !remainingUris.has(uri)
+      )
   );
 
   await deleteManagedClosetImageFiles([...localUris]);
