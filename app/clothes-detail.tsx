@@ -10,6 +10,11 @@ import {
   normalizeClosetRegistrationBasics,
 } from "@/utils/closetRegistration";
 import {
+  deleteManagedClosetImageFiles,
+  deleteUnusedClosetItemImages,
+  persistLocalClosetImage,
+} from "@/utils/closetImageFiles";
+import {
   getResolvedItemMaterial,
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
@@ -2241,6 +2246,10 @@ export default function ClothesDetailScreen() {
   async function handleAddItemPhoto() {
     if (!item || isUpdatingImage) return;
 
+    let selectedImageUri = "";
+    let persistedImageUri = "";
+    let didUpdateClosetItem = false;
+
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -2250,22 +2259,39 @@ export default function ClothesDetailScreen() {
 
       if (result.canceled || !result.assets[0]?.uri) return;
 
+      selectedImageUri = result.assets[0].uri;
       setIsUpdatingImage(true);
+      persistedImageUri = await persistLocalClosetImage(
+        selectedImageUri,
+        `${item.id}-${Date.now()}`
+      );
       const updatedCloset = await updateClosetItem(item.id, {
-        imageUri: result.assets[0].uri,
+        imageUri: persistedImageUri,
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
       if (!updatedItem) {
-        Alert.alert("사진 저장 실패", "선택한 사진을 저장하지 못했어요. 다시 시도해주세요.");
-        return;
+        throw new Error("closet item image was not persisted");
       }
 
+      didUpdateClosetItem = true;
       setItem(updatedItem);
       setDraft(getEditableValues(updatedItem));
+      try {
+        await deleteUnusedClosetItemImages(item, updatedCloset);
+      } catch (cleanupError) {
+        console.error("교체 전 옷 이미지 파일 정리 실패:", cleanupError);
+      }
     } catch (error) {
+      if (!didUpdateClosetItem && persistedImageUri !== selectedImageUri) {
+        try {
+          await deleteManagedClosetImageFiles([persistedImageUri]);
+        } catch (cleanupError) {
+          console.error("실패한 옷 사진 복사본 정리 실패:", cleanupError);
+        }
+      }
       console.error("옷 사진 추가 실패:", error);
-      Alert.alert("사진 추가 실패", "사진을 불러오지 못했어요. 다시 시도해주세요.");
+      Alert.alert("사진 저장 실패", "선택한 사진을 저장하지 못했어요. 다시 시도해주세요.");
     } finally {
       setIsUpdatingImage(false);
     }
