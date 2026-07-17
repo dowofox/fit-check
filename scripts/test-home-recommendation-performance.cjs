@@ -396,6 +396,22 @@ test("concurrent closet mutations preserve every completed change", async () => 
   assert.equal(updatedItem?.size, "L");
 });
 
+test("saving the same closet item id twice remains idempotent", async () => {
+  const item = createClosetItem("duplicate-closet-id");
+
+  const [firstResult, secondResult] = await Promise.all([
+    saveClosetItem(item),
+    saveClosetItem({ ...item, color: "블랙" }),
+  ]);
+
+  assert.equal(firstResult.length, 1);
+  assert.equal(secondResult.length, 1);
+  const closet = await getClosetItems();
+  assert.equal(closet.length, 1);
+  assert.equal(closet[0].id, item.id);
+  assert.equal(closet[0].color, item.color);
+});
+
 test("대표 이미지 후보는 배경제거, 상품, 원본 순서로 중복 없이 유지한다", () => {
   const item = createClosetItem("image-fallback", {
     cleanImageUri: "file:///clean.png",

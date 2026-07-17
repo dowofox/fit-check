@@ -682,6 +682,10 @@ export function saveClosetItem(item: ClosetItem) {
     ]);
     const closet = parseStoredClosetItemsForMutation(existing);
 
+    if (closet.some((closetItem) => closetItem.id === item.id)) {
+      return closet;
+    }
+
     closet.unshift(item);
 
     await AsyncStorage.multiSet(getClosetStorageEntries(closet, revisions));
