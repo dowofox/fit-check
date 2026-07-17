@@ -111,6 +111,7 @@ const {
 
 const CLOSET_KEY = "naes_closet";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
+const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 
 function createClosetItem(id, overrides = {}) {
@@ -232,6 +233,43 @@ test("feedback mutations preserve existing data when the source read fails", asy
   assert.equal(feedbacks.length, 1);
   assert.deepEqual(feedbacks[0].itemIds, ["bottom-1", "top-1"]);
   assert.equal(feedbacks[0].value, "like");
+});
+
+test("wear record mutations preserve history when the source read fails", async () => {
+  const item = createClosetItem("wear-read-failure");
+  const outfit = createSavedOutfit("wear-outfit", [item.id]);
+  await saveClosetItem(item);
+  const firstWear = await recordSavedOutfitWear(
+    outfit,
+    new Date(2026, 6, 17, 10, 0, 0)
+  );
+  assert.equal(firstWear.status, "recorded");
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextGetItemKey = OUTFIT_WEAR_RECORDS_KEY;
+    assert.equal(
+      (
+        await recordSavedOutfitWear(
+          outfit,
+          new Date(2026, 6, 18, 10, 0, 0)
+        )
+      ).status,
+      "failed"
+    );
+
+    failNextGetItemKey = OUTFIT_WEAR_RECORDS_KEY;
+    assert.equal(
+      (await deleteOutfitWearRecord(firstWear.records[0].id)).status,
+      "failed"
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal((await getOutfitWearRecords()).length, 1);
+  assert.equal((await getClosetItems())[0].wearCount, 1);
 });
 
 test("저장 코디 변경 실패는 정상적인 빈 목록과 구분한다", async () => {

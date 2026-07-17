@@ -470,6 +470,41 @@ async function getFeedbacksForMutation() {
   return parseStoredFeedbacksForMutation(rawFeedbacks);
 }
 
+function parseStoredWearRecordsForMutation(rawValue: string | null) {
+  if (!rawValue) return [];
+
+  const parsedValue = JSON.parse(rawValue) as unknown;
+  if (
+    !Array.isArray(parsedValue) ||
+    !parsedValue.every((candidate) => {
+      if (!isStoredRecord(candidate)) return false;
+
+      return (
+        typeof candidate.id === "string" &&
+        Boolean(candidate.id) &&
+        Array.isArray(candidate.itemIds) &&
+        candidate.itemIds.every((itemId) => typeof itemId === "string") &&
+        Boolean(getOutfitWearItemKey(candidate.itemIds as string[])) &&
+        typeof candidate.wornAt === "string" &&
+        Boolean(candidate.wornAt) &&
+        typeof candidate.dateKey === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(candidate.dateKey) &&
+        (candidate.savedOutfitId === undefined ||
+          typeof candidate.savedOutfitId === "string")
+      );
+    })
+  ) {
+    throw new Error("Stored outfit wear data is invalid");
+  }
+
+  return normalizeOutfitWearRecords(parsedValue);
+}
+
+async function getWearRecordsForMutation() {
+  const rawRecords = await AsyncStorage.getItem(OUTFIT_WEAR_RECORDS_KEY);
+  return parseStoredWearRecordsForMutation(rawRecords);
+}
+
 async function getSavedOutfitsForMutation() {
   const rawSavedOutfits = await AsyncStorage.getItem(SAVED_OUTFITS_KEY);
   return parseStoredSavedOutfitsForMutation(rawSavedOutfits);
@@ -835,7 +870,7 @@ export function recordSavedOutfitWear(
 
     const [closet, records, currentRevisions] = await Promise.all([
       getClosetItemsForMutation(),
-      getOutfitWearRecords(),
+      getWearRecordsForMutation(),
       getRecommendationRevisionState(),
     ]);
     const itemKey = getOutfitWearItemKey(outfit.itemIds);
@@ -902,7 +937,7 @@ export function deleteOutfitWearRecord(
     try {
     const [closet, records, currentRevisions] = await Promise.all([
       getClosetItemsForMutation(),
-      getOutfitWearRecords(),
+      getWearRecordsForMutation(),
       getRecommendationRevisionState(),
     ]);
     const targetRecord = records.find((record) => record.id === recordId);
