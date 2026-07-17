@@ -50,9 +50,16 @@ const items = [
     detailCategory: "반팔 니트",
     color: "블랙",
     material: "코튼 니트",
+    fit: "세미오버핏",
+    size: "XL",
+    season: "봄, 여름",
+    seasons: ["봄", "여름"],
     confirmedProduct: {
       brand: "MAISON MINED",
       productName: "Doodle Knit Top",
+      materialComposition: {
+        summary: "레이온 70%, 폴리에스터 30%",
+      },
       confirmedAt: "2026-07-17T00:00:00.000Z",
     },
     createdAt: "2026-07-17T00:00:00.000Z",
@@ -69,6 +76,17 @@ test("옷장 검색은 세부 종류와 색상을 찾는다", () => {
 test("옷장 검색은 공식 상품명과 브랜드를 대소문자 없이 찾는다", () => {
   assert.deepEqual(
     filterClosetItemsByQuery(items, "maison knit").map((item) => item.id),
+    ["knit"]
+  );
+});
+
+test("옷장 검색은 계절, 사이즈, 핏과 공식 혼용률을 찾는다", () => {
+  assert.deepEqual(
+    filterClosetItemsByQuery(items, "여름 xl 세미오버핏").map((item) => item.id),
+    ["knit"]
+  );
+  assert.deepEqual(
+    filterClosetItemsByQuery(items, "레이온 70%").map((item) => item.id),
     ["knit"]
   );
 });

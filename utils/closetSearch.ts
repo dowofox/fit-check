@@ -10,12 +10,17 @@ function getClosetItemSearchText(item: ClosetItem) {
     item.color,
     item.style,
     ...(item.styleTags || []),
+    item.fit,
+    item.size,
+    item.season,
+    ...(item.seasons || []),
     item.material,
     item.pattern,
     item.confirmedBrand,
     item.brand,
     item.confirmedProduct?.brand,
     item.confirmedProduct?.productName,
+    item.confirmedProduct?.materialComposition?.summary,
   ]
     .filter(Boolean)
     .join(" ")
