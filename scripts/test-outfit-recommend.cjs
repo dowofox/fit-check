@@ -37,6 +37,12 @@ const {
   MIN_DISPLAY_RECOMMENDATION_SCORE,
 } = require("../utils/outfitRecommend.ts");
 const {
+  estimateOutfitCombinationCount,
+  LARGE_WARDROBE_CANDIDATE_LIMITS,
+  limitOutfitCandidatePool,
+  MAX_OUTFIT_COMBINATION_BUDGET,
+} = require("../utils/outfitCandidateBudget.ts");
+const {
   getOutfitRecommendationEmptyContent,
 } = require("../utils/outfitRecommendationEmptyState.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
@@ -171,6 +177,55 @@ function createWardrobe() {
     createItem("accessory-cap", "액세서리"),
   ];
 }
+
+test("대규모 옷장 후보 제한은 예상 조합을 예산 아래로 낮춘다", () => {
+  const originalCount = estimateOutfitCombinationCount({
+    topCount: 10,
+    bottomCount: 10,
+    shoeCount: 10,
+    outerCount: 10,
+    accessoryCount: 6,
+  });
+  const limitedCount = estimateOutfitCombinationCount({
+    topCount: LARGE_WARDROBE_CANDIDATE_LIMITS.tops,
+    bottomCount: LARGE_WARDROBE_CANDIDATE_LIMITS.bottoms,
+    shoeCount: LARGE_WARDROBE_CANDIDATE_LIMITS.shoes,
+    outerCount: LARGE_WARDROBE_CANDIDATE_LIMITS.outers,
+    accessoryCount: LARGE_WARDROBE_CANDIDATE_LIMITS.accessories,
+  });
+
+  assert.ok(originalCount > MAX_OUTFIT_COMBINATION_BUDGET);
+  assert.ok(limitedCount <= MAX_OUTFIT_COMBINATION_BUDGET);
+});
+
+test("대규모 후보 풀은 사용자 선호와 종류·색상 다양성을 함께 보존한다", () => {
+  const candidates = [
+    createItem("plain-white-less", "상의", { recommendationPreference: "less" }),
+    createItem("plain-white-prefer", "상의", { recommendationPreference: "prefer" }),
+    createItem("knit-black", "상의", {
+      detailCategory: "반팔 니트",
+      color: "블랙",
+    }),
+    createItem("shirt-blue", "상의", {
+      detailCategory: "린넨 셔츠",
+      color: "블루",
+    }),
+    createItem("plain-white", "상의"),
+  ];
+  const selected = limitOutfitCandidatePool(candidates, 3);
+
+  assert.equal(selected.length, 3);
+  assert.ok(selected.some((item) => item.id === "plain-white-prefer"));
+  assert.deepEqual(
+    new Set(selected.map((item) => `${item.detailCategory}|${item.color}`)).size,
+    3
+  );
+});
+
+test("예산 이하 후보 풀은 기존 배열과 순서를 그대로 사용한다", () => {
+  const candidates = [createItem("first", "상의"), createItem("second", "상의")];
+  assert.equal(limitOutfitCandidatePool(candidates, 3), candidates);
+});
 
 function itemKey(recommendation) {
   return recommendation.items.map((item) => item.id).sort().join("|");

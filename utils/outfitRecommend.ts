@@ -2,6 +2,12 @@ import { getFitSuitability } from "@/utils/sizeMatch";
 import { doesProductSizeRowMatch } from "@/utils/productSizeMeasurements";
 import { getDetailMaterialAdjustment } from "@/utils/outfitDetailMaterial";
 import {
+  estimateOutfitCombinationCount,
+  LARGE_WARDROBE_CANDIDATE_LIMITS,
+  limitOutfitCandidatePool,
+  MAX_OUTFIT_COMBINATION_BUDGET,
+} from "@/utils/outfitCandidateBudget";
+import {
   getOutfitFeedbackKey,
   getOutfitFeedbackRankingAdjustment,
   type OutfitFeedbackValue,
@@ -2407,11 +2413,37 @@ function buildRecommendationCandidates(
     options.weather,
     strictSeasonFilter
   );
-  const tops = sortBySeasonPriority(byCategory(seasonItems, "상의"), currentSeason);
-  const bottoms = sortBySeasonPriority(byCategory(seasonItems, "하의"), currentSeason);
-  const shoes = sortBySeasonPriority(byCategory(seasonItems, "신발"), currentSeason);
-  const outers = sortBySeasonPriority(byCategory(seasonItems, "아우터"), currentSeason);
-  const accessories = getAccessoryCandidates(byCategory(seasonItems, "액세서리"));
+  const allTops = sortBySeasonPriority(byCategory(seasonItems, "상의"), currentSeason);
+  const allBottoms = sortBySeasonPriority(byCategory(seasonItems, "하의"), currentSeason);
+  const allShoes = sortBySeasonPriority(byCategory(seasonItems, "신발"), currentSeason);
+  const allOuters = sortBySeasonPriority(byCategory(seasonItems, "아우터"), currentSeason);
+  const allAccessories = getAccessoryCandidates(byCategory(seasonItems, "액세서리"));
+  const shouldLimitCandidatePools =
+    estimateOutfitCombinationCount({
+      topCount: allTops.length,
+      bottomCount: allBottoms.length,
+      shoeCount: allShoes.length,
+      outerCount: allOuters.length,
+      accessoryCount: allAccessories.length,
+    }) > MAX_OUTFIT_COMBINATION_BUDGET;
+  const tops = shouldLimitCandidatePools
+    ? limitOutfitCandidatePool(allTops, LARGE_WARDROBE_CANDIDATE_LIMITS.tops)
+    : allTops;
+  const bottoms = shouldLimitCandidatePools
+    ? limitOutfitCandidatePool(allBottoms, LARGE_WARDROBE_CANDIDATE_LIMITS.bottoms)
+    : allBottoms;
+  const shoes = shouldLimitCandidatePools
+    ? limitOutfitCandidatePool(allShoes, LARGE_WARDROBE_CANDIDATE_LIMITS.shoes)
+    : allShoes;
+  const outers = shouldLimitCandidatePools
+    ? limitOutfitCandidatePool(allOuters, LARGE_WARDROBE_CANDIDATE_LIMITS.outers)
+    : allOuters;
+  const accessories = shouldLimitCandidatePools
+    ? limitOutfitCandidatePool(
+        allAccessories,
+        LARGE_WARDROBE_CANDIDATE_LIMITS.accessories
+      )
+    : allAccessories;
   const recommendations: OutfitRecommendation[] = [];
   const fitSuitabilityCache = new Map<string, ReturnType<typeof getFitSuitability>>();
   const shoeOptions = shoes.length > 0 ? [null, ...shoes] : [null];
