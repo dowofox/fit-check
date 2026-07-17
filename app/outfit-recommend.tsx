@@ -25,8 +25,8 @@ import {
   ClosetItem,
   getClosetItemsLoadResult,
   getOutfitRecommendationFeedbacks,
-  getSavedOutfits,
-  getUserProfile,
+  getSavedOutfitsLoadResult,
+  getUserProfileLoadResult,
   saveOutfit,
   setOutfitRecommendationFeedback,
 } from "@/utils/storage";
@@ -614,19 +614,25 @@ export default function OutfitRecommendScreen() {
           weatherRainChance: weatherRainChanceParam,
         })
       : null;
-    const [closetResult, profile, savedOutfits, feedbacks] = await Promise.all([
+    const [closetResult, profileResult, savedOutfitsResult, feedbacks] = await Promise.all([
       getClosetItemsLoadResult(),
-      getUserProfile(),
-      getSavedOutfits(),
+      getUserProfileLoadResult(),
+      getSavedOutfitsLoadResult(),
       getOutfitRecommendationFeedbacks(),
     ]);
-    if (closetResult.status === "failed") {
+    if (
+      closetResult.status === "failed" ||
+      profileResult.status === "failed" ||
+      savedOutfitsResult.status === "failed"
+    ) {
       setHasLoadError(true);
       setIsLoaded(true);
       return;
     }
 
     const items = closetResult.items;
+    const profile = profileResult.profile;
+    const savedOutfits = savedOutfitsResult.outfits;
     const recommendationItems = toRecommendationInputItems(items);
     const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits, items);
     const weather = useWeather
