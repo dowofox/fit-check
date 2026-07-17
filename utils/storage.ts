@@ -925,18 +925,43 @@ export async function updateSavedOutfit(
 }
 
 export async function getNaesBackupDataSnapshot(): Promise<NaesBackupDataSnapshot> {
-  const [closetItems, profile, savedOutfits, outfitFeedbacks, wearRecords] =
-    await Promise.all([
-      getClosetItems(),
-      getUserProfile(),
-      getSavedOutfits(),
-      getOutfitRecommendationFeedbacks(),
-      getOutfitWearRecords(),
-    ]);
+  const entries = await AsyncStorage.multiGet([
+    CLOSET_KEY,
+    PROFILE_KEY,
+    SAVED_OUTFITS_KEY,
+    OUTFIT_FEEDBACK_KEY,
+    OUTFIT_WEAR_RECORDS_KEY,
+  ]);
+  const valuesByKey = new Map(entries);
+  const parseBackupArray = (key: string) => {
+    const rawValue = valuesByKey.get(key);
+    if (!rawValue) return [];
+
+    const parsedValue = JSON.parse(rawValue) as unknown;
+    if (!Array.isArray(parsedValue)) {
+      throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${key}`);
+    }
+    return parsedValue;
+  };
+  const rawProfile = valuesByKey.get(PROFILE_KEY);
+  const parsedProfile = rawProfile ? (JSON.parse(rawProfile) as unknown) : null;
+
+  if (parsedProfile !== null && !isStoredRecord(parsedProfile)) {
+    throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${PROFILE_KEY}`);
+  }
+
+  const closetItems = parseBackupArray(CLOSET_KEY).filter(isStoredClosetItem);
+  const savedOutfits = parseBackupArray(SAVED_OUTFITS_KEY).filter(isStoredSavedOutfit);
+  const outfitFeedbacks = normalizeOutfitRecommendationFeedbacks(
+    parseBackupArray(OUTFIT_FEEDBACK_KEY)
+  );
+  const wearRecords = normalizeOutfitWearRecords(
+    parseBackupArray(OUTFIT_WEAR_RECORDS_KEY)
+  );
 
   return {
     closetItems,
-    profile,
+    profile: parsedProfile as UserProfile | null,
     savedOutfits,
     outfitFeedbacks,
     wearRecords,

@@ -7,6 +7,7 @@ const ts = require("typescript");
 
 const projectRoot = path.resolve(__dirname, "..");
 const storageMemory = new Map();
+let failNextMultiGet = false;
 
 global.__DEV__ = false;
 
@@ -19,6 +20,17 @@ const asyncStorage = {
   },
   async multiSet(entries) {
     entries.forEach(([key, value]) => storageMemory.set(key, value));
+  },
+  async multiGet(keys) {
+    if (failNextMultiGet) {
+      failNextMultiGet = false;
+      throw new Error("mock backup read failure");
+    }
+
+    return keys.map((key) => [
+      key,
+      storageMemory.has(key) ? storageMemory.get(key) : null,
+    ]);
   },
 };
 
@@ -73,6 +85,10 @@ const {
   restoreNaesBackupDataSnapshot,
   updateClosetItem,
 } = require("../utils/storage.ts");
+
+test.beforeEach(() => {
+  failNextMultiGet = false;
+});
 
 function createSnapshot() {
   return {
@@ -242,6 +258,24 @@ test("restored source data replaces storage and rebuilds derived closet data", a
   const exportedSnapshot = await getNaesBackupDataSnapshot();
   assert.equal(exportedSnapshot.closetItems.length, 3);
   assert.equal(exportedSnapshot.savedOutfits.length, 1);
+});
+
+test("backup snapshot fails instead of exporting empty data after a storage read error", async () => {
+  await restoreNaesBackupDataSnapshot(createSnapshot());
+  failNextMultiGet = true;
+
+  await assert.rejects(
+    getNaesBackupDataSnapshot(),
+    /mock backup read failure/
+  );
+  assert.equal((await getClosetItems()).length, 3);
+});
+
+test("backup snapshot rejects a corrupted root value", async () => {
+  storageMemory.clear();
+  storageMemory.set("naes_closet", "{broken-json");
+
+  await assert.rejects(getNaesBackupDataSnapshot(), SyntaxError);
 });
 
 test("legacy closet and profile fields survive partial updates and version 1 backup restore", async () => {
