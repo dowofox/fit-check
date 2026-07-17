@@ -214,12 +214,19 @@ export function pruneReferenceClothing(
   referenceClothing: ReferenceClothing | undefined,
   closetItems: ClosetItem[]
 ) {
-  const closetItemIds = new Set(closetItems.map((item) => item.id));
+  const expectedCategoryByKey: Record<keyof ReferenceClothing, string> = {
+    topItemId: "상의",
+    bottomItemId: "하의",
+    outerItemId: "아우터",
+    shoesItemId: "신발",
+  };
+  const closetItemsById = new Map(closetItems.map((item) => [item.id, item]));
   const nextReferenceClothing: ReferenceClothing = {};
 
   (Object.entries(referenceClothing || {}) as [keyof ReferenceClothing, string][]).forEach(
     ([key, itemId]) => {
-      if (itemId && closetItemIds.has(itemId)) {
+      const closetItem = itemId ? closetItemsById.get(itemId) : undefined;
+      if (closetItem?.category === expectedCategoryByKey[key]) {
         nextReferenceClothing[key] = itemId;
       }
     }

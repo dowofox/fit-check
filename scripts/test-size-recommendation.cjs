@@ -666,18 +666,19 @@ test("상품 실측 행 삭제는 선택한 사이즈만 제거하고 나머지 
   );
 });
 
-test("기준 옷 참조는 옷장에 남아 있는 ID만 유지한다", () => {
+test("기준 옷 참조는 남아 있는 같은 카테고리 ID만 유지한다", () => {
   const referenceClothing = pruneReferenceClothing(
     {
       topItemId: "top",
       bottomItemId: "deleted-bottom",
       outerItemId: "outer",
-      shoesItemId: "",
+      shoesItemId: "moved-shoe",
     },
     [
-      { id: "top" },
-      { id: "outer" },
-      { id: "unrelated" },
+      { id: "top", category: "상의" },
+      { id: "outer", category: "아우터" },
+      { id: "moved-shoe", category: "액세서리" },
+      { id: "unrelated", category: "상의" },
     ]
   );
 
