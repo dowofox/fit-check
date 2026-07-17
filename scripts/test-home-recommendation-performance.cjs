@@ -79,6 +79,7 @@ const {
   getHomeRecommendationCacheSnapshot,
   HOME_RECOMMENDATION_CACHE_STORAGE_KEY,
   HOME_RECOMMENDATION_CACHE_VERSION,
+  HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS,
   hydrateHomeRecommendationCacheEntry,
   saveHomeRecommendationCacheSnapshot,
 } = require("../utils/homeRecommendationCache.ts");
@@ -550,6 +551,36 @@ test("홈 추천 영구 캐시는 아이템 ID로 복원하고 stale·삭제 아
       revisionKey
     ),
     null
+  );
+  assert.equal(
+    hydrateHomeRecommendationCacheEntry(
+      {
+        ...weatherEntry,
+        cachedAt:
+          weatherEntry.cachedAt -
+          HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS -
+          1,
+      },
+      items,
+      revisionKey,
+      weatherEntry.cachedAt
+    ),
+    null
+  );
+  assert.ok(
+    hydrateHomeRecommendationCacheEntry(
+      createHomeRecommendationCacheEntry(
+        revisionKey,
+        [recommendation],
+        {},
+        null,
+        null,
+        weatherEntry.cachedAt - HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS - 1
+      ),
+      items,
+      revisionKey,
+      weatherEntry.cachedAt
+    )
   );
 });
 

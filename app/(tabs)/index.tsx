@@ -21,6 +21,7 @@ import {
   getHomeRecommendationCacheSnapshot,
   HOME_RECOMMENDATION_CACHE_VERSION,
   hydrateHomeRecommendationCacheEntry,
+  isHomeWeatherRecommendationCacheEntryFresh,
   saveHomeRecommendationCacheSnapshot,
   type HomeRecommendationCacheSnapshot,
   type HomeRecommendationCardData,
@@ -268,10 +269,14 @@ export default function HomeScreen() {
           items,
           dataKey
         );
-        const memoryWeatherCache = isHomeRecommendationCacheKeyForRevision(
-          weatherRecommendationCacheRef.current?.key,
-          dataKey
-        )
+        const memoryWeatherCache =
+          isHomeRecommendationCacheKeyForRevision(
+            weatherRecommendationCacheRef.current?.key,
+            dataKey
+          ) &&
+          isHomeWeatherRecommendationCacheEntryFresh(
+            weatherRecommendationCacheRef.current
+          )
           ? weatherRecommendationCacheRef.current
           : null;
         const memoryInitialCache = isHomeRecommendationCacheKeyForRevision(
@@ -339,7 +344,8 @@ export default function HomeScreen() {
           cache.recommendations,
           cache.emptyState,
           cache.weatherLabel,
-          cache.weather
+          cache.weather,
+          cache.cachedAt
         );
         const nextSnapshot = {
           ...persistentRecommendationCacheRef.current,
@@ -414,6 +420,7 @@ export default function HomeScreen() {
 
         const nextCache: HydratedHomeRecommendationCacheEntry = {
           key: cacheKey,
+          cachedAt: Date.now(),
           recommendations: cardRecommendations,
           emptyState,
           weatherLabel: nextWeatherLabel,

@@ -10,7 +10,8 @@ import type { ClosetItem } from "@/utils/storage";
 
 export const HOME_RECOMMENDATION_CACHE_STORAGE_KEY =
   "naes_home_recommendation_cache";
-export const HOME_RECOMMENDATION_CACHE_VERSION = 1;
+export const HOME_RECOMMENDATION_CACHE_VERSION = 2;
+export const HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 2;
 
 export type HomeRecommendationEmptyState = {
   emptyReason?: OutfitRecommendationEmptyReason;
@@ -26,6 +27,7 @@ export type HomeRecommendationCardData = Pick<
 
 export type PersistedHomeRecommendationCacheEntry = {
   key: string;
+  cachedAt: number;
   recommendations: {
     id: string;
     itemIds: string[];
@@ -74,6 +76,8 @@ function parseCacheEntry(value: unknown): PersistedHomeRecommendationCacheEntry 
   const entry = value as Partial<PersistedHomeRecommendationCacheEntry>;
   if (
     typeof entry.key !== "string" ||
+    typeof entry.cachedAt !== "number" ||
+    !Number.isFinite(entry.cachedAt) ||
     !Array.isArray(entry.recommendations) ||
     !entry.emptyState ||
     typeof entry.emptyState !== "object" ||
@@ -108,6 +112,7 @@ function parseCacheEntry(value: unknown): PersistedHomeRecommendationCacheEntry 
 
   return {
     key: entry.key,
+    cachedAt: entry.cachedAt,
     recommendations,
     emptyState,
     weatherLabel: entry.weatherLabel,
@@ -145,10 +150,12 @@ export function createHomeRecommendationCacheEntry(
   >)[],
   emptyState: HomeRecommendationEmptyState,
   weatherLabel: string | null,
-  weather: OutfitRecommendationWeather | null
+  weather: OutfitRecommendationWeather | null,
+  cachedAt = Date.now()
 ): PersistedHomeRecommendationCacheEntry {
   return {
     key,
+    cachedAt,
     recommendations: recommendations.map((recommendation) => ({
       id: recommendation.id,
       itemIds: recommendation.items.map((item) => item.id),
@@ -162,12 +169,24 @@ export function createHomeRecommendationCacheEntry(
   };
 }
 
+export function isHomeWeatherRecommendationCacheEntryFresh(
+  entry?: Pick<PersistedHomeRecommendationCacheEntry, "cachedAt" | "weather"> | null,
+  now = Date.now()
+) {
+  if (!entry?.weather || !Number.isFinite(entry.cachedAt)) return false;
+  return now - entry.cachedAt <= HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS;
+}
+
 export function hydrateHomeRecommendationCacheEntry(
   entry: PersistedHomeRecommendationCacheEntry | undefined,
   items: ClosetItem[],
-  revisionKey: string
+  revisionKey: string,
+  now = Date.now()
 ): HydratedHomeRecommendationCacheEntry | null {
   if (!entry || !isHomeRecommendationCacheKeyForRevision(entry.key, revisionKey)) {
+    return null;
+  }
+  if (entry.weather && !isHomeWeatherRecommendationCacheEntryFresh(entry, now)) {
     return null;
   }
 
