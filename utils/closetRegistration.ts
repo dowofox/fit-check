@@ -16,6 +16,23 @@ type ClosetRegistrationBasicsInput = {
   seasons?: string | string[];
 };
 
+export function createClosetItemId(
+  timestamp = Date.now(),
+  randomValue = Math.random()
+) {
+  const normalizedTimestamp = Number.isFinite(timestamp)
+    ? Math.max(0, Math.trunc(timestamp))
+    : Date.now();
+  const normalizedRandom = Number.isFinite(randomValue)
+    ? Math.min(Math.max(randomValue, 0), 0.9999999999999999)
+    : Math.random();
+  const entropy = Math.floor(normalizedRandom * Number.MAX_SAFE_INTEGER)
+    .toString(36)
+    .padStart(11, "0");
+
+  return `${normalizedTimestamp}-${entropy}`;
+}
+
 export function normalizeClosetSeasons(value?: string | string[]) {
   const values = Array.isArray(value) ? value : value ? [value] : [];
   const matchedSeasons = SEASONS.filter((season) =>

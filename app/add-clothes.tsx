@@ -5,6 +5,7 @@ import {
 } from "@/utils/api";
 import { normalizeProductColor } from "@/utils/color";
 import {
+  createClosetItemId,
   getProductRegistrationReviewFields,
   getRegistrationReviewLabels,
   normalizeClosetRegistrationBasics,
@@ -479,7 +480,7 @@ async function saveAnalyzedClosetItem(
     color: analysis.color,
     seasons,
   });
-  const itemId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const itemId = createClosetItemId();
 
   const savedItems = await saveClosetItem({
     id: itemId,
@@ -936,7 +937,7 @@ export default function AddClothesScreen() {
       ];
       const manualDetailCategory = selectedDetailCategory.trim() || selectedCategory.trim();
       const initialItem: ClosetItem = {
-        id: Date.now().toString(),
+        id: createClosetItemId(),
         imageUri,
         cleanImageUri,
         category: registration.category,

@@ -78,6 +78,7 @@ const {
   normalizeProductAnalysisContext,
 } = require("../server/productAnalysisContext.js");
 const {
+  createClosetItemId,
   getClosetItemReviewFields,
   getProductRegistrationReviewFields,
   normalizeClosetRegistrationBasics,
@@ -194,6 +195,11 @@ const fixtureServer = http.createServer((request, response) => {
 });
 
 async function main() {
+  const firstGeneratedItemId = createClosetItemId(1_720_000_000_000, 0.1);
+  const secondGeneratedItemId = createClosetItemId(1_720_000_000_000, 0.2);
+  assert.match(firstGeneratedItemId, /^1720000000000-[a-z0-9]{11}$/);
+  assert.notEqual(firstGeneratedItemId, secondGeneratedItemId);
+
   const savedItem = createClosetItem("saved-item", "상의");
   assert.equal(wasClosetItemSaved([savedItem], savedItem.id), true);
   assert.equal(wasClosetItemSaved([], savedItem.id), false);
@@ -320,6 +326,8 @@ async function main() {
     env: {
       ...process.env,
       PORT: String(apiPort),
+      NODE_ENV: "test",
+      ALLOW_PRIVATE_PRODUCT_URLS_FOR_TESTS: "true",
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || "test-key",
       ENABLE_PRODUCT_SIZE_GUIDE: "false",
       DEBUG_SIZE_GUIDE: "false",
