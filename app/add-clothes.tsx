@@ -14,7 +14,7 @@ import {
 } from "@/utils/closetRegistration";
 import {
   deleteManagedClosetImageFiles,
-  persistLocalClosetImage,
+  persistClosetImage,
 } from "@/utils/closetImageFiles";
 import {
   applyProductAnalysisTarget,
@@ -488,7 +488,7 @@ async function saveAnalyzedClosetItem(
   let persistedImageUri = imageUri;
 
   try {
-    persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
+    persistedImageUri = await persistClosetImage(imageUri, itemId);
     const savedItems = await saveClosetItem({
       id: itemId,
       imageUri: persistedImageUri,
@@ -951,7 +951,7 @@ export default function AddClothesScreen() {
       setIsSaving(true);
       cleanImageUri = await getOptionalCleanImageUri(analysis);
       const itemId = createClosetItemId();
-      persistedImageUri = await persistLocalClosetImage(imageUri, itemId);
+      persistedImageUri = await persistClosetImage(imageUri, itemId);
       const confirmedProductBrand = confirmedProduct?.brand?.trim() || undefined;
       const confirmedMaterial = confirmedProduct?.materialComposition?.summary?.trim();
       const shouldApplyConfirmedMaterial =

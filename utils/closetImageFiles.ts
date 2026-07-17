@@ -16,19 +16,34 @@ function getStoredItemImageUris(item: ClosetItem) {
     .filter((uri): uri is string => Boolean(uri));
 }
 
-export async function persistLocalClosetImage(imageUri: string, itemId: string) {
+export async function persistClosetImage(imageUri: string, itemId: string) {
   if (
     !imageUri ||
     !FileSystem.documentDirectory ||
-    imageUri.startsWith(FileSystem.documentDirectory) ||
-    (!imageUri.startsWith("file://") && !imageUri.startsWith("content://"))
+    imageUri.startsWith(FileSystem.documentDirectory)
   ) {
     return imageUri;
   }
 
   const targetUri = `${FileSystem.documentDirectory}closet-${itemId}.${getClosetImageExtension(imageUri)}`;
-  await FileSystem.copyAsync({ from: imageUri, to: targetUri });
-  return targetUri;
+  if (imageUri.startsWith("file://") || imageUri.startsWith("content://")) {
+    await FileSystem.copyAsync({ from: imageUri, to: targetUri });
+    return targetUri;
+  }
+
+  if (imageUri.startsWith("http://") || imageUri.startsWith("https://")) {
+    try {
+      const result = await FileSystem.downloadAsync(imageUri, targetUri);
+      if (result.status >= 200 && result.status < 300) return result.uri;
+
+      await FileSystem.deleteAsync(targetUri, { idempotent: true });
+    } catch (error) {
+      console.error("상품 이미지 로컬 캐시 실패:", error);
+      await FileSystem.deleteAsync(targetUri, { idempotent: true }).catch(() => {});
+    }
+  }
+
+  return imageUri;
 }
 
 export async function deleteManagedClosetImageFiles(imageUris: (string | undefined)[]) {

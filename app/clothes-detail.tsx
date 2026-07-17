@@ -12,7 +12,7 @@ import {
 import {
   deleteManagedClosetImageFiles,
   deleteUnusedClosetItemImages,
-  persistLocalClosetImage,
+  persistClosetImage,
 } from "@/utils/closetImageFiles";
 import {
   getResolvedItemMaterial,
@@ -2261,7 +2261,7 @@ export default function ClothesDetailScreen() {
 
       selectedImageUri = result.assets[0].uri;
       setIsUpdatingImage(true);
-      persistedImageUri = await persistLocalClosetImage(
+      persistedImageUri = await persistClosetImage(
         selectedImageUri,
         `${item.id}-${Date.now()}`
       );
