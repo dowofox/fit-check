@@ -562,6 +562,8 @@ export default function AddClothesScreen() {
   }
 
   function switchAddMode(nextMode: AddMode) {
+    if (nextMode === addMode) return;
+
     setAddMode(nextMode);
     setImageUri("");
     setSelectedImages([]);
