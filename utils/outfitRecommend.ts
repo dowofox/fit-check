@@ -2539,9 +2539,16 @@ export function getOutfitRecommendations(
   savedOutfitItemIds: string[][] = [],
   options: OutfitRecommendationOptions = {}
 ): OutfitRecommendation[] {
+  const availableItems = items.filter(isClosetItemAvailableForRecommendation);
+
   return selectRecommendations(
     applyRecommendationOptions(
-      buildRecommendationCandidatesWithFallback(items, profile, currentSeason, options),
+      buildRecommendationCandidatesWithFallback(
+        availableItems,
+        profile,
+        currentSeason,
+        options
+      ),
       options
     ),
     savedOutfitItemIds

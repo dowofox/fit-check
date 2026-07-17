@@ -34,6 +34,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 const {
   getShoeRecommendationsForOutfit,
   getOutfitRecommendationResult,
+  getOutfitRecommendations,
   MIN_DISPLAY_RECOMMENDATION_SCORE,
 } = require("../utils/outfitRecommend.ts");
 const {
@@ -1567,6 +1568,18 @@ test("보관 중인 옷은 옷장 데이터에 남아도 새 추천 입력에서
 
   assert.ok(
     directResult.recommendations.every((recommendation) =>
+      recommendation.items.every((item) => item.id !== archivedTop.id)
+    )
+  );
+
+  const directRecommendations = getOutfitRecommendations(
+    closetWithArchivedTop,
+    null,
+    "여름"
+  );
+
+  assert.ok(
+    directRecommendations.every((recommendation) =>
       recommendation.items.every((item) => item.id !== archivedTop.id)
     )
   );
