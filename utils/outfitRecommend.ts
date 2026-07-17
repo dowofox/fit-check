@@ -8,7 +8,12 @@ import {
   type OutfitRecommendationFeedback,
 } from "@/utils/outfitFeedback";
 import { getRecommendationMaterialText } from "@/utils/productClassification";
-import { ClosetItem, GarmentProfile, UserProfile } from "@/utils/storage";
+import {
+  ClosetItem,
+  GarmentProfile,
+  UserProfile,
+  isClosetItemAvailableForRecommendation,
+} from "@/utils/storage";
 
 export type OutfitRecommendation = {
   id: string;
@@ -2379,11 +2384,15 @@ export function getShoeRecommendationsForOutfit(
       .map((item) => item.id)
   );
   const shoes = byCategory(allClosetItems, "신발");
-  const currentShoes = shoes
+  const availableShoes = shoes.filter(
+    (shoe) =>
+      currentShoeIds.has(shoe.id) || isClosetItemAvailableForRecommendation(shoe)
+  );
+  const currentShoes = availableShoes
     .filter((shoe) => currentShoeIds.has(shoe.id))
     .map((shoe) => getShoeRecommendationScore(shoe, outfitItems, currentSeason, true))
     .filter((recommendation): recommendation is ShoeRecommendation => Boolean(recommendation));
-  const recommendations = shoes
+  const recommendations = availableShoes
     .filter((shoe) => !currentShoeIds.has(shoe.id))
     .map((shoe) => getShoeRecommendationScore(shoe, outfitItems, currentSeason, false))
     .filter((recommendation): recommendation is ShoeRecommendation => Boolean(recommendation))
@@ -2403,7 +2412,13 @@ function buildRecommendationCandidates(
   options: OutfitRecommendationOptions & { strictSeasonFilter?: boolean } = {}
 ) {
   const strictSeasonFilter = options.strictSeasonFilter ?? true;
-  const seasonItems = getSeasonMatchedItems(items, currentSeason, options.weather, strictSeasonFilter);
+  const availableItems = items.filter(isClosetItemAvailableForRecommendation);
+  const seasonItems = getSeasonMatchedItems(
+    availableItems,
+    currentSeason,
+    options.weather,
+    strictSeasonFilter
+  );
   const tops = sortBySeasonPriority(byCategory(seasonItems, "상의"), currentSeason);
   const bottoms = sortBySeasonPriority(byCategory(seasonItems, "하의"), currentSeason);
   const shoes = sortBySeasonPriority(byCategory(seasonItems, "신발"), currentSeason);
@@ -2517,8 +2532,14 @@ export function getOutfitRecommendationResult(
   savedOutfitItemIds: string[][] = [],
   options: OutfitRecommendationOptions = {}
 ): OutfitRecommendationResult {
+  const availableItems = items.filter(isClosetItemAvailableForRecommendation);
   const recommendationCandidates = applyRecommendationOptions(
-    buildRecommendationCandidatesWithFallback(items, profile, currentSeason, options),
+    buildRecommendationCandidatesWithFallback(
+      availableItems,
+      profile,
+      currentSeason,
+      options
+    ),
     options
   );
   const allRecommendations = selectRecommendations(recommendationCandidates);
@@ -2526,13 +2547,13 @@ export function getOutfitRecommendationResult(
     ? selectRecommendations(recommendationCandidates, savedOutfitItemIds)
     : allRecommendations;
   const displayableRecommendations = filterDisplayableRecommendations(recommendationCandidates);
-  const missingCategories = getMissingCoreCategories(items);
+  const missingCategories = getMissingCoreCategories(availableItems);
 
   return {
     recommendations,
     hasAnyRecommendation: allRecommendations.length > 0,
     emptyReason: getEmptyReason({
-      items,
+      items: availableItems,
       recommendationCandidates,
       displayableRecommendations,
       recommendations,

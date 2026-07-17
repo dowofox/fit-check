@@ -1844,6 +1844,56 @@ function getAlternativeSizeSummary(
   return "내 실측 기준으로 무난하게 입기 좋은 후보예요.";
 }
 
+function ClosetAvailabilityCard({
+  isArchived,
+  isSaving,
+  onToggle,
+}: {
+  isArchived: boolean;
+  isSaving: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <View style={styles.closetAvailabilityCard}>
+      <View style={styles.tipHeader}>
+        <View style={styles.tipIconCircle}>
+          <Feather name="archive" size={16} color="#8c6f47" />
+        </View>
+        <View style={styles.tipHeaderText}>
+          <Text style={styles.tipTitle}>옷 보관 상태</Text>
+          <Text style={styles.aiDetailSubtitle}>
+            {isArchived
+              ? "옷장에는 보관하고 새 코디 추천에서는 잠시 제외하고 있어요."
+              : "지금 입는 옷으로 새 코디 추천에 사용하고 있어요."}
+          </Text>
+        </View>
+      </View>
+      <Pressable
+        style={[
+          styles.closetAvailabilityButton,
+          isArchived && styles.closetAvailabilityButtonActive,
+        ]}
+        onPress={onToggle}
+        disabled={isSaving}
+      >
+        <Feather
+          name={isArchived ? "refresh-cw" : "archive"}
+          size={14}
+          color={isArchived ? "#fff" : "#8c6f47"}
+        />
+        <Text
+          style={[
+            styles.closetAvailabilityButtonText,
+            isArchived && styles.closetAvailabilityButtonTextActive,
+          ]}
+        >
+          {isArchived ? "다시 추천에 포함" : "추천에서 잠시 빼기"}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function RecommendedSizeCard({
   item,
   result,
@@ -2043,6 +2093,7 @@ export default function ClothesDetailScreen() {
   const [extractErrorMessage, setExtractErrorMessage] = useState("");
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
   const [isSavingRecommendationPreference, setIsSavingRecommendationPreference] = useState(false);
+  const [isSavingArchiveStatus, setIsSavingArchiveStatus] = useState(false);
   const [isSavingReferenceClothing, setIsSavingReferenceClothing] = useState(false);
   const [isMeasurementFormOpen, setIsMeasurementFormOpen] = useState(false);
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
@@ -2448,6 +2499,46 @@ export default function ClothesDetailScreen() {
     setConfirmedProductDraft(getConfirmedProductDraft(item));
     setIsProductUrlFormOpen(false);
     setIsProductFormOpen(true);
+  }
+
+  async function saveArchiveStatus(isArchived: boolean) {
+    if (!item || isSavingArchiveStatus) return;
+
+    try {
+      setIsSavingArchiveStatus(true);
+      const updatedCloset = await updateClosetItem(item.id, { isArchived });
+      const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
+
+      if (!updatedItem) {
+        Alert.alert("저장 실패", "보관 상태를 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      setItem(updatedItem);
+    } catch (error) {
+      console.error("옷 보관 상태 저장 실패:", error);
+      Alert.alert("저장 실패", "보관 상태를 저장하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      setIsSavingArchiveStatus(false);
+    }
+  }
+
+  function handleToggleArchiveStatus() {
+    if (!item || isSavingArchiveStatus) return;
+
+    if (item.isArchived) {
+      void saveArchiveStatus(false);
+      return;
+    }
+
+    Alert.alert(
+      "이 옷을 잠시 보관할까요?",
+      "옷장과 저장한 코디에는 그대로 남고, 새 코디 추천에서만 제외돼요.",
+      [
+        { text: "취소", style: "cancel" },
+        { text: "보관하기", onPress: () => void saveArchiveStatus(true) },
+      ]
+    );
   }
 
   function handleOpenManualProductForm() {
@@ -3040,6 +3131,14 @@ export default function ClothesDetailScreen() {
                 </Pressable>
               </View>
             ) : null}
+
+            {!editMode && (
+              <ClosetAvailabilityCard
+                isArchived={item.isArchived === true}
+                isSaving={isSavingArchiveStatus}
+                onToggle={handleToggleArchiveStatus}
+              />
+            )}
 
             {!editMode && (
               <RecommendationPreferenceCard
@@ -3717,6 +3816,46 @@ const styles = StyleSheet.create({
     marginTop: 2,
     flexShrink: 1,
     width: "100%",
+  },
+
+  closetAvailabilityCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    marginBottom: 12,
+  },
+
+  closetAvailabilityButton: {
+    minHeight: 40,
+    alignSelf: "flex-start",
+    borderRadius: 14,
+    backgroundColor: "#f4eee7",
+    borderWidth: 1,
+    borderColor: "#eee7dd",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+
+  closetAvailabilityButtonActive: {
+    backgroundColor: "#8c6f47",
+    borderColor: "#8c6f47",
+  },
+
+  closetAvailabilityButtonText: {
+    color: "#8c6f47",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  closetAvailabilityButtonTextActive: {
+    color: "#fff",
   },
   sizeRecommendationActionButton: {
     alignSelf: "flex-start",

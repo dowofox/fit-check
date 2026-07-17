@@ -1,4 +1,7 @@
-import { ClosetItem } from "@/utils/storage";
+import {
+  ClosetItem,
+  isClosetItemAvailableForRecommendation,
+} from "@/utils/storage";
 import { normalizeProductColor } from "@/utils/color";
 
 export type RecommendedShoppingItem = {
@@ -92,28 +95,37 @@ function finalizeRecommendations(recommendations: RecommendationInput[]) {
 }
 
 export function getRecommendedShoppingItems(items: ClosetItem[]): RecommendedShoppingItem[] {
-  if (items.length === 0) return [];
+  const availableItems = items.filter(isClosetItemAvailableForRecommendation);
+  if (availableItems.length === 0) return [];
 
   const recommendations: RecommendationInput[] = [];
-  const byCategory = (category: string) => items.filter((item) => item.category === category);
+  const itemsForRecommendation = availableItems;
+  const byCategory = (category: string) =>
+    itemsForRecommendation.filter((item) => item.category === category);
   const tops = byCategory("상의");
   const bottoms = byCategory("하의");
   const shoes = byCategory("신발");
   const outers = byCategory("아우터");
   const accessories = byCategory("액세서리");
   const currentSeason = getCurrentSeason();
-  const currentSeasonItems = items.filter((item) => {
+  const currentSeasonItems = itemsForRecommendation.filter((item) => {
     const seasons = getItemSeasons(item);
     return seasons.length === 0 || seasons.includes(currentSeason) || seasons.includes("사계절") || seasons.includes("전체");
   });
-  const seasonTaggedItems = items.filter((item) => getItemSeasons(item).length > 0);
+  const seasonTaggedItems = itemsForRecommendation.filter(
+    (item) => getItemSeasons(item).length > 0
+  );
   const explicitlyMatchedSeasonItems = seasonTaggedItems.filter((item) => {
     const seasons = getItemSeasons(item);
     return seasons.includes(currentSeason) || seasons.includes("사계절") || seasons.includes("전체");
   });
-  const itemTexts = new Map(items.map((item) => [item.id, getItemText(item)]));
+  const itemTexts = new Map(
+    itemsForRecommendation.map((item) => [item.id, getItemText(item)])
+  );
   const matchingIds = (keywords: string[]) =>
-    items.filter((item) => keywords.some((keyword) => itemTexts.get(item.id)?.includes(keyword))).map((item) => item.id);
+    itemsForRecommendation
+      .filter((item) => keywords.some((keyword) => itemTexts.get(item.id)?.includes(keyword)))
+      .map((item) => item.id);
 
   if (tops.length > 0 && bottoms.length === 0) {
     recommendations.push({
@@ -170,7 +182,11 @@ export function getRecommendedShoppingItems(items: ClosetItem[]): RecommendedSho
     });
   }
 
-  const summerItems = items.filter((item) => getItemSeasons(item).some((season) => season === "여름" || season === "사계절"));
+  const summerItems = itemsForRecommendation.filter((item) =>
+    getItemSeasons(item).some(
+      (season) => season === "여름" || season === "사계절"
+    )
+  );
   if (summerItems.length >= 3 && shoes.length < 2) {
     recommendations.push({
       title: "가벼운 화이트 스니커즈",
@@ -256,7 +272,7 @@ export function getRecommendedShoppingItems(items: ClosetItem[]): RecommendedSho
     });
   }
 
-  const profilePairings = items.flatMap((item) =>
+  const profilePairings = itemsForRecommendation.flatMap((item) =>
     (item.styleProfile?.recommendedPairings || []).map((pairing) => ({ pairing, itemId: item.id }))
   );
   const pairingCounts = new Map<string, { count: number; itemIds: string[] }>();
@@ -267,7 +283,13 @@ export function getRecommendedShoppingItems(items: ClosetItem[]): RecommendedSho
     pairingCounts.set(normalizedPairing, { count: current.count + 1, itemIds: [...current.itemIds, itemId] });
   });
   const frequentPairing = [...pairingCounts.entries()].sort((first, second) => second[1].count - first[1].count)[0];
-  if (frequentPairing && frequentPairing[1].count >= 2 && !items.some((item) => itemTexts.get(item.id)?.includes(frequentPairing[0].toLowerCase()))) {
+  if (
+    frequentPairing &&
+    frequentPairing[1].count >= 2 &&
+    !itemsForRecommendation.some((item) =>
+      itemTexts.get(item.id)?.includes(frequentPairing[0].toLowerCase())
+    )
+  ) {
     recommendations.push({
       title: frequentPairing[0],
       category: inferCategory(frequentPairing[0]),

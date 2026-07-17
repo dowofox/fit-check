@@ -270,9 +270,14 @@ export type ClosetItem = {
   wearCount?: number;
   lastWornAt?: string;
   recommendationPreference?: "normal" | "prefer" | "less";
+  isArchived?: boolean;
   userEditedClassificationFields?: ProductClassificationField[];
   createdAt: string;
 };
+
+export function isClosetItemAvailableForRecommendation(item: ClosetItem) {
+  return item.isArchived !== true;
+}
 
 export function getDisplayImageUri(item: ClosetItem) {
   return item.cleanImageUri || item.confirmedProduct?.productImageUrl || item.imageUri;

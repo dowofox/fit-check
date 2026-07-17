@@ -25,7 +25,17 @@ import {
 } from "react-native";
 
 const REVIEW_FILTER = "확인 필요";
-const CLOSET_FILTERS = ["전체", "상의", "하의", "신발", "아우터", "액세서리", REVIEW_FILTER];
+const ARCHIVED_FILTER = "보관 중";
+const CLOSET_FILTERS = [
+    "전체",
+    "상의",
+    "하의",
+    "신발",
+    "아우터",
+    "액세서리",
+    REVIEW_FILTER,
+    ARCHIVED_FILTER,
+];
 const SCREEN_HORIZONTAL_PADDING = 18;
 const GRID_GAP = 12;
 const GRID_COLUMN_COUNT = 3;
@@ -87,6 +97,8 @@ export default function ClosetScreen() {
         ? items
         : selectedCategory === REVIEW_FILTER
             ? items.filter((item) => getClosetItemReviewFields(item).length > 0)
+            : selectedCategory === ARCHIVED_FILTER
+                ? items.filter((item) => item.isArchived === true)
             : items.filter((item) => item.category === selectedCategory);
     const detailFilters = [
         "전체",
@@ -191,6 +203,7 @@ export default function ClosetScreen() {
 
                         {selectedCategory !== "전체" &&
                         selectedCategory !== REVIEW_FILTER &&
+                        selectedCategory !== ARCHIVED_FILTER &&
                         detailFilters.length > 1 ? (
                             <ScrollView
                                 horizontal
@@ -228,6 +241,8 @@ export default function ClosetScreen() {
                                 ? `전체 ${items.length}개`
                                 : selectedCategory === REVIEW_FILTER
                                     ? `${REVIEW_FILTER} ${filteredItems.length}개`
+                                : selectedCategory === ARCHIVED_FILTER
+                                    ? `${ARCHIVED_FILTER} ${filteredItems.length}개`
                                 : selectedDetailCategory === "전체"
                                     ? `${selectedCategory} ${filteredItems.length}개`
                                     : `${selectedDetailCategory} ${filteredItems.length}개`}
@@ -240,6 +255,16 @@ export default function ClosetScreen() {
                                     <Text style={styles.reviewCompleteTitle}>확인할 옷이 없어요</Text>
                                     <Text style={styles.reviewCompleteText}>
                                         종류, 색상, 계절 정보가 모두 추천에 사용할 수 있는 상태예요.
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : selectedCategory === ARCHIVED_FILTER && filteredItems.length === 0 ? (
+                            <View style={styles.reviewCompleteCard}>
+                                <Feather name="archive" size={20} color={colors.point} />
+                                <View style={styles.reviewCompleteTextBox}>
+                                    <Text style={styles.reviewCompleteTitle}>보관 중인 옷이 없어요</Text>
+                                    <Text style={styles.reviewCompleteText}>
+                                        상세 화면에서 잠시 쉬고 싶은 옷을 추천 대상에서 제외할 수 있어요.
                                     </Text>
                                 </View>
                             </View>
@@ -261,9 +286,18 @@ export default function ClosetScreen() {
                                             <View style={styles.imageBox}>
                                                 <ClosetItemImage
                                                     item={item}
-                                                    style={styles.closetImage}
+                                                    style={[
+                                                        styles.closetImage,
+                                                        item.isArchived && styles.closetImageArchived,
+                                                    ]}
                                                     contentFit="contain"
                                                 />
+                                                {item.isArchived ? (
+                                                    <View style={styles.archivedBadge}>
+                                                        <Feather name="archive" size={10} color={colors.point} />
+                                                        <Text style={styles.archivedBadgeText}>보관 중</Text>
+                                                    </View>
+                                                ) : null}
                                                 {reviewLabel ? (
                                                     <Pressable
                                                         accessibilityRole="button"
@@ -506,6 +540,30 @@ const styles = StyleSheet.create({
     closetImage: {
         width: "100%",
         height: "100%",
+    },
+    closetImageArchived: {
+        opacity: 0.58,
+    },
+    archivedBadge: {
+        position: "absolute",
+        right: 7,
+        bottom: 7,
+        minHeight: 24,
+        borderRadius: 999,
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.border,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingVertical: 4,
+        paddingHorizontal: 7,
+    },
+    archivedBadgeText: {
+        color: colors.point,
+        fontSize: 9,
+        lineHeight: 12,
+        fontWeight: "800",
     },
     infoReviewBadge: {
         position: "absolute",

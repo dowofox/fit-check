@@ -32,6 +32,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const {
+  getShoeRecommendationsForOutfit,
   getOutfitRecommendationResult,
   MIN_DISPLAY_RECOMMENDATION_SCORE,
 } = require("../utils/outfitRecommend.ts");
@@ -51,6 +52,7 @@ const {
   getSavedOutfitItemIds,
   toRecommendationInputItems,
 } = require("../utils/recommendationInput.ts");
+const { getRecommendedShoppingItems } = require("../utils/shoppingRecommend.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
 
@@ -1364,4 +1366,69 @@ test("옷 삭제 전 해당 아이템을 사용하는 저장 코디 수를 계�
 
   assert.equal(getSavedOutfitUsageCount(savedOutfits, "top"), 2);
   assert.equal(getSavedOutfitUsageCount(savedOutfits, "missing"), 0);
+});
+
+test("보관 중인 옷은 옷장 데이터에 남아도 새 추천 입력에서는 제외한다", () => {
+  const wardrobe = createWardrobe();
+  const archivedTop = { ...wardrobe[0], isArchived: true };
+  const closetWithArchivedTop = [archivedTop, ...wardrobe.slice(1)];
+  const recommendationInputs = toRecommendationInputItems(closetWithArchivedTop);
+
+  assert.equal(
+    recommendationInputs.some((item) => item.id === archivedTop.id),
+    false
+  );
+
+  const directResult = getOutfitRecommendationResult(
+    closetWithArchivedTop,
+    null,
+    "여름"
+  );
+
+  assert.ok(
+    directResult.recommendations.every((recommendation) =>
+      recommendation.items.every((item) => item.id !== archivedTop.id)
+    )
+  );
+});
+
+test("보관 중인 신발은 새 신발 후보에서 제외하되 저장 코디의 현재 신발은 유지한다", () => {
+  const wardrobe = createWardrobe();
+  const currentShoe = { ...wardrobe.find((item) => item.category === "신발"), isArchived: true };
+  const otherArchivedShoe = createItem("archived-shoe", "신발", {
+    isArchived: true,
+  });
+  const outfitItems = [
+    wardrobe.find((item) => item.category === "상의"),
+    wardrobe.find((item) => item.category === "하의"),
+    currentShoe,
+  ].filter(Boolean);
+  const shoeResult = getShoeRecommendationsForOutfit(
+    outfitItems,
+    [...wardrobe.filter((item) => item.id !== currentShoe.id), currentShoe, otherArchivedShoe],
+    "여름"
+  );
+
+  assert.ok(shoeResult.currentShoes.some((result) => result.shoe.id === currentShoe.id));
+  assert.equal(
+    shoeResult.recommendations.some((result) => result.shoe.id === otherArchivedShoe.id),
+    false
+  );
+});
+
+test("보관 중인 옷은 부족한 아이템 추천의 보유 수에서도 제외한다", () => {
+  const activeTop = createItem("active-top", "상의");
+  const archivedBottom = createItem("archived-bottom", "하의", {
+    isArchived: true,
+  });
+  const shoppingRecommendations = getRecommendedShoppingItems([
+    activeTop,
+    archivedBottom,
+  ]);
+
+  assert.ok(
+    shoppingRecommendations.some(
+      (recommendation) => recommendation.title === "첫 데일리 하의"
+    )
+  );
 });
