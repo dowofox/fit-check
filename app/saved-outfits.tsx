@@ -63,11 +63,13 @@ function WearHistorySection({
   savedOutfits,
   closetItems,
   onDelete,
+  isMutationPending,
 }: {
   records: OutfitWearRecord[];
   savedOutfits: SavedOutfitWithItems[];
   closetItems: ClosetItem[];
   onDelete: (record: OutfitWearRecord) => void;
+  isMutationPending: boolean;
 }) {
   if (records.length === 0) return null;
 
@@ -124,9 +126,14 @@ function WearHistorySection({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${recordTitle} 착용 기록 취소`}
+              accessibilityState={{ disabled: isMutationPending }}
               hitSlop={8}
-              style={styles.cancelWearButton}
+              style={[
+                styles.cancelWearButton,
+                isMutationPending && styles.mutationButtonDisabled,
+              ]}
               onPress={() => onDelete(record)}
+              disabled={isMutationPending}
             >
               <Text style={styles.cancelWearButtonText}>기록 취소</Text>
             </Pressable>
@@ -144,13 +151,15 @@ function SavedOutfitCard({
   onWear,
   isWornToday,
   allClosetItems,
+  isMutationPending,
 }: {
   outfit: SavedOutfitWithItems;
   onDelete: (id: string) => void;
-  onUpdate: (id: string, name: string, memo: string) => void;
+  onUpdate: (id: string, name: string, memo: string) => Promise<boolean>;
   onWear: (outfit: SavedOutfitWithItems) => void;
   isWornToday: boolean;
   allClosetItems: ClosetItem[];
+  isMutationPending: boolean;
 }) {
   const outfitName = outfit.name || getDefaultOutfitName(outfit.createdAt);
   const outfitMemo = outfit.memo || "";
@@ -165,12 +174,12 @@ function SavedOutfitCard({
     setIsEditing(false);
   }
 
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     const nextName = nameInput.trim() || outfitName;
     const nextMemo = memoInput.trim();
 
-    onUpdate(outfit.id, nextName, nextMemo);
-    setIsEditing(false);
+    const didSave = await onUpdate(outfit.id, nextName, nextMemo);
+    if (didSave) setIsEditing(false);
   }
 
   return (
@@ -223,10 +232,24 @@ function SavedOutfitCard({
           />
 
           <View style={styles.editButtonRow}>
-            <Pressable style={styles.cancelEditButton} onPress={handleCancelEdit}>
+            <Pressable
+              style={[
+                styles.cancelEditButton,
+                isMutationPending && styles.mutationButtonDisabled,
+              ]}
+              onPress={handleCancelEdit}
+              disabled={isMutationPending}
+            >
               <Text style={styles.cancelEditButtonText}>취소</Text>
             </Pressable>
-            <Pressable style={styles.saveEditButton} onPress={handleSaveEdit}>
+            <Pressable
+              style={[
+                styles.saveEditButton,
+                isMutationPending && styles.mutationButtonDisabled,
+              ]}
+              onPress={() => void handleSaveEdit()}
+              disabled={isMutationPending}
+            >
               <Text style={styles.saveEditButtonText}>저장</Text>
             </Pressable>
           </View>
@@ -370,12 +393,13 @@ function SavedOutfitCard({
       {outfit.missingItemIds.length === 0 ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: isWornToday }}
+          accessibilityState={{ disabled: isWornToday || isMutationPending }}
           style={[
             styles.wearButton,
             isWornToday && styles.wearButtonRecorded,
+            isMutationPending && styles.mutationButtonDisabled,
           ]}
-          disabled={isWornToday}
+          disabled={isWornToday || isMutationPending}
           onPress={() => onWear(outfit)}
         >
           <Feather
@@ -396,8 +420,12 @@ function SavedOutfitCard({
 
       {!isEditing && (
         <Pressable
-          style={styles.editButton}
+          style={[
+            styles.editButton,
+            isMutationPending && styles.mutationButtonDisabled,
+          ]}
           onPress={() => setIsEditing(true)}
+          disabled={isMutationPending}
         >
           <Feather name="edit-3" size={17} color="#111" />
           <Text style={styles.editButtonText}>이름/메모 수정</Text>
@@ -405,8 +433,12 @@ function SavedOutfitCard({
       )}
 
       <Pressable
-        style={styles.deleteButton}
+        style={[
+          styles.deleteButton,
+          isMutationPending && styles.mutationButtonDisabled,
+        ]}
         onPress={() => onDelete(outfit.id)}
+        disabled={isMutationPending}
       >
         <Feather name="trash-2" size={17} color="#991b1b" />
         <Text style={styles.deleteButtonText}>삭제</Text>
@@ -421,7 +453,9 @@ export default function SavedOutfitsScreen() {
   const [wearRecords, setWearRecords] = useState<OutfitWearRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasLoadError, setHasLoadError] = useState(false);
+  const [isMutationPending, setIsMutationPending] = useState(false);
   const savedOutfitsLoadRequestRef = useRef(0);
+  const mutationPendingRef = useRef(false);
 
   const loadSavedOutfits = useCallback(async () => {
     const requestId = savedOutfitsLoadRequestRef.current + 1;
@@ -456,6 +490,20 @@ export default function SavedOutfitsScreen() {
     savedOutfitsLoadRequestRef.current += 1;
   }
 
+  function beginMutation() {
+    if (mutationPendingRef.current) return false;
+
+    mutationPendingRef.current = true;
+    setIsMutationPending(true);
+    invalidateSavedOutfitsLoad();
+    return true;
+  }
+
+  function finishMutation() {
+    mutationPendingRef.current = false;
+    setIsMutationPending(false);
+  }
+
   async function refreshClosetMatches(updatedOutfits?: SavedOutfit[]) {
     const closetResult = await getClosetItemsLoadResult();
 
@@ -478,84 +526,109 @@ export default function SavedOutfitsScreen() {
   }
 
   function handleDeleteOutfit(id: string) {
+    if (mutationPendingRef.current) return;
+
     Alert.alert("저장한 코디를 삭제할까요?", "삭제하면 저장 목록에서 사라져요.", [
       { text: "취소", style: "cancel" },
       {
         text: "삭제",
         style: "destructive",
         onPress: async () => {
-          invalidateSavedOutfitsLoad();
-          const updatedOutfits = await deleteSavedOutfit(id);
-          if (!updatedOutfits) {
-            Alert.alert("삭제 실패", "저장한 코디를 삭제하지 못했어요. 다시 시도해주세요.");
-            return;
-          }
+          if (!beginMutation()) return;
 
-          await refreshClosetMatches(updatedOutfits);
+          try {
+            const updatedOutfits = await deleteSavedOutfit(id);
+            if (!updatedOutfits) {
+              Alert.alert("삭제 실패", "저장한 코디를 삭제하지 못했어요. 다시 시도해주세요.");
+              return;
+            }
+
+            await refreshClosetMatches(updatedOutfits);
+          } finally {
+            finishMutation();
+          }
         },
       },
     ]);
   }
 
   async function handleUpdateOutfit(id: string, name: string, memo: string) {
-    invalidateSavedOutfitsLoad();
-    const updatedOutfits = await updateSavedOutfit(id, { name, memo });
-    if (!updatedOutfits) {
-      Alert.alert("수정 실패", "코디 이름과 메모를 저장하지 못했어요. 다시 시도해주세요.");
-      return;
-    }
+    if (!beginMutation()) return false;
 
-    await refreshClosetMatches(updatedOutfits);
+    try {
+      const updatedOutfits = await updateSavedOutfit(id, { name, memo });
+      if (!updatedOutfits) {
+        Alert.alert("수정 실패", "코디 이름과 메모를 저장하지 못했어요. 다시 시도해주세요.");
+        return false;
+      }
+
+      await refreshClosetMatches(updatedOutfits);
+      return true;
+    } finally {
+      finishMutation();
+    }
   }
 
   async function handleWearOutfit(outfit: SavedOutfitWithItems) {
-    invalidateSavedOutfitsLoad();
-    const result = await recordSavedOutfitWear(outfit);
+    if (!beginMutation()) return;
 
-    if (result.status === "already_recorded") {
+    try {
+      const result = await recordSavedOutfitWear(outfit);
+
+      if (result.status === "already_recorded") {
+        setWearRecords(result.records);
+        Alert.alert("오늘 이미 기록했어요", "같은 코디는 하루에 한 번만 기록할 수 있어요.");
+        return;
+      }
+
+      if (result.status === "missing_items") {
+        Alert.alert("기록할 수 없어요", "옷장에서 삭제된 아이템이 있는 코디예요.");
+        return;
+      }
+
+      if (result.status === "failed") {
+        Alert.alert("기록 실패", "착용 기록을 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      await refreshClosetMatches();
       setWearRecords(result.records);
-      Alert.alert("오늘 이미 기록했어요", "같은 코디는 하루에 한 번만 기록할 수 있어요.");
-      return;
+      Alert.alert("기록했어요", "오늘 입은 코디로 기록했어요.");
+    } finally {
+      finishMutation();
     }
-
-    if (result.status === "missing_items") {
-      Alert.alert("기록할 수 없어요", "옷장에서 삭제된 아이템이 있는 코디예요.");
-      return;
-    }
-
-    if (result.status === "failed") {
-      Alert.alert("기록 실패", "착용 기록을 저장하지 못했어요. 다시 시도해주세요.");
-      return;
-    }
-
-    await refreshClosetMatches();
-    setWearRecords(result.records);
-    Alert.alert("기록했어요", "오늘 입은 코디로 기록했어요.");
   }
 
   function handleDeleteWearRecord(record: OutfitWearRecord) {
+    if (mutationPendingRef.current) return;
+
     Alert.alert("착용 기록을 취소할까요?", "추천에 반영된 회전율도 함께 되돌려요.", [
       { text: "유지", style: "cancel" },
       {
         text: "기록 취소",
         style: "destructive",
         onPress: async () => {
-          invalidateSavedOutfitsLoad();
-          const result = await deleteOutfitWearRecord(record.id);
+          if (!beginMutation()) return;
 
-          if (result.status === "failed") {
-            Alert.alert("취소 실패", "착용 기록을 취소하지 못했어요. 다시 시도해주세요.");
-            return;
-          }
+          try {
+            const result = await deleteOutfitWearRecord(record.id);
 
-          if (result.status === "not_found") {
+            if (result.status === "failed") {
+              Alert.alert("취소 실패", "착용 기록을 취소하지 못했어요. 다시 시도해주세요.");
+              return;
+            }
+
+            if (result.status === "not_found") {
+              setWearRecords(result.records);
+              Alert.alert("이미 정리된 기록이에요");
+              return;
+            }
+
+            await refreshClosetMatches();
             setWearRecords(result.records);
-            Alert.alert("이미 정리된 기록이에요");
-            return;
+          } finally {
+            finishMutation();
           }
-
-          await refreshClosetMatches();
-          setWearRecords(result.records);
         },
       },
     ]);
@@ -615,6 +688,7 @@ export default function SavedOutfitsScreen() {
           savedOutfits={savedOutfits}
           closetItems={closetItems}
           onDelete={handleDeleteWearRecord}
+          isMutationPending={isMutationPending}
         />
 
         {isLoaded && savedOutfits.length === 0 && !hasLoadError ? (
@@ -645,6 +719,7 @@ export default function SavedOutfitsScreen() {
                 onWear={handleWearOutfit}
                 isWornToday={wasOutfitWornOnDate(wearRecords, outfit.itemIds)}
                 allClosetItems={closetItems}
+                isMutationPending={isMutationPending}
               />
             ))}
           </View>
@@ -1108,6 +1183,9 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 14,
     fontWeight: "900",
+  },
+  mutationButtonDisabled: {
+    opacity: 0.5,
   },
   wearButton: {
     backgroundColor: "#8C6F47",
