@@ -11,7 +11,7 @@ import { getSavedOutfitUsageCount } from "@/utils/savedOutfitIntegrity";
 import {
     ClosetItem,
     deleteClosetItem,
-    getClosetItems,
+    getClosetItemsLoadResult,
     getSavedOutfits,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
@@ -83,6 +83,7 @@ export default function ClosetScreen() {
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOrder, setSortOrder] = useState<ClosetSortOrder>("newest");
+    const [hasLoadError, setHasLoadError] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -97,9 +98,19 @@ export default function ClosetScreen() {
 
     async function loadCloset() {
         const timer = startPerformanceTimer("screen.closet.load");
-        const closetItems = await getClosetItems();
-        setItems(closetItems);
-        endPerformanceTimer(timer, { itemCount: closetItems.length });
+        const result = await getClosetItemsLoadResult();
+
+        if (result.status === "loaded") {
+            setItems(result.items);
+            setHasLoadError(false);
+        } else {
+            setHasLoadError(true);
+        }
+
+        endPerformanceTimer(timer, {
+            itemCount: result.items.length,
+            status: result.status,
+        });
     }
 
     const categoryItems = selectedCategory === "전체"
@@ -212,7 +223,27 @@ export default function ClosetScreen() {
                     </View>
                 ) : null}
 
-                {items.length === 0 ? (
+                {hasLoadError ? (
+                    <View style={styles.loadErrorCard}>
+                        <Feather name="alert-circle" size={20} color={colors.warning} />
+                        <View style={styles.reviewCompleteTextBox}>
+                            <Text style={styles.reviewCompleteTitle}>옷장을 불러오지 못했어요</Text>
+                            <Text style={styles.reviewCompleteText}>
+                                저장된 옷은 그대로 있어요. 잠시 후 다시 시도해주세요.
+                            </Text>
+                        </View>
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="옷장 다시 불러오기"
+                            style={styles.loadErrorAction}
+                            onPress={loadCloset}
+                        >
+                            <Text style={styles.loadErrorActionText}>다시 시도</Text>
+                        </Pressable>
+                    </View>
+                ) : null}
+
+                {items.length === 0 && hasLoadError ? null : items.length === 0 ? (
                     <View style={styles.emptyCard}>
                         <View style={styles.emptyIconCircle}>
                             <Feather name="archive" size={22} color={colors.point} />
@@ -681,6 +712,31 @@ const styles = StyleSheet.create({
         lineHeight: 18,
         fontWeight: "600",
         marginTop: 3,
+    },
+    loadErrorCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 10,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        marginBottom: 14,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.card,
+    },
+    loadErrorAction: {
+        minHeight: 30,
+        justifyContent: "center",
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        backgroundColor: colors.softCard,
+        flexShrink: 0,
+    },
+    loadErrorActionText: {
+        color: colors.point,
+        fontSize: 11,
+        fontWeight: "700",
     },
     closetGrid: {
         flexDirection: "row",

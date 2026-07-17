@@ -388,6 +388,32 @@ function parseStoredClosetItems(rawValue: string | null) {
   return Array.isArray(parsedValue) ? parsedValue.filter(isStoredClosetItem) : [];
 }
 
+export type ClosetItemsLoadResult = {
+  status: "loaded" | "failed";
+  items: ClosetItem[];
+};
+
+function parseStoredClosetItemsLoadResult(
+  rawValue: string | null
+): ClosetItemsLoadResult {
+  if (rawValue === null) return { status: "loaded", items: [] };
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as unknown;
+
+    if (!Array.isArray(parsedValue)) {
+      return { status: "failed", items: [] };
+    }
+
+    return {
+      status: "loaded",
+      items: parsedValue.filter(isStoredClosetItem),
+    };
+  } catch {
+    return { status: "failed", items: [] };
+  }
+}
+
 function parseStoredClosetItemsForMutation(rawValue: string | null) {
   if (!rawValue) return [];
 
@@ -733,24 +759,29 @@ export function saveClosetItem(item: ClosetItem) {
   });
 }
 
-export async function getClosetItems(): Promise<ClosetItem[]> {
+export async function getClosetItemsLoadResult(): Promise<ClosetItemsLoadResult> {
   const timer = startPerformanceTimer("storage.getClosetItems");
 
   try {
     const data = await AsyncStorage.getItem(CLOSET_KEY);
-    const closet = parseStoredClosetItems(data);
+    const result = parseStoredClosetItemsLoadResult(data);
 
     endPerformanceTimer(timer, {
-      itemCount: closet.length,
+      itemCount: result.items.length,
+      status: result.status,
       jsonCharacters: data?.length || 0,
       approximateKilobytes: Number(((data?.length || 0) / 1024).toFixed(1)),
     });
-    return closet;
+    return result;
   } catch (error) {
     endPerformanceTimer(timer, { failed: true });
     console.error("옷장 불러오기 실패:", error);
-    return [];
+    return { status: "failed", items: [] };
   }
+}
+
+export async function getClosetItems(): Promise<ClosetItem[]> {
+  return (await getClosetItemsLoadResult()).items;
 }
 
 export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {

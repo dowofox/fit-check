@@ -93,6 +93,7 @@ const {
   deleteSavedOutfit,
   deleteOutfitWearRecord,
   getClosetItems,
+  getClosetItemsLoadResult,
   getClosetRecommendationIndex,
   getDisplayImageUris,
   getOutfitRecommendationFeedbacks,
@@ -391,6 +392,30 @@ test("closet mutations preserve existing data when the source read fails", async
   assert.equal(closet.length, 1);
   assert.equal(closet[0].id, item.id);
   assert.equal(closet[0].color, item.color);
+});
+
+test("closet reads distinguish storage failures from an empty closet", async () => {
+  const item = createClosetItem("closet-load-result");
+  await saveClosetItem(item);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  let failedResult;
+  try {
+    failNextGetItemKey = CLOSET_KEY;
+    failedResult = await getClosetItemsLoadResult();
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(failedResult, { status: "failed", items: [] });
+  assert.equal((await getClosetItems()).length, 1);
+
+  storageMemory.delete(CLOSET_KEY);
+  assert.deepEqual(await getClosetItemsLoadResult(), {
+    status: "loaded",
+    items: [],
+  });
 });
 
 test("closet mutations do not replace malformed stored data with an empty list", async () => {
