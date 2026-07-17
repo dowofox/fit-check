@@ -620,6 +620,7 @@ export default function AddClothesScreen() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDetailCategory, setSelectedDetailCategory] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
+  const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
   const [manuallyEditedClassificationFields, setManuallyEditedClassificationFields] =
     useState<ProductClassificationField[]>([]);
   const [selectedSize, setSelectedSize] = useState(DEFAULT_SIZE);
@@ -638,6 +639,7 @@ export default function AddClothesScreen() {
     setSelectedCategory("");
     setSelectedDetailCategory("");
     setSelectedColor("");
+    setShowAdditionalInfo(false);
     setManuallyEditedClassificationFields([]);
     setSelectedSize(DEFAULT_SIZE);
   }
@@ -716,6 +718,7 @@ export default function AddClothesScreen() {
     setSelectedStyleTags(normalizeStyleTags(nextAnalysis.styleTags, nextAnalysis.style));
     setHasManuallyEditedStyleTags(false);
     setSelectedSize(DEFAULT_SIZE);
+    setShowAdditionalInfo(false);
   }
 
   async function pickImage() {
@@ -741,6 +744,7 @@ export default function AddClothesScreen() {
       setSelectedCategory("");
       setSelectedDetailCategory("");
       setSelectedColor("");
+      setShowAdditionalInfo(false);
       setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
     }
@@ -773,6 +777,7 @@ export default function AddClothesScreen() {
       setSelectedCategory("");
       setSelectedDetailCategory("");
       setSelectedColor("");
+      setShowAdditionalInfo(false);
       setManuallyEditedClassificationFields([]);
       setSelectedSize(DEFAULT_SIZE);
     }
@@ -1149,6 +1154,34 @@ export default function AddClothesScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
+        {analysis ? (
+          <View style={styles.registrationSourceCard}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.registrationSourceImage} />
+            ) : (
+              <View style={styles.registrationSourceIcon}>
+                <Feather name="edit-3" size={18} color="#8c6f47" />
+              </View>
+            )}
+            <View style={styles.registrationSourceTextWrap}>
+              <Text style={styles.registrationSourceEyebrow}>
+                {analysis.source === "manual"
+                  ? "직접 등록"
+                  : extractedProduct
+                    ? "상품 링크"
+                    : "사진 등록"}
+              </Text>
+              <Text style={styles.registrationSourceTitle} numberOfLines={2}>
+                {extractedProduct?.productName ||
+                  (analysis.source === "manual" ? "직접 입력한 옷" : "선택한 옷 사진")}
+              </Text>
+            </View>
+            <Pressable style={styles.registrationSourceReset} onPress={resetAnalysisState}>
+              <Text style={styles.registrationSourceResetText}>다시 선택</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
         <View style={styles.linkHeroCard}>
           <View style={styles.recommendedBadge}>
             <Feather name="check" size={12} color="#8c6f47" />
@@ -1384,25 +1417,21 @@ export default function AddClothesScreen() {
             )}
           </View>
         )}
+          </>
+        )}
 
         {analysis && (
           <View style={styles.analysisCard}>
             <Text style={styles.analysisTitle}>
               {analysis.source === "manual"
-                ? "직접 등록 정보"
-                : extractedProduct
-                  ? "등록 정보 확인"
-                  : "빠른 등록 정보"}
+                ? "직접 등록"
+                : "등록 정보 확인"}
             </Text>
-            <Text style={styles.analysisText}>
-              {analysis.detailCategory || analysis.subCategory || analysis.category || "옷 종류 분석 전"}
-            </Text>
+            <Text style={styles.analysisText}>저장 전 세 가지만 확인해주세요</Text>
             <Text style={styles.analysisSummaryText}>
               {analysis.source === "manual"
-                ? "사진 없이 저장할 최소 정보예요. 종류, 색상, 계절과 보유 사이즈를 확인해주세요."
-                : extractedProduct
-                ? "공식 상품 정보는 위 미리보기를 기준으로 저장돼요. 아래 종류, 색상, 계절과 보유 사이즈를 확인해주세요."
-                : "사진 등록은 종류, 색상, 계절, 스타일 같은 기본 정보만 빠르게 확인해요. 실측과 공식 소재가 필요하면 상품 링크 등록을 사용해주세요."}
+                ? "옷 종류, 대표 색상, 실제로 입기 좋은 계절이 맞으면 바로 저장할 수 있어요."
+                : "가져온 결과에서 옷 종류, 대표 색상, 계절만 확인하면 돼요."}
             </Text>
 
             {analysis.source === "productFallback" ? (
@@ -1423,7 +1452,7 @@ export default function AddClothesScreen() {
               </View>
             ) : null}
 
-            <Text style={styles.seasonLabel}>카테고리</Text>
+            <Text style={styles.requiredFieldLabel}>1. 옷 종류</Text>
             {analysis.source === "manual" ? (
               <View style={styles.seasonChipRow}>
                 {CATEGORY_OPTIONS.map((category) => {
@@ -1455,21 +1484,7 @@ export default function AddClothesScreen() {
               />
             )}
 
-            <Text style={styles.seasonLabel}>
-              {analysis.source === "manual" ? "상세 종류 (선택)" : "상세 종류"}
-            </Text>
-            <TextInput
-              style={styles.sizeInput}
-              value={selectedDetailCategory}
-              onChangeText={(value) => {
-                setSelectedDetailCategory(value);
-                markClassificationFieldAsEdited("detailCategory");
-              }}
-              placeholder="예: 데님 셔츠, 와이드 슬랙스"
-              placeholderTextColor="#777064"
-            />
-
-            <Text style={styles.seasonLabel}>색상</Text>
+            <Text style={styles.requiredFieldLabel}>2. 대표 색상</Text>
             <TextInput
               style={styles.sizeInput}
               value={selectedColor}
@@ -1481,34 +1496,7 @@ export default function AddClothesScreen() {
               placeholderTextColor="#777064"
             />
 
-            {analysis.source !== "manual" ? (
-              <>
-                <Text style={styles.seasonLabel}>스타일 태그</Text>
-                <View style={styles.seasonChipRow}>
-                  {STYLE_TAG_OPTIONS.map((tag) => {
-                    const isActive = selectedStyleTags.includes(tag);
-
-                    return (
-                      <Pressable
-                        key={tag}
-                        style={[styles.seasonChip, isActive && styles.seasonChipActive]}
-                        onPress={() => {
-                          setHasManuallyEditedStyleTags(true);
-                          setSelectedStyleTags((currentTags) => toggleStyleTag(currentTags, tag));
-                        }}
-                      >
-                        <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
-                          {tag}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Text style={styles.analysisHint}>최대 3개까지 선택할 수 있어요.</Text>
-              </>
-            ) : null}
-
-            <Text style={styles.seasonLabel}>입기 좋은 계절</Text>
+            <Text style={styles.requiredFieldLabel}>3. 입기 좋은 계절</Text>
             {seasonNeedsReview ? (
               <View style={styles.registrationReviewNotice}>
                 <Feather name="alert-circle" size={15} color="#b45309" />
@@ -1549,35 +1537,103 @@ export default function AddClothesScreen() {
               })}
             </View>
 
-            <Text style={styles.seasonLabel}>사이즈</Text>
-            <View style={styles.seasonChipRow}>
-              {sizeOptions.map((size) => {
-                const isActive = selectedSize === size;
+            <Pressable
+              style={styles.additionalInfoToggle}
+              onPress={() => setShowAdditionalInfo((current) => !current)}
+            >
+              <View style={styles.additionalInfoToggleTextWrap}>
+                <Text style={styles.additionalInfoToggleTitle}>추가 정보</Text>
+                <Text style={styles.additionalInfoToggleDescription}>
+                  상세 종류, 스타일 태그, 보유 사이즈
+                </Text>
+              </View>
+              <Feather
+                name={showAdditionalInfo ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#8c6f47"
+              />
+            </Pressable>
 
-                return (
-                  <Pressable
-                    key={size}
-                    style={[styles.seasonChip, isActive && styles.seasonChipActive]}
-                    onPress={() => setSelectedSize(size)}
-                  >
-                    <Text style={[styles.seasonChipText, isActive && styles.seasonChipTextActive]}>
-                      {size}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <TextInput
-              style={styles.sizeInput}
-              value={selectedSize === DEFAULT_SIZE ? "" : selectedSize}
-              onChangeText={(value) => setSelectedSize(value.trim() || DEFAULT_SIZE)}
-              placeholder={DEFAULT_SIZE}
-              placeholderTextColor="#777064"
-            />
+            {showAdditionalInfo ? (
+              <View style={styles.additionalInfoContent}>
+                <Text style={styles.seasonLabel}>상세 종류 (선택)</Text>
+                <TextInput
+                  style={styles.sizeInput}
+                  value={selectedDetailCategory}
+                  onChangeText={(value) => {
+                    setSelectedDetailCategory(value);
+                    markClassificationFieldAsEdited("detailCategory");
+                  }}
+                  placeholder="예: 데님 셔츠, 와이드 슬랙스"
+                  placeholderTextColor="#777064"
+                />
 
-            {analysis.cleanImageBase64 && (
-              <Text style={styles.analysisHint}>배경제거 결과가 있지만 현재는 원본 사진으로 저장돼요.</Text>
-            )}
+                {analysis.source !== "manual" ? (
+                  <>
+                    <Text style={styles.seasonLabel}>스타일 태그</Text>
+                    <View style={styles.seasonChipRow}>
+                      {STYLE_TAG_OPTIONS.map((tag) => {
+                        const isActive = selectedStyleTags.includes(tag);
+
+                        return (
+                          <Pressable
+                            key={tag}
+                            style={[styles.seasonChip, isActive && styles.seasonChipActive]}
+                            onPress={() => {
+                              setHasManuallyEditedStyleTags(true);
+                              setSelectedStyleTags((currentTags) =>
+                                toggleStyleTag(currentTags, tag)
+                              );
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.seasonChipText,
+                                isActive && styles.seasonChipTextActive,
+                              ]}
+                            >
+                              {tag}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Text style={styles.analysisHint}>최대 3개까지 선택할 수 있어요.</Text>
+                  </>
+                ) : null}
+
+                <Text style={styles.seasonLabel}>보유 사이즈 (선택)</Text>
+                <View style={styles.seasonChipRow}>
+                  {sizeOptions.map((size) => {
+                    const isActive = selectedSize === size;
+
+                    return (
+                      <Pressable
+                        key={size}
+                        style={[styles.seasonChip, isActive && styles.seasonChipActive]}
+                        onPress={() => setSelectedSize(size)}
+                      >
+                        <Text
+                          style={[
+                            styles.seasonChipText,
+                            isActive && styles.seasonChipTextActive,
+                          ]}
+                        >
+                          {size}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <TextInput
+                  style={styles.sizeInput}
+                  value={selectedSize === DEFAULT_SIZE ? "" : selectedSize}
+                  onChangeText={(value) => setSelectedSize(value.trim() || DEFAULT_SIZE)}
+                  placeholder={DEFAULT_SIZE}
+                  placeholderTextColor="#777064"
+                />
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -1598,9 +1654,7 @@ export default function AddClothesScreen() {
               <Feather name="save" size={18} color="#fff" />
               <Text style={styles.primaryButtonText}>
                 {analysis
-                  ? analysis.source === "manual"
-                    ? "직접 입력한 옷 저장"
-                    : "선택한 정보로 저장"
+                  ? "옷장에 저장"
                   : extractedProduct
                     ? "상품 이미지 분석하고 등록 정보 확인"
                     : selectedImages.length > 1
@@ -1652,6 +1706,60 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     marginTop: 2,
+  },
+  registrationSourceCard: {
+    minHeight: 78,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    padding: 10,
+  },
+  registrationSourceImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#f4eee7",
+    resizeMode: "cover",
+  },
+  registrationSourceIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#f4eee7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  registrationSourceTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  registrationSourceEyebrow: {
+    color: "#8c6f47",
+    fontSize: 10,
+    fontWeight: "800",
+    marginBottom: 3,
+  },
+  registrationSourceTitle: {
+    color: "#111",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+  registrationSourceReset: {
+    flexShrink: 0,
+    borderRadius: 999,
+    backgroundColor: "#f4eee7",
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+  },
+  registrationSourceResetText: {
+    color: "#8c6f47",
+    fontSize: 11,
+    fontWeight: "800",
   },
   linkHeroCard: {
     backgroundColor: "#fff",
@@ -2138,6 +2246,45 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "600",
     marginBottom: 14,
+  },
+  requiredFieldLabel: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  additionalInfoToggle: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 16,
+    backgroundColor: "#f4eee7",
+    borderWidth: 1,
+    borderColor: "#e8ded2",
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 16,
+  },
+  additionalInfoToggleTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  additionalInfoToggleTitle: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  additionalInfoToggleDescription: {
+    color: "#777064",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  additionalInfoContent: {
+    paddingTop: 10,
   },
   seasonLabel: {
     color: "#111",
