@@ -414,6 +414,17 @@ const SLEEVE_TYPE_KEYWORDS: Record<Exclude<SleeveType, "unknown">, string[]> = {
   long: ["긴팔", "롱슬리브", "롱 슬리브", "long sleeve", "long-sleeve"],
 };
 
+const SHOULDERLESS_CONSTRUCTION_KEYWORDS = [
+  "래글런",
+  "라글란",
+  "라그란",
+  "raglan",
+  "돌먼",
+  "돌만",
+  "dolman",
+  "batwing",
+];
+
 function getSleeveTypeSourceText(item: ClosetItem) {
   return [
     item.detailCategory,
@@ -447,12 +458,27 @@ function getSleeveType(item: ClosetItem): SleeveType {
   return "unknown";
 }
 
+function hasStandardShoulderLine(item: ClosetItem) {
+  const sourceText = getSleeveTypeSourceText(item);
+
+  return (
+    getSleeveType(item) !== "sleeveless" &&
+    !SHOULDERLESS_CONSTRUCTION_KEYWORDS.some((keyword) =>
+      sourceText.includes(keyword.toLowerCase())
+    )
+  );
+}
+
 function shouldCompareUserSleeve(item: ClosetItem) {
-  return isUpperCategory(item) && getSleeveType(item) === "long";
+  return (
+    isUpperCategory(item) &&
+    getSleeveType(item) === "long" &&
+    hasStandardShoulderLine(item)
+  );
 }
 
 function shouldCompareUserShoulder(item: ClosetItem) {
-  return isUpperCategory(item) && getSleeveType(item) !== "sleeveless";
+  return isUpperCategory(item) && hasStandardShoulderLine(item);
 }
 
 function shouldCompareReferenceSleeve(item: ClosetItem, referenceItem?: ClosetItem | null) {
@@ -976,9 +1002,11 @@ export function getMeasurementComparison(
 
   const comparisons: MeasurementComparison[] = [];
   const unavailableFields: string[] = [];
+  const canCompareUserShoulder = shouldCompareUserShoulder(item);
   const canCompareUserSleeve = shouldCompareUserSleeve(item);
 
   COMPARISON_FIELDS.forEach(({ key, productKey, label }) => {
+    if (key === "shoulder" && !canCompareUserShoulder) return;
     if (key === "sleeve" && !canCompareUserSleeve) return;
 
     const userValue = comparableUserMeasurements[key];
@@ -1429,6 +1457,12 @@ function getReferenceComparison(
 
   Object.entries(weights).forEach(([key, weight]) => {
     const measurementKey = key as ReferenceMeasurementKey;
+    if (
+      measurementKey === "shoulder" &&
+      (!shouldCompareUserShoulder(item) || !shouldCompareUserShoulder(referenceItem))
+    ) {
+      return;
+    }
     if (
       measurementKey === "sleeve" &&
       !shouldCompareReferenceSleeve(item, referenceItem)
