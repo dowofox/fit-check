@@ -1265,6 +1265,10 @@ function getReferenceProductMeasurement(referenceItem?: ClosetItem | null) {
   return getCurrentProductMeasurement(referenceItem);
 }
 
+function isComparableReferenceCategory(item: ClosetItem, referenceItem: ClosetItem) {
+  return item.category === referenceItem.category;
+}
+
 function getMeasurementValue(
   measurement: ProductSizeMeasurement,
   key: ReferenceMeasurementKey
@@ -1358,6 +1362,7 @@ function getReferenceComparison(
   if (
     !referenceItem ||
     referenceItem.id === item.id ||
+    !isComparableReferenceCategory(item, referenceItem) ||
     isAccessoryOrBagItem(item) ||
     isAccessoryOrBagItem(referenceItem)
   ) {
