@@ -598,7 +598,7 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
   }
 }
 
-export async function deleteClosetItem(id: string) {
+export async function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
   try {
     const [closet, profile, currentRevisions] = await Promise.all([
       getClosetItems(),
@@ -628,7 +628,7 @@ export async function deleteClosetItem(id: string) {
     return filteredCloset;
   } catch (error) {
     console.error("옷장 삭제 실패:", error);
-    return [];
+    return null;
   }
 }
 

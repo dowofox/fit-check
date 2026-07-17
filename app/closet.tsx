@@ -143,6 +143,11 @@ export default function ClosetScreen() {
                     style: "destructive",
                     onPress: async () => {
                         const updatedItems = await deleteClosetItem(id);
+                        if (!updatedItems) {
+                            Alert.alert("삭제 실패", "옷을 삭제하지 못했어요. 다시 시도해주세요.");
+                            return;
+                        }
+
                         setItems(updatedItems);
                     },
                 },

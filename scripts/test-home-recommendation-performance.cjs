@@ -210,6 +210,23 @@ test("저장 코디 변경 실패는 정상적인 빈 목록과 구분한다", a
   assert.deepEqual(await deleteSavedOutfit(outfit.id), []);
 });
 
+test("옷 삭제 실패는 마지막 옷을 정상 삭제한 빈 목록과 구분한다", async () => {
+  const item = createClosetItem("delete-closet-item");
+  await saveClosetItem(item);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextMultiSet = true;
+    assert.equal(await deleteClosetItem(item.id), null);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal((await getClosetItems()).length, 1);
+  assert.deepEqual(await deleteClosetItem(item.id), []);
+});
+
 test("홈 재진입은 추천 revision이 같을 때만 메모리 데이터를 재사용한다", () => {
   const revisions = {
     version: 1,
