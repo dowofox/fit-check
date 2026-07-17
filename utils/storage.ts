@@ -361,6 +361,22 @@ function parseStoredClosetItems(rawValue: string | null) {
   return Array.isArray(parsedValue) ? parsedValue.filter(isStoredClosetItem) : [];
 }
 
+function parseStoredClosetItemsForMutation(rawValue: string | null) {
+  if (!rawValue) return [];
+
+  const parsedValue = JSON.parse(rawValue) as unknown;
+  if (!Array.isArray(parsedValue) || !parsedValue.every(isStoredClosetItem)) {
+    throw new Error("Stored closet data is invalid");
+  }
+
+  return parsedValue;
+}
+
+async function getClosetItemsForMutation() {
+  const rawCloset = await AsyncStorage.getItem(CLOSET_KEY);
+  return parseStoredClosetItemsForMutation(rawCloset);
+}
+
 function isStoredSavedOutfit(value: unknown): value is SavedOutfit {
   if (!isStoredRecord(value)) return false;
 
@@ -590,7 +606,7 @@ export async function saveClosetItem(item: ClosetItem) {
       AsyncStorage.getItem(CLOSET_KEY),
       getIncrementedRecommendationRevisions(["closetRevision"]),
     ]);
-    const closet = parseStoredClosetItems(existing);
+    const closet = parseStoredClosetItemsForMutation(existing);
 
     closet.unshift(item);
 
@@ -626,7 +642,7 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
 export async function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
   try {
     const [closet, profile, currentRevisions] = await Promise.all([
-      getClosetItems(),
+      getClosetItemsForMutation(),
       getUserProfile(),
       getRecommendationRevisionState(),
     ]);
@@ -660,7 +676,7 @@ export async function deleteClosetItem(id: string): Promise<ClosetItem[] | null>
 export async function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
   try {
     const [closet, revisions] = await Promise.all([
-      getClosetItems(),
+      getClosetItemsForMutation(),
       getIncrementedRecommendationRevisions(["closetRevision"]),
     ]);
     const updatedCloset = closet.map((item) =>
@@ -734,7 +750,7 @@ export async function recordSavedOutfitWear(
     }
 
     const [closet, records, currentRevisions] = await Promise.all([
-      getClosetItems(),
+      getClosetItemsForMutation(),
       getOutfitWearRecords(),
       getRecommendationRevisionState(),
     ]);
@@ -799,7 +815,7 @@ export async function deleteOutfitWearRecord(
 ): Promise<DeleteOutfitWearRecordResult> {
   try {
     const [closet, records, currentRevisions] = await Promise.all([
-      getClosetItems(),
+      getClosetItemsForMutation(),
       getOutfitWearRecords(),
       getRecommendationRevisionState(),
     ]);

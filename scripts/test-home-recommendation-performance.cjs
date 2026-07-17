@@ -9,11 +9,16 @@ const projectRoot = path.resolve(__dirname, "..");
 const storageMemory = new Map();
 const storageReadCounts = new Map();
 let failNextMultiSet = false;
+let failNextGetItemKey = null;
 
 global.__DEV__ = false;
 
 const asyncStorage = {
   async getItem(key) {
+    if (failNextGetItemKey === key) {
+      failNextGetItemKey = null;
+      throw new Error("mock getItem failure");
+    }
     storageReadCounts.set(key, (storageReadCounts.get(key) || 0) + 1);
     return storageMemory.has(key) ? storageMemory.get(key) : null;
   },
@@ -173,6 +178,7 @@ test.beforeEach(() => {
   storageMemory.clear();
   storageReadCounts.clear();
   failNextMultiSet = false;
+  failNextGetItemKey = null;
 });
 
 test("프로필 저장은 실제 저장 성공 여부를 반환한다", async () => {
@@ -242,6 +248,49 @@ test("옷 삭제 실패는 마지막 옷을 정상 삭제한 빈 목록과 구�
 
   assert.equal((await getClosetItems()).length, 1);
   assert.deepEqual(await deleteClosetItem(item.id), []);
+});
+
+test("closet mutations preserve existing data when the source read fails", async () => {
+  const item = createClosetItem("closet-read-failure");
+  await saveClosetItem(item);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextGetItemKey = CLOSET_KEY;
+    assert.deepEqual(await updateClosetItem(item.id, { color: "블랙" }), []);
+
+    failNextGetItemKey = CLOSET_KEY;
+    assert.equal(await deleteClosetItem(item.id), null);
+
+    failNextGetItemKey = CLOSET_KEY;
+    assert.deepEqual(await saveClosetItem(createClosetItem("new-item")), []);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  const closet = await getClosetItems();
+  assert.equal(closet.length, 1);
+  assert.equal(closet[0].id, item.id);
+  assert.equal(closet[0].color, item.color);
+});
+
+test("closet mutations do not replace malformed stored data with an empty list", async () => {
+  const malformedCloset = "{not-valid-json";
+  storageMemory.set(CLOSET_KEY, malformedCloset);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    assert.deepEqual(
+      await updateClosetItem("missing-item", { color: "블랙" }),
+      []
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(storageMemory.get(CLOSET_KEY), malformedCloset);
 });
 
 test("대표 이미지 후보는 배경제거, 상품, 원본 순서로 중복 없이 유지한다", () => {
