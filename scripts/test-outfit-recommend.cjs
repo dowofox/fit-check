@@ -57,11 +57,18 @@ const {
 const {
   getRecommendationDataKey,
   getSavedOutfitItemIds,
+  shouldUseRecommendationWeather,
   toRecommendationInputItems,
 } = require("../utils/recommendationInput.ts");
 const { getRecommendedShoppingItems } = require("../utils/shoppingRecommend.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
+
+test("날씨 추천은 홈에서 이어진 경로에만 적용한다", () => {
+  assert.equal(shouldUseRecommendationWeather("home"), true);
+  assert.equal(shouldUseRecommendationWeather(undefined), false);
+  assert.equal(shouldUseRecommendationWeather("outfit"), false);
+});
 
 function createItem(id, category, overrides = {}) {
   const defaultsByCategory = {

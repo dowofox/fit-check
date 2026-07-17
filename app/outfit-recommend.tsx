@@ -18,6 +18,7 @@ import {
 } from "@/utils/shoppingRecommend";
 import {
   getSavedOutfitItemIds,
+  shouldUseRecommendationWeather,
   toRecommendationInputItems,
 } from "@/utils/recommendationInput";
 import {
@@ -706,10 +707,11 @@ export default function OutfitRecommendScreen() {
     setIsLoaded(false);
 
     const source = sourceParam;
-    const selectedItemIds = source === "home"
+    const useWeather = shouldUseRecommendationWeather(source);
+    const selectedItemIds = useWeather
       ? parseSelectedItemIds(selectedItemIdsParam)
       : [];
-    const paramsWeather = source === "home"
+    const paramsWeather = useWeather
       ? getWeatherFromParams({
           weatherTemperature: weatherTemperatureParam,
           weatherCondition: weatherConditionParam,
@@ -724,7 +726,9 @@ export default function OutfitRecommendScreen() {
     ]);
     const recommendationItems = toRecommendationInputItems(items);
     const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits, items);
-    const weather = await getWeatherForRecommendation(paramsWeather);
+    const weather = useWeather
+      ? await getWeatherForRecommendation(paramsWeather)
+      : undefined;
     const recommendationResult = getOutfitRecommendationResult(
       recommendationItems,
       profile,
