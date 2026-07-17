@@ -10,12 +10,22 @@ import {
   getOutfitRecommendationResult,
 } from "@/utils/outfitRecommend";
 import type {
-  OutfitRecommendation,
-  OutfitRecommendationEmptyReason,
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
+import {
+  areRecommendationWeathersEquivalent,
+  createHomeRecommendationCacheEntry,
+  getHomeRecommendationCacheSnapshot,
+  HOME_RECOMMENDATION_CACHE_VERSION,
+  hydrateHomeRecommendationCacheEntry,
+  saveHomeRecommendationCacheSnapshot,
+  type HomeRecommendationCacheSnapshot,
+  type HomeRecommendationCardData,
+  type HomeRecommendationEmptyState,
+  type HydratedHomeRecommendationCacheEntry,
+} from "@/utils/homeRecommendationCache";
 import {
   endPerformanceTimer,
   logPerformanceMetric,
@@ -55,19 +65,6 @@ const CLOSET_CATEGORIES = [
   { label: "액세서리", Icon: BagIcon },
 ];
 
-type HomeRecommendationCache = {
-  key: string;
-  recommendations: OutfitRecommendation[];
-  emptyState: HomeRecommendationEmptyState;
-  weatherLabel: string | null;
-  weather: OutfitRecommendationWeather | null;
-};
-
-type HomeRecommendationEmptyState = {
-  emptyReason?: OutfitRecommendationEmptyReason;
-  missingCategories?: string[];
-};
-
 function getWeatherKey(weather: OutfitRecommendationWeather) {
   return [
     weather.temperature ?? "",
@@ -80,7 +77,7 @@ function getCategoryCount(categoryCounts: Record<string, number>, category: stri
   return categoryCounts[category] || 0;
 }
 
-function getCoreItems(recommendation: OutfitRecommendation) {
+function getCoreItems(recommendation: HomeRecommendationCardData) {
   const priority = ["아우터", "상의", "하의", "신발"];
 
   return priority
@@ -94,7 +91,7 @@ function getItemShortLabel(item: ClosetItem) {
 }
 
 function getRecommendationRouteParams(
-  recommendation?: OutfitRecommendation,
+  recommendation?: HomeRecommendationCardData,
   weather?: OutfitRecommendationWeather | null
 ) {
   return {
@@ -112,7 +109,7 @@ function RecommendationLookbookCard({
   recommendation,
   weather,
 }: {
-  recommendation: OutfitRecommendation;
+  recommendation: HomeRecommendationCardData;
   weather: OutfitRecommendationWeather | null;
 }) {
   const coreItems = getCoreItems(recommendation);
@@ -187,15 +184,23 @@ export default function HomeScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
-  const [todayRecommendations, setTodayRecommendations] = useState<OutfitRecommendation[]>([]);
+  const [todayRecommendations, setTodayRecommendations] = useState<
+    HomeRecommendationCardData[]
+  >([]);
   const [recommendationEmptyState, setRecommendationEmptyState] =
     useState<HomeRecommendationEmptyState>({});
   const [weatherLabel, setWeatherLabel] = useState<string | null>(null);
   const [currentRecommendationWeather, setCurrentRecommendationWeather] =
     useState<OutfitRecommendationWeather | null>(null);
   const [isRecommendationPreparing, setIsRecommendationPreparing] = useState(true);
-  const initialRecommendationCacheRef = useRef<HomeRecommendationCache | null>(null);
-  const weatherRecommendationCacheRef = useRef<HomeRecommendationCache | null>(null);
+  const initialRecommendationCacheRef =
+    useRef<HydratedHomeRecommendationCacheEntry | null>(null);
+  const weatherRecommendationCacheRef =
+    useRef<HydratedHomeRecommendationCacheEntry | null>(null);
+  const persistentRecommendationCacheRef = useRef<HomeRecommendationCacheSnapshot>({
+    version: HOME_RECOMMENDATION_CACHE_VERSION,
+  });
+  const persistentCacheWriteRef = useRef<Promise<void>>(Promise.resolve());
   const recommendationExecutionCountRef = useRef({ initial: 0, weather: 0 });
 
   useFocusEffect(
@@ -224,7 +229,9 @@ export default function HomeScreen() {
         endPerformanceTimer(screenTimer, details);
       }
 
-      function applyCachedRecommendation(cache: HomeRecommendationCache) {
+      function applyCachedRecommendation(
+        cache: HydratedHomeRecommendationCacheEntry
+      ) {
         if (!isActive) return;
 
         setTodayRecommendations(cache.recommendations);
@@ -234,12 +241,50 @@ export default function HomeScreen() {
         setIsRecommendationPreparing(false);
       }
 
-      function restoreCachedRecommendation(dataKey: string) {
+      function restoreCachedRecommendation(
+        dataKey: string,
+        persistentSnapshot: HomeRecommendationCacheSnapshot | null,
+        items: ClosetItem[]
+      ) {
         const restoreTimer = startPerformanceTimer(
           "home.cached-recommendation-restore"
         );
-        const weatherCache = weatherRecommendationCacheRef.current;
-        const initialCache = initialRecommendationCacheRef.current;
+        const persistedWeatherCache = hydrateHomeRecommendationCacheEntry(
+          persistentSnapshot?.weather,
+          items,
+          dataKey
+        );
+        const persistedInitialCache = hydrateHomeRecommendationCacheEntry(
+          persistentSnapshot?.initial,
+          items,
+          dataKey
+        );
+        const memoryWeatherCache = isHomeRecommendationCacheKeyForRevision(
+          weatherRecommendationCacheRef.current?.key,
+          dataKey
+        )
+          ? weatherRecommendationCacheRef.current
+          : null;
+        const memoryInitialCache = isHomeRecommendationCacheKeyForRevision(
+          initialRecommendationCacheRef.current?.key,
+          dataKey
+        )
+          ? initialRecommendationCacheRef.current
+          : null;
+        const weatherCache = memoryWeatherCache || persistedWeatherCache;
+        const initialCache = memoryInitialCache || persistedInitialCache;
+
+        weatherRecommendationCacheRef.current = weatherCache;
+        initialRecommendationCacheRef.current = initialCache;
+        persistentRecommendationCacheRef.current = {
+          version: HOME_RECOMMENDATION_CACHE_VERSION,
+          ...(persistedInitialCache && persistentSnapshot?.initial
+            ? { initial: persistentSnapshot.initial }
+            : {}),
+          ...(persistedWeatherCache && persistentSnapshot?.weather
+            ? { weather: persistentSnapshot.weather }
+            : {}),
+        };
         const cachedResult = isHomeRecommendationCacheKeyForRevision(
           weatherCache?.key,
           dataKey
@@ -252,7 +297,9 @@ export default function HomeScreen() {
           ? null
           : weatherCache || initialCache
             ? "revision_changed"
-            : "memory_cache_empty";
+            : persistentSnapshot
+              ? "persistent_cache_invalid"
+              : "cache_empty";
 
         if (cachedResult) {
           applyCachedRecommendation(cachedResult);
@@ -264,10 +311,37 @@ export default function HomeScreen() {
           recommendationExecutionCount:
             recommendationExecutionCountRef.current.initial +
             recommendationExecutionCountRef.current.weather,
-          weatherSource: cachedResult?.weather ? "memory_weather" : "none",
+          weatherSource: cachedResult?.weather
+            ? memoryWeatherCache === cachedResult
+              ? "memory_weather"
+              : "persistent_weather"
+            : "none",
         });
 
         return Boolean(cachedResult);
+      }
+
+      function persistRecommendationCache(
+        kind: "initial" | "weather",
+        cache: HydratedHomeRecommendationCacheEntry
+      ) {
+        const persistedEntry = createHomeRecommendationCacheEntry(
+          cache.key,
+          cache.recommendations,
+          cache.emptyState,
+          cache.weatherLabel,
+          cache.weather
+        );
+        const nextSnapshot = {
+          ...persistentRecommendationCacheRef.current,
+          version: HOME_RECOMMENDATION_CACHE_VERSION,
+          [kind]: persistedEntry,
+        };
+
+        persistentRecommendationCacheRef.current = nextSnapshot;
+        persistentCacheWriteRef.current = persistentCacheWriteRef.current.then(() =>
+          saveHomeRecommendationCacheSnapshot(nextSnapshot)
+        );
       }
 
       function applyRecommendation(
@@ -285,10 +359,16 @@ export default function HomeScreen() {
           : initialRecommendationCacheRef;
         const cacheKey = weather ? `${dataKey}|${getWeatherKey(weather)}` : dataKey;
         const cachedResult = cacheRef.current;
+        const hasEquivalentWeatherCache = Boolean(
+          weather &&
+            cachedResult?.weather &&
+            isHomeRecommendationCacheKeyForRevision(cachedResult.key, dataKey) &&
+            areRecommendationWeathersEquivalent(cachedResult.weather, weather)
+        );
 
-        if (cachedResult?.key === cacheKey) {
+        if (cachedResult?.key === cacheKey || hasEquivalentWeatherCache) {
           logPerformanceMetric(`home.${kind}-outfit-recommendation.skipped`, {
-            reason: "same input",
+            reason: hasEquivalentWeatherCache ? "equivalent weather" : "same input",
             recommendationExecutionCount:
               recommendationExecutionCountRef.current[kind],
             cacheHit: true,
@@ -310,19 +390,28 @@ export default function HomeScreen() {
           { weather, feedbacks }
         );
         const recommendations = recommendationResult.recommendations.slice(0, 5);
+        const cardRecommendations = recommendations.map((recommendation) => ({
+          id: recommendation.id,
+          items: recommendation.items,
+          title: recommendation.title,
+          tags: recommendation.tags,
+          reasons: recommendation.reasons,
+        }));
         const nextWeatherLabel = formatWeatherRecommendationLabel(weather);
         const emptyState = {
           emptyReason: recommendationResult.emptyReason,
           missingCategories: recommendationResult.missingCategories,
         };
 
-        cacheRef.current = {
+        const nextCache: HydratedHomeRecommendationCacheEntry = {
           key: cacheKey,
-          recommendations,
+          recommendations: cardRecommendations,
           emptyState,
           weatherLabel: nextWeatherLabel,
           weather,
         };
+        cacheRef.current = nextCache;
+        persistRecommendationCache(kind, nextCache);
         endPerformanceTimer(recommendationTimer, {
           itemCount: items.length,
           recommendationCount: recommendationResult.recommendations.length,
@@ -334,7 +423,7 @@ export default function HomeScreen() {
 
         if (!isActive) return true;
 
-        setTodayRecommendations(recommendations);
+        setTodayRecommendations(cardRecommendations);
         setRecommendationEmptyState(emptyState);
         setWeatherLabel(nextWeatherLabel);
         setCurrentRecommendationWeather(weather);
@@ -427,7 +516,13 @@ export default function HomeScreen() {
       async function loadDashboard() {
         try {
           const baseDataTimer = startPerformanceTimer("screen.home.base-data");
-          const [indexLoad, nextSavedOutfits, nextProfile, feedbacks] = await Promise.all([
+          const [
+            indexLoad,
+            nextSavedOutfits,
+            nextProfile,
+            feedbacks,
+            recommendationCacheSnapshot,
+          ] = await Promise.all([
             (async () => {
               const timer = startPerformanceTimer("home.storage.closet-load");
               const result = await getClosetRecommendationIndex();
@@ -467,6 +562,17 @@ export default function HomeScreen() {
               endPerformanceTimer(timer, {
                 itemCount: result.length,
                 serializedCharacters: JSON.stringify(result).length,
+              });
+              return result;
+            })(),
+            (async () => {
+              const timer = startPerformanceTimer(
+                "home.storage.recommendation-cache-load"
+              );
+              const result = await getHomeRecommendationCacheSnapshot();
+              endPerformanceTimer(timer, {
+                cacheHit: Boolean(result?.initial || result?.weather),
+                cacheMissReason: result ? null : "persistent_cache_empty",
               });
               return result;
             })(),
@@ -516,7 +622,11 @@ export default function HomeScreen() {
           setClosetItems(recommendationItems);
           setCategoryCounts(indexLoad.index.categoryCounts);
           setSavedOutfits(nextSavedOutfits);
-          const cacheRestored = restoreCachedRecommendation(dataKey);
+          const cacheRestored = restoreCachedRecommendation(
+            dataKey,
+            recommendationCacheSnapshot,
+            recommendationItems
+          );
 
           if (!cacheRestored) {
             setTodayRecommendations([]);

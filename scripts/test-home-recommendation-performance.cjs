@@ -66,6 +66,15 @@ const {
   RECOMMENDATION_REVISIONS_STORAGE_KEY,
 } = require("../utils/homeRecommendationIndex.ts");
 const {
+  areRecommendationWeathersEquivalent,
+  createHomeRecommendationCacheEntry,
+  getHomeRecommendationCacheSnapshot,
+  HOME_RECOMMENDATION_CACHE_STORAGE_KEY,
+  HOME_RECOMMENDATION_CACHE_VERSION,
+  hydrateHomeRecommendationCacheEntry,
+  saveHomeRecommendationCacheSnapshot,
+} = require("../utils/homeRecommendationCache.ts");
+const {
   deleteClosetItem,
   deleteOutfitWearRecord,
   getClosetItems,
@@ -376,4 +385,119 @@ test("revision 키는 전체 추천 입력 직렬화보다 작고 동일 입력 
     previousRecommendationKey: previousDataKey.length,
     revisionKey: revisionKey.length,
   });
+});
+
+test("홈 추천 영구 캐시는 아이템 ID로 복원하고 stale·삭제 아이템 캐시를 거부한다", async () => {
+  const items = [
+    createClosetItem("cached-top"),
+    createClosetItem("cached-bottom", {
+      category: "하의",
+      subCategory: "팬츠",
+      detailCategory: "슬랙스",
+    }),
+  ];
+  const revisions = {
+    version: 1,
+    closetRevision: 2,
+    profileRevision: 1,
+    savedOutfitRevision: 1,
+    feedbackRevision: 0,
+  };
+  const revisionKey = getRecommendationRevisionKey(revisions);
+  const weather = { temperature: 27, condition: "맑음", rainChance: 10 };
+  const recommendation = {
+    id: "cached-outfit",
+    items,
+    title: "캐시 코디",
+    tags: ["데일리"],
+    reasons: ["가벼운 날씨에 잘 맞아요."],
+  };
+  const weatherEntry = createHomeRecommendationCacheEntry(
+    `${revisionKey}|27|맑음|10`,
+    [recommendation],
+    {},
+    "오늘 27도 · 맑음 기준 추천",
+    weather
+  );
+
+  await saveHomeRecommendationCacheSnapshot({
+    version: HOME_RECOMMENDATION_CACHE_VERSION,
+    weather: weatherEntry,
+  });
+
+  const storedJson = storageMemory.get(HOME_RECOMMENDATION_CACHE_STORAGE_KEY);
+  const restoredSnapshot = await getHomeRecommendationCacheSnapshot();
+  const hydrated = hydrateHomeRecommendationCacheEntry(
+    restoredSnapshot?.weather,
+    items,
+    revisionKey
+  );
+
+  assert.ok(storedJson);
+  assert.equal(storedJson.includes("productSizeGuide"), false);
+  assert.equal(storedJson.includes("productImageUrl"), false);
+  assert.deepEqual(
+    hydrated?.recommendations[0].items.map((item) => item.id),
+    ["cached-top", "cached-bottom"]
+  );
+  assert.equal(
+    hydrateHomeRecommendationCacheEntry(
+      restoredSnapshot?.weather,
+      items,
+      getRecommendationRevisionKey({ ...revisions, closetRevision: 3 })
+    ),
+    null
+  );
+  assert.equal(
+    hydrateHomeRecommendationCacheEntry(
+      restoredSnapshot?.weather,
+      items.slice(0, 1),
+      revisionKey
+    ),
+    null
+  );
+});
+
+test("의미가 같은 날씨는 홈 추천을 다시 계산하지 않아도 된다", () => {
+  const cachedWeather = { temperature: 27, condition: "맑음", rainChance: 10 };
+
+  assert.equal(
+    areRecommendationWeathersEquivalent(cachedWeather, {
+      temperature: 28.5,
+      condition: "대체로 맑음",
+      rainChance: 25,
+    }),
+    true
+  );
+  assert.equal(
+    areRecommendationWeathersEquivalent(cachedWeather, {
+      temperature: 29,
+      condition: "맑음",
+      rainChance: 10,
+    }),
+    false
+  );
+  assert.equal(
+    areRecommendationWeathersEquivalent(cachedWeather, {
+      temperature: 27,
+      condition: "비",
+      rainChance: 10,
+    }),
+    false
+  );
+  assert.equal(
+    areRecommendationWeathersEquivalent(cachedWeather, {
+      temperature: 27,
+      condition: "맑음",
+      rainChance: 30,
+    }),
+    false
+  );
+  assert.equal(
+    areRecommendationWeathersEquivalent(cachedWeather, {
+      condition: "맑음",
+      rainChance: 10,
+    }),
+    false
+  );
 });
