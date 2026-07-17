@@ -20,7 +20,7 @@ import {
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -111,6 +111,8 @@ export default function ProfileScreen() {
   const [hasProfileLoadError, setHasProfileLoadError] = useState(false);
   const isProfileDataOperationInProgress =
     isCreatingBackup || isRestoringBackup || isSavingProfile;
+  const isDataManagementDisabled = !isProfileReady || isProfileDataOperationInProgress;
+  const profileLoadRequestRef = useRef(0);
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
   const profileMeasurementInputs = {
     height,
@@ -126,12 +128,16 @@ export default function ProfileScreen() {
   const measurementCount = countValidProfileMeasurements(profileMeasurementInputs, ["height"]);
 
   const loadProfile = useCallback(async () => {
+    const requestId = profileLoadRequestRef.current + 1;
+    profileLoadRequestRef.current = requestId;
     setIsProfileReady(false);
     setHasProfileLoadError(false);
     const [profileResult, closetResult] = await Promise.all([
       getUserProfileLoadResult(),
       getClosetItemsLoadResult(),
     ]);
+
+    if (requestId !== profileLoadRequestRef.current) return;
 
     if (profileResult.status === "failed" || closetResult.status === "failed") {
       setHasProfileLoadError(true);
@@ -180,6 +186,7 @@ export default function ProfileScreen() {
           ...profile,
           referenceClothing: validReferenceClothing,
         });
+        if (requestId !== profileLoadRequestRef.current) return;
       }
       setIsProfileReady(true);
       return;
@@ -208,11 +215,14 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadProfile();
+      return () => {
+        profileLoadRequestRef.current += 1;
+      };
     }, [loadProfile])
   );
 
   const handleCreateBackup = async () => {
-    if (isProfileDataOperationInProgress) return;
+    if (isDataManagementDisabled) return;
 
     setIsCreatingBackup(true);
     try {
@@ -230,6 +240,7 @@ export default function ProfileScreen() {
   };
 
   const confirmRestoreBackup = async (payload: NaesBackupPayload) => {
+    profileLoadRequestRef.current += 1;
     setIsRestoringBackup(true);
     try {
       await restoreNaesBackup(payload);
@@ -244,7 +255,7 @@ export default function ProfileScreen() {
   };
 
   const handlePickBackup = async () => {
-    if (isProfileDataOperationInProgress) return;
+    if (isDataManagementDisabled) return;
 
     setIsRestoringBackup(true);
     try {
@@ -744,12 +755,12 @@ export default function ProfileScreen() {
             style={[
               styles.dataActionButton,
               styles.dataActionButtonPrimary,
-              isProfileDataOperationInProgress &&
+              isDataManagementDisabled &&
                 !isCreatingBackup &&
                 styles.dataActionButtonDisabled,
             ]}
             onPress={() => void handleCreateBackup()}
-            disabled={isProfileDataOperationInProgress}
+            disabled={isDataManagementDisabled}
           >
             {isCreatingBackup ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -764,12 +775,12 @@ export default function ProfileScreen() {
           <Pressable
             style={[
               styles.dataActionButton,
-              isProfileDataOperationInProgress &&
+              isDataManagementDisabled &&
                 !isRestoringBackup &&
                 styles.dataActionButtonDisabled,
             ]}
             onPress={() => void handlePickBackup()}
-            disabled={isProfileDataOperationInProgress}
+            disabled={isDataManagementDisabled}
           >
             {isRestoringBackup ? (
               <ActivityIndicator size="small" color="#8C6F47" />
