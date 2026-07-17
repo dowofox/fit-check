@@ -70,6 +70,7 @@ const {
   getSavedOutfits,
   getUserProfile,
   restoreNaesBackupDataSnapshot,
+  updateClosetItem,
 } = require("../utils/storage.ts");
 
 function createSnapshot() {
@@ -240,4 +241,52 @@ test("restored source data replaces storage and rebuilds derived closet data", a
   const exportedSnapshot = await getNaesBackupDataSnapshot();
   assert.equal(exportedSnapshot.closetItems.length, 3);
   assert.equal(exportedSnapshot.savedOutfits.length, 1);
+});
+
+test("legacy closet and profile fields survive partial updates and version 1 backup restore", async () => {
+  storageMemory.clear();
+  const legacyItem = {
+    id: "legacy-top",
+    imageUri: "https://example.com/legacy-top.jpg",
+    category: "상의",
+    detailCategory: "긴팔 티셔츠",
+    color: "그레이",
+    style: "캐주얼",
+    season: "봄/가을",
+    size: "L",
+    createdAt: "2024-01-02T03:04:05.000Z",
+  };
+  const legacyProfile = {
+    height: "175",
+    topSize: "L",
+    bottomSize: "32",
+    shoeSize: "270",
+  };
+
+  storageMemory.set("naes_closet", JSON.stringify([legacyItem]));
+  storageMemory.set("naes_profile", JSON.stringify(legacyProfile));
+
+  assert.deepEqual(await getClosetItems(), [legacyItem]);
+  assert.deepEqual(await getUserProfile(), legacyProfile);
+
+  await updateClosetItem(legacyItem.id, { recommendationPreference: "prefer" });
+  const updatedItem = (await getClosetItems())[0];
+
+  assert.equal(updatedItem.style, legacyItem.style);
+  assert.equal(updatedItem.season, legacyItem.season);
+  assert.equal(updatedItem.recommendationPreference, "prefer");
+  assert.equal(updatedItem.seasons, undefined);
+  assert.equal(updatedItem.styleTags, undefined);
+
+  const payload = await buildNaesBackupPayload(
+    await getNaesBackupDataSnapshot(),
+    async () => "aW1hZ2U="
+  );
+  const parsedPayload = parseNaesBackupJson(JSON.stringify(payload));
+
+  storageMemory.clear();
+  await restoreNaesBackupDataSnapshot(parsedPayload.data);
+
+  assert.deepEqual(await getClosetItems(), [updatedItem]);
+  assert.deepEqual(await getUserProfile(), legacyProfile);
 });
