@@ -178,6 +178,25 @@ function createWardrobe() {
   ];
 }
 
+function recommendationItemKey(recommendation) {
+  return recommendation.items.map((item) => item.id).sort().join("|");
+}
+
+test("같은 옷장은 저장 순서가 달라도 동일한 추천 순서를 만든다", () => {
+  const wardrobe = createWardrobe();
+  const forwardResult = getOutfitRecommendationResult(wardrobe, null, "여름");
+  const reversedResult = getOutfitRecommendationResult(
+    [...wardrobe].reverse(),
+    null,
+    "여름"
+  );
+
+  assert.deepEqual(
+    forwardResult.recommendations.map(recommendationItemKey),
+    reversedResult.recommendations.map(recommendationItemKey)
+  );
+});
+
 test("대규모 옷장 후보 제한은 예상 조합을 예산 아래로 낮춘다", () => {
   const originalCount = estimateOutfitCombinationCount({
     topCount: 10,
@@ -1349,7 +1368,16 @@ test("같은 아이템에 일관된 피드백이 두 번 쌓일 때만 다른 �
         .map((recommendation) => [itemKey(recommendation), recommendation])
     ).values()
   );
-  const sharedItemId = wardrobe[0].id;
+  const sharedItemId = wardrobe
+    .map((item) => item.id)
+    .find(
+      (itemId) =>
+        uniqueRecommendations.filter((recommendation) =>
+          recommendation.items.some((item) => item.id === itemId)
+        ).length >= 3
+    );
+  assert.ok(sharedItemId);
+
   const recommendationsWithSharedItem = uniqueRecommendations.filter((recommendation) =>
     recommendation.items.some((item) => item.id === sharedItemId)
   );
@@ -1399,11 +1427,27 @@ test("같은 아이템에 일관된 피드백이 두 번 쌓일 때만 다른 �
       ],
     }
   ).recommendations;
-  const likedTrendTarget = findRecommendation(likedTrendResult, trendTarget);
+  const exactFeedbackKeys = new Set([
+    itemKey(firstFeedbackTarget),
+    itemKey(secondFeedbackTarget),
+  ]);
+  const likedSharedItemRecommendations = likedTrendResult
+    .flatMap((recommendation) => [
+      recommendation,
+      ...(recommendation.alternatives || []),
+    ])
+    .filter(
+      (recommendation) =>
+        !exactFeedbackKeys.has(itemKey(recommendation)) &&
+        recommendation.items.some((item) => item.id === sharedItemId)
+    );
 
-  assert.ok(likedTrendTarget);
-  assert.ok(likedTrendTarget.feedbackTrendAdjustment > 0);
-  assert.equal(likedTrendTarget.score, trendTarget.score);
+  assert.ok(likedSharedItemRecommendations.length > 0);
+  assert.ok(
+    likedSharedItemRecommendations.every(
+      (recommendation) => recommendation.feedbackTrendAdjustment > 0
+    )
+  );
 
   const lessTrendResult = getOutfitRecommendationResult(
     wardrobe,
@@ -1417,10 +1461,6 @@ test("같은 아이템에 일관된 피드백이 두 번 쌓일 때만 다른 �
       ],
     }
   ).recommendations;
-  const exactFeedbackKeys = new Set([
-    itemKey(firstFeedbackTarget),
-    itemKey(secondFeedbackTarget),
-  ]);
   const nonExactSharedItemRecommendations = lessTrendResult
     .flatMap((recommendation) => [
       recommendation,

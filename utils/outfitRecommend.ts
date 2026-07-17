@@ -2105,7 +2105,10 @@ function compareRecommendations(a: OutfitRecommendation, b: OutfitRecommendation
   const outerDiff = Number(hasCategory(b, "아우터")) - Number(hasCategory(a, "아우터"));
   if (outerDiff !== 0) return outerDiff;
 
-  return a.warnings.length - b.warnings.length;
+  const warningDiff = a.warnings.length - b.warnings.length;
+  if (warningDiff !== 0) return warningDiff;
+
+  return getItemCombinationKey(a).localeCompare(getItemCombinationKey(b));
 }
 
 function getAccessoryCombinations(accessories: ClosetItem[]) {
