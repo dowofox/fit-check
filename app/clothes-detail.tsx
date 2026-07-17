@@ -2347,7 +2347,12 @@ export default function ClothesDetailScreen() {
 
     try {
       setIsSavingReferenceClothing(true);
-      await saveUserProfile(nextProfile);
+      const didSave = await saveUserProfile(nextProfile);
+      if (!didSave) {
+        Alert.alert("저장 실패", "기준 옷을 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
       setProfile(nextProfile);
       setReferenceItem(null);
       Alert.alert(

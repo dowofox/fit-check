@@ -523,7 +523,7 @@ export async function deleteAnalysis(id: string) {
   }
 }
 
-export async function saveUserProfile(profile: UserProfile) {
+export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
   try {
     const revisions = await getIncrementedRecommendationRevisions([
       "profileRevision",
@@ -533,8 +533,10 @@ export async function saveUserProfile(profile: UserProfile) {
       [PROFILE_KEY, JSON.stringify(profile)],
       [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
     ]);
+    return true;
   } catch (error) {
     console.error("프로필 저장 실패:", error);
+    return false;
   }
 }
 

@@ -275,7 +275,7 @@ export default function ProfileScreen() {
       ? Number(normalizedMeasurements.preferredPantsTotalLength)
       : undefined;
 
-    await saveUserProfile({
+    const didSave = await saveUserProfile({
       gender,
       age,
       height: normalizedMeasurements.height,
@@ -294,6 +294,14 @@ export default function ProfileScreen() {
       preferredPantsTotalLength: normalizedPreferredPantsTotalLength,
       referenceClothing,
     });
+
+    if (!didSave) {
+      Alert.alert(
+        "저장 실패",
+        "프로필 정보를 저장하지 못했어요. 입력한 값은 그대로 두었으니 다시 시도해주세요."
+      );
+      return;
+    }
 
     setTopSize(normalizedTopSize);
     setBottomSize(normalizedBottomSize);

@@ -8,6 +8,7 @@ const ts = require("typescript");
 const projectRoot = path.resolve(__dirname, "..");
 const storageMemory = new Map();
 const storageReadCounts = new Map();
+let failNextMultiSet = false;
 
 global.__DEV__ = false;
 
@@ -20,6 +21,10 @@ const asyncStorage = {
     storageMemory.set(key, value);
   },
   async multiSet(entries) {
+    if (failNextMultiSet) {
+      failNextMultiSet = false;
+      throw new Error("mock multiSet failure");
+    }
     entries.forEach(([key, value]) => storageMemory.set(key, value));
   },
 };
@@ -85,6 +90,7 @@ const {
   getOutfitRecommendationFeedbacks,
   getOutfitWearRecords,
   getRecommendationRevisionState,
+  getUserProfile,
   recordSavedOutfitWear,
   saveClosetItem,
   saveOutfit,
@@ -161,6 +167,23 @@ function createSavedOutfit(id, itemIds) {
 test.beforeEach(() => {
   storageMemory.clear();
   storageReadCounts.clear();
+  failNextMultiSet = false;
+});
+
+test("프로필 저장은 실제 저장 성공 여부를 반환한다", async () => {
+  assert.equal(await saveUserProfile({ height: "175" }), true);
+  assert.deepEqual(await getUserProfile(), { height: "175" });
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextMultiSet = true;
+    assert.equal(await saveUserProfile({ height: "180" }), false);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(await getUserProfile(), { height: "175" });
 });
 
 test("홈 재진입은 추천 revision이 같을 때만 메모리 데이터를 재사용한다", () => {
