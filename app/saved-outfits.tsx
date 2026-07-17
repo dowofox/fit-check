@@ -9,11 +9,11 @@ import {
   ClosetItem,
   deleteOutfitWearRecord,
   deleteSavedOutfit,
-  getClosetItems,
   getClosetItemsLoadResult,
   getOutfitWearRecords,
   getSavedOutfitsLoadResult,
   type OutfitWearRecord,
+  type SavedOutfit,
   recordSavedOutfitWear,
   updateSavedOutfit,
 } from "@/utils/storage";
@@ -444,6 +444,27 @@ export default function SavedOutfitsScreen() {
     setIsLoaded(true);
   }
 
+  async function refreshClosetMatches(updatedOutfits?: SavedOutfit[]) {
+    const closetResult = await getClosetItemsLoadResult();
+
+    if (closetResult.status === "failed") {
+      if (updatedOutfits) {
+        setSavedOutfits(
+          matchSavedOutfitsWithCloset(updatedOutfits, closetItems)
+        );
+      }
+      return;
+    }
+
+    setClosetItems(closetResult.items);
+    setSavedOutfits((currentOutfits) =>
+      matchSavedOutfitsWithCloset(
+        updatedOutfits || currentOutfits,
+        closetResult.items
+      )
+    );
+  }
+
   function handleDeleteOutfit(id: string) {
     Alert.alert("저장한 코디를 삭제할까요?", "삭제하면 저장 목록에서 사라져요.", [
       { text: "취소", style: "cancel" },
@@ -457,9 +478,7 @@ export default function SavedOutfitsScreen() {
             return;
           }
 
-          const closetItems = await getClosetItems();
-          setClosetItems(closetItems);
-          setSavedOutfits(matchSavedOutfitsWithCloset(updatedOutfits, closetItems));
+          await refreshClosetMatches(updatedOutfits);
         },
       },
     ]);
@@ -472,9 +491,7 @@ export default function SavedOutfitsScreen() {
       return;
     }
 
-    const closetItems = await getClosetItems();
-    setClosetItems(closetItems);
-    setSavedOutfits(matchSavedOutfitsWithCloset(updatedOutfits, closetItems));
+    await refreshClosetMatches(updatedOutfits);
   }
 
   async function handleWearOutfit(outfit: SavedOutfitWithItems) {
@@ -496,11 +513,7 @@ export default function SavedOutfitsScreen() {
       return;
     }
 
-    const updatedClosetItems = await getClosetItems();
-    setClosetItems(updatedClosetItems);
-    setSavedOutfits((currentOutfits) =>
-      matchSavedOutfitsWithCloset(currentOutfits, updatedClosetItems)
-    );
+    await refreshClosetMatches();
     setWearRecords(result.records);
     Alert.alert("기록했어요", "오늘 입은 코디로 기록했어요.");
   }
@@ -525,11 +538,7 @@ export default function SavedOutfitsScreen() {
             return;
           }
 
-          const updatedClosetItems = await getClosetItems();
-          setClosetItems(updatedClosetItems);
-          setSavedOutfits((currentOutfits) =>
-            matchSavedOutfitsWithCloset(currentOutfits, updatedClosetItems)
-          );
+          await refreshClosetMatches();
           setWearRecords(result.records);
         },
       },
