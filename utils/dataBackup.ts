@@ -39,6 +39,13 @@ type WriteImageAsset = (
   asset: NaesBackupImageAsset,
   index: number
 ) => Promise<string>;
+type ClosetImageField = "imageUri" | "cleanImageUri" | "productImageUrl";
+
+const CLOSET_IMAGE_FIELDS: ClosetImageField[] = [
+  "imageUri",
+  "cleanImageUri",
+  "productImageUrl",
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -144,7 +151,28 @@ function isPortableImageUri(uri: string) {
   return /^(https?:|data:)/i.test(uri);
 }
 
-function getImageExtension(uri: string, field: "imageUri" | "cleanImageUri") {
+function getClosetImageUri(item: ClosetItem, field: ClosetImageField) {
+  return field === "productImageUrl"
+    ? item.confirmedProduct?.productImageUrl
+    : item[field];
+}
+
+function setClosetImageUri(
+  item: ClosetItem,
+  field: ClosetImageField,
+  uri: string
+) {
+  if (field === "productImageUrl") {
+    if (item.confirmedProduct) {
+      item.confirmedProduct.productImageUrl = uri;
+    }
+    return;
+  }
+
+  item[field] = uri;
+}
+
+function getImageExtension(uri: string, field: ClosetImageField) {
   const pathname = uri.split(/[?#]/)[0];
   const extension = pathname.match(/\.([a-z0-9]{2,5})$/i)?.[1]?.toLowerCase();
 
@@ -197,8 +225,8 @@ function assertAssetReferences(payload: NaesBackupPayload) {
   const referencedAssetIds = new Set<string>();
 
   payload.data.closetItems.forEach((item) => {
-    (["imageUri", "cleanImageUri"] as const).forEach((field) => {
-      const uri = item[field];
+    CLOSET_IMAGE_FIELDS.forEach((field) => {
+      const uri = getClosetImageUri(item, field);
       if (!uri) return;
 
       const assetId = getAssetIdFromUri(uri);
@@ -233,8 +261,8 @@ export async function buildNaesBackupPayload(
   const assetIdByUri = new Map<string, string>();
 
   for (const item of data.closetItems) {
-    for (const field of ["imageUri", "cleanImageUri"] as const) {
-      const uri = item[field];
+    for (const field of CLOSET_IMAGE_FIELDS) {
+      const uri = getClosetImageUri(item, field);
       if (!uri || isPortableImageUri(uri)) continue;
 
       let assetId = assetIdByUri.get(uri);
@@ -259,7 +287,7 @@ export async function buildNaesBackupPayload(
         }
       }
 
-      item[field] = `${NAES_BACKUP_ASSET_PREFIX}${assetId}`;
+      setClosetImageUri(item, field, `${NAES_BACKUP_ASSET_PREFIX}${assetId}`);
     }
   }
 
@@ -325,8 +353,8 @@ export async function materializeNaesBackupData(
 
   const data = cloneSnapshot(parsedPayload.data);
   data.closetItems.forEach((item) => {
-    (["imageUri", "cleanImageUri"] as const).forEach((field) => {
-      const uri = item[field];
+    CLOSET_IMAGE_FIELDS.forEach((field) => {
+      const uri = getClosetImageUri(item, field);
       if (!uri) return;
 
       const assetId = getAssetIdFromUri(uri);
@@ -334,7 +362,7 @@ export async function materializeNaesBackupData(
 
       const restoredUri = restoredUriByAssetId.get(assetId);
       if (!restoredUri) throw new Error("복원한 옷 이미지를 연결하지 못했어요.");
-      item[field] = restoredUri;
+      setClosetImageUri(item, field, restoredUri);
     });
   });
 

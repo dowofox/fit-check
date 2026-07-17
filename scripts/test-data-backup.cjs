@@ -99,6 +99,12 @@ function createSnapshot() {
         cleanImageUri: "file:///closet/top.png",
         category: "상의",
         detailCategory: "반팔 티셔츠",
+        confirmedProduct: {
+          brand: "TEST",
+          productName: "테스트 반팔 티셔츠",
+          productImageUrl: "file:///closet/product.jpg",
+          confirmedAt: "2026-07-17T00:00:00.000Z",
+        },
         createdAt: "2026-07-17T01:00:00.000Z",
       },
       {
@@ -157,9 +163,17 @@ test("full backup embeds local images once and keeps remote images portable", as
     "2026-07-17T05:00:00.000Z"
   );
 
-  assert.deepEqual(reads, ["file:///closet/top.jpg", "file:///closet/top.png"]);
-  assert.equal(payload.images.length, 2);
+  assert.deepEqual(reads, [
+    "file:///closet/top.jpg",
+    "file:///closet/top.png",
+    "file:///closet/product.jpg",
+  ]);
+  assert.equal(payload.images.length, 3);
   assert.equal(payload.data.closetItems[0].imageUri, `${NAES_BACKUP_ASSET_PREFIX}image-1`);
+  assert.equal(
+    payload.data.closetItems[0].confirmedProduct.productImageUrl,
+    `${NAES_BACKUP_ASSET_PREFIX}image-3`
+  );
   assert.equal(payload.data.closetItems[1].imageUri, `${NAES_BACKUP_ASSET_PREFIX}image-1`);
   assert.equal(payload.data.closetItems[2].imageUri, "https://example.com/shoes.jpg");
   assert.deepEqual(getNaesBackupSummary(payload), {
@@ -167,7 +181,7 @@ test("full backup embeds local images once and keeps remote images portable", as
     savedOutfitCount: 1,
     feedbackCount: 1,
     wearRecordCount: 1,
-    imageCount: 2,
+    imageCount: 3,
     hasProfile: true,
   });
 });
@@ -182,9 +196,13 @@ test("restore writes embedded images and reconnects every closet image field", a
     return `file:///restored/image-${index + 1}.${asset.extension}`;
   });
 
-  assert.deepEqual(writes, ["image-1", "image-2"]);
+  assert.deepEqual(writes, ["image-1", "image-2", "image-3"]);
   assert.equal(restored.closetItems[0].imageUri, "file:///restored/image-1.jpg");
   assert.equal(restored.closetItems[0].cleanImageUri, "file:///restored/image-2.png");
+  assert.equal(
+    restored.closetItems[0].confirmedProduct.productImageUrl,
+    "file:///restored/image-3.jpg"
+  );
   assert.equal(restored.closetItems[1].imageUri, "file:///restored/image-1.jpg");
   assert.equal(restored.closetItems[2].imageUri, "https://example.com/shoes.jpg");
 });
