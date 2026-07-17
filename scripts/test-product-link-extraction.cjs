@@ -1090,6 +1090,8 @@ async function main() {
     env: {
       ...process.env,
       PORT: String(apiPort),
+      NODE_ENV: "test",
+      ALLOW_PRIVATE_PRODUCT_URLS_FOR_TESTS: "true",
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || "test-key",
       ENABLE_PRODUCT_SIZE_GUIDE: "true",
       DEBUG_SIZE_GUIDE: "false",

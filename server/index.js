@@ -14,6 +14,10 @@ const {
   getProductAnalysisInstruction,
   normalizeProductAnalysisContext,
 } = require("./productAnalysisContext");
+const {
+  ProductUrlSafetyError,
+  fetchPublicProductPage,
+} = require("./productUrlSafety");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -3542,15 +3546,20 @@ app.post("/extract-product", async (req, res) => {
     const timeout = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const response = await fetch(parsedUrl.toString(), {
-        redirect: "follow",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-        signal: controller.signal,
-      });
+      const { response, finalUrl: safeFinalProductUrl } = await fetchPublicProductPage(
+        parsedUrl,
+        {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
+          signal: controller.signal,
+          allowPrivate:
+            process.env.NODE_ENV === "test" &&
+            process.env.ALLOW_PRIVATE_PRODUCT_URLS_FOR_TESTS === "true",
+        }
+      );
 
       if (!response.ok) {
         return sendProductExtractionError(
@@ -3563,7 +3572,7 @@ app.post("/extract-product", async (req, res) => {
 
       const finalProductUrl = (() => {
         try {
-          const resolvedUrl = new URL(response.url || parsedUrl.toString());
+          const resolvedUrl = new URL(safeFinalProductUrl);
           return ["http:", "https:"].includes(resolvedUrl.protocol)
             ? resolvedUrl.toString()
             : parsedUrl.toString();
@@ -3755,6 +3764,15 @@ app.post("/extract-product", async (req, res) => {
     }
   } catch (error) {
     console.error("[extract-product] error:", error);
+    const safetyError = error instanceof ProductUrlSafetyError
+      ? error
+      : error?.cause instanceof ProductUrlSafetyError
+        ? error.cause
+        : null;
+    if (safetyError) {
+      return sendProductExtractionError(res, 400, safetyError.code, safetyError.message);
+    }
+
     if (error?.name === "AbortError") {
       return sendProductExtractionError(
         res,
@@ -3764,7 +3782,11 @@ app.post("/extract-product", async (req, res) => {
       );
     }
 
-    if (error instanceof TypeError) {
+    if (
+      error instanceof TypeError ||
+      error?.code === "ENOTFOUND" ||
+      error?.code === "EAI_AGAIN"
+    ) {
       return sendProductExtractionError(
         res,
         502,

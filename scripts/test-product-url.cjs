@@ -103,6 +103,10 @@ test("상품 추출 오류를 사용자가 취할 행동별로 구분한다", ()
   );
   assert.equal(getProductLinkFailure("product_page_timeout", 504).kind, "connection");
   assert.match(
+    getProductLinkFailure("unsafe_product_url", 400).message,
+    /공개 상품 페이지/
+  );
+  assert.match(
     formatProductLinkFailure(getProductLinkFailure("product_page_timeout", 504)),
     /네트워크 상태/
   );

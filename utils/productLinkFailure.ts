@@ -21,6 +21,16 @@ export function getProductLinkFailure(
   status?: number
 ): ProductLinkFailure {
   if (
+    ["unsafe_product_url", "too_many_product_redirects"].includes(errorCode || "")
+  ) {
+    return {
+      kind: "invalid_link",
+      title: "공개 상품 링크를 입력해주세요",
+      message: "로컬·사내 주소가 아닌 쇼핑몰의 공개 상품 페이지를 사용해주세요.",
+    };
+  }
+
+  if (
     status === 400 ||
     [
       "product_url_required",
