@@ -834,11 +834,17 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
 export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
   return runClosetMutation(async () => {
     try {
-    const [closet, profile, currentRevisions] = await Promise.all([
+    const [closet, profileLoad, currentRevisions] = await Promise.all([
       getClosetItemsForMutation(),
-      getUserProfile(),
+      getUserProfileLoadResult(),
       getRecommendationRevisionState(),
     ]);
+
+    if (profileLoad.status === "failed") {
+      throw new Error("Stored profile data could not be loaded");
+    }
+
+    const profile = profileLoad.profile;
     const filteredCloset = closet.filter((item) => item.id !== id);
     const nextReferenceClothing = pruneReferenceClothing(
       profile?.referenceClothing,
