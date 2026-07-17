@@ -1301,6 +1301,7 @@ function ConfirmedProductCard({
   onOpenUrlForm,
   onOpenMeasurementForm,
   onDeleteMeasurement,
+  isMeasurementSaving,
 }: {
   item: ClosetItem;
   profile?: UserProfile | null;
@@ -1310,6 +1311,7 @@ function ConfirmedProductCard({
   onOpenUrlForm: () => void;
   onOpenMeasurementForm: () => void;
   onDeleteMeasurement: (measurement: ProductSizeMeasurement) => void;
+  isMeasurementSaving: boolean;
 }) {
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const productImageTimerRef = useRef<PerformanceTimer>(null);
@@ -1428,8 +1430,12 @@ function ConfirmedProductCard({
                   <View style={styles.sizeGuideRowActions}>
                     {isProfileSize ? <Text style={styles.sizeGuideMySizeBadge}>내 사이즈</Text> : null}
                     <Pressable
-                      style={styles.sizeGuideDeleteButton}
+                      style={[
+                        styles.sizeGuideDeleteButton,
+                        isMeasurementSaving && styles.measurementActionDisabled,
+                      ]}
                       onPress={() => onDeleteMeasurement(sizeInfo)}
+                      disabled={isMeasurementSaving}
                       accessibilityRole="button"
                       accessibilityLabel={`${displaySize} 실측 삭제`}
                     >
@@ -1467,16 +1473,37 @@ function ConfirmedProductCard({
             <Text style={styles.confirmedProductPrimaryButtonText}>상품 링크 열기</Text>
           </Pressable>
         ) : null}
-        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenUrlForm}>
+        <Pressable
+          style={[
+            styles.confirmedProductSecondaryButton,
+            isMeasurementSaving && styles.measurementActionDisabled,
+          ]}
+          onPress={onOpenUrlForm}
+          disabled={isMeasurementSaving}
+        >
           <Feather name="link" size={14} color="#8c6f47" />
           <Text style={styles.confirmedProductSecondaryButtonText}>상품 URL로 변경</Text>
         </Pressable>
-        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onEdit}>
+        <Pressable
+          style={[
+            styles.confirmedProductSecondaryButton,
+            isMeasurementSaving && styles.measurementActionDisabled,
+          ]}
+          onPress={onEdit}
+          disabled={isMeasurementSaving}
+        >
           <Feather name="edit-2" size={14} color="#8c6f47" />
           <Text style={styles.confirmedProductSecondaryButtonText}>확정 정보 수정</Text>
         </Pressable>
         {!isAccessoryOrBag ? (
-          <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenMeasurementForm}>
+          <Pressable
+            style={[
+              styles.confirmedProductSecondaryButton,
+              isMeasurementSaving && styles.measurementActionDisabled,
+            ]}
+            onPress={onOpenMeasurementForm}
+            disabled={isMeasurementSaving}
+          >
             <Feather name="maximize" size={14} color="#8c6f47" />
             <Text style={styles.confirmedProductSecondaryButtonText}>
               {sizeGuideRows.length > 0 ? "실측 수정" : "실측 직접 입력"}
@@ -1494,12 +1521,14 @@ function ProductMeasurementForm({
   onChange,
   onSave,
   onCancel,
+  isSaving,
 }: {
   item: ClosetItem;
   draft: ProductMeasurementDraft;
   onChange: (field: keyof ProductMeasurementDraft, value: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  isSaving: boolean;
 }) {
   const isAccessoryOrBag = isAccessoryOrBagItem(item);
   const fields = getMeasurementFields(item);
@@ -1552,6 +1581,7 @@ function ProductMeasurementForm({
                 placeholder="0"
                 keyboardType="decimal-pad"
                 style={styles.manualMeasurementInput}
+                editable={!isSaving}
               />
               <Text style={styles.manualMeasurementUnit}>cm</Text>
             </View>
@@ -1560,10 +1590,24 @@ function ProductMeasurementForm({
       </View>
 
       <View style={styles.confirmedProductActionRow}>
-        <Pressable style={styles.confirmedProductSecondaryButton} onPress={onCancel}>
+        <Pressable
+          style={[
+            styles.confirmedProductSecondaryButton,
+            isSaving && styles.measurementActionDisabled,
+          ]}
+          onPress={onCancel}
+          disabled={isSaving}
+        >
           <Text style={styles.confirmedProductSecondaryButtonText}>취소</Text>
         </Pressable>
-        <Pressable style={styles.confirmedProductPrimaryButton} onPress={onSave}>
+        <Pressable
+          style={[
+            styles.confirmedProductPrimaryButton,
+            isSaving && styles.measurementActionDisabled,
+          ]}
+          onPress={onSave}
+          disabled={isSaving}
+        >
           <Feather name="save" size={14} color="#fff" />
           <Text style={styles.confirmedProductPrimaryButtonText}>실측 저장</Text>
         </Pressable>
@@ -2106,6 +2150,7 @@ export default function ClothesDetailScreen() {
   const [isSavingArchiveStatus, setIsSavingArchiveStatus] = useState(false);
   const [isSavingReferenceClothing, setIsSavingReferenceClothing] = useState(false);
   const [isMeasurementFormOpen, setIsMeasurementFormOpen] = useState(false);
+  const [isSavingProductMeasurement, setIsSavingProductMeasurement] = useState(false);
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
@@ -2114,6 +2159,7 @@ export default function ClothesDetailScreen() {
   const heroImageTimerRef = useRef<PerformanceTimer>(null);
   const productExtractionRequestRef = useRef(0);
   const clothesDetailLoadRequestRef = useRef(0);
+  const productMeasurementMutationRef = useRef(false);
   const shouldOpenMeasurementRef = useRef(openMeasurement === "1");
   const shouldOpenEditRef = useRef(Boolean(openEdit));
   const shouldPrioritizeSeasonEdit = openEdit === "season";
@@ -2214,6 +2260,20 @@ export default function ClothesDetailScreen() {
 
   function invalidateClothesDetailLoad() {
     clothesDetailLoadRequestRef.current += 1;
+  }
+
+  function beginProductMeasurementMutation() {
+    if (productMeasurementMutationRef.current) return false;
+
+    productMeasurementMutationRef.current = true;
+    setIsSavingProductMeasurement(true);
+    invalidateClothesDetailLoad();
+    return true;
+  }
+
+  function finishProductMeasurementMutation() {
+    productMeasurementMutationRef.current = false;
+    setIsSavingProductMeasurement(false);
   }
 
   function updateDraft<K extends keyof EditableClosetFields>(field: K, value: EditableClosetFields[K]) {
@@ -2665,7 +2725,7 @@ export default function ClothesDetailScreen() {
   }
 
   async function handleSaveProductMeasurement() {
-    if (!item?.confirmedProduct) return;
+    if (!item?.confirmedProduct || productMeasurementMutationRef.current) return;
 
     if (isAccessoryOrBagItem(item)) {
       setIsMeasurementFormOpen(false);
@@ -2688,8 +2748,9 @@ export default function ClothesDetailScreen() {
       },
     };
 
+    if (!beginProductMeasurementMutation()) return;
+
     try {
-      invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         confirmedProduct,
         size: resolveClosetSizeAfterMeasurementSave(item.size, measurement.size),
@@ -2709,11 +2770,13 @@ export default function ClothesDetailScreen() {
     } catch (error) {
       console.error("상품 실측 저장 실패:", error);
       Alert.alert("저장 실패", "상품 실측을 저장하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      finishProductMeasurementMutation();
     }
   }
 
   function handleDeleteProductMeasurement(measurement: ProductSizeMeasurement) {
-    if (!item?.confirmedProduct) return;
+    if (!item?.confirmedProduct || productMeasurementMutationRef.current) return;
 
     const currentConfirmedProduct = item.confirmedProduct;
     const displaySize = getProductSizeDisplayName(measurement);
@@ -2726,6 +2789,8 @@ export default function ClothesDetailScreen() {
           text: "삭제",
           style: "destructive",
           onPress: async () => {
+            if (!beginProductMeasurementMutation()) return;
+
             const currentRows = getValidProductSizeRows(
               currentConfirmedProduct.productSizeGuide
             );
@@ -2739,7 +2804,6 @@ export default function ClothesDetailScreen() {
             };
 
             try {
-              invalidateClothesDetailLoad();
               const updatedCloset = await updateClosetItem(item.id, { confirmedProduct });
               const updatedItem = updatedCloset.find(
                 (closetItem) => closetItem.id === item.id
@@ -2756,6 +2820,8 @@ export default function ClothesDetailScreen() {
             } catch (error) {
               console.error("상품 실측 삭제 실패:", error);
               Alert.alert("삭제 실패", "상품 실측을 삭제하지 못했어요. 다시 시도해주세요.");
+            } finally {
+              finishProductMeasurementMutation();
             }
           },
         },
@@ -3352,6 +3418,7 @@ export default function ClothesDetailScreen() {
                 onOpenUrlForm={handleOpenProductUrlForm}
                 onOpenMeasurementForm={handleOpenMeasurementForm}
                 onDeleteMeasurement={handleDeleteProductMeasurement}
+                isMeasurementSaving={isSavingProductMeasurement}
               />
             )}
 
@@ -3362,6 +3429,7 @@ export default function ClothesDetailScreen() {
                 onChange={updateMeasurementDraft}
                 onSave={handleSaveProductMeasurement}
                 onCancel={handleCancelMeasurementForm}
+                isSaving={isSavingProductMeasurement}
               />
             )}
 
@@ -4517,6 +4585,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: "center",
     lineHeight: 17,
+  },
+  measurementActionDisabled: {
+    opacity: 0.5,
   },
 
   sizeGuideRowActions: {
