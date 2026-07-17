@@ -600,6 +600,26 @@ export default function AddClothesScreen() {
     setSelectedSize(DEFAULT_SIZE);
   }
 
+  function handleProductUrlInputChange(value: string) {
+    if (savingOperationRef.current) return;
+
+    if (isExtractingProduct) invalidateProductExtraction();
+
+    const extractedProductUrl = extractedProduct?.productUrl?.trim() || "";
+    const shouldClearExtractedProduct =
+      Boolean(extractedProduct) && value.trim() !== extractedProductUrl;
+
+    setProductUrlInput(value);
+    setProductLinkFailure(null);
+
+    if (shouldClearExtractedProduct) {
+      setExtractedProduct(null);
+      setImageUri("");
+      setSelectedImages([]);
+      resetAnalysisState();
+    }
+  }
+
   function switchAddMode(nextMode: AddMode) {
     if (nextMode === addMode || savingOperationRef.current) return;
 
@@ -1347,11 +1367,7 @@ export default function AddClothesScreen() {
             <TextInput
               style={styles.linkInput}
               value={productUrlInput}
-              onChangeText={(value) => {
-                if (isExtractingProduct) invalidateProductExtraction();
-                setProductUrlInput(value);
-                setProductLinkFailure(null);
-              }}
+              onChangeText={handleProductUrlInputChange}
               placeholder="무신사 등 상품 링크를 붙여넣어 주세요"
               placeholderTextColor="#b2aaa1"
               autoCapitalize="none"
