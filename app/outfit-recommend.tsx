@@ -213,6 +213,7 @@ function RecommendationCard({
   index,
   onSave,
   onFeedback,
+  isFeedbackSaving,
 }: {
   recommendation: OutfitRecommendation;
   index: number;
@@ -221,6 +222,7 @@ function RecommendationCard({
     recommendation: OutfitRecommendation,
     value: OutfitFeedbackValue
   ) => void;
+  isFeedbackSaving: boolean;
 }) {
   const [isAlternativeOpen, setIsAlternativeOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -457,12 +459,14 @@ function RecommendationCard({
               <Pressable
                 key={option.value}
                 accessibilityRole="button"
-                accessibilityState={{ selected: isActive }}
+                accessibilityState={{ selected: isActive, disabled: isFeedbackSaving }}
                 style={[
                   styles.feedbackButton,
                   isActive && styles.feedbackButtonActive,
+                  isFeedbackSaving && styles.feedbackButtonDisabled,
                 ]}
                 onPress={() => onFeedback(recommendation, option.value)}
+                disabled={isFeedbackSaving}
               >
                 <Feather
                   name={option.icon}
@@ -595,6 +599,7 @@ export default function OutfitRecommendScreen() {
   const [shoppingRecommendations, setShoppingRecommendations] = useState<RecommendedShoppingItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasLoadError, setHasLoadError] = useState(false);
+  const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
   const [selectedSituation, setSelectedSituation] = useState<SituationId>("all");
 
@@ -736,18 +741,25 @@ export default function OutfitRecommendScreen() {
     recommendation: OutfitRecommendation,
     value: OutfitFeedbackValue
   ) {
-    const nextValue = recommendation.feedbackPreference === value ? null : value;
-    const updatedFeedbacks = await setOutfitRecommendationFeedback(
-      getSortedItemIds(recommendation.items),
-      nextValue
-    );
+    if (isFeedbackSaving) return;
 
-    if (updatedFeedbacks === null) {
-      Alert.alert("저장 실패", "추천 피드백을 저장하지 못했어요. 다시 시도해주세요.");
-      return;
+    try {
+      setIsFeedbackSaving(true);
+      const nextValue = recommendation.feedbackPreference === value ? null : value;
+      const updatedFeedbacks = await setOutfitRecommendationFeedback(
+        getSortedItemIds(recommendation.items),
+        nextValue
+      );
+
+      if (updatedFeedbacks === null) {
+        Alert.alert("저장 실패", "추천 피드백을 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      await loadRecommendations();
+    } finally {
+      setIsFeedbackSaving(false);
     }
-
-    await loadRecommendations();
   }
 
   useFocusEffect(
@@ -846,6 +858,7 @@ export default function OutfitRecommendScreen() {
                 index={index}
                 onSave={handleSaveOutfit}
                 onFeedback={handleRecommendationFeedback}
+                isFeedbackSaving={isFeedbackSaving}
               />
             ))}
           </View>
@@ -1363,6 +1376,9 @@ const styles = StyleSheet.create({
   feedbackButtonActive: {
     backgroundColor: colors.point,
     borderColor: colors.point,
+  },
+  feedbackButtonDisabled: {
+    opacity: 0.55,
   },
   feedbackButtonText: {
     color: colors.point,
