@@ -2112,9 +2112,17 @@ export default function ClothesDetailScreen() {
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
   );
   const heroImageTimerRef = useRef<PerformanceTimer>(null);
+  const productExtractionRequestRef = useRef(0);
   const shouldOpenMeasurementRef = useRef(openMeasurement === "1");
   const shouldOpenEditRef = useRef(Boolean(openEdit));
   const shouldPrioritizeSeasonEdit = openEdit === "season";
+
+  useEffect(
+    () => () => {
+      productExtractionRequestRef.current += 1;
+    },
+    [id]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -2600,6 +2608,8 @@ export default function ClothesDetailScreen() {
   }
 
   function handleOpenManualProductForm() {
+    productExtractionRequestRef.current += 1;
+    setIsExtractingProduct(false);
     setConfirmedProductDraft({
       ...EMPTY_CONFIRMED_PRODUCT_DRAFT,
       productUrl: productUrlInput.trim(),
@@ -2735,6 +2745,8 @@ export default function ClothesDetailScreen() {
   function handleOpenProductUrlForm() {
     const currentProductUrl = item?.confirmedProduct?.productUrl || "";
 
+    productExtractionRequestRef.current += 1;
+    setIsExtractingProduct(false);
     setProductUrlInput(currentProductUrl);
     setExtractErrorMessage("");
     setExtractedProduct(null);
@@ -2743,10 +2755,20 @@ export default function ClothesDetailScreen() {
   }
 
   function handleCancelProductUrlForm() {
+    productExtractionRequestRef.current += 1;
+    setIsExtractingProduct(false);
     setProductUrlInput("");
     setExtractErrorMessage("");
     setExtractedProduct(null);
     setIsProductUrlFormOpen(false);
+  }
+
+  function handleProductUrlChange(value: string) {
+    productExtractionRequestRef.current += 1;
+    setIsExtractingProduct(false);
+    setProductUrlInput(value);
+    setExtractErrorMessage("");
+    setExtractedProduct(null);
   }
 
   async function handleExtractProductFromUrl() {
@@ -2763,6 +2785,8 @@ export default function ClothesDetailScreen() {
     }
 
     const productUrl = validatedUrl.url;
+    const requestId = productExtractionRequestRef.current + 1;
+    productExtractionRequestRef.current = requestId;
 
     try {
       setIsExtractingProduct(true);
@@ -2778,8 +2802,11 @@ export default function ClothesDetailScreen() {
         body: JSON.stringify({ url: productUrl }),
       }, API_TIMEOUTS.extractProduct);
 
+      if (requestId !== productExtractionRequestRef.current) return;
+
       if (!response.ok) {
         const errorResponse = (await response.json().catch(() => ({}))) as ProductExtractionErrorResponse;
+        if (requestId !== productExtractionRequestRef.current) return;
         setExtractErrorMessage(
           formatProductLinkFailure(
             getProductLinkFailure(errorResponse.error, response.status)
@@ -2789,6 +2816,7 @@ export default function ClothesDetailScreen() {
       }
 
       const result = await response.json();
+      if (requestId !== productExtractionRequestRef.current) return;
       const nextDraft: ConfirmedProductDraft = {
         brand: result.brand || "",
         productName: result.productName || "",
@@ -2812,12 +2840,15 @@ export default function ClothesDetailScreen() {
         sizeGuideStatus: result.sizeGuideStatus,
       });
     } catch (error) {
+      if (requestId !== productExtractionRequestRef.current) return;
       console.error("상품 URL 추출 실패:", error);
       setExtractErrorMessage(
         formatProductLinkFailure(getProductLinkFailure("product_page_unreachable"))
       );
     } finally {
-      setIsExtractingProduct(false);
+      if (requestId === productExtractionRequestRef.current) {
+        setIsExtractingProduct(false);
+      }
     }
   }
 
@@ -3365,7 +3396,7 @@ export default function ClothesDetailScreen() {
                 isLoading={isExtractingProduct}
                 errorMessage={extractErrorMessage}
                 preview={extractedProduct}
-                onChangeUrl={setProductUrlInput}
+                onChangeUrl={handleProductUrlChange}
                 onExtract={handleExtractProductFromUrl}
                 onConfirm={handleConfirmExtractedProduct}
                 onOpenManualForm={handleOpenManualProductForm}
