@@ -404,6 +404,56 @@ test("래글런 상의는 어깨선과 일반 소매 길이를 신체 치수와 
   assert.doesNotMatch(result.sizeRecommendations[0].reasons.join(" "), /어깨|팔 길이|손목|손등/);
 });
 
+test("실측표에 소매가 없으면 긴팔도 팔 길이 입력 없이 비교한다", () => {
+  const item = createItem(
+    "long-sleeve-without-sleeve-measurement",
+    "상의",
+    [
+      { size: "M", totalLength: 67, shoulder: 46, chest: 51 },
+      { size: "L", totalLength: 70, shoulder: 48, chest: 55 },
+    ],
+    { size: "L", detailCategory: "긴팔 셔츠" }
+  );
+  const profile = {
+    height: "175",
+    shoulderWidth: "48",
+    chestCircumference: "104",
+  };
+
+  const recommendation = getRecommendedProductSize(item, profile);
+  const currentFit = getFitSuitability(item, profile);
+
+  assert.deepEqual(recommendation.missingFields, []);
+  assert.equal(recommendation.sizeRecommendations.length, 2);
+  assert.notEqual(currentFit.blockedReason, "missing_profile_measurements");
+  assert.doesNotMatch(currentFit.description, /팔 길이/);
+});
+
+test("하의 실측표에 허벅지가 없으면 허벅지둘레 없이 비교한다", () => {
+  const item = createItem(
+    "bottom-without-thigh-measurement",
+    "하의",
+    [
+      { size: "M", totalLength: 101, waist: 39, hip: 50 },
+      { size: "L", totalLength: 104, waist: 42, hip: 53 },
+    ],
+    { size: "L" }
+  );
+  const profile = {
+    preferredPantsTotalLength: 104,
+    waistCircumference: "82",
+    hipCircumference: "104",
+  };
+
+  const recommendation = getRecommendedProductSize(item, profile);
+  const currentFit = getFitSuitability(item, profile);
+
+  assert.deepEqual(recommendation.missingFields, []);
+  assert.equal(recommendation.recommendedSize, "L");
+  assert.notEqual(currentFit.blockedReason, "missing_profile_measurements");
+  assert.doesNotMatch(currentFit.description, /허벅지둘레/);
+});
+
 test("신체 정보와 기준 옷이 모두 없으면 부족한 프로필 정보를 반환한다", () => {
   const item = createItem("missing-profile", "상의", [
     { size: "M", totalLength: 68, shoulder: 46, chest: 52, sleeve: 59 },

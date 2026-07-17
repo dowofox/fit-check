@@ -1090,15 +1090,29 @@ function getFitPreference(intendedFit?: string): FitPreference {
 function getRequiredProfileFields(
   item: ClosetItem,
   profile?: UserProfile | null,
-  context?: SizeRecommendationContext
+  context?: SizeRecommendationContext,
+  measurements?: ProductSizeMeasurement[]
 ) {
+  const hasProductMeasurement = (key: keyof ProductSizeMeasurement) =>
+    !measurements ||
+    measurements.some(
+      (measurement) =>
+        typeof measurement[key] === "number" && measurement[key] > 0
+    );
+
   if (isBottomCategory(item)) {
     const hasLengthReference = hasBottomLengthReferenceInput(item, profile, context);
 
     return [
-      !parseMeasurement(profile?.waistCircumference) ? "허리둘레" : "",
-      !parseMeasurement(profile?.hipCircumference) ? "엉덩이둘레" : "",
-      !parseMeasurement(profile?.thighCircumference) ? "허벅지둘레" : "",
+      hasProductMeasurement("waist") && !parseMeasurement(profile?.waistCircumference)
+        ? "허리둘레"
+        : "",
+      hasProductMeasurement("hip") && !parseMeasurement(profile?.hipCircumference)
+        ? "엉덩이둘레"
+        : "",
+      hasProductMeasurement("thigh") && !parseMeasurement(profile?.thighCircumference)
+        ? "허벅지둘레"
+        : "",
       !hasLengthReference &&
       !parseMeasurement(profile?.inseam) &&
       !parseMeasurement(profile?.height)
@@ -1109,12 +1123,22 @@ function getRequiredProfileFields(
 
   if (isUpperCategory(item)) {
     return [
-      shouldCompareUserShoulder(item) && !parseMeasurement(profile?.shoulderWidth)
+      shouldCompareUserShoulder(item) &&
+      hasProductMeasurement("shoulder") &&
+      !parseMeasurement(profile?.shoulderWidth)
         ? "어깨너비"
         : "",
-      !parseMeasurement(profile?.chestCircumference) ? "가슴둘레" : "",
-      !parseMeasurement(profile?.height) ? "키" : "",
-      shouldCompareUserSleeve(item) && !parseMeasurement(profile?.armLength) ? "팔 길이" : "",
+      hasProductMeasurement("chest") && !parseMeasurement(profile?.chestCircumference)
+        ? "가슴둘레"
+        : "",
+      hasProductMeasurement("totalLength") && !parseMeasurement(profile?.height)
+        ? "키"
+        : "",
+      shouldCompareUserSleeve(item) &&
+      hasProductMeasurement("sleeve") &&
+      !parseMeasurement(profile?.armLength)
+        ? "팔 길이"
+        : "",
     ].filter(Boolean);
   }
 
@@ -1650,7 +1674,6 @@ export function getRecommendedProductSize(
     return { sizeRecommendations: [], missingFields: [] };
   }
 
-  const missingFields = getRequiredProfileFields(item, profile, context);
   const sizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).filter(
     (measurement) =>
       Boolean(measurement.size) &&
@@ -1676,6 +1699,13 @@ export function getRecommendedProductSize(
       blockedReason: "missing_product_measurements",
     };
   }
+
+  const missingFields = getRequiredProfileFields(
+    item,
+    profile,
+    context,
+    reliableSizeRows
+  );
 
   const hasReferenceComparison = reliableSizeRows.some((measurement) =>
     Boolean(getReferenceComparison(item, measurement, context?.referenceItem))
@@ -1822,7 +1852,12 @@ export function getFitSuitability(
       };
     }
 
-    const missingProfileFields = getRequiredProfileFields(item, profile);
+    const missingProfileFields = getRequiredProfileFields(
+      item,
+      profile,
+      undefined,
+      [currentProductMeasurement]
+    );
     if (missingProfileFields.length > 0) {
       return {
         status: "내 신체 치수가 더 필요해요",
