@@ -109,6 +109,8 @@ export default function ProfileScreen() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isProfileReady, setIsProfileReady] = useState(false);
   const [hasProfileLoadError, setHasProfileLoadError] = useState(false);
+  const isProfileDataOperationInProgress =
+    isCreatingBackup || isRestoringBackup || isSavingProfile;
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
   const profileMeasurementInputs = {
     height,
@@ -210,7 +212,7 @@ export default function ProfileScreen() {
   );
 
   const handleCreateBackup = async () => {
-    if (isCreatingBackup || isRestoringBackup) return;
+    if (isProfileDataOperationInProgress) return;
 
     setIsCreatingBackup(true);
     try {
@@ -242,7 +244,7 @@ export default function ProfileScreen() {
   };
 
   const handlePickBackup = async () => {
-    if (isCreatingBackup || isRestoringBackup) return;
+    if (isProfileDataOperationInProgress) return;
 
     setIsRestoringBackup(true);
     try {
@@ -274,7 +276,7 @@ export default function ProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (isSavingProfile) return;
+    if (isProfileDataOperationInProgress) return;
 
     if (!isProfileReady || hasProfileLoadError) {
       Alert.alert(
@@ -709,11 +711,15 @@ export default function ProfileScreen() {
         <Pressable
           style={[
             styles.saveButton,
-            (!isProfileReady || hasProfileLoadError || isSavingProfile) &&
+            (!isProfileReady ||
+              hasProfileLoadError ||
+              isProfileDataOperationInProgress) &&
               styles.saveButtonDisabled,
           ]}
           onPress={handleSave}
-          disabled={!isProfileReady || hasProfileLoadError || isSavingProfile}
+          disabled={
+            !isProfileReady || hasProfileLoadError || isProfileDataOperationInProgress
+          }
         >
           <Text style={styles.saveButtonText}>
             {isSavingProfile ? "저장 중..." : "저장하기"}
@@ -735,9 +741,15 @@ export default function ProfileScreen() {
           </View>
 
           <Pressable
-            style={[styles.dataActionButton, styles.dataActionButtonPrimary]}
+            style={[
+              styles.dataActionButton,
+              styles.dataActionButtonPrimary,
+              isProfileDataOperationInProgress &&
+                !isCreatingBackup &&
+                styles.dataActionButtonDisabled,
+            ]}
             onPress={() => void handleCreateBackup()}
-            disabled={isCreatingBackup || isRestoringBackup}
+            disabled={isProfileDataOperationInProgress}
           >
             {isCreatingBackup ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -750,9 +762,14 @@ export default function ProfileScreen() {
           </Pressable>
 
           <Pressable
-            style={styles.dataActionButton}
+            style={[
+              styles.dataActionButton,
+              isProfileDataOperationInProgress &&
+                !isRestoringBackup &&
+                styles.dataActionButtonDisabled,
+            ]}
             onPress={() => void handlePickBackup()}
-            disabled={isCreatingBackup || isRestoringBackup}
+            disabled={isProfileDataOperationInProgress}
           >
             {isRestoringBackup ? (
               <ActivityIndicator size="small" color="#8C6F47" />
@@ -1198,6 +1215,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
     marginBottom: 8,
+  },
+  dataActionButtonDisabled: {
+    opacity: 0.45,
   },
   dataActionButtonPrimary: {
     backgroundColor: "#111",
