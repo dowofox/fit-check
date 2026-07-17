@@ -879,7 +879,7 @@ export async function setOutfitRecommendationFeedback(
   }
 }
 
-export async function deleteSavedOutfit(id: string) {
+export async function deleteSavedOutfit(id: string): Promise<SavedOutfit[] | null> {
   try {
     const [savedOutfits, revisions] = await Promise.all([
       getSavedOutfits(),
@@ -895,11 +895,14 @@ export async function deleteSavedOutfit(id: string) {
     return filteredOutfits;
   } catch (error) {
     console.error("저장된 코디 삭제 실패:", error);
-    return [];
+    return null;
   }
 }
 
-export async function updateSavedOutfit(id: string, updatedOutfit: Partial<SavedOutfit>) {
+export async function updateSavedOutfit(
+  id: string,
+  updatedOutfit: Partial<SavedOutfit>
+): Promise<SavedOutfit[] | null> {
   try {
     const [savedOutfits, revisions] = await Promise.all([
       getSavedOutfits(),
@@ -917,7 +920,7 @@ export async function updateSavedOutfit(id: string, updatedOutfit: Partial<Saved
     return updatedOutfits;
   } catch (error) {
     console.error("저장된 코디 수정 실패:", error);
-    return [];
+    return null;
   }
 }
 

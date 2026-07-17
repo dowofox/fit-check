@@ -84,12 +84,14 @@ const {
 } = require("../utils/homeRecommendationCache.ts");
 const {
   deleteClosetItem,
+  deleteSavedOutfit,
   deleteOutfitWearRecord,
   getClosetItems,
   getClosetRecommendationIndex,
   getOutfitRecommendationFeedbacks,
   getOutfitWearRecords,
   getRecommendationRevisionState,
+  getSavedOutfits,
   getUserProfile,
   recordSavedOutfitWear,
   saveClosetItem,
@@ -97,6 +99,7 @@ const {
   saveUserProfile,
   setOutfitRecommendationFeedback,
   updateClosetItem,
+  updateSavedOutfit,
 } = require("../utils/storage.ts");
 
 const CLOSET_KEY = "naes_closet";
@@ -184,6 +187,27 @@ test("프로필 저장은 실제 저장 성공 여부를 반환한다", async ()
   }
 
   assert.deepEqual(await getUserProfile(), { height: "175" });
+});
+
+test("저장 코디 변경 실패는 정상적인 빈 목록과 구분한다", async () => {
+  const outfit = createSavedOutfit("saved-outfit", ["top-1", "bottom-1"]);
+  await saveOutfit(outfit);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextMultiSet = true;
+    assert.equal(await updateSavedOutfit(outfit.id, { name: "수정 이름" }), null);
+    assert.equal((await getSavedOutfits())[0].name, undefined);
+
+    failNextMultiSet = true;
+    assert.equal(await deleteSavedOutfit(outfit.id), null);
+    assert.equal((await getSavedOutfits()).length, 1);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(await deleteSavedOutfit(outfit.id), []);
 });
 
 test("홈 재진입은 추천 revision이 같을 때만 메모리 데이터를 재사용한다", () => {

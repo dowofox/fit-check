@@ -441,6 +441,11 @@ export default function SavedOutfitsScreen() {
         style: "destructive",
         onPress: async () => {
           const updatedOutfits = await deleteSavedOutfit(id);
+          if (!updatedOutfits) {
+            Alert.alert("삭제 실패", "저장한 코디를 삭제하지 못했어요. 다시 시도해주세요.");
+            return;
+          }
+
           const closetItems = await getClosetItems();
           setClosetItems(closetItems);
           setSavedOutfits(matchSavedOutfitsWithCloset(updatedOutfits, closetItems));
@@ -451,6 +456,11 @@ export default function SavedOutfitsScreen() {
 
   async function handleUpdateOutfit(id: string, name: string, memo: string) {
     const updatedOutfits = await updateSavedOutfit(id, { name, memo });
+    if (!updatedOutfits) {
+      Alert.alert("수정 실패", "코디 이름과 메모를 저장하지 못했어요. 다시 시도해주세요.");
+      return;
+    }
+
     const closetItems = await getClosetItems();
     setClosetItems(closetItems);
     setSavedOutfits(matchSavedOutfitsWithCloset(updatedOutfits, closetItems));
