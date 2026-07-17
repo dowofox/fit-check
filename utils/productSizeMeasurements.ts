@@ -201,9 +201,29 @@ export function getValidProductSizeRows(productSizeGuide?: ProductSizeGuide) {
         ).length
       : -1;
 
-    if (!current || completeness > currentCompleteness) {
+    if (!current) {
       rowsBySize.set(key, sizeInfo);
+      return;
     }
+
+    const preferred = completeness > currentCompleteness ? sizeInfo : current;
+    const fallback = preferred === current ? sizeInfo : current;
+    const merged: ProductSizeMeasurement = {
+      ...fallback,
+      ...preferred,
+    };
+
+    PRODUCT_MEASUREMENT_KEYS.forEach((measurementKey) => {
+      merged[measurementKey] = preferred[measurementKey] ?? fallback[measurementKey];
+    });
+    const numericRange = preferred.numericRange ?? fallback.numericRange;
+    if (numericRange) {
+      merged.numericRange = numericRange;
+    } else {
+      delete merged.numericRange;
+    }
+
+    rowsBySize.set(key, merged);
   });
 
   return [...rowsBySize.values()];

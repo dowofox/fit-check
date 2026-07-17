@@ -529,6 +529,30 @@ test("기존 실측표의 잘못된 값은 숨기고 같은 사이즈 입력은 
   assert.equal(nextRows[0].totalLength, 74);
 });
 
+test("같은 사이즈의 분리된 실측 행은 유효 필드를 합쳐 보존한다", () => {
+  const [mergedRow] = getValidProductSizeRows({
+    unit: "cm",
+    sizes: [
+      { size: "L", totalLength: 72, chest: 58 },
+      { size: "L", shoulder: 50, sleeve: 61 },
+    ],
+  });
+
+  assert.deepEqual(mergedRow, {
+    size: "L",
+    totalLength: 72,
+    shoulder: 50,
+    chest: 58,
+    sleeve: 61,
+    waist: undefined,
+    hip: undefined,
+    thigh: undefined,
+    rise: undefined,
+    hem: undefined,
+    footLength: undefined,
+  });
+});
+
 test("현재 사이즈 적합도는 부족한 정보에 맞는 차단 이유를 반환한다", () => {
   const profile = {
     height: "175",
