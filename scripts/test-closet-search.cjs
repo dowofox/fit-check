@@ -28,7 +28,10 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
   module._compile(result.outputText, filename);
 };
 
-const { filterClosetItemsByQuery } = require("../utils/closetSearch.ts");
+const {
+  filterClosetItemsByQuery,
+  sortClosetItems,
+} = require("../utils/closetSearch.ts");
 
 const items = [
   {
@@ -72,4 +75,21 @@ test("옷장 검색은 공식 상품명과 브랜드를 대소문자 없이 찾�
 
 test("빈 검색어는 기존 목록과 순서를 유지한다", () => {
   assert.equal(filterClosetItemsByQuery(items, "   "), items);
+});
+
+test("옷장 정렬은 등록일을 기준으로 하고 잘못된 날짜는 마지막에 둔다", () => {
+  const datedItems = [
+    { ...items[0], id: "old", createdAt: "2025-01-01T00:00:00.000Z" },
+    { ...items[1], id: "invalid", createdAt: "날짜 없음" },
+    { ...items[0], id: "new", createdAt: "2026-01-01T00:00:00.000Z" },
+  ];
+
+  assert.deepEqual(
+    sortClosetItems(datedItems, "newest").map((item) => item.id),
+    ["new", "old", "invalid"]
+  );
+  assert.deepEqual(
+    sortClosetItems(datedItems, "oldest").map((item) => item.id),
+    ["old", "new", "invalid"]
+  );
 });

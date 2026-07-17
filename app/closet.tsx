@@ -1,7 +1,11 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
 import { getClosetItemReviewFields } from "@/utils/closetRegistration";
-import { filterClosetItemsByQuery } from "@/utils/closetSearch";
+import {
+    filterClosetItemsByQuery,
+    sortClosetItems,
+    type ClosetSortOrder,
+} from "@/utils/closetSearch";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import { getSavedOutfitUsageCount } from "@/utils/savedOutfitIntegrity";
 import {
@@ -78,6 +82,7 @@ export default function ClosetScreen() {
     const [selectedDetailCategory, setSelectedDetailCategory] = useState("전체");
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [sortOrder, setSortOrder] = useState<ClosetSortOrder>("newest");
 
     useFocusEffect(
         useCallback(() => {
@@ -118,6 +123,7 @@ export default function ClosetScreen() {
             (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
         );
     const filteredItems = filterClosetItemsByQuery(detailFilteredItems, searchQuery);
+    const displayedItems = sortClosetItems(filteredItems, sortOrder);
     const hasSearchQuery = searchQuery.trim().length > 0;
 
     async function handleDeleteItem(id: string) {
@@ -281,19 +287,48 @@ export default function ClosetScreen() {
                             </ScrollView>
                         ) : null}
 
-                        <Text style={styles.countText}>
-                            {hasSearchQuery
-                                ? `검색 결과 ${filteredItems.length}개`
-                                : selectedCategory === "전체"
-                                ? `전체 ${items.length}개`
-                                : selectedCategory === REVIEW_FILTER
-                                    ? `${REVIEW_FILTER} ${filteredItems.length}개`
-                                : selectedCategory === ARCHIVED_FILTER
-                                    ? `${ARCHIVED_FILTER} ${filteredItems.length}개`
-                                : selectedDetailCategory === "전체"
-                                    ? `${selectedCategory} ${filteredItems.length}개`
-                                    : `${selectedDetailCategory} ${filteredItems.length}개`}
-                        </Text>
+                        <View style={styles.listHeaderRow}>
+                            <Text style={styles.countText}>
+                                {hasSearchQuery
+                                    ? `검색 결과 ${filteredItems.length}개`
+                                    : selectedCategory === "전체"
+                                    ? `전체 ${items.length}개`
+                                    : selectedCategory === REVIEW_FILTER
+                                        ? `${REVIEW_FILTER} ${filteredItems.length}개`
+                                    : selectedCategory === ARCHIVED_FILTER
+                                        ? `${ARCHIVED_FILTER} ${filteredItems.length}개`
+                                    : selectedDetailCategory === "전체"
+                                        ? `${selectedCategory} ${filteredItems.length}개`
+                                        : `${selectedDetailCategory} ${filteredItems.length}개`}
+                            </Text>
+                            <View style={styles.sortControl}>
+                                {(["newest", "oldest"] as const).map((order) => {
+                                    const isActive = sortOrder === order;
+
+                                    return (
+                                        <Pressable
+                                            key={order}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ selected: isActive }}
+                                            style={[
+                                                styles.sortOption,
+                                                isActive && styles.sortOptionActive,
+                                            ]}
+                                            onPress={() => setSortOrder(order)}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.sortOptionText,
+                                                    isActive && styles.sortOptionTextActive,
+                                                ]}
+                                            >
+                                                {order === "newest" ? "최신순" : "오래된순"}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        </View>
 
                         {hasSearchQuery && filteredItems.length === 0 ? (
                             <View style={styles.reviewCompleteCard}>
@@ -327,7 +362,7 @@ export default function ClosetScreen() {
                             </View>
                         ) : (
                             <View style={styles.closetGrid}>
-                                {filteredItems.map((item) => {
+                                {displayedItems.map((item) => {
                                     const reviewLabel = getRecommendationInfoReviewLabel(item);
 
                                     return (
@@ -568,7 +603,38 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "800",
         color: colors.text,
+    },
+    listHeaderRow: {
+        minHeight: 32,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
         marginBottom: 14,
+    },
+    sortControl: {
+        flexDirection: "row",
+        borderRadius: 10,
+        backgroundColor: colors.softCard,
+        padding: 3,
+        flexShrink: 0,
+    },
+    sortOption: {
+        minHeight: 26,
+        justifyContent: "center",
+        borderRadius: 8,
+        paddingHorizontal: 8,
+    },
+    sortOptionActive: {
+        backgroundColor: colors.card,
+    },
+    sortOptionText: {
+        color: colors.subText,
+        fontSize: 10,
+        fontWeight: "700",
+    },
+    sortOptionTextActive: {
+        color: colors.point,
     },
     reviewCompleteCard: {
         flexDirection: "row",
