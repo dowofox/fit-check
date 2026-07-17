@@ -1540,12 +1540,23 @@ function uniqueReasons(reasons: string[]) {
   );
 }
 
+type SizeMeasurementCoverage = {
+  hip: boolean;
+  thigh: boolean;
+  sleeve: boolean;
+};
+
 function scoreSizeMeasurement(
   item: ClosetItem,
   measurement: ProductSizeMeasurement,
   profile?: UserProfile | null,
   context?: SizeRecommendationContext,
-  canUseProfileMeasurements = true
+  canUseProfileMeasurements = true,
+  coverage: SizeMeasurementCoverage = {
+    hip: true,
+    thigh: true,
+    sleeve: true,
+  }
 ): Omit<SizeRecommendation, "rank"> {
   const productSizeGuide = item.confirmedProduct?.productSizeGuide;
   const measurementItem: ClosetItem = {
@@ -1592,18 +1603,22 @@ function scoreSizeMeasurement(
         5,
         24
       );
-      score += getEaseScore(
-        getMeasurementDifference(comparison, "hip"),
-        getTargetEase("bottom", "hip", preference),
-        8,
-        16
-      );
-      score += getEaseScore(
-        getMeasurementDifference(comparison, "thigh"),
-        getTargetEase("bottom", "thigh", preference),
-        6,
-        12
-      );
+      score += coverage.hip
+        ? getEaseScore(
+            getMeasurementDifference(comparison, "hip"),
+            getTargetEase("bottom", "hip", preference),
+            8,
+            16
+          )
+        : 16;
+      score += coverage.thigh
+        ? getEaseScore(
+            getMeasurementDifference(comparison, "thigh"),
+            getTargetEase("bottom", "thigh", preference),
+            6,
+            12
+          )
+        : 12;
       score += typeof measurement.rise === "number" && measurement.rise > 0 ? 1.5 : 0;
       score += typeof measurement.hem === "number" && measurement.hem > 0 ? 1.5 : 0;
     } else {
@@ -1622,7 +1637,7 @@ function scoreSizeMeasurement(
         10,
         22
       );
-      score += shouldCompareUserSleeve(item)
+      score += shouldCompareUserSleeve(item) && coverage.sleeve
         ? getEaseScore(
             getMeasurementDifference(comparison, "sleeve"),
             getTargetEase("upper", "sleeve", preference),
@@ -1720,9 +1735,27 @@ export function getRecommendedProductSize(
   }
 
   const canUseProfileMeasurements = missingFields.length === 0;
+  const coverage: SizeMeasurementCoverage = {
+    hip: reliableSizeRows.every((measurement) =>
+      Boolean(getMeasurementValue(measurement, "hip"))
+    ),
+    thigh: reliableSizeRows.every((measurement) =>
+      Boolean(getMeasurementValue(measurement, "thigh"))
+    ),
+    sleeve: reliableSizeRows.every((measurement) =>
+      Boolean(getMeasurementValue(measurement, "sleeve"))
+    ),
+  };
   const scoredRows = reliableSizeRows
     .map((measurement) =>
-      scoreSizeMeasurement(item, measurement, profile, context, canUseProfileMeasurements)
+      scoreSizeMeasurement(
+        item,
+        measurement,
+        profile,
+        context,
+        canUseProfileMeasurements,
+        coverage
+      )
     )
     .sort((first, second) => second.score - first.score)
     .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
