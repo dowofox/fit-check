@@ -303,6 +303,69 @@ export type NaesBackupDataSnapshot = {
   wearRecords: OutfitWearRecord[];
 };
 
+function isStoredRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseStoredJson(rawValue: string | null): unknown {
+  if (!rawValue) return null;
+
+  try {
+    return JSON.parse(rawValue);
+  } catch {
+    return null;
+  }
+}
+
+function isStoredClosetItem(value: unknown): value is ClosetItem {
+  if (!isStoredRecord(value)) return false;
+
+  return (
+    typeof value.id === "string" &&
+    Boolean(value.id) &&
+    typeof value.imageUri === "string" &&
+    typeof value.category === "string" &&
+    Boolean(value.category) &&
+    typeof value.createdAt === "string" &&
+    Boolean(value.createdAt)
+  );
+}
+
+function parseStoredClosetItems(rawValue: string | null) {
+  const parsedValue = parseStoredJson(rawValue);
+  return Array.isArray(parsedValue) ? parsedValue.filter(isStoredClosetItem) : [];
+}
+
+function isStoredSavedOutfit(value: unknown): value is SavedOutfit {
+  if (!isStoredRecord(value)) return false;
+
+  return (
+    typeof value.id === "string" &&
+    Boolean(value.id) &&
+    Array.isArray(value.itemIds) &&
+    value.itemIds.every((itemId) => typeof itemId === "string") &&
+    typeof value.score === "number" &&
+    Number.isFinite(value.score) &&
+    typeof value.grade === "string" &&
+    Array.isArray(value.reasons) &&
+    value.reasons.every((reason) => typeof reason === "string") &&
+    Array.isArray(value.warnings) &&
+    value.warnings.every((warning) => typeof warning === "string") &&
+    typeof value.createdAt === "string" &&
+    Boolean(value.createdAt)
+  );
+}
+
+function parseStoredSavedOutfits(rawValue: string | null) {
+  const parsedValue = parseStoredJson(rawValue);
+  return Array.isArray(parsedValue) ? parsedValue.filter(isStoredSavedOutfit) : [];
+}
+
+function parseStoredUserProfile(rawValue: string | null): UserProfile | null {
+  const parsedValue = parseStoredJson(rawValue);
+  return isStoredRecord(parsedValue) ? (parsedValue as UserProfile) : null;
+}
+
 export type ClosetRecommendationIndexLoadResult = {
   index: ClosetRecommendationIndex;
   revisions: RecommendationRevisionState;
@@ -376,14 +439,7 @@ export async function getClosetRecommendationIndex(): Promise<ClosetRecommendati
   }
 
   const rawCloset = await AsyncStorage.getItem(CLOSET_KEY);
-  let closet: ClosetItem[] = [];
-
-  try {
-    const parsedCloset = rawCloset ? JSON.parse(rawCloset) : [];
-    closet = Array.isArray(parsedCloset) ? parsedCloset : [];
-  } catch {
-    closet = [];
-  }
+  const closet = parseStoredClosetItems(rawCloset);
 
   const rebuiltIndex = buildClosetRecommendationIndex(
     closet,
@@ -487,7 +543,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
   try {
     const data = await AsyncStorage.getItem(PROFILE_KEY);
-    const profile = data ? JSON.parse(data) : null;
+    const profile = parseStoredUserProfile(data);
 
     endPerformanceTimer(timer, {
       found: Boolean(profile),
@@ -507,7 +563,7 @@ export async function saveClosetItem(item: ClosetItem) {
       AsyncStorage.getItem(CLOSET_KEY),
       getIncrementedRecommendationRevisions(["closetRevision"]),
     ]);
-    const closet: ClosetItem[] = existing ? JSON.parse(existing) : [];
+    const closet = parseStoredClosetItems(existing);
 
     closet.unshift(item);
 
@@ -525,7 +581,7 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
 
   try {
     const data = await AsyncStorage.getItem(CLOSET_KEY);
-    const closet = data ? JSON.parse(data) : [];
+    const closet = parseStoredClosetItems(data);
 
     endPerformanceTimer(timer, {
       itemCount: closet.length,
@@ -755,7 +811,7 @@ export async function getSavedOutfits(): Promise<SavedOutfit[]> {
 
   try {
     const data = await AsyncStorage.getItem(SAVED_OUTFITS_KEY);
-    const savedOutfits = data ? JSON.parse(data) : [];
+    const savedOutfits = parseStoredSavedOutfits(data);
 
     endPerformanceTimer(timer, {
       outfitCount: savedOutfits.length,

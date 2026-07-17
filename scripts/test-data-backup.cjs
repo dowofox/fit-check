@@ -64,6 +64,7 @@ const {
 } = require("../utils/dataBackup.ts");
 const {
   getClosetItems,
+  getClosetRecommendationIndex,
   getNaesBackupDataSnapshot,
   getOutfitRecommendationFeedbacks,
   getOutfitWearRecords,
@@ -289,4 +290,37 @@ test("legacy closet and profile fields survive partial updates and version 1 bac
 
   assert.deepEqual(await getClosetItems(), [updatedItem]);
   assert.deepEqual(await getUserProfile(), legacyProfile);
+});
+
+test("corrupted storage shapes are isolated without discarding valid records", async () => {
+  storageMemory.clear();
+  const validItem = createSnapshot().closetItems[0];
+  const validOutfit = createSnapshot().savedOutfits[0];
+
+  storageMemory.set(
+    "naes_closet",
+    JSON.stringify([
+      validItem,
+      null,
+      { id: "missing-category", imageUri: "", createdAt: "2026-01-01" },
+    ])
+  );
+  storageMemory.set("naes_profile", JSON.stringify(["프로필이 아닌 배열"]));
+  storageMemory.set(
+    "naes_saved_outfits",
+    JSON.stringify([validOutfit, { id: "broken-outfit", itemIds: "not-an-array" }])
+  );
+
+  assert.deepEqual(await getClosetItems(), [validItem]);
+  assert.equal(await getUserProfile(), null);
+  assert.deepEqual(await getSavedOutfits(), [validOutfit]);
+
+  const recommendationIndex = await getClosetRecommendationIndex();
+  assert.equal(recommendationIndex.index.recommendationItems.length, 1);
+
+  storageMemory.set("naes_closet", JSON.stringify({ items: [validItem] }));
+  storageMemory.set("naes_saved_outfits", JSON.stringify({ outfits: [validOutfit] }));
+
+  assert.deepEqual(await getClosetItems(), []);
+  assert.deepEqual(await getSavedOutfits(), []);
 });
