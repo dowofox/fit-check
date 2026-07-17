@@ -876,15 +876,47 @@ export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
 export function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
   return runClosetMutation(async () => {
     try {
-    const [closet, revisions] = await Promise.all([
+    const shouldValidateReferences = updatedItem.category !== undefined;
+    const [closet, currentRevisions] = await Promise.all([
       getClosetItemsForMutation(),
-      getIncrementedRecommendationRevisions(["closetRevision"]),
+      getRecommendationRevisionState(),
     ]);
+    const profileLoad = shouldValidateReferences
+      ? await getUserProfileLoadResult()
+      : { status: "loaded" as const, profile: null };
+
+    if (profileLoad.status === "failed") {
+      throw new Error("Stored profile data could not be loaded");
+    }
+
     const updatedCloset = closet.map((item) =>
       item.id === id ? { ...item, ...updatedItem } : item
     );
+    const profile = profileLoad.profile;
+    const nextReferenceClothing = profile
+      ? pruneReferenceClothing(profile.referenceClothing, updatedCloset)
+      : undefined;
+    const didReferencesChange = Boolean(
+      profile &&
+        JSON.stringify(profile.referenceClothing || {}) !==
+          JSON.stringify(nextReferenceClothing || {})
+    );
+    const revisions = incrementRecommendationRevisions(
+      currentRevisions,
+      didReferencesChange
+        ? ["closetRevision", "profileRevision"]
+        : ["closetRevision"]
+    );
+    const entries = getClosetStorageEntries(updatedCloset, revisions);
 
-    await AsyncStorage.multiSet(getClosetStorageEntries(updatedCloset, revisions));
+    if (profile && didReferencesChange) {
+      entries.push([
+        PROFILE_KEY,
+        JSON.stringify({ ...profile, referenceClothing: nextReferenceClothing }),
+      ]);
+    }
+
+    await AsyncStorage.multiSet(entries);
 
     return updatedCloset;
     } catch (error) {

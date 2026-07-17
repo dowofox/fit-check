@@ -492,6 +492,42 @@ test("closet mutations preserve existing data when the source read fails", async
   assert.equal(closet[0].color, item.color);
 });
 
+test("기준 옷의 카테고리 변경은 프로필 참조와 함께 저장한다", async () => {
+  const item = createClosetItem("reference-category-change");
+  await saveClosetItem(item);
+  await saveUserProfile({
+    height: "175",
+    referenceClothing: { topItemId: item.id },
+  });
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextGetItemKey = PROFILE_KEY;
+    assert.deepEqual(await updateClosetItem(item.id, { category: "하의" }), []);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal((await getClosetItems())[0].category, "상의");
+  assert.equal((await getUserProfile()).referenceClothing.topItemId, item.id);
+
+  const revisionsBeforeUpdate = await getRecommendationRevisionState();
+  const updatedCloset = await updateClosetItem(item.id, { category: "하의" });
+  const revisionsAfterUpdate = await getRecommendationRevisionState();
+
+  assert.equal(updatedCloset[0].category, "하의");
+  assert.deepEqual((await getUserProfile()).referenceClothing, {});
+  assert.equal(
+    revisionsAfterUpdate.closetRevision,
+    revisionsBeforeUpdate.closetRevision + 1
+  );
+  assert.equal(
+    revisionsAfterUpdate.profileRevision,
+    revisionsBeforeUpdate.profileRevision + 1
+  );
+});
+
 test("closet reads distinguish storage failures from an empty closet", async () => {
   const item = createClosetItem("closet-load-result");
   await saveClosetItem(item);
