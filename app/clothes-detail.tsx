@@ -12,6 +12,11 @@ import {
 } from "@/utils/productClassification";
 import { getConfirmedProductSeasonInference } from "@/utils/seasonInference";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
+import {
+  formatProductLinkFailure,
+  getProductLinkFailure,
+  type ProductExtractionErrorResponse,
+} from "@/utils/productLinkFailure";
 import { validateProductUrlInput } from "@/utils/productUrl";
 import {
   buildProductSizeMeasurement,
@@ -2712,7 +2717,13 @@ export default function ClothesDetailScreen() {
       });
 
       if (!response.ok) {
-        throw new Error(`Extract product failed: ${response.status}`);
+        const errorResponse = (await response.json().catch(() => ({}))) as ProductExtractionErrorResponse;
+        setExtractErrorMessage(
+          formatProductLinkFailure(
+            getProductLinkFailure(errorResponse.error, response.status)
+          )
+        );
+        return;
       }
 
       const result = await response.json();
@@ -2740,7 +2751,9 @@ export default function ClothesDetailScreen() {
       });
     } catch (error) {
       console.error("상품 URL 추출 실패:", error);
-      setExtractErrorMessage("자동 추출에 실패했어요. 브랜드명, 상품명, 링크만 직접 입력해주세요.");
+      setExtractErrorMessage(
+        formatProductLinkFailure(getProductLinkFailure("product_page_unreachable"))
+      );
     } finally {
       setIsExtractingProduct(false);
     }

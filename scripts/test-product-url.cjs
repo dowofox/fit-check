@@ -29,6 +29,10 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const { validateProductUrlInput } = require("../utils/productUrl.ts");
+const {
+  formatProductLinkFailure,
+  getProductLinkFailure,
+} = require("../utils/productLinkFailure.ts");
 
 test("상품 도메인만 붙여넣어도 HTTPS 주소로 정규화한다", () => {
   assert.deepEqual(validateProductUrlInput("musinsa.com/products/123"), {
@@ -61,4 +65,17 @@ test("빈 값과 비 HTTP 스킴, 잘못된 문자열을 요청 전에 거부한
     ok: false,
     error: "invalid_product_url",
   });
+});
+
+test("상품 추출 오류를 사용자가 취할 행동별로 구분한다", () => {
+  assert.equal(getProductLinkFailure("invalid_product_url", 400).kind, "invalid_link");
+  assert.equal(
+    getProductLinkFailure("product_information_not_found", 422).kind,
+    "unsupported_shop"
+  );
+  assert.equal(getProductLinkFailure("product_page_timeout", 504).kind, "connection");
+  assert.match(
+    formatProductLinkFailure(getProductLinkFailure("product_page_timeout", 504)),
+    /네트워크 상태/
+  );
 });
