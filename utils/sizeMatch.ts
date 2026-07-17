@@ -101,6 +101,16 @@ export function hasSelectedClosetSize(size?: string) {
   return Boolean(normalizeClosetItemSize(size));
 }
 
+export function resolveClosetSizeAfterMeasurementSave(
+  currentSize?: string,
+  measurementSize?: string
+) {
+  return (
+    normalizeClosetItemSize(currentSize) ||
+    normalizeClosetItemSize(measurementSize)
+  );
+}
+
 function getSizeAliases(size?: string) {
   const normalizedSize = normalizeSize(size);
   if (!normalizedSize || normalizedSize === "사이즈미입력") return [];

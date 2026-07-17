@@ -38,6 +38,7 @@ const {
   hasSelectedClosetSize,
   normalizeClosetItemSize,
   normalizeSize,
+  resolveClosetSizeAfterMeasurementSave,
 } = require("../utils/sizeMatch.ts");
 const {
   buildProductSizeMeasurement,
@@ -62,6 +63,15 @@ test("missing size labels are not persisted as real closet sizes", () => {
   assert.equal(hasSelectedClosetSize("사이즈 미입력"), false);
   assert.equal(normalizeClosetItemSize(" xl "), "XL");
   assert.equal(hasSelectedClosetSize("XL"), true);
+});
+
+test("첫 실측 입력은 빈 현재 사이즈만 채우고 기존 선택은 유지한다", () => {
+  assert.equal(resolveClosetSizeAfterMeasurementSave(undefined, "XL"), "XL");
+  assert.equal(
+    resolveClosetSizeAfterMeasurementSave("사이즈 미입력", "2XL"),
+    "XXL"
+  );
+  assert.equal(resolveClosetSizeAfterMeasurementSave("L", "XL"), "L");
 });
 
 test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () => {

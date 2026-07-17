@@ -34,6 +34,7 @@ import {
   getSizeRecommendationMissingInfo,
   hasSelectedClosetSize,
   isAccessoryOrBagItem,
+  resolveClosetSizeAfterMeasurementSave,
   type FitSuitabilityResult,
   type SizeRecommendationResult,
 } from "@/utils/sizeMatch";
@@ -2597,7 +2598,10 @@ export default function ClothesDetailScreen() {
     };
 
     try {
-      const updatedCloset = await updateClosetItem(item.id, { confirmedProduct });
+      const updatedCloset = await updateClosetItem(item.id, {
+        confirmedProduct,
+        size: resolveClosetSizeAfterMeasurementSave(item.size, measurement.size),
+      });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
       if (!updatedItem) {
