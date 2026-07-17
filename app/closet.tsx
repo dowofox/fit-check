@@ -19,7 +19,7 @@ import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
     Alert,
     Dimensions,
@@ -85,21 +85,37 @@ export default function ClosetScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOrder, setSortOrder] = useState<ClosetSortOrder>("newest");
     const [hasLoadError, setHasLoadError] = useState(false);
+    const closetLoadRequestRef = useRef(0);
 
     useFocusEffect(
         useCallback(() => {
-            loadCloset();
+            void loadCloset();
 
             if (typeof category === "string") {
                 setSelectedCategory(category);
                 setSelectedDetailCategory("전체");
             }
+
+            return () => {
+                closetLoadRequestRef.current += 1;
+            };
         }, [category])
     );
 
     async function loadCloset() {
+        const requestId = closetLoadRequestRef.current + 1;
+        closetLoadRequestRef.current = requestId;
         const timer = startPerformanceTimer("screen.closet.load");
         const result = await getClosetItemsLoadResult();
+
+        if (requestId !== closetLoadRequestRef.current) {
+            endPerformanceTimer(timer, {
+                itemCount: result.items.length,
+                status: result.status,
+                stale: true,
+            });
+            return;
+        }
 
         if (result.status === "loaded") {
             setItems(result.items);
@@ -155,6 +171,7 @@ export default function ClosetScreen() {
                     text: "삭제",
                     style: "destructive",
                     onPress: async () => {
+                        closetLoadRequestRef.current += 1;
                         const updatedItems = await deleteClosetItem(id);
                         if (!updatedItems) {
                             Alert.alert("삭제 실패", "옷을 삭제하지 못했어요. 다시 시도해주세요.");
