@@ -260,6 +260,27 @@ test("restored source data replaces storage and rebuilds derived closet data", a
   assert.equal(exportedSnapshot.savedOutfits.length, 1);
 });
 
+test("backup restore keeps only reference clothing that exists in the matching category", async () => {
+  storageMemory.clear();
+  const snapshot = createSnapshot();
+  snapshot.profile = {
+    ...snapshot.profile,
+    referenceClothing: {
+      topItemId: "bottom-1",
+      bottomItemId: "bottom-1",
+      outerItemId: "missing-outer",
+      shoesItemId: "shoes-1",
+    },
+  };
+
+  await restoreNaesBackupDataSnapshot(snapshot);
+
+  assert.deepEqual((await getUserProfile()).referenceClothing, {
+    bottomItemId: "bottom-1",
+    shoesItemId: "shoes-1",
+  });
+});
+
 test("backup snapshot fails instead of exporting empty data after a storage read error", async () => {
   await restoreNaesBackupDataSnapshot(createSnapshot());
   failNextMultiGet = true;

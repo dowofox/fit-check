@@ -1281,10 +1281,19 @@ export async function restoreNaesBackupDataSnapshot(
     snapshot.outfitFeedbacks
   );
   const wearRecords = normalizeOutfitWearRecords(snapshot.wearRecords);
+  const restoredProfile = snapshot.profile?.referenceClothing
+    ? {
+        ...snapshot.profile,
+        referenceClothing: pruneReferenceClothing(
+          snapshot.profile.referenceClothing,
+          snapshot.closetItems
+        ),
+      }
+    : snapshot.profile;
 
   await AsyncStorage.multiSet([
     ...getClosetStorageEntries(snapshot.closetItems, revisions),
-    [PROFILE_KEY, JSON.stringify(snapshot.profile)],
+    [PROFILE_KEY, JSON.stringify(restoredProfile)],
     [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
     [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
     [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
