@@ -97,6 +97,7 @@ const {
   getClosetRecommendationIndex,
   getDisplayImageUris,
   getOutfitRecommendationFeedbacks,
+  getOutfitRecommendationFeedbacksLoadResult,
   getOutfitWearRecords,
   getRecommendationRevisionState,
   getSavedOutfits,
@@ -263,6 +264,29 @@ test("feedback mutations preserve existing data when the source read fails", asy
   assert.equal(feedbacks.length, 1);
   assert.deepEqual(feedbacks[0].itemIds, ["bottom-1", "top-1"]);
   assert.equal(feedbacks[0].value, "like");
+});
+
+test("feedback reads distinguish storage failures from no feedback", async () => {
+  await setOutfitRecommendationFeedback(["top-1", "bottom-1"], "like");
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  let failedResult;
+  try {
+    failNextGetItemKey = OUTFIT_FEEDBACK_KEY;
+    failedResult = await getOutfitRecommendationFeedbacksLoadResult();
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(failedResult, { status: "failed", feedbacks: [] });
+  assert.equal((await getOutfitRecommendationFeedbacks()).length, 1);
+
+  storageMemory.delete(OUTFIT_FEEDBACK_KEY);
+  assert.deepEqual(await getOutfitRecommendationFeedbacksLoadResult(), {
+    status: "loaded",
+    feedbacks: [],
+  });
 });
 
 test("wear record mutations preserve history when the source read fails", async () => {

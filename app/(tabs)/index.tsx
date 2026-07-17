@@ -40,7 +40,7 @@ import { isHomeRecommendationCacheKeyForRevision } from "@/utils/homeRecommendat
 import {
   ClosetItem,
   getClosetRecommendationIndex,
-  getOutfitRecommendationFeedbacks,
+  getOutfitRecommendationFeedbacksLoadResult,
   getRecommendationRevisionKey,
   getRecommendationRevisionState,
   getSavedOutfitsLoadResult,
@@ -595,7 +595,7 @@ export default function HomeScreen() {
             indexLoad,
             savedOutfitsLoad,
             profileLoad,
-            feedbacks,
+            feedbacksLoad,
             recommendationCacheSnapshot,
           ] = await Promise.all([
             (async () => {
@@ -635,10 +635,11 @@ export default function HomeScreen() {
             })(),
             (async () => {
               const timer = startPerformanceTimer("home.storage.feedback-load");
-              const result = await getOutfitRecommendationFeedbacks();
+              const result = await getOutfitRecommendationFeedbacksLoadResult();
               endPerformanceTimer(timer, {
-                itemCount: result.length,
-                serializedCharacters: JSON.stringify(result).length,
+                itemCount: result.feedbacks.length,
+                status: result.status,
+                serializedCharacters: JSON.stringify(result.feedbacks).length,
               });
               return result;
             })(),
@@ -657,13 +658,15 @@ export default function HomeScreen() {
 
           if (
             savedOutfitsLoad.status === "failed" ||
-            profileLoad.status === "failed"
+            profileLoad.status === "failed" ||
+            feedbacksLoad.status === "failed"
           ) {
             throw new Error("Home dashboard storage input could not be loaded");
           }
 
           const nextSavedOutfits = savedOutfitsLoad.outfits;
           const nextProfile = profileLoad.profile;
+          const feedbacks = feedbacksLoad.feedbacks;
           endPerformanceTimer(baseDataTimer, {
             closetItemCount: indexLoad.index.recommendationItems.length,
             savedOutfitCount: nextSavedOutfits.length,

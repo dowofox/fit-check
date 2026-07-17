@@ -1090,18 +1090,48 @@ export async function getSavedOutfits(): Promise<SavedOutfit[]> {
   return (await getSavedOutfitsLoadResult()).outfits;
 }
 
-export async function getOutfitRecommendationFeedbacks(): Promise<
-  OutfitRecommendationFeedback[]
+export type OutfitRecommendationFeedbacksLoadResult = {
+  status: "loaded" | "failed";
+  feedbacks: OutfitRecommendationFeedback[];
+};
+
+function parseStoredOutfitRecommendationFeedbacksLoadResult(
+  rawValue: string | null
+): OutfitRecommendationFeedbacksLoadResult {
+  if (rawValue === null) return { status: "loaded", feedbacks: [] };
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as unknown;
+
+    if (!Array.isArray(parsedValue)) {
+      return { status: "failed", feedbacks: [] };
+    }
+
+    return {
+      status: "loaded",
+      feedbacks: normalizeOutfitRecommendationFeedbacks(parsedValue),
+    };
+  } catch {
+    return { status: "failed", feedbacks: [] };
+  }
+}
+
+export async function getOutfitRecommendationFeedbacksLoadResult(): Promise<
+  OutfitRecommendationFeedbacksLoadResult
 > {
   try {
     const data = await AsyncStorage.getItem(OUTFIT_FEEDBACK_KEY);
-    const parsedFeedbacks = data ? JSON.parse(data) : [];
-
-    return normalizeOutfitRecommendationFeedbacks(parsedFeedbacks);
+    return parseStoredOutfitRecommendationFeedbacksLoadResult(data);
   } catch (error) {
     console.error("코디 추천 피드백 불러오기 실패:", error);
-    return [];
+    return { status: "failed", feedbacks: [] };
   }
+}
+
+export async function getOutfitRecommendationFeedbacks(): Promise<
+  OutfitRecommendationFeedback[]
+> {
+  return (await getOutfitRecommendationFeedbacksLoadResult()).feedbacks;
 }
 
 export async function setOutfitRecommendationFeedback(
