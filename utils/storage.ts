@@ -383,11 +383,6 @@ function isStoredClosetItem(value: unknown): value is ClosetItem {
   );
 }
 
-function parseStoredClosetItems(rawValue: string | null) {
-  const parsedValue = parseStoredJson(rawValue);
-  return Array.isArray(parsedValue) ? parsedValue.filter(isStoredClosetItem) : [];
-}
-
 export type ClosetItemsLoadResult = {
   status: "loaded" | "failed";
   items: ClosetItem[];
@@ -655,7 +650,13 @@ export async function getClosetRecommendationIndex(): Promise<ClosetRecommendati
   }
 
   const rawCloset = await AsyncStorage.getItem(CLOSET_KEY);
-  const closet = parseStoredClosetItems(rawCloset);
+  const closetLoad = parseStoredClosetItemsLoadResult(rawCloset);
+
+  if (closetLoad.status === "failed") {
+    throw new Error("Stored closet data could not be loaded");
+  }
+
+  const closet = closetLoad.items;
 
   const rebuiltIndex = buildClosetRecommendationIndex(
     closet,

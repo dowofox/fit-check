@@ -43,8 +43,9 @@ import {
   getOutfitRecommendationFeedbacks,
   getRecommendationRevisionKey,
   getRecommendationRevisionState,
-  getSavedOutfits,
+  getSavedOutfitsLoadResult,
   getUserProfile,
+  getUserProfileLoadResult,
   SavedOutfit,
 } from "@/utils/storage";
 import { colors, typography } from "@/utils/theme";
@@ -196,6 +197,9 @@ export default function HomeScreen() {
   const [currentRecommendationWeather, setCurrentRecommendationWeather] =
     useState<OutfitRecommendationWeather | null>(null);
   const [isRecommendationPreparing, setIsRecommendationPreparing] = useState(true);
+  const [hasDashboardData, setHasDashboardData] = useState(false);
+  const [hasDashboardLoadError, setHasDashboardLoadError] = useState(false);
+  const [dashboardReloadKey, setDashboardReloadKey] = useState(0);
   const initialRecommendationCacheRef =
     useRef<HydratedHomeRecommendationCacheEntry | null>(null);
   const weatherRecommendationCacheRef =
@@ -215,6 +219,7 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      const isManualReload = dashboardReloadKey > 0;
       let isActive = true;
       let frameRequest: number | null = null;
       let deferredTimer: ReturnType<typeof setTimeout> | null = null;
@@ -551,6 +556,7 @@ export default function HomeScreen() {
               if (!isActive) return;
 
               setIsRecommendationPreparing(false);
+              setHasDashboardLoadError(false);
               logPerformanceMetric("home.focus-reload.skipped", {
                 reason: "recommendation revision unchanged",
                 itemCount: cachedDashboardContext.items.length,
@@ -587,8 +593,8 @@ export default function HomeScreen() {
           const baseDataTimer = startPerformanceTimer("screen.home.base-data");
           const [
             indexLoad,
-            nextSavedOutfits,
-            nextProfile,
+            savedOutfitsLoad,
+            profileLoad,
             feedbacks,
             recommendationCacheSnapshot,
           ] = await Promise.all([
@@ -609,19 +615,21 @@ export default function HomeScreen() {
               const timer = startPerformanceTimer(
                 "home.storage.saved-outfits-load"
               );
-              const result = await getSavedOutfits();
+              const result = await getSavedOutfitsLoadResult();
               endPerformanceTimer(timer, {
-                itemCount: result.length,
-                serializedCharacters: JSON.stringify(result).length,
+                itemCount: result.outfits.length,
+                status: result.status,
+                serializedCharacters: JSON.stringify(result.outfits).length,
               });
               return result;
             })(),
             (async () => {
               const timer = startPerformanceTimer("home.storage.profile-load");
-              const result = await getUserProfile();
+              const result = await getUserProfileLoadResult();
               endPerformanceTimer(timer, {
-                itemCount: result ? 1 : 0,
-                serializedCharacters: JSON.stringify(result).length,
+                itemCount: result.profile ? 1 : 0,
+                status: result.status,
+                serializedCharacters: JSON.stringify(result.profile).length,
               });
               return result;
             })(),
@@ -646,6 +654,16 @@ export default function HomeScreen() {
               return result;
             })(),
           ]);
+
+          if (
+            savedOutfitsLoad.status === "failed" ||
+            profileLoad.status === "failed"
+          ) {
+            throw new Error("Home dashboard storage input could not be loaded");
+          }
+
+          const nextSavedOutfits = savedOutfitsLoad.outfits;
+          const nextProfile = profileLoad.profile;
           endPerformanceTimer(baseDataTimer, {
             closetItemCount: indexLoad.index.recommendationItems.length,
             savedOutfitCount: nextSavedOutfits.length,
@@ -691,6 +709,8 @@ export default function HomeScreen() {
           setClosetItems(recommendationItems);
           setCategoryCounts(indexLoad.index.categoryCounts);
           setSavedOutfits(nextSavedOutfits);
+          setHasDashboardData(true);
+          setHasDashboardLoadError(false);
           dashboardContextRef.current = {
             dataKey,
             items: recommendationItems,
@@ -765,9 +785,11 @@ export default function HomeScreen() {
         } catch (error) {
           if (isActive) {
             setIsRecommendationPreparing(false);
+            setHasDashboardLoadError(true);
           }
           logPerformanceMetric("home.load-failed", {
             message: error instanceof Error ? error.message : String(error),
+            manualRetry: isManualReload,
           });
           endBaseRenderTimers({ failed: true });
           endFullLoadTimers({ failed: true });
@@ -783,7 +805,7 @@ export default function HomeScreen() {
         endBaseRenderTimers({ cancelled: true });
         endFullLoadTimers({ cancelled: true });
       };
-    }, [])
+    }, [dashboardReloadKey])
   );
 
   async function startAnalysis() {
@@ -817,6 +839,26 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>안녕하세요, 도현님</Text>
           <Text style={styles.greetingSub}>오늘도 멋진 하루 되세요!</Text>
         </View>
+
+        {hasDashboardLoadError ? (
+          <View style={styles.loadErrorCard}>
+            <Feather name="alert-circle" size={17} color={colors.warning} />
+            <View style={styles.loadErrorTextArea}>
+              <Text style={styles.loadErrorTitle}>홈 정보를 불러오지 못했어요</Text>
+              <Text style={styles.loadErrorText}>
+                {hasDashboardData
+                  ? "마지막으로 확인한 내용을 유지하고 있어요."
+                  : "저장된 옷과 코디는 그대로예요. 다시 불러와주세요."}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.loadErrorAction}
+              onPress={() => setDashboardReloadKey((value) => value + 1)}
+            >
+              <Text style={styles.loadErrorActionText}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.heroCard}>
           <Image
@@ -860,7 +902,11 @@ export default function HomeScreen() {
                 >
                   <Icon width={24} height={24} color={colors.point} />
                   <Text style={styles.countLabel}>{category.label}</Text>
-                  <Text style={styles.countValue}>{getCategoryCount(categoryCounts, category.label)}</Text>
+                  <Text style={styles.countValue}>
+                    {hasDashboardLoadError && !hasDashboardData
+                      ? "-"
+                      : getCategoryCount(categoryCounts, category.label)}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -906,6 +952,20 @@ export default function HomeScreen() {
                 />
               ))}
             </ScrollView>
+          ) : hasDashboardLoadError && !hasDashboardData ? (
+            <View style={styles.recommendationEmptyCard}>
+              <View style={styles.recommendationEmptyIcon}>
+                <Feather name="refresh-cw" size={16} color={colors.point} />
+              </View>
+              <View style={styles.recommendationEmptyTextArea}>
+                <Text style={styles.recommendationEmptyTitle}>
+                  추천 정보를 다시 불러와주세요
+                </Text>
+                <Text style={styles.emptyText}>
+                  옷장 상태를 확인한 뒤 오늘의 코디를 준비할게요.
+                </Text>
+              </View>
+            </View>
           ) : isRecommendationPreparing ? (
             <View style={styles.recommendationEmptyCard}>
               <View style={styles.recommendationEmptyIcon}>
@@ -944,7 +1004,11 @@ export default function HomeScreen() {
 
         <View style={styles.savedCard}>
           <View style={styles.savedTextArea}>
-            <Text style={styles.savedTitle}>저장한 코디가 {savedOutfits.length}개 있어요</Text>
+            <Text style={styles.savedTitle}>
+              {hasDashboardLoadError && !hasDashboardData
+                ? "저장한 코디를 확인하지 못했어요"
+                : `저장한 코디가 ${savedOutfits.length}개 있어요`}
+            </Text>
             <Text style={styles.savedDescription}>나의 다양한 스타일을 확인해보세요.</Text>
           </View>
 
@@ -1012,6 +1076,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "500",
     marginTop: 2,
+  },
+  loadErrorCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  loadErrorTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  loadErrorTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  loadErrorText: {
+    color: colors.subText,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  loadErrorAction: {
+    minHeight: 30,
+    justifyContent: "center",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    backgroundColor: colors.softCard,
+    flexShrink: 0,
+  },
+  loadErrorActionText: {
+    color: colors.point,
+    fontSize: 11,
+    fontWeight: "700",
   },
   heroCard: {
     height: 148,

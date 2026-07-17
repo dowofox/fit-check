@@ -605,6 +605,16 @@ test("기존 옷장은 경량 인덱스를 한 번 생성한 뒤 전체 JSON을 
   assert.equal(storageReadCounts.get(CLOSET_KEY), closetReadsAfterFirstLoad);
 });
 
+test("손상된 옷장 원본으로 빈 홈 추천 인덱스를 만들지 않는다", async () => {
+  storageMemory.set(CLOSET_KEY, "{broken-json");
+
+  await assert.rejects(
+    () => getClosetRecommendationIndex(),
+    /Stored closet data could not be loaded/
+  );
+  assert.equal(storageMemory.has(CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY), false);
+});
+
 test("옷장·프로필·저장 코디 변경은 각 revision과 추천 키를 갱신한다", async () => {
   const item = createClosetItem("revision-top");
   const initialRevisions = await getRecommendationRevisionState();
