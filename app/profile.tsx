@@ -12,8 +12,8 @@ import {
 } from "@/utils/profileMeasurements";
 import {
   ClosetItem,
-  getClosetItems,
-  getUserProfile,
+  getClosetItemsLoadResult,
+  getUserProfileLoadResult,
   pruneReferenceClothing,
   ReferenceClothing,
   saveUserProfile,
@@ -106,6 +106,8 @@ export default function ProfileScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+  const [isProfileReady, setIsProfileReady] = useState(false);
+  const [hasProfileLoadError, setHasProfileLoadError] = useState(false);
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
   const profileMeasurementInputs = {
     height,
@@ -121,10 +123,21 @@ export default function ProfileScreen() {
   const measurementCount = countValidProfileMeasurements(profileMeasurementInputs, ["height"]);
 
   const loadProfile = useCallback(async () => {
-    const [profile, savedClosetItems] = await Promise.all([
-      getUserProfile(),
-      getClosetItems(),
+    setIsProfileReady(false);
+    setHasProfileLoadError(false);
+    const [profileResult, closetResult] = await Promise.all([
+      getUserProfileLoadResult(),
+      getClosetItemsLoadResult(),
     ]);
+
+    if (profileResult.status === "failed" || closetResult.status === "failed") {
+      setHasProfileLoadError(true);
+      setIsProfileReady(true);
+      return;
+    }
+
+    const profile = profileResult.profile;
+    const savedClosetItems = closetResult.items;
 
     setClosetItems(savedClosetItems);
 
@@ -165,6 +178,7 @@ export default function ProfileScreen() {
           referenceClothing: validReferenceClothing,
         });
       }
+      setIsProfileReady(true);
       return;
     }
 
@@ -185,6 +199,7 @@ export default function ProfileScreen() {
     setThighCircumference("");
     setPreferredPantsTotalLength("");
     setReferenceClothing({});
+    setIsProfileReady(true);
   }, []);
 
   useFocusEffect(
@@ -258,6 +273,14 @@ export default function ProfileScreen() {
   };
 
   const handleSave = async () => {
+    if (!isProfileReady || hasProfileLoadError) {
+      Alert.alert(
+        "프로필을 불러온 뒤 저장해주세요",
+        "기존 프로필을 보호하기 위해 불러오기가 완료되기 전에는 저장할 수 없어요."
+      );
+      return;
+    }
+
     const normalizedTopSize = normalizeSize(topSize);
     const normalizedBottomSize = normalizeSize(bottomSize);
     const normalizedShoeSize = normalizeSize(shoeSize);
@@ -335,6 +358,28 @@ export default function ProfileScreen() {
 
           <View style={styles.headerBlank} />
         </View>
+
+        {!isProfileReady && !hasProfileLoadError ? (
+          <View style={styles.profileLoadCard}>
+            <ActivityIndicator size="small" color="#8C6F47" />
+            <Text style={styles.profileLoadText}>프로필을 불러오는 중이에요</Text>
+          </View>
+        ) : null}
+
+        {hasProfileLoadError ? (
+          <View style={styles.profileLoadCard}>
+            <Feather name="alert-circle" size={18} color="#B45309" />
+            <View style={styles.profileLoadTextArea}>
+              <Text style={styles.profileLoadTitle}>프로필을 불러오지 못했어요</Text>
+              <Text style={styles.profileLoadDescription}>
+                저장된 정보는 그대로 있어요. 다시 불러온 뒤 수정해주세요.
+              </Text>
+            </View>
+            <Pressable style={styles.profileLoadAction} onPress={() => void loadProfile()}>
+              <Text style={styles.profileLoadActionText}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.styleSummaryCard}>
           <View>
@@ -653,7 +698,14 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        <Pressable style={styles.saveButton} onPress={handleSave}>
+        <Pressable
+          style={[
+            styles.saveButton,
+            (!isProfileReady || hasProfileLoadError) && styles.saveButtonDisabled,
+          ]}
+          onPress={handleSave}
+          disabled={!isProfileReady || hasProfileLoadError}
+        >
           <Text style={styles.saveButtonText}>저장하기</Text>
         </Pressable>
 
@@ -749,6 +801,53 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     textAlign: "center",
+  },
+  profileLoadCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    backgroundColor: "#fff",
+  },
+  profileLoadTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  profileLoadTitle: {
+    color: "#111",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  profileLoadText: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  profileLoadDescription: {
+    color: "#777064",
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  profileLoadAction: {
+    minHeight: 30,
+    justifyContent: "center",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    backgroundColor: "#F4EEE7",
+    flexShrink: 0,
+  },
+  profileLoadActionText: {
+    color: "#8C6F47",
+    fontSize: 11,
+    fontWeight: "700",
   },
   formCard: {
     backgroundColor: "#fff",
@@ -1044,6 +1143,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     marginBottom: 10,
+  },
+  saveButtonDisabled: {
+    opacity: 0.45,
   },
   saveButtonText: {
     color: "#fff",
