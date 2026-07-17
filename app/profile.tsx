@@ -1,4 +1,10 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import { getNaesBackupSummary, type NaesBackupPayload } from "@/utils/dataBackup";
+import {
+  createAndShareNaesBackup,
+  pickNaesBackupFile,
+  restoreNaesBackup,
+} from "@/utils/dataBackupFiles";
 import { normalizeSize } from "@/utils/sizeMatch";
 import {
   countValidProfileMeasurements,
@@ -15,7 +21,16 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 const genderOptions = ["남성", "여성"];
 const bodyTypeOptions = ["마름", "보통", "근육형", "통통"];
@@ -31,6 +46,10 @@ const referenceClothingSlots: {
 
 function getClosetItemName(item?: ClosetItem) {
   return item?.detailCategory || item?.subCategory || item?.category || "";
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "잠시 후 다시 시도해주세요.";
 }
 
 function MeasurementInput({
@@ -85,6 +104,8 @@ export default function ProfileScreen() {
   const [preferredPantsTotalLength, setPreferredPantsTotalLength] = useState("");
   const [referenceClothing, setReferenceClothing] = useState<ReferenceClothing>({});
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+  const [isRestoringBackup, setIsRestoringBackup] = useState(false);
   const hasStyleSizes = Boolean(topSize || bottomSize || shoeSize);
   const profileMeasurementInputs = {
     height,
@@ -99,61 +120,142 @@ export default function ProfileScreen() {
   };
   const measurementCount = countValidProfileMeasurements(profileMeasurementInputs, ["height"]);
 
+  const loadProfile = useCallback(async () => {
+    const [profile, savedClosetItems] = await Promise.all([
+      getUserProfile(),
+      getClosetItems(),
+    ]);
+
+    setClosetItems(savedClosetItems);
+
+    if (profile) {
+      const validReferenceClothing = pruneReferenceClothing(
+        profile.referenceClothing,
+        savedClosetItems
+      );
+      const hadStaleReference = Object.values(profile.referenceClothing || {}).some(
+        (itemId) => itemId && !Object.values(validReferenceClothing).includes(itemId)
+      );
+
+      setGender(profile.gender || "남성");
+      setAge(profile.age || "");
+      setHeight(profile.height || "");
+      setWeight(profile.weight || "");
+      setBodyType(profile.bodyType || "보통");
+      setTopSize(normalizeSize(profile.topSize));
+      setBottomSize(normalizeSize(profile.bottomSize));
+      setShoeSize(normalizeSize(profile.shoeSize));
+      setShoulderWidth(profile.shoulderWidth || "");
+      setChestCircumference(profile.chestCircumference || "");
+      setWaistCircumference(profile.waistCircumference || "");
+      setHipCircumference(profile.hipCircumference || "");
+      setArmLength(profile.armLength || "");
+      setInseam(profile.inseam || "");
+      setThighCircumference(profile.thighCircumference || "");
+      setPreferredPantsTotalLength(
+        profile.preferredPantsTotalLength !== undefined
+          ? String(profile.preferredPantsTotalLength)
+          : ""
+      );
+      setReferenceClothing(validReferenceClothing);
+
+      if (hadStaleReference) {
+        await saveUserProfile({
+          ...profile,
+          referenceClothing: validReferenceClothing,
+        });
+      }
+      return;
+    }
+
+    setGender("남성");
+    setAge("");
+    setHeight("");
+    setWeight("");
+    setBodyType("보통");
+    setTopSize("");
+    setBottomSize("");
+    setShoeSize("");
+    setShoulderWidth("");
+    setChestCircumference("");
+    setWaistCircumference("");
+    setHipCircumference("");
+    setArmLength("");
+    setInseam("");
+    setThighCircumference("");
+    setPreferredPantsTotalLength("");
+    setReferenceClothing({});
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      const loadProfile = async () => {
-        const [profile, savedClosetItems] = await Promise.all([
-          getUserProfile(),
-          getClosetItems(),
-        ]);
-
-        setClosetItems(savedClosetItems);
-
-        if (profile) {
-          const validReferenceClothing = pruneReferenceClothing(
-            profile.referenceClothing,
-            savedClosetItems
-          );
-          const hadStaleReference = Object.values(profile.referenceClothing || {}).some(
-            (itemId) => itemId && !Object.values(validReferenceClothing).includes(itemId)
-          );
-
-          setGender(profile.gender || "남성");
-          setAge(profile.age || "");
-          setHeight(profile.height || "");
-          setWeight(profile.weight || "");
-          setBodyType(profile.bodyType || "보통");
-          setTopSize(normalizeSize(profile.topSize));
-          setBottomSize(normalizeSize(profile.bottomSize));
-          setShoeSize(normalizeSize(profile.shoeSize));
-          setShoulderWidth(profile.shoulderWidth || "");
-          setChestCircumference(profile.chestCircumference || "");
-          setWaistCircumference(profile.waistCircumference || "");
-          setHipCircumference(profile.hipCircumference || "");
-          setArmLength(profile.armLength || "");
-          setInseam(profile.inseam || "");
-          setThighCircumference(profile.thighCircumference || "");
-          setPreferredPantsTotalLength(
-            profile.preferredPantsTotalLength !== undefined
-              ? String(profile.preferredPantsTotalLength)
-              : ""
-          );
-          setReferenceClothing(validReferenceClothing);
-
-          if (hadStaleReference) {
-            await saveUserProfile({
-              ...profile,
-              referenceClothing: validReferenceClothing,
-            });
-          }
-        } else {
-          setReferenceClothing({});
-        }
-      };
-
-      loadProfile();
-    }, [])
+      void loadProfile();
+    }, [loadProfile])
   );
+
+  const handleCreateBackup = async () => {
+    if (isCreatingBackup || isRestoringBackup) return;
+
+    setIsCreatingBackup(true);
+    try {
+      await createAndShareNaesBackup();
+      Alert.alert(
+        "백업 파일을 만들었어요",
+        "공유 메뉴에서 선택한 위치에 파일이 저장됐는지 확인해주세요."
+      );
+    } catch (error) {
+      console.error("데이터 백업 실패:", error);
+      Alert.alert("백업하지 못했어요", getErrorMessage(error));
+    } finally {
+      setIsCreatingBackup(false);
+    }
+  };
+
+  const confirmRestoreBackup = async (payload: NaesBackupPayload) => {
+    setIsRestoringBackup(true);
+    try {
+      await restoreNaesBackup(payload);
+      await loadProfile();
+      Alert.alert("복원 완료", "옷장과 프로필, 코디 기록을 복원했어요.");
+    } catch (error) {
+      console.error("데이터 복원 실패:", error);
+      Alert.alert("복원하지 못했어요", getErrorMessage(error));
+    } finally {
+      setIsRestoringBackup(false);
+    }
+  };
+
+  const handlePickBackup = async () => {
+    if (isCreatingBackup || isRestoringBackup) return;
+
+    setIsRestoringBackup(true);
+    try {
+      const payload = await pickNaesBackupFile();
+      if (!payload) return;
+
+      const summary = getNaesBackupSummary(payload);
+      const createdAt = new Date(payload.createdAt).toLocaleString("ko-KR");
+      setIsRestoringBackup(false);
+
+      Alert.alert(
+        "이 백업으로 복원할까요?",
+        `${createdAt} 백업\n옷 ${summary.closetItemCount}개 · 저장 코디 ${summary.savedOutfitCount}개 · 사진 ${summary.imageCount}개\n\n현재 데이터는 백업 내용으로 교체됩니다.`,
+        [
+          { text: "취소", style: "cancel" },
+          {
+            text: "복원하기",
+            style: "destructive",
+            onPress: () => void confirmRestoreBackup(payload),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("백업 파일 확인 실패:", error);
+      Alert.alert("백업 파일을 열지 못했어요", getErrorMessage(error));
+    } finally {
+      setIsRestoringBackup(false);
+    }
+  };
 
   const handleSave = async () => {
     const normalizedTopSize = normalizeSize(topSize);
@@ -546,6 +648,55 @@ export default function ProfileScreen() {
         <Pressable style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>저장하기</Text>
         </Pressable>
+
+        <View style={styles.dataManagementCard}>
+          <View style={styles.dataManagementHeader}>
+            <View style={styles.dataManagementTitleWrap}>
+              <Text style={styles.sectionEyebrow}>DATA MANAGEMENT</Text>
+              <Text style={styles.sectionTitle}>데이터 백업·복원</Text>
+              <Text style={styles.dataManagementDescription}>
+                옷 사진과 프로필, 저장 코디, 추천 기록을 파일 하나로 보관해요.
+              </Text>
+            </View>
+            <View style={styles.summaryIconCircle}>
+              <Feather name="shield" size={14} color="#111" />
+            </View>
+          </View>
+
+          <Pressable
+            style={[styles.dataActionButton, styles.dataActionButtonPrimary]}
+            onPress={() => void handleCreateBackup()}
+            disabled={isCreatingBackup || isRestoringBackup}
+          >
+            {isCreatingBackup ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="download" size={15} color="#fff" />
+            )}
+            <Text style={styles.dataActionButtonPrimaryText}>
+              {isCreatingBackup ? "백업 파일 만드는 중" : "백업 파일 만들기"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.dataActionButton}
+            onPress={() => void handlePickBackup()}
+            disabled={isCreatingBackup || isRestoringBackup}
+          >
+            {isRestoringBackup ? (
+              <ActivityIndicator size="small" color="#8C6F47" />
+            ) : (
+              <Feather name="upload" size={15} color="#8C6F47" />
+            )}
+            <Text style={styles.dataActionButtonText}>
+              {isRestoringBackup ? "백업 파일 확인 중" : "백업 파일 복원"}
+            </Text>
+          </Pressable>
+
+          <Text style={styles.dataManagementNotice}>
+            복원 전 파일 형식을 확인하고, 데이터 교체 여부를 한 번 더 물어봐요.
+          </Text>
+        </View>
       </ScrollView>
 
       <BottomNav activeTab="profile" />
@@ -884,10 +1035,68 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 10,
     alignItems: "center",
+    marginBottom: 10,
   },
   saveButtonText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "700",
+  },
+  dataManagementCard: {
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+  },
+  dataManagementHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 12,
+  },
+  dataManagementTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dataManagementDescription: {
+    color: "#777064",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  dataActionButton: {
+    minHeight: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+    backgroundColor: "#F4EEE7",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  dataActionButtonPrimary: {
+    backgroundColor: "#111",
+    borderColor: "#111",
+  },
+  dataActionButtonText: {
+    color: "#8C6F47",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  dataActionButtonPrimaryText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  dataManagementNotice: {
+    color: "#777064",
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: "500",
+    marginTop: 2,
   },
 });

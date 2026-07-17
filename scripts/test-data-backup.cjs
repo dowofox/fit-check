@@ -1,0 +1,243 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const Module = require("node:module");
+const path = require("node:path");
+const test = require("node:test");
+const ts = require("typescript");
+
+const projectRoot = path.resolve(__dirname, "..");
+const storageMemory = new Map();
+
+global.__DEV__ = false;
+
+const asyncStorage = {
+  async getItem(key) {
+    return storageMemory.has(key) ? storageMemory.get(key) : null;
+  },
+  async setItem(key, value) {
+    storageMemory.set(key, value);
+  },
+  async multiSet(entries) {
+    entries.forEach(([key, value]) => storageMemory.set(key, value));
+  },
+};
+
+const originalLoad = Module._load;
+const originalResolveFilename = Module._resolveFilename;
+
+Module._load = function loadWithMocks(request, parent, isMain) {
+  if (request === "@react-native-async-storage/async-storage") {
+    return { __esModule: true, default: asyncStorage };
+  }
+
+  return originalLoad.call(this, request, parent, isMain);
+};
+
+Module._resolveFilename = function resolveProjectAlias(request, parent, isMain, options) {
+  const resolvedRequest = request.startsWith("@/")
+    ? path.join(projectRoot, request.slice(2))
+    : request;
+
+  return originalResolveFilename.call(this, resolvedRequest, parent, isMain, options);
+};
+
+require.extensions[".ts"] = function loadTypeScript(module, filename) {
+  const source = fs.readFileSync(filename, "utf8");
+  const result = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+    fileName: filename,
+  });
+
+  module._compile(result.outputText, filename);
+};
+
+const {
+  buildNaesBackupPayload,
+  getNaesBackupSummary,
+  materializeNaesBackupData,
+  NAES_BACKUP_ASSET_PREFIX,
+  parseNaesBackupJson,
+} = require("../utils/dataBackup.ts");
+const {
+  getClosetItems,
+  getNaesBackupDataSnapshot,
+  getOutfitRecommendationFeedbacks,
+  getOutfitWearRecords,
+  getSavedOutfits,
+  getUserProfile,
+  restoreNaesBackupDataSnapshot,
+} = require("../utils/storage.ts");
+
+function createSnapshot() {
+  return {
+    closetItems: [
+      {
+        id: "top-1",
+        imageUri: "file:///closet/top.jpg",
+        cleanImageUri: "file:///closet/top.png",
+        category: "상의",
+        detailCategory: "반팔 티셔츠",
+        createdAt: "2026-07-17T01:00:00.000Z",
+      },
+      {
+        id: "bottom-1",
+        imageUri: "file:///closet/top.jpg",
+        category: "하의",
+        detailCategory: "데님 팬츠",
+        createdAt: "2026-07-17T01:01:00.000Z",
+      },
+      {
+        id: "shoes-1",
+        imageUri: "https://example.com/shoes.jpg",
+        category: "신발",
+        createdAt: "2026-07-17T01:02:00.000Z",
+      },
+    ],
+    profile: { height: "175", topSize: "L" },
+    savedOutfits: [
+      {
+        id: "outfit-1",
+        itemIds: ["top-1", "bottom-1", "shoes-1"],
+        score: 82,
+        grade: "A",
+        reasons: ["균형이 좋아요."],
+        warnings: [],
+        createdAt: "2026-07-17T02:00:00.000Z",
+      },
+    ],
+    outfitFeedbacks: [
+      {
+        itemIds: ["shoes-1", "top-1", "bottom-1"],
+        value: "like",
+        updatedAt: "2026-07-17T03:00:00.000Z",
+      },
+    ],
+    wearRecords: [
+      {
+        id: "wear-1",
+        savedOutfitId: "outfit-1",
+        itemIds: ["top-1", "bottom-1", "shoes-1"],
+        wornAt: "2026-07-17T04:00:00.000Z",
+        dateKey: "2026-07-17",
+      },
+    ],
+  };
+}
+
+test("full backup embeds local images once and keeps remote images portable", async () => {
+  const reads = [];
+  const payload = await buildNaesBackupPayload(
+    createSnapshot(),
+    async (uri) => {
+      reads.push(uri);
+      return Buffer.from(uri).toString("base64");
+    },
+    "2026-07-17T05:00:00.000Z"
+  );
+
+  assert.deepEqual(reads, ["file:///closet/top.jpg", "file:///closet/top.png"]);
+  assert.equal(payload.images.length, 2);
+  assert.equal(payload.data.closetItems[0].imageUri, `${NAES_BACKUP_ASSET_PREFIX}image-1`);
+  assert.equal(payload.data.closetItems[1].imageUri, `${NAES_BACKUP_ASSET_PREFIX}image-1`);
+  assert.equal(payload.data.closetItems[2].imageUri, "https://example.com/shoes.jpg");
+  assert.deepEqual(getNaesBackupSummary(payload), {
+    closetItemCount: 3,
+    savedOutfitCount: 1,
+    feedbackCount: 1,
+    wearRecordCount: 1,
+    imageCount: 2,
+    hasProfile: true,
+  });
+});
+
+test("restore writes embedded images and reconnects every closet image field", async () => {
+  const payload = await buildNaesBackupPayload(createSnapshot(), async (uri) =>
+    Buffer.from(uri).toString("base64")
+  );
+  const writes = [];
+  const restored = await materializeNaesBackupData(payload, async (asset, index) => {
+    writes.push(asset.id);
+    return `file:///restored/image-${index + 1}.${asset.extension}`;
+  });
+
+  assert.deepEqual(writes, ["image-1", "image-2"]);
+  assert.equal(restored.closetItems[0].imageUri, "file:///restored/image-1.jpg");
+  assert.equal(restored.closetItems[0].cleanImageUri, "file:///restored/image-2.png");
+  assert.equal(restored.closetItems[1].imageUri, "file:///restored/image-1.jpg");
+  assert.equal(restored.closetItems[2].imageUri, "https://example.com/shoes.jpg");
+});
+
+test("full backup fails instead of silently omitting an unreadable local image", async () => {
+  await assert.rejects(
+    buildNaesBackupPayload(createSnapshot(), async (uri) => {
+      if (uri.endsWith("top.png")) throw new Error("missing file");
+      return "aW1hZ2U=";
+    }),
+    /이미지를 백업하지 못했어요/
+  );
+});
+
+test("invalid backups fail before any image is written", async () => {
+  const payload = await buildNaesBackupPayload(createSnapshot(), async () => "aW1hZ2U=");
+  const invalidPayload = {
+    ...payload,
+    data: { ...payload.data, savedOutfits: [{ id: "broken" }] },
+  };
+  let writeCount = 0;
+
+  await assert.rejects(
+    materializeNaesBackupData(invalidPayload, async () => {
+      writeCount += 1;
+      return "file:///unexpected.jpg";
+    }),
+    /저장 코디 데이터 형식/
+  );
+  assert.equal(writeCount, 0);
+});
+
+test("backup parsing rejects unsupported versions and missing image assets", async () => {
+  const payload = await buildNaesBackupPayload(createSnapshot(), async () => "aW1hZ2U=");
+
+  assert.throws(
+    () => parseNaesBackupJson(JSON.stringify({ ...payload, version: 999 })),
+    /지원하지 않는 백업 버전/
+  );
+  assert.throws(
+    () => parseNaesBackupJson(JSON.stringify({ ...payload, images: [] })),
+    /필요한 옷 이미지가 누락/
+  );
+  assert.throws(
+    () =>
+      parseNaesBackupJson(
+        JSON.stringify({
+          ...payload,
+          images: payload.images.map((image, index) =>
+            index === 0 ? { ...image, base64: "not-base64" } : image
+          ),
+        })
+      ),
+    /백업 이미지 형식/
+  );
+});
+
+test("restored source data replaces storage and rebuilds derived closet data", async () => {
+  storageMemory.clear();
+  const snapshot = createSnapshot();
+
+  await restoreNaesBackupDataSnapshot(snapshot);
+
+  assert.deepEqual(await getClosetItems(), snapshot.closetItems);
+  assert.deepEqual(await getUserProfile(), snapshot.profile);
+  assert.deepEqual(await getSavedOutfits(), snapshot.savedOutfits);
+  assert.equal((await getOutfitRecommendationFeedbacks()).length, 1);
+  assert.equal((await getOutfitWearRecords()).length, 1);
+  assert.ok(storageMemory.has("naes_closet_recommendation_index"));
+
+  const exportedSnapshot = await getNaesBackupDataSnapshot();
+  assert.equal(exportedSnapshot.closetItems.length, 3);
+  assert.equal(exportedSnapshot.savedOutfits.length, 1);
+});

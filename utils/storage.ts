@@ -290,6 +290,14 @@ export type SavedOutfit = {
   createdAt: string;
 };
 
+export type NaesBackupDataSnapshot = {
+  closetItems: ClosetItem[];
+  profile: UserProfile | null;
+  savedOutfits: SavedOutfit[];
+  outfitFeedbacks: OutfitRecommendationFeedback[];
+  wearRecords: OutfitWearRecord[];
+};
+
 export type ClosetRecommendationIndexLoadResult = {
   index: ClosetRecommendationIndex;
   revisions: RecommendationRevisionState;
@@ -793,4 +801,47 @@ export async function updateSavedOutfit(id: string, updatedOutfit: Partial<Saved
     console.error("저장된 코디 수정 실패:", error);
     return [];
   }
+}
+
+export async function getNaesBackupDataSnapshot(): Promise<NaesBackupDataSnapshot> {
+  const [closetItems, profile, savedOutfits, outfitFeedbacks, wearRecords] =
+    await Promise.all([
+      getClosetItems(),
+      getUserProfile(),
+      getSavedOutfits(),
+      getOutfitRecommendationFeedbacks(),
+      getOutfitWearRecords(),
+    ]);
+
+  return {
+    closetItems,
+    profile,
+    savedOutfits,
+    outfitFeedbacks,
+    wearRecords,
+  };
+}
+
+export async function restoreNaesBackupDataSnapshot(
+  snapshot: NaesBackupDataSnapshot
+) {
+  const currentRevisions = await getRecommendationRevisionState();
+  const revisions = incrementRecommendationRevisions(currentRevisions, [
+    "closetRevision",
+    "profileRevision",
+    "savedOutfitRevision",
+    "feedbackRevision",
+  ]);
+  const outfitFeedbacks = normalizeOutfitRecommendationFeedbacks(
+    snapshot.outfitFeedbacks
+  );
+  const wearRecords = normalizeOutfitWearRecords(snapshot.wearRecords);
+
+  await AsyncStorage.multiSet([
+    ...getClosetStorageEntries(snapshot.closetItems, revisions),
+    [PROFILE_KEY, JSON.stringify(snapshot.profile)],
+    [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
+    [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
+    [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
+  ]);
 }

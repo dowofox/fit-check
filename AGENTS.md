@@ -100,6 +100,12 @@ npm run test:product-link
 npm run test:home-performance
 ```
 
+데이터 백업·복원 형식이나 저장 흐름을 수정한 작업에서는 다음 테스트도 실행한다.
+
+```bash
+npm run test:data-backup
+```
+
 ## Git
 
 항상 다음 순서를 따른다.
