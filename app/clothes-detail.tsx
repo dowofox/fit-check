@@ -52,7 +52,7 @@ import {
   ClosetItem,
   ConfirmedProduct,
   GarmentProfile,
-  getClosetItems,
+  getClosetItemsLoadResult,
   getDisplayImageUri,
   getUserProfileLoadResult,
   ProductSizeGuide,
@@ -2081,6 +2081,8 @@ export default function ClothesDetailScreen() {
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [referenceItem, setReferenceItem] = useState<ClosetItem | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [hasClosetLoadError, setHasClosetLoadError] = useState(false);
+  const [closetLoadRevision, setClosetLoadRevision] = useState(0);
   const [hasProfileLoadError, setHasProfileLoadError] = useState(false);
   const [profileLoadRevision, setProfileLoadRevision] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -2113,10 +2115,21 @@ export default function ClothesDetailScreen() {
     useCallback(() => {
       async function loadItem() {
         const timer = startPerformanceTimer("screen.clothes-detail.load-item");
-        const [closetItems, profileResult] = await Promise.all([
-          getClosetItems(),
+        const [closetResult, profileResult] = await Promise.all([
+          getClosetItemsLoadResult(),
           getUserProfileLoadResult(),
         ]);
+        if (closetResult.status === "failed") {
+          setHasClosetLoadError(true);
+          setIsLoaded(true);
+          endPerformanceTimer(timer, {
+            closetStatus: closetResult.status,
+            closetLoadRevision,
+          });
+          return;
+        }
+
+        const closetItems = closetResult.items;
         const userProfile = profileResult.profile;
         const selectedItem = closetItems.find((closetItem) => closetItem.id === id);
         const referenceKey = selectedItem ? getReferenceClothingKey(selectedItem) : null;
@@ -2135,6 +2148,7 @@ export default function ClothesDetailScreen() {
         } else {
           setHasProfileLoadError(true);
         }
+        setHasClosetLoadError(false);
         setItem(selectedItem || null);
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
@@ -2162,11 +2176,13 @@ export default function ClothesDetailScreen() {
           itemFound: Boolean(selectedItem),
           profileStatus: profileResult.status,
           profileLoadRevision,
+          closetStatus: closetResult.status,
+          closetLoadRevision,
         });
       }
 
       loadItem();
-    }, [id, profileLoadRevision])
+    }, [closetLoadRevision, id, profileLoadRevision])
   );
 
   function updateDraft<K extends keyof EditableClosetFields>(field: K, value: EditableClosetFields[K]) {
@@ -2902,6 +2918,41 @@ export default function ClothesDetailScreen() {
       profile?.referenceClothing?.[referenceClothingKey] === item.id
   );
 
+  if (isLoaded && hasClosetLoadError && !item) {
+    return (
+      <View style={styles.screen}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.container}>
+          <View style={styles.headerRow}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <Feather name="chevron-left" size={22} color="#111" />
+            </Pressable>
+
+            <View>
+              <Text style={styles.headerEyebrow}>CLOTHES DETAIL</Text>
+              <Text style={styles.headerTitle}>옷 상세</Text>
+            </View>
+
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <View style={styles.emptyCard}>
+            <Feather name="alert-circle" size={28} color={colors.warning} />
+            <Text style={styles.emptyTitle}>옷장을 불러오지 못했어요</Text>
+            <Text style={styles.emptyText}>저장된 옷은 그대로 있어요. 다시 시도해주세요.</Text>
+            <Pressable
+              style={styles.sizeRecommendationActionButton}
+              onPress={() => setClosetLoadRevision((revision) => revision + 1)}
+            >
+              <Text style={styles.sizeRecommendationActionButtonText}>다시 시도</Text>
+              <Feather name="refresh-cw" size={15} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   if (isLoaded && !item) {
     return (
       <View style={styles.screen}>
@@ -2959,6 +3010,22 @@ export default function ClothesDetailScreen() {
             </Pressable>
           )}
         </View>
+
+        {hasClosetLoadError ? (
+          <View style={styles.detailLoadErrorCard}>
+            <Feather name="alert-circle" size={19} color={colors.warning} />
+            <View style={styles.detailLoadErrorTextArea}>
+              <Text style={styles.detailLoadErrorTitle}>최신 옷 정보를 불러오지 못했어요</Text>
+              <Text style={styles.detailLoadErrorText}>현재 보이는 정보는 그대로 유지했어요.</Text>
+            </View>
+            <Pressable
+              style={styles.detailLoadErrorAction}
+              onPress={() => setClosetLoadRevision((revision) => revision + 1)}
+            >
+              <Text style={styles.detailLoadErrorActionText}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {item && (
           <>
@@ -4560,6 +4627,48 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 14,
     lineHeight: 21,
+    fontWeight: "700",
+  },
+
+  detailLoadErrorCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  detailLoadErrorTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  detailLoadErrorTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  detailLoadErrorText: {
+    color: colors.subText,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  detailLoadErrorAction: {
+    minHeight: 30,
+    justifyContent: "center",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    backgroundColor: colors.softCard,
+    flexShrink: 0,
+  },
+  detailLoadErrorActionText: {
+    color: colors.point,
+    fontSize: 11,
     fontWeight: "700",
   },
 
