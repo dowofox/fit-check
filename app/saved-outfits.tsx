@@ -9,9 +9,13 @@ import {
   ClosetItem,
   deleteSavedOutfit,
   getClosetItems,
+  getOutfitWearRecords,
   getSavedOutfits,
+  type OutfitWearRecord,
+  recordSavedOutfitWear,
   updateSavedOutfit,
 } from "@/utils/storage";
+import { wasOutfitWornOnDate } from "@/utils/outfitWear";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack } from "expo-router";
@@ -48,11 +52,15 @@ function SavedOutfitCard({
   outfit,
   onDelete,
   onUpdate,
+  onWear,
+  isWornToday,
   allClosetItems,
 }: {
   outfit: SavedOutfitWithItems;
   onDelete: (id: string) => void;
   onUpdate: (id: string, name: string, memo: string) => void;
+  onWear: (outfit: SavedOutfitWithItems) => void;
+  isWornToday: boolean;
   allClosetItems: ClosetItem[];
 }) {
   const outfitName = outfit.name || getDefaultOutfitName(outfit.createdAt);
@@ -270,6 +278,33 @@ function SavedOutfitCard({
         </View>
       )}
 
+      {outfit.missingItemIds.length === 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isWornToday }}
+          style={[
+            styles.wearButton,
+            isWornToday && styles.wearButtonRecorded,
+          ]}
+          disabled={isWornToday}
+          onPress={() => onWear(outfit)}
+        >
+          <Feather
+            name={isWornToday ? "check-circle" : "sun"}
+            size={17}
+            color={isWornToday ? "#8C6F47" : "#fff"}
+          />
+          <Text
+            style={[
+              styles.wearButtonText,
+              isWornToday && styles.wearButtonTextRecorded,
+            ]}
+          >
+            {isWornToday ? "오늘 기록됨" : "오늘 입었어요"}
+          </Text>
+        </Pressable>
+      ) : null}
+
       {!isEditing && (
         <Pressable
           style={styles.editButton}
@@ -294,15 +329,18 @@ function SavedOutfitCard({
 export default function SavedOutfitsScreen() {
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfitWithItems[]>([]);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
+  const [wearRecords, setWearRecords] = useState<OutfitWearRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   async function loadSavedOutfits() {
-    const [outfits, closetItems] = await Promise.all([
+    const [outfits, closetItems, records] = await Promise.all([
       getSavedOutfits(),
       getClosetItems(),
+      getOutfitWearRecords(),
     ]);
 
     setClosetItems(closetItems);
+    setWearRecords(records);
     setSavedOutfits(matchSavedOutfitsWithCloset(outfits, closetItems));
     setIsLoaded(true);
   }
@@ -328,6 +366,34 @@ export default function SavedOutfitsScreen() {
     const closetItems = await getClosetItems();
     setClosetItems(closetItems);
     setSavedOutfits(matchSavedOutfitsWithCloset(updatedOutfits, closetItems));
+  }
+
+  async function handleWearOutfit(outfit: SavedOutfitWithItems) {
+    const result = await recordSavedOutfitWear(outfit);
+
+    if (result.status === "already_recorded") {
+      setWearRecords(result.records);
+      Alert.alert("오늘 이미 기록했어요", "같은 코디는 하루에 한 번만 기록할 수 있어요.");
+      return;
+    }
+
+    if (result.status === "missing_items") {
+      Alert.alert("기록할 수 없어요", "옷장에서 삭제된 아이템이 있는 코디예요.");
+      return;
+    }
+
+    if (result.status === "failed") {
+      Alert.alert("기록 실패", "착용 기록을 저장하지 못했어요. 다시 시도해주세요.");
+      return;
+    }
+
+    const updatedClosetItems = await getClosetItems();
+    setClosetItems(updatedClosetItems);
+    setSavedOutfits((currentOutfits) =>
+      matchSavedOutfitsWithCloset(currentOutfits, updatedClosetItems)
+    );
+    setWearRecords(result.records);
+    Alert.alert("기록했어요", "오늘 입은 코디로 기록했어요.");
   }
 
   useFocusEffect(
@@ -386,6 +452,8 @@ export default function SavedOutfitsScreen() {
                 outfit={outfit}
                 onDelete={handleDeleteOutfit}
                 onUpdate={handleUpdateOutfit}
+                onWear={handleWearOutfit}
+                isWornToday={wasOutfitWornOnDate(wearRecords, outfit.itemIds)}
                 allClosetItems={closetItems}
               />
             ))}
@@ -763,6 +831,29 @@ const styles = StyleSheet.create({
     color: "#111",
     fontSize: 14,
     fontWeight: "900",
+  },
+  wearButton: {
+    backgroundColor: "#8C6F47",
+    borderRadius: 18,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  wearButtonRecorded: {
+    backgroundColor: "#F4EEE7",
+    borderWidth: 1,
+    borderColor: "#E8DED2",
+  },
+  wearButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  wearButtonTextRecorded: {
+    color: "#8C6F47",
   },
   deleteButtonText: {
     color: "#991b1b",

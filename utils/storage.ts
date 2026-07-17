@@ -18,14 +18,23 @@ import {
   type OutfitFeedbackValue,
   type OutfitRecommendationFeedback,
 } from "@/utils/outfitFeedback";
+import {
+  getLocalDateKey,
+  getOutfitWearItemKey,
+  normalizeOutfitWearRecords,
+  type OutfitWearRecord,
+  wasOutfitWornOnDate,
+} from "@/utils/outfitWear";
 
 const STORAGE_KEY = "analysis_history";
 const PROFILE_KEY = "naes_profile";
 const CLOSET_KEY = "naes_closet";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
+const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
 
 export type { OutfitFeedbackValue, OutfitRecommendationFeedback };
+export type { OutfitWearRecord };
 
 export type ReferenceClothing = {
   topItemId?: string;
@@ -571,49 +580,105 @@ export async function updateClosetItem(id: string, updatedItem: Partial<ClosetIt
   }
 }
 
-export async function saveOutfit(outfit: SavedOutfit, updateWearHistory = false) {
+export async function saveOutfit(outfit: SavedOutfit) {
   try {
     const savedOutfits = await getSavedOutfits();
     const updatedOutfits = [outfit, ...savedOutfits];
-
-    if (updateWearHistory) {
-      const [closet, revisions] = await Promise.all([
-        getClosetItems(),
-        getIncrementedRecommendationRevisions([
-          "closetRevision",
-          "savedOutfitRevision",
-        ]),
-      ]);
-      const wornItemIds = new Set(outfit.itemIds);
-      const wornAt = new Date().toISOString();
-      const updatedCloset = closet.map((item) =>
-        wornItemIds.has(item.id)
-          ? {
-              ...item,
-              wearCount: (item.wearCount || 0) + 1,
-              lastWornAt: wornAt,
-            }
-          : item
-      );
-
-      await AsyncStorage.multiSet([
-        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
-        ...getClosetStorageEntries(updatedCloset, revisions),
-      ]);
-    } else {
-      const revisions = await getIncrementedRecommendationRevisions([
-        "savedOutfitRevision",
-      ]);
-      await AsyncStorage.multiSet([
-        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
-        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
-      ]);
-    }
+    const revisions = await getIncrementedRecommendationRevisions([
+      "savedOutfitRevision",
+    ]);
+    await AsyncStorage.multiSet([
+      [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+    ]);
 
     return updatedOutfits;
   } catch (error) {
     console.error("코디 저장 실패:", error);
     return [];
+  }
+}
+
+export async function getOutfitWearRecords(): Promise<OutfitWearRecord[]> {
+  try {
+    const data = await AsyncStorage.getItem(OUTFIT_WEAR_RECORDS_KEY);
+    const parsedRecords = data ? JSON.parse(data) : [];
+
+    return normalizeOutfitWearRecords(parsedRecords);
+  } catch (error) {
+    console.error("착용 기록 불러오기 실패:", error);
+    return [];
+  }
+}
+
+export type RecordOutfitWearResult =
+  | { status: "recorded"; records: OutfitWearRecord[] }
+  | { status: "already_recorded"; records: OutfitWearRecord[] }
+  | { status: "missing_items"; records: OutfitWearRecord[] }
+  | { status: "failed"; records: OutfitWearRecord[] };
+
+export async function recordSavedOutfitWear(
+  outfit: SavedOutfit,
+  wornAt = new Date()
+): Promise<RecordOutfitWearResult> {
+  try {
+    if (Number.isNaN(wornAt.getTime())) {
+      return { status: "failed", records: [] };
+    }
+
+    const [closet, records, currentRevisions] = await Promise.all([
+      getClosetItems(),
+      getOutfitWearRecords(),
+      getRecommendationRevisionState(),
+    ]);
+    const itemKey = getOutfitWearItemKey(outfit.itemIds);
+    const closetItemIds = new Set(closet.map((item) => item.id));
+    const hasMissingItems =
+      !itemKey || itemKey.split("|").some((itemId) => !closetItemIds.has(itemId));
+
+    if (hasMissingItems) {
+      return { status: "missing_items", records };
+    }
+
+    const dateKey = getLocalDateKey(wornAt);
+    if (wasOutfitWornOnDate(records, outfit.itemIds, dateKey)) {
+      return { status: "already_recorded", records };
+    }
+
+    const wornAtIso = wornAt.toISOString();
+    const wornItemIds = new Set(itemKey.split("|"));
+    const updatedCloset = closet.map((item) =>
+      wornItemIds.has(item.id)
+        ? {
+            ...item,
+            wearCount: (item.wearCount || 0) + 1,
+            lastWornAt: wornAtIso,
+          }
+        : item
+    );
+    const updatedRecords = [
+      {
+        id: `${wornAt.getTime()}-${outfit.id}`,
+        savedOutfitId: outfit.id,
+        itemIds: itemKey.split("|"),
+        wornAt: wornAtIso,
+        dateKey,
+      },
+      ...records,
+    ];
+    const revisions = incrementRecommendationRevisions(currentRevisions, [
+      "closetRevision",
+    ]);
+
+    await AsyncStorage.multiSet([
+      [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(updatedRecords)],
+      ...getClosetStorageEntries(updatedCloset, revisions),
+    ]);
+
+    return { status: "recorded", records: updatedRecords };
+  } catch (error) {
+    console.error("착용 기록 저장 실패:", error);
+    return { status: "failed", records: [] };
   }
 }
 

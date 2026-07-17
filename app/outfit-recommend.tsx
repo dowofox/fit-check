@@ -808,7 +808,7 @@ export default function OutfitRecommendScreen() {
       reasons: recommendation.reasons,
       warnings: recommendation.warnings,
       createdAt: savedAt.toISOString(),
-    }, true);
+    });
 
     if (updatedOutfits.length === 0) {
       Alert.alert("저장 실패", "코디를 저장하지 못했어요. 다시 시도해주세요.");

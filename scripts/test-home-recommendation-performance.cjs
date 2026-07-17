@@ -69,7 +69,9 @@ const {
   deleteClosetItem,
   getClosetRecommendationIndex,
   getOutfitRecommendationFeedbacks,
+  getOutfitWearRecords,
   getRecommendationRevisionState,
+  recordSavedOutfitWear,
   saveClosetItem,
   saveOutfit,
   saveUserProfile,
@@ -224,10 +226,36 @@ test("옷장·프로필·저장 코디 변경은 각 revision과 추천 키를 �
   assert.equal(afterFeedbackClear.feedbackRevision, 3);
   assert.deepEqual(await getOutfitRecommendationFeedbacks(), []);
 
-  await saveOutfit(createSavedOutfit("worn-1", [item.id]), true);
+  const wornOutfit = createSavedOutfit("worn-1", [item.id]);
+  await saveOutfit(wornOutfit);
+  const afterWornOutfitSave = await getRecommendationRevisionState();
+  assert.equal(afterWornOutfitSave.closetRevision, 2);
+  assert.equal(afterWornOutfitSave.savedOutfitRevision, 2);
+  assert.equal(
+    (await getClosetRecommendationIndex()).index.recommendationItems[0].wearCount,
+    undefined
+  );
+
+  const wearResult = await recordSavedOutfitWear(
+    wornOutfit,
+    new Date(2026, 6, 17, 10, 0, 0)
+  );
   const afterWearHistory = await getRecommendationRevisionState();
+  assert.equal(wearResult.status, "recorded");
   assert.equal(afterWearHistory.closetRevision, 3);
   assert.equal(afterWearHistory.savedOutfitRevision, 2);
+  assert.equal((await getOutfitWearRecords()).length, 1);
+  assert.equal(
+    (await getClosetRecommendationIndex()).index.recommendationItems[0].wearCount,
+    1
+  );
+
+  const duplicateWearResult = await recordSavedOutfitWear(
+    wornOutfit,
+    new Date(2026, 6, 17, 20, 0, 0)
+  );
+  assert.equal(duplicateWearResult.status, "already_recorded");
+  assert.equal((await getOutfitWearRecords()).length, 1);
   assert.equal(
     (await getClosetRecommendationIndex()).index.recommendationItems[0].wearCount,
     1
