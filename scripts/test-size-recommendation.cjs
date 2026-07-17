@@ -35,6 +35,8 @@ const {
   getFitSuitability,
   getRecommendedProductSize,
   getSizeRecommendationMissingInfo,
+  hasSelectedClosetSize,
+  normalizeClosetItemSize,
   normalizeSize,
 } = require("../utils/sizeMatch.ts");
 const {
@@ -52,6 +54,15 @@ const {
 const { pruneReferenceClothing } = require("../utils/storage.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
+
+test("missing size labels are not persisted as real closet sizes", () => {
+  assert.equal(normalizeClosetItemSize(undefined), undefined);
+  assert.equal(normalizeClosetItemSize(""), undefined);
+  assert.equal(normalizeClosetItemSize("사이즈 미입력"), undefined);
+  assert.equal(hasSelectedClosetSize("사이즈 미입력"), false);
+  assert.equal(normalizeClosetItemSize(" xl "), "XL");
+  assert.equal(hasSelectedClosetSize("XL"), true);
+});
 
 test("FREE 사이즈의 쇼핑몰 별칭을 같은 라벨로 비교한다", () => {
   [

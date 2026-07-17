@@ -32,6 +32,7 @@ import {
   getFitSuitability,
   getRecommendedProductSize,
   getSizeRecommendationMissingInfo,
+  hasSelectedClosetSize,
   isAccessoryOrBagItem,
   type FitSuitabilityResult,
   type SizeRecommendationResult,
@@ -1990,7 +1991,7 @@ function RecommendedSizeCard({
         </Text>
       ) : null}
 
-      {!currentSizeMatches && item.size ? (
+      {!currentSizeMatches && hasSelectedClosetSize(item.size) ? (
         <View style={styles.recommendedSizeNotice}>
           <Text style={styles.recommendedSizeNoticeText}>
             현재 선택한 사이즈는 {item.size}이지만 추천은 {result.recommendedDisplaySize || result.recommendedSize}이에요.

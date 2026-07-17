@@ -88,6 +88,19 @@ export function normalizeSize(size?: string) {
   return upperSize;
 }
 
+export const CLOSET_SIZE_NOT_ENTERED_LABEL = "사이즈 미입력";
+
+export function normalizeClosetItemSize(size?: string) {
+  const trimmedSize = size?.trim();
+  if (!trimmedSize || trimmedSize === CLOSET_SIZE_NOT_ENTERED_LABEL) return undefined;
+
+  return normalizeSize(trimmedSize) || undefined;
+}
+
+export function hasSelectedClosetSize(size?: string) {
+  return Boolean(normalizeClosetItemSize(size));
+}
+
 function getSizeAliases(size?: string) {
   const normalizedSize = normalizeSize(size);
   if (!normalizedSize || normalizedSize === "사이즈미입력") return [];

@@ -25,7 +25,10 @@ import {
 } from "@/utils/seasonInference";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import { validateProductUrlInput } from "@/utils/productUrl";
-import { normalizeSize } from "@/utils/sizeMatch";
+import {
+  CLOSET_SIZE_NOT_ENTERED_LABEL,
+  normalizeClosetItemSize,
+} from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
 import type {
   AnalysisConfidence,
@@ -60,7 +63,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const CATEGORY_OPTIONS = ["상의", "하의", "신발", "아우터", "액세서리"];
-const DEFAULT_SIZE = "사이즈 미입력";
+const DEFAULT_SIZE = CLOSET_SIZE_NOT_ENTERED_LABEL;
 const TOP_SIZE_OPTIONS = ["FREE", "S", "M", "L", "XL", "2XL", "3XL"];
 const BOTTOM_SIZE_OPTIONS = ["FREE", "28", "29", "30", "31", "32", "33", "34", "36"];
 const SHOE_SIZE_OPTIONS = ["FREE", "250", "255", "260", "265", "270", "275", "280", "285"];
@@ -70,11 +73,6 @@ const COMMON_SIZE_OPTIONS = [
   ...SHOE_SIZE_OPTIONS,
 ].filter((value, index, array) => array.indexOf(value) === index);
 
-function normalizeClosetSize(size?: string) {
-  const value = size?.trim();
-  if (!value || value === DEFAULT_SIZE) return DEFAULT_SIZE;
-  return normalizeSize(value) || DEFAULT_SIZE;
-}
 const STYLE_TAG_OPTIONS = [
   "미니멀",
   "캐주얼",
@@ -497,7 +495,7 @@ async function saveAnalyzedClosetItem(
     seasonSource: analysis.seasonSource || "photo_ai",
     seasonNeedsReview: analysis.seasonNeedsReview ?? registration.reviewFields.includes("season"),
     fit: analysis.fit || "핏 미분석",
-    size: normalizeClosetSize(size),
+    size: normalizeClosetItemSize(size),
     ...getAnalysisDetailFields(analysis),
     styleProfile: analysis.styleProfile || undefined,
     garmentProfile: analysis.garmentProfile || undefined,
@@ -959,7 +957,7 @@ export default function AddClothesScreen() {
         seasonSource: resolvedSeasonSource,
         seasonNeedsReview: resolvedSeasonNeedsReview,
         fit: analysis.fit || "핏 분석 전",
-        size: normalizeClosetSize(selectedSize),
+        size: normalizeClosetItemSize(selectedSize),
         ...getAnalysisDetailFields(analysis),
         styleProfile: analysis.styleProfile || undefined,
         garmentProfile: analysis.garmentProfile || undefined,
