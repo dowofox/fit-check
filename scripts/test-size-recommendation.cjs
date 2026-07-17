@@ -344,6 +344,37 @@ test("FREE 단일 상품은 라벨 변환 없이 FREE를 추천하고 실측 핏
   assert.notEqual(result.sizeRecommendations[0].fitResult, "unknown");
 });
 
+test("민소매는 어깨 실측과 사용자 어깨너비 없이 총장과 가슴으로 추천한다", () => {
+  const item = createItem(
+    "sleeveless-top",
+    "상의",
+    [
+      { size: "S", totalLength: 58, chest: 44 },
+      { size: "M", totalLength: 61, chest: 49 },
+      { size: "L", totalLength: 64, chest: 55 },
+    ],
+    {
+      size: "M",
+      subCategory: "민소매",
+      detailCategory: "민소매 티셔츠",
+      intendedFit: "딱 맞게",
+    }
+  );
+  const profile = {
+    height: "170",
+    chestCircumference: "96",
+  };
+
+  const result = getRecommendedProductSize(item, profile);
+
+  assert.equal(result.recommendedSize, "M");
+  assert.deepEqual(result.missingFields, []);
+  assert.deepEqual(result.missingProductFields, undefined);
+  assert.equal(result.blockedReason, undefined);
+  assert.equal(result.sizeRecommendations.length, 3);
+  assert.doesNotMatch(result.sizeRecommendations[0].reasons.join(" "), /어깨/);
+});
+
 test("신체 정보와 기준 옷이 모두 없으면 부족한 프로필 정보를 반환한다", () => {
   const item = createItem("missing-profile", "상의", [
     { size: "M", totalLength: 68, shoulder: 46, chest: 52, sleeve: 59 },

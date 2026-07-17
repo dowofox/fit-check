@@ -451,6 +451,10 @@ function shouldCompareUserSleeve(item: ClosetItem) {
   return isUpperCategory(item) && getSleeveType(item) === "long";
 }
 
+function shouldCompareUserShoulder(item: ClosetItem) {
+  return isUpperCategory(item) && getSleeveType(item) !== "sleeveless";
+}
+
 function shouldCompareReferenceSleeve(item: ClosetItem, referenceItem?: ClosetItem | null) {
   if (!referenceItem || !isUpperCategory(item) || !isUpperCategory(referenceItem)) return false;
 
@@ -1077,7 +1081,9 @@ function getRequiredProfileFields(
 
   if (isUpperCategory(item)) {
     return [
-      !parseMeasurement(profile?.shoulderWidth) ? "어깨너비" : "",
+      shouldCompareUserShoulder(item) && !parseMeasurement(profile?.shoulderWidth)
+        ? "어깨너비"
+        : "",
       !parseMeasurement(profile?.chestCircumference) ? "가슴둘레" : "",
       !parseMeasurement(profile?.height) ? "키" : "",
       shouldCompareUserSleeve(item) && !parseMeasurement(profile?.armLength) ? "팔 길이" : "",
@@ -1317,7 +1323,9 @@ function getRequiredProductMeasurementLabels(item: ClosetItem) {
   }
 
   if (isUpperCategory(item)) {
-    return ["총장", "어깨", "가슴 단면"];
+    return shouldCompareUserShoulder(item)
+      ? ["총장", "어깨", "가슴 단면"]
+      : ["총장", "가슴 단면"];
   }
 
   return [];
@@ -1342,7 +1350,9 @@ function getMissingProductMeasurementFields(
   if (isUpperCategory(item)) {
     return [
       getMeasurementValue(measurement, "totalLength") ? "" : "총장",
-      getMeasurementValue(measurement, "shoulder") ? "" : "어깨",
+      shouldCompareUserShoulder(item) && !getMeasurementValue(measurement, "shoulder")
+        ? "어깨"
+        : "",
       getMeasurementValue(measurement, "chest") ? "" : "가슴 단면",
     ].filter(Boolean);
   }
@@ -1539,12 +1549,14 @@ function scoreSizeMeasurement(
       score += typeof measurement.rise === "number" && measurement.rise > 0 ? 1.5 : 0;
       score += typeof measurement.hem === "number" && measurement.hem > 0 ? 1.5 : 0;
     } else {
-      score += getEaseScore(
-        getMeasurementDifference(comparison, "shoulder"),
-        getTargetEase("upper", "shoulder", preference),
-        6,
-        30
-      );
+      score += shouldCompareUserShoulder(item)
+        ? getEaseScore(
+            getMeasurementDifference(comparison, "shoulder"),
+            getTargetEase("upper", "shoulder", preference),
+            6,
+            30
+          )
+        : 30;
       score += getLengthScore(comparison.lengthResult, preference, 28);
       score += getEaseScore(
         getMeasurementDifference(comparison, "chest"),
