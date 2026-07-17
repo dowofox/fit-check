@@ -12,6 +12,7 @@ import {
 } from "@/utils/productClassification";
 import { getConfirmedProductSeasonInference } from "@/utils/seasonInference";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
+import { validateProductUrlInput } from "@/utils/productUrl";
 import {
   buildProductSizeMeasurement,
   doesProductSizeRowMatch,
@@ -2682,17 +2683,25 @@ export default function ClothesDetailScreen() {
   }
 
   async function handleExtractProductFromUrl() {
-    const productUrl = productUrlInput.trim();
+    const validatedUrl = validateProductUrlInput(productUrlInput);
 
-    if (!productUrl) {
-      Alert.alert("URL 확인", "상품 URL을 입력해주세요.");
+    if (!validatedUrl.ok) {
+      Alert.alert(
+        "URL 확인",
+        validatedUrl.error === "product_url_required"
+          ? "상품 URL을 입력해주세요."
+          : "HTTP 또는 HTTPS 형식의 상품 페이지 주소를 입력해주세요."
+      );
       return;
     }
+
+    const productUrl = validatedUrl.url;
 
     try {
       setIsExtractingProduct(true);
       setExtractErrorMessage("");
       setExtractedProduct(null);
+      setProductUrlInput(productUrl);
 
       const response = await fetch(API_ENDPOINTS.extractProduct, {
         method: "POST",

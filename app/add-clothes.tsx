@@ -19,6 +19,7 @@ import {
   resolveRegistrationSeasonInference,
 } from "@/utils/seasonInference";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
+import { validateProductUrlInput } from "@/utils/productUrl";
 import { normalizeSize } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
 import type {
@@ -756,18 +757,21 @@ export default function AddClothesScreen() {
   }
 
   async function extractProductFromUrl() {
-    const productUrl = productUrlInput.trim();
+    const validatedUrl = validateProductUrlInput(productUrlInput);
 
-    if (!productUrl) {
-      setProductLinkFailure(getProductLinkFailure("product_url_required", 400));
+    if (!validatedUrl.ok) {
+      setProductLinkFailure(getProductLinkFailure(validatedUrl.error, 400));
       return;
     }
+
+    const productUrl = validatedUrl.url;
 
     if (isExtractingProduct) return;
 
     try {
       setIsExtractingProduct(true);
       setProductLinkFailure(null);
+      setProductUrlInput(productUrl);
       setExtractedProduct(null);
       setImageUri("");
       setSelectedImages([]);
