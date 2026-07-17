@@ -30,6 +30,7 @@ export type OutfitRecommendation = {
   alternativeCount?: number;
   alternatives?: OutfitRecommendation[];
   feedbackPreference?: OutfitFeedbackValue;
+  feedbackTrendAdjustment?: number;
   penalty?: number;
   reasons: string[];
   warnings: string[];
@@ -1993,15 +1994,61 @@ function hasCategory(recommendation: OutfitRecommendation, category: string) {
 
 function applyOutfitRecommendationFeedback(
   recommendation: OutfitRecommendation,
-  feedbackByKey: ReadonlyMap<string, OutfitFeedbackValue>
+  feedbackByKey: ReadonlyMap<string, OutfitFeedbackValue>,
+  feedbackTrendByItemId: ReadonlyMap<string, number>
 ) {
   const feedbackPreference = feedbackByKey.get(
     getOutfitFeedbackKey(recommendation.items.map((item) => item.id))
   );
+  const feedbackTrendAdjustment = Math.max(
+    -6,
+    Math.min(
+      3,
+      recommendation.items.reduce(
+        (adjustment, item) => adjustment + (feedbackTrendByItemId.get(item.id) || 0),
+        0
+      )
+    )
+  );
 
-  return feedbackPreference
-    ? { ...recommendation, feedbackPreference }
-    : recommendation;
+  if (!feedbackPreference && feedbackTrendAdjustment === 0) return recommendation;
+
+  return {
+    ...recommendation,
+    feedbackPreference,
+    feedbackTrendAdjustment,
+  };
+}
+
+function getFeedbackTrendByItemId(
+  feedbacks: OutfitRecommendationFeedback[]
+) {
+  const feedbackCountsByItemId = new Map<
+    string,
+    { like: number; less: number }
+  >();
+
+  feedbacks.forEach((feedback) => {
+    feedback.itemIds.forEach((itemId) => {
+      const counts = feedbackCountsByItemId.get(itemId) || { like: 0, less: 0 };
+
+      counts[feedback.value] += 1;
+      feedbackCountsByItemId.set(itemId, counts);
+    });
+  });
+
+  const trendByItemId = new Map<string, number>();
+
+  feedbackCountsByItemId.forEach((counts, itemId) => {
+    const evidenceCount = counts.like + counts.less;
+    const preferenceGap = counts.like - counts.less;
+
+    if (evidenceCount < 2 || Math.abs(preferenceGap) < 2) return;
+
+    trendByItemId.set(itemId, preferenceGap > 0 ? 1 : -2);
+  });
+
+  return trendByItemId;
 }
 
 function applyRecommendationOptions(
@@ -2014,21 +2061,30 @@ function applyRecommendationOptions(
       feedback.value,
     ])
   );
+  const feedbackTrendByItemId = getFeedbackTrendByItemId(options.feedbacks || []);
 
   return recommendations
     .map((recommendation) =>
       applyWeatherAdjustment(recommendation, options.weather)
     )
     .map((recommendation) =>
-      applyOutfitRecommendationFeedback(recommendation, feedbackByKey)
+      applyOutfitRecommendationFeedback(
+        recommendation,
+        feedbackByKey,
+        feedbackTrendByItemId
+      )
     );
 }
 
 function compareRecommendations(a: OutfitRecommendation, b: OutfitRecommendation) {
   const firstRankingScore =
-    a.score + getOutfitFeedbackRankingAdjustment(a.feedbackPreference);
+    a.score +
+    getOutfitFeedbackRankingAdjustment(a.feedbackPreference) +
+    (a.feedbackTrendAdjustment || 0);
   const secondRankingScore =
-    b.score + getOutfitFeedbackRankingAdjustment(b.feedbackPreference);
+    b.score +
+    getOutfitFeedbackRankingAdjustment(b.feedbackPreference) +
+    (b.feedbackTrendAdjustment || 0);
   const scoreDiff = secondRankingScore - firstRankingScore;
   if (scoreDiff !== 0) return scoreDiff;
 

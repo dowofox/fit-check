@@ -181,6 +181,8 @@ function applySituationRecommendationScoring(
       second.situationMatchScore - first.situationMatchScore ||
       getOutfitFeedbackRankingAdjustment(second.feedbackPreference) -
         getOutfitFeedbackRankingAdjustment(first.feedbackPreference) ||
+      (second.feedbackTrendAdjustment || 0) -
+        (first.feedbackTrendAdjustment || 0) ||
       second.score - first.score
     )
     .map(({ situationMatchScore, ...recommendation }) => recommendation);
@@ -835,27 +837,7 @@ export default function OutfitRecommendScreen() {
       return;
     }
 
-    const targetItemIds = getSortedItemIds(recommendation.items);
-    const applyFeedbackState = (candidate: OutfitRecommendation) =>
-      isSameItemCombination(
-        getSortedItemIds(candidate.items),
-        targetItemIds
-      )
-        ? { ...candidate, feedbackPreference: nextValue || undefined }
-        : candidate;
-
-    setRecommendations((currentRecommendations) =>
-      currentRecommendations.map((currentRecommendation) => {
-        const updatedRecommendation = applyFeedbackState(currentRecommendation);
-        const updatedAlternatives = currentRecommendation.alternatives?.map(
-          applyFeedbackState
-        );
-
-        return updatedAlternatives
-          ? { ...updatedRecommendation, alternatives: updatedAlternatives }
-          : updatedRecommendation;
-      })
-    );
+    await loadRecommendations();
   }
 
   useFocusEffect(

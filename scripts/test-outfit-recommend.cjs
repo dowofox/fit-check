@@ -1190,6 +1190,114 @@ test("코디 피드백은 품질 점수를 바꾸지 않고 같은 조합의 추
   assert.ok(markedRecommendations.every((recommendation) => recommendation.score === target.score));
 });
 
+test("같은 아이템에 일관된 피드백이 두 번 쌓일 때만 다른 조합 순위를 보수적으로 조정한다", () => {
+  const wardrobe = createWardrobe();
+  const baseline = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름"
+  ).recommendations;
+  const uniqueRecommendations = Array.from(
+    new Map(
+      baseline
+        .flatMap((recommendation) => [
+          recommendation,
+          ...(recommendation.alternatives || []),
+        ])
+        .map((recommendation) => [itemKey(recommendation), recommendation])
+    ).values()
+  );
+  const sharedItemId = wardrobe[0].id;
+  const recommendationsWithSharedItem = uniqueRecommendations.filter((recommendation) =>
+    recommendation.items.some((item) => item.id === sharedItemId)
+  );
+
+  assert.ok(recommendationsWithSharedItem.length >= 3);
+
+  const [firstFeedbackTarget, secondFeedbackTarget, trendTarget] =
+    recommendationsWithSharedItem;
+  const createFeedback = (recommendation, value, updatedAt) => ({
+    itemIds: recommendation.items.map((item) => item.id),
+    value,
+    updatedAt,
+  });
+  const singleFeedbackResult = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    {
+      feedbacks: [
+        createFeedback(firstFeedbackTarget, "like", "2026-07-17T12:00:00.000Z"),
+      ],
+    }
+  ).recommendations;
+  const findRecommendation = (recommendations, target) =>
+    recommendations
+      .flatMap((recommendation) => [
+        recommendation,
+        ...(recommendation.alternatives || []),
+      ])
+      .find((recommendation) => itemKey(recommendation) === itemKey(target));
+
+  assert.equal(
+    findRecommendation(singleFeedbackResult, trendTarget)?.feedbackTrendAdjustment || 0,
+    0
+  );
+
+  const likedTrendResult = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    {
+      feedbacks: [
+        createFeedback(firstFeedbackTarget, "like", "2026-07-17T12:00:00.000Z"),
+        createFeedback(secondFeedbackTarget, "like", "2026-07-17T12:01:00.000Z"),
+      ],
+    }
+  ).recommendations;
+  const likedTrendTarget = findRecommendation(likedTrendResult, trendTarget);
+
+  assert.ok(likedTrendTarget);
+  assert.ok(likedTrendTarget.feedbackTrendAdjustment > 0);
+  assert.equal(likedTrendTarget.score, trendTarget.score);
+
+  const lessTrendResult = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    {
+      feedbacks: [
+        createFeedback(firstFeedbackTarget, "less", "2026-07-17T12:00:00.000Z"),
+        createFeedback(secondFeedbackTarget, "less", "2026-07-17T12:01:00.000Z"),
+      ],
+    }
+  ).recommendations;
+  const exactFeedbackKeys = new Set([
+    itemKey(firstFeedbackTarget),
+    itemKey(secondFeedbackTarget),
+  ]);
+  const nonExactSharedItemRecommendations = lessTrendResult
+    .flatMap((recommendation) => [
+      recommendation,
+      ...(recommendation.alternatives || []),
+    ])
+    .filter(
+      (recommendation) =>
+        !exactFeedbackKeys.has(itemKey(recommendation)) &&
+        recommendation.items.some((item) => item.id === sharedItemId)
+    );
+
+  assert.ok(
+    nonExactSharedItemRecommendations.length === 0 ||
+      nonExactSharedItemRecommendations.every(
+        (recommendation) => recommendation.feedbackTrendAdjustment < 0
+      )
+  );
+});
+
 test("저장 코디는 삭제된 옷 ID를 누락 상태로 구분한다", () => {
   const wardrobe = createWardrobe();
   const savedOutfit = {
