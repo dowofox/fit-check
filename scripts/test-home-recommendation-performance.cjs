@@ -110,6 +110,7 @@ const {
 } = require("../utils/storage.ts");
 
 const CLOSET_KEY = "naes_closet";
+const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 
 function createClosetItem(id, overrides = {}) {
@@ -196,6 +197,41 @@ test("프로필 저장은 실제 저장 성공 여부를 반환한다", async ()
   }
 
   assert.deepEqual(await getUserProfile(), { height: "175" });
+});
+
+test("concurrent feedback mutations preserve each outfit preference", async () => {
+  await Promise.all([
+    setOutfitRecommendationFeedback(["top-1", "bottom-1"], "like"),
+    setOutfitRecommendationFeedback(["top-2", "bottom-2"], "less"),
+  ]);
+
+  const feedbacks = await getOutfitRecommendationFeedbacks();
+  assert.equal(feedbacks.length, 2);
+  assert.deepEqual(
+    new Set(feedbacks.map((feedback) => feedback.itemIds.join("|"))),
+    new Set(["bottom-1|top-1", "bottom-2|top-2"])
+  );
+});
+
+test("feedback mutations preserve existing data when the source read fails", async () => {
+  await setOutfitRecommendationFeedback(["top-1", "bottom-1"], "like");
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextGetItemKey = OUTFIT_FEEDBACK_KEY;
+    assert.equal(
+      await setOutfitRecommendationFeedback(["top-2", "bottom-2"], "less"),
+      null
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  const feedbacks = await getOutfitRecommendationFeedbacks();
+  assert.equal(feedbacks.length, 1);
+  assert.deepEqual(feedbacks[0].itemIds, ["bottom-1", "top-1"]);
+  assert.equal(feedbacks[0].value, "like");
 });
 
 test("저장 코디 변경 실패는 정상적인 빈 목록과 구분한다", async () => {

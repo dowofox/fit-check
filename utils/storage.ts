@@ -33,6 +33,7 @@ const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
 let closetMutationQueue: Promise<void> = Promise.resolve();
+let feedbackMutationQueue: Promise<void> = Promise.resolve();
 let savedOutfitMutationQueue: Promise<void> = Promise.resolve();
 
 function runClosetMutation<T>(operation: () => Promise<T>): Promise<T> {
@@ -47,6 +48,15 @@ function runClosetMutation<T>(operation: () => Promise<T>): Promise<T> {
 function runSavedOutfitMutation<T>(operation: () => Promise<T>): Promise<T> {
   const result = savedOutfitMutationQueue.then(operation, operation);
   savedOutfitMutationQueue = result.then(
+    () => undefined,
+    () => undefined
+  );
+  return result;
+}
+
+function runFeedbackMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = feedbackMutationQueue.then(operation, operation);
+  feedbackMutationQueue = result.then(
     () => undefined,
     () => undefined
   );
@@ -428,6 +438,36 @@ function parseStoredSavedOutfitsForMutation(rawValue: string | null) {
   }
 
   return parsedValue;
+}
+
+function parseStoredFeedbacksForMutation(rawValue: string | null) {
+  if (!rawValue) return [];
+
+  const parsedValue = JSON.parse(rawValue) as unknown;
+  if (
+    !Array.isArray(parsedValue) ||
+    !parsedValue.every((candidate) => {
+      if (!isStoredRecord(candidate)) return false;
+
+      return (
+        Array.isArray(candidate.itemIds) &&
+        candidate.itemIds.every((itemId) => typeof itemId === "string") &&
+        Boolean(getOutfitFeedbackKey(candidate.itemIds as string[])) &&
+        (candidate.value === "like" || candidate.value === "less") &&
+        typeof candidate.updatedAt === "string" &&
+        Boolean(candidate.updatedAt)
+      );
+    })
+  ) {
+    throw new Error("Stored outfit feedback data is invalid");
+  }
+
+  return normalizeOutfitRecommendationFeedbacks(parsedValue);
+}
+
+async function getFeedbacksForMutation() {
+  const rawFeedbacks = await AsyncStorage.getItem(OUTFIT_FEEDBACK_KEY);
+  return parseStoredFeedbacksForMutation(rawFeedbacks);
 }
 
 async function getSavedOutfitsForMutation() {
@@ -940,38 +980,40 @@ export async function setOutfitRecommendationFeedback(
   itemIds: string[],
   value: OutfitFeedbackValue | null
 ): Promise<OutfitRecommendationFeedback[] | null> {
-  try {
-    const key = getOutfitFeedbackKey(itemIds);
-    if (!key) return null;
+  return runFeedbackMutation(async () => {
+    try {
+      const key = getOutfitFeedbackKey(itemIds);
+      if (!key) return null;
 
-    const [feedbacks, revisions] = await Promise.all([
-      getOutfitRecommendationFeedbacks(),
-      getIncrementedRecommendationRevisions(["feedbackRevision"]),
-    ]);
-    const remainingFeedbacks = feedbacks.filter(
-      (feedback) => getOutfitFeedbackKey(feedback.itemIds) !== key
-    );
-    const updatedFeedbacks = value
-      ? [
-          {
-            itemIds: key.split("|"),
-            value,
-            updatedAt: new Date().toISOString(),
-          },
-          ...remainingFeedbacks,
-        ]
-      : remainingFeedbacks;
+      const [feedbacks, revisions] = await Promise.all([
+        getFeedbacksForMutation(),
+        getIncrementedRecommendationRevisions(["feedbackRevision"]),
+      ]);
+      const remainingFeedbacks = feedbacks.filter(
+        (feedback) => getOutfitFeedbackKey(feedback.itemIds) !== key
+      );
+      const updatedFeedbacks = value
+        ? [
+            {
+              itemIds: key.split("|"),
+              value,
+              updatedAt: new Date().toISOString(),
+            },
+            ...remainingFeedbacks,
+          ]
+        : remainingFeedbacks;
 
-    await AsyncStorage.multiSet([
-      [OUTFIT_FEEDBACK_KEY, JSON.stringify(updatedFeedbacks)],
-      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
-    ]);
+      await AsyncStorage.multiSet([
+        [OUTFIT_FEEDBACK_KEY, JSON.stringify(updatedFeedbacks)],
+        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+      ]);
 
-    return updatedFeedbacks;
-  } catch (error) {
-    console.error("코디 추천 피드백 저장 실패:", error);
-    return null;
-  }
+      return updatedFeedbacks;
+    } catch (error) {
+      console.error("코디 추천 피드백 저장 실패:", error);
+      return null;
+    }
+  });
 }
 
 export async function deleteSavedOutfit(id: string): Promise<SavedOutfit[] | null> {
