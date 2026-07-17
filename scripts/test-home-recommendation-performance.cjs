@@ -101,6 +101,7 @@ const {
   getRecommendationRevisionState,
   getSavedOutfits,
   getUserProfile,
+  getUserProfileLoadResult,
   recordSavedOutfitWear,
   saveClosetItem,
   saveOutfit,
@@ -111,6 +112,7 @@ const {
 } = require("../utils/storage.ts");
 
 const CLOSET_KEY = "naes_closet";
+const PROFILE_KEY = "naes_profile";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
@@ -199,6 +201,32 @@ test("프로필 저장은 실제 저장 성공 여부를 반환한다", async ()
   }
 
   assert.deepEqual(await getUserProfile(), { height: "175" });
+});
+
+test("profile reads distinguish storage failures from an unregistered profile", async () => {
+  await saveUserProfile({ height: "175" });
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  let failedResult;
+  try {
+    failNextGetItemKey = PROFILE_KEY;
+    failedResult = await getUserProfileLoadResult();
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(failedResult, { status: "failed", profile: null });
+  assert.deepEqual(await getUserProfileLoadResult(), {
+    status: "loaded",
+    profile: { height: "175" },
+  });
+
+  storageMemory.delete(PROFILE_KEY);
+  assert.deepEqual(await getUserProfileLoadResult(), {
+    status: "loaded",
+    profile: null,
+  });
 });
 
 test("concurrent feedback mutations preserve each outfit preference", async () => {

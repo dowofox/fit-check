@@ -54,7 +54,7 @@ import {
   GarmentProfile,
   getClosetItems,
   getDisplayImageUri,
-  getUserProfile,
+  getUserProfileLoadResult,
   ProductSizeGuide,
   ProductSizeMeasurement,
   ProductClassificationField,
@@ -64,6 +64,7 @@ import {
   updateClosetItem,
   UserProfile,
 } from "@/utils/storage";
+import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image as ExpoImage } from "expo-image";
@@ -2080,6 +2081,8 @@ export default function ClothesDetailScreen() {
   const [item, setItem] = useState<ClosetItem | null>(null);
   const [referenceItem, setReferenceItem] = useState<ClosetItem | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [hasProfileLoadError, setHasProfileLoadError] = useState(false);
+  const [profileLoadRevision, setProfileLoadRevision] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isDraftSeasonConfirmed, setIsDraftSeasonConfirmed] = useState(false);
@@ -2110,10 +2113,11 @@ export default function ClothesDetailScreen() {
     useCallback(() => {
       async function loadItem() {
         const timer = startPerformanceTimer("screen.clothes-detail.load-item");
-        const [closetItems, userProfile] = await Promise.all([
+        const [closetItems, profileResult] = await Promise.all([
           getClosetItems(),
-          getUserProfile(),
+          getUserProfileLoadResult(),
         ]);
+        const userProfile = profileResult.profile;
         const selectedItem = closetItems.find((closetItem) => closetItem.id === id);
         const referenceKey = selectedItem ? getReferenceClothingKey(selectedItem) : null;
         const referenceItemId = referenceKey
@@ -2124,9 +2128,14 @@ export default function ClothesDetailScreen() {
             ? closetItems.find((closetItem) => closetItem.id === referenceItemId)
             : null;
 
-        setProfile(userProfile);
+        if (profileResult.status === "loaded") {
+          setProfile(userProfile);
+          setReferenceItem(selectedReferenceItem || null);
+          setHasProfileLoadError(false);
+        } else {
+          setHasProfileLoadError(true);
+        }
         setItem(selectedItem || null);
-        setReferenceItem(selectedReferenceItem || null);
         if (selectedItem) {
           setDraft(getEditableValues(selectedItem));
           setConfirmedProductDraft(getConfirmedProductDraft(selectedItem));
@@ -2151,11 +2160,13 @@ export default function ClothesDetailScreen() {
         endPerformanceTimer(timer, {
           closetItemCount: closetItems.length,
           itemFound: Boolean(selectedItem),
+          profileStatus: profileResult.status,
+          profileLoadRevision,
         });
       }
 
       loadItem();
-    }, [id])
+    }, [id, profileLoadRevision])
   );
 
   function updateDraft<K extends keyof EditableClosetFields>(field: K, value: EditableClosetFields[K]) {
@@ -2836,17 +2847,22 @@ export default function ClothesDetailScreen() {
   }, [item]);
   const fitSuitability = useMemo(
     () => {
-      if (!item || isAccessoryOrBagItem(item) || item.category === "신발") return null;
+      if (
+        !item ||
+        hasProfileLoadError ||
+        isAccessoryOrBagItem(item) ||
+        item.category === "신발"
+      ) return null;
       const timer = startPerformanceTimer("clothes-detail.getFitSuitability");
       const result = getFitSuitability(item, profile);
       endPerformanceTimer(timer, { fitResult: result.fitResult });
       return result;
     },
-    [item, profile]
+    [hasProfileLoadError, item, profile]
   );
   const sizeRecommendation = useMemo(
     () => {
-      if (!item || !hasSizeRecommendationContext) return null;
+      if (!item || hasProfileLoadError || !hasSizeRecommendationContext) return null;
       const timer = startPerformanceTimer("clothes-detail.getRecommendedProductSize");
       const result = getRecommendedProductSize(item, profile, { referenceItem });
       endPerformanceTimer(timer, {
@@ -2856,7 +2872,7 @@ export default function ClothesDetailScreen() {
       });
       return result;
     },
-    [hasSizeRecommendationContext, item, profile, referenceItem]
+    [hasProfileLoadError, hasSizeRecommendationContext, item, profile, referenceItem]
   );
   const shouldShowRecommendedSizeCard = Boolean(
     hasSizeRecommendationContext &&
@@ -3196,6 +3212,27 @@ export default function ClothesDetailScreen() {
                 onCancel={handleCancelMeasurementForm}
               />
             )}
+
+            {!editMode && hasSizeRecommendationContext && hasProfileLoadError ? (
+              <View style={styles.sizeMatchCard}>
+                <View style={styles.tipHeader}>
+                  <View style={styles.tipIconCircle}>
+                    <Feather name="alert-circle" size={16} color={colors.warning} />
+                  </View>
+                  <Text style={styles.tipTitle}>프로필을 불러오지 못했어요</Text>
+                </View>
+                <Text style={styles.tipText}>
+                  저장된 신체 정보는 그대로 있어요. 불러온 뒤 사이즈를 다시 계산할게요.
+                </Text>
+                <Pressable
+                  style={styles.sizeRecommendationActionButton}
+                  onPress={() => setProfileLoadRevision((revision) => revision + 1)}
+                >
+                  <Text style={styles.sizeRecommendationActionButtonText}>다시 시도</Text>
+                  <Feather name="refresh-cw" size={15} color="#fff" />
+                </Pressable>
+              </View>
+            ) : null}
 
             {!editMode && shouldShowRecommendedSizeCard && sizeRecommendation && (
               <RecommendedSizeCard

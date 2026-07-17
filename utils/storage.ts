@@ -536,9 +536,24 @@ async function getSavedOutfitsForMutation() {
   return parseStoredSavedOutfitsForMutation(rawSavedOutfits);
 }
 
-function parseStoredUserProfile(rawValue: string | null): UserProfile | null {
-  const parsedValue = parseStoredJson(rawValue);
-  return isStoredRecord(parsedValue) ? (parsedValue as UserProfile) : null;
+export type UserProfileLoadResult = {
+  status: "loaded" | "failed";
+  profile: UserProfile | null;
+};
+
+function parseStoredUserProfileLoadResult(
+  rawValue: string | null
+): UserProfileLoadResult {
+  if (rawValue === null) return { status: "loaded", profile: null };
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as unknown;
+    return isStoredRecord(parsedValue)
+      ? { status: "loaded", profile: parsedValue as UserProfile }
+      : { status: "failed", profile: null };
+  } catch {
+    return { status: "failed", profile: null };
+  }
 }
 
 export type ClosetRecommendationIndexLoadResult = {
@@ -715,23 +730,28 @@ export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
   }
 }
 
-export async function getUserProfile(): Promise<UserProfile | null> {
+export async function getUserProfileLoadResult(): Promise<UserProfileLoadResult> {
   const timer = startPerformanceTimer("storage.getUserProfile");
 
   try {
     const data = await AsyncStorage.getItem(PROFILE_KEY);
-    const profile = parseStoredUserProfile(data);
+    const result = parseStoredUserProfileLoadResult(data);
 
     endPerformanceTimer(timer, {
-      found: Boolean(profile),
+      found: Boolean(result.profile),
+      status: result.status,
       jsonCharacters: data?.length || 0,
     });
-    return profile;
+    return result;
   } catch (error) {
     endPerformanceTimer(timer, { failed: true });
     console.error("프로필 불러오기 실패:", error);
-    return null;
+    return { status: "failed", profile: null };
   }
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  return (await getUserProfileLoadResult()).profile;
 }
 
 export function saveClosetItem(item: ClosetItem) {
