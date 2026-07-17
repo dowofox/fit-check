@@ -34,6 +34,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 const {
   getFitSuitability,
   getRecommendedProductSize,
+  getSizeRecommendationMissingInfo,
   normalizeSize,
 } = require("../utils/sizeMatch.ts");
 const {
@@ -332,6 +333,42 @@ test("신체 정보와 기준 옷이 모두 없으면 부족한 프로필 정보
   assert.equal(result.blockedReason, "missing_profile_measurements");
   assert.ok(result.missingFields.length > 0);
   assert.equal(result.sizeRecommendations.length, 0);
+  assert.deepEqual(getSizeRecommendationMissingInfo(result), {
+    kind: "profile",
+    title: "내 신체 치수를 입력해주세요",
+    description:
+      "추천에 필요한 프로필 정보: 어깨너비 · 가슴둘레 · 키 · 팔 길이. 입력하면 상품 실측과 비교할 수 있어요.",
+    actionLabel: "프로필 입력하기",
+  });
+});
+
+test("상품 실측이 부족하면 카테고리에 필요한 값만 안내하고 추천을 추측하지 않는다", () => {
+  const item = createItem(
+    "missing-product-measurement",
+    "하의",
+    [{ size: "L", totalLength: 104, waist: 41 }],
+    { size: "L" }
+  );
+  const profile = {
+    height: "175",
+    bottomSize: "32",
+    waistCircumference: "82",
+    hipCircumference: "100",
+    thighCircumference: "62",
+    inseam: "78",
+  };
+  const result = getRecommendedProductSize(item, profile);
+
+  assert.equal(result.blockedReason, "missing_product_measurements");
+  assert.deepEqual(result.missingProductFields, ["엉덩이 또는 허벅지 단면"]);
+  assert.equal(result.sizeRecommendations.length, 0);
+  assert.deepEqual(getSizeRecommendationMissingInfo(result), {
+    kind: "product",
+    title: "상품 실측을 추가해주세요",
+    description:
+      "추천에 필요한 상품 실측: 엉덩이 또는 허벅지 단면. 이 값이 없어 사이즈를 추측하지 않았어요.",
+    actionLabel: "실측 직접 입력",
+  });
 });
 
 test("신발은 실측표가 있어도 자동 사이즈 추천 대상에서 제외한다", () => {

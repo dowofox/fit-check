@@ -25,6 +25,7 @@ import {
 import {
   getFitSuitability,
   getRecommendedProductSize,
+  getSizeRecommendationMissingInfo,
   isAccessoryOrBagItem,
   type FitSuitabilityResult,
   type SizeRecommendationResult,
@@ -1905,46 +1906,33 @@ function RecommendedSizeCard({
 }) {
   const displayedRecommendations = result.sizeRecommendations.slice(0, 3);
   const recommended = displayedRecommendations[0];
+  const missingInfo = getSizeRecommendationMissingInfo(result);
 
-  if (result.blockedReason === "missing_product_measurements") {
+  if (missingInfo) {
     return (
       <View style={styles.sizeMatchCard}>
         <View style={styles.tipHeader}>
           <View style={styles.tipIconCircle}>
-            <Feather name="sliders" size={16} color="#8c6f47" />
+            <Feather
+              name={missingInfo.kind === "product" ? "sliders" : "user-check"}
+              size={16}
+              color="#8c6f47"
+            />
           </View>
-          <Text style={styles.tipTitle}>상품 실측이 필요해요</Text>
+          <Text style={styles.tipTitle}>{missingInfo.title}</Text>
         </View>
-        <Text style={styles.tipText}>
-          {result.missingProductFields?.join(", ") || "주요 실측"} 값이 부족해 추천
-          사이즈를 추측하지 않았어요.
-        </Text>
-        <Pressable style={styles.sizeRecommendationActionButton} onPress={onOpenMeasurementForm}>
-          <Text style={styles.sizeRecommendationActionButtonText}>실측 직접 입력</Text>
-          <Feather name="chevron-right" size={15} color="#fff" />
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (result.missingFields.length > 0) {
-    return (
-      <View style={styles.sizeMatchCard}>
-        <View style={styles.tipHeader}>
-          <View style={styles.tipIconCircle}>
-            <Feather name="user-check" size={16} color="#8c6f47" />
-          </View>
-          <Text style={styles.tipTitle}>내 체형 기준 추천 사이즈</Text>
-        </View>
-        <Text style={styles.tipText}>
-          내 프로필에 {result.missingFields.join(", ")} 정보를 입력하면 상품 실측과
-          비교할 수 있어요.
-        </Text>
+        <Text style={styles.tipText}>{missingInfo.description}</Text>
         <Pressable
           style={styles.sizeRecommendationActionButton}
-          onPress={() => router.push("/profile")}
+          onPress={
+            missingInfo.kind === "product"
+              ? onOpenMeasurementForm
+              : () => router.push("/profile")
+          }
         >
-          <Text style={styles.sizeRecommendationActionButtonText}>프로필 입력하기</Text>
+          <Text style={styles.sizeRecommendationActionButtonText}>
+            {missingInfo.actionLabel}
+          </Text>
           <Feather name="chevron-right" size={15} color="#fff" />
         </Pressable>
       </View>

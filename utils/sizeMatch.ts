@@ -259,6 +259,38 @@ export type SizeRecommendationContext = {
   referenceItem?: ClosetItem | null;
 };
 
+export function getSizeRecommendationMissingInfo(
+  result: SizeRecommendationResult
+) {
+  if (result.blockedReason === "missing_product_measurements") {
+    const fields = result.missingProductFields?.filter(Boolean) || [];
+    const fieldText = fields.length > 0 ? fields.join(" · ") : "주요 상품 실측";
+
+    return {
+      kind: "product" as const,
+      title: "상품 실측을 추가해주세요",
+      description: `추천에 필요한 상품 실측: ${fieldText}. 이 값이 없어 사이즈를 추측하지 않았어요.`,
+      actionLabel: "실측 직접 입력",
+    };
+  }
+
+  if (
+    result.blockedReason === "missing_profile_measurements" ||
+    result.missingFields.length > 0
+  ) {
+    const fieldText = result.missingFields.filter(Boolean).join(" · ");
+
+    return {
+      kind: "profile" as const,
+      title: "내 신체 치수를 입력해주세요",
+      description: `추천에 필요한 프로필 정보: ${fieldText}. 입력하면 상품 실측과 비교할 수 있어요.`,
+      actionLabel: "프로필 입력하기",
+    };
+  }
+
+  return null;
+}
+
 export type FitSuitabilityBlockedReason =
   | "missing_item_size"
   | "missing_profile_measurements"
