@@ -1,6 +1,9 @@
 let performanceSequence = 0;
 
-export type PerformanceTimer = string | null;
+export type PerformanceTimer = {
+  label: string;
+  startedAt: number;
+} | null;
 
 export function startPerformanceTimer(label: string): PerformanceTimer {
   if (!__DEV__) return null;
@@ -8,19 +11,25 @@ export function startPerformanceTimer(label: string): PerformanceTimer {
   performanceSequence += 1;
   const timerLabel = `[perf] ${label} #${performanceSequence}`;
   console.time(timerLabel);
-  return timerLabel;
+  return {
+    label: timerLabel,
+    startedAt: Date.now(),
+  };
 }
 
 export function endPerformanceTimer(
-  timerLabel: PerformanceTimer,
+  timer: PerformanceTimer,
   details?: Record<string, unknown>
 ) {
-  if (!timerLabel || !__DEV__) return;
+  if (!timer || !__DEV__) return;
 
-  if (details) {
-    console.info(`${timerLabel} details`, details);
-  }
-  console.timeEnd(timerLabel);
+  const durationMs = Date.now() - timer.startedAt;
+
+  console.info(`${timer.label} details`, {
+    durationMs,
+    ...(details || {}),
+  });
+  console.timeEnd(timer.label);
 }
 
 export function logPerformanceMetric(label: string, details: Record<string, unknown>) {

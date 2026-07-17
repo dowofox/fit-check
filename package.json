@@ -14,6 +14,7 @@
     "test:outfit": "node scripts/test-outfit-recommend.cjs",
     "test:product-link": "node scripts/test-product-link-extraction.cjs",
     "test:core-flow": "node scripts/test-registration-recommendation-flow.cjs",
+    "test:home-performance": "node scripts/test-home-recommendation-performance.cjs",
     "test:size": "node scripts/test-size-recommendation.cjs",
     "test:season": "node scripts/test-clothes-season.cjs && node scripts/test-season-inference.cjs"
   },

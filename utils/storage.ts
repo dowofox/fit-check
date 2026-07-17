@@ -1,4 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  buildClosetRecommendationIndex,
+  CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY,
+  getRecommendationRevisionKey,
+  incrementRecommendationRevisions,
+  parseClosetRecommendationIndex,
+  parseRecommendationRevisionState,
+  RECOMMENDATION_REVISIONS_STORAGE_KEY,
+  type ClosetRecommendationIndex,
+  type RecommendationRevisionField,
+  type RecommendationRevisionState,
+} from "@/utils/homeRecommendationIndex";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 
 const STORAGE_KEY = "analysis_history";
@@ -260,6 +272,123 @@ export type SavedOutfit = {
   createdAt: string;
 };
 
+export type ClosetRecommendationIndexLoadResult = {
+  index: ClosetRecommendationIndex;
+  revisions: RecommendationRevisionState;
+  source:
+    | "cache"
+    | "rebuilt_missing"
+    | "rebuilt_invalid"
+    | "rebuilt_version_mismatch"
+    | "rebuilt_stale"
+    | "rebuilt_revision_missing"
+    | "rebuilt_revision_invalid";
+  serializedCharacters: number;
+  closetSerializedCharacters: number;
+  fullClosetParsed: boolean;
+};
+
+async function readRecommendationRevisionState() {
+  const rawValue = await AsyncStorage.getItem(RECOMMENDATION_REVISIONS_STORAGE_KEY);
+  return parseRecommendationRevisionState(rawValue);
+}
+
+export async function getRecommendationRevisionState() {
+  return (await readRecommendationRevisionState()).state;
+}
+
+export { getRecommendationRevisionKey };
+
+async function getIncrementedRecommendationRevisions(
+  fields: RecommendationRevisionField[]
+) {
+  const { state } = await readRecommendationRevisionState();
+  return incrementRecommendationRevisions(state, fields);
+}
+
+function getClosetStorageEntries(
+  closet: ClosetItem[],
+  revisions: RecommendationRevisionState
+): [string, string][] {
+  const recommendationIndex = buildClosetRecommendationIndex(
+    closet,
+    revisions.closetRevision
+  );
+
+  return [
+    [CLOSET_KEY, JSON.stringify(closet)],
+    [CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY, JSON.stringify(recommendationIndex)],
+    [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+  ];
+}
+
+export async function getClosetRecommendationIndex(): Promise<ClosetRecommendationIndexLoadResult> {
+  const [rawIndex, rawRevisions] = await Promise.all([
+    AsyncStorage.getItem(CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY),
+    AsyncStorage.getItem(RECOMMENDATION_REVISIONS_STORAGE_KEY),
+  ]);
+  const revisionResult = parseRecommendationRevisionState(rawRevisions);
+  const parsedIndex = parseClosetRecommendationIndex(
+    rawIndex,
+    revisionResult.state.closetRevision
+  );
+
+  if (revisionResult.status === "valid" && parsedIndex.index) {
+    return {
+      index: parsedIndex.index,
+      revisions: revisionResult.state,
+      source: "cache",
+      serializedCharacters: rawIndex?.length || 0,
+      closetSerializedCharacters: 0,
+      fullClosetParsed: false,
+    };
+  }
+
+  const rawCloset = await AsyncStorage.getItem(CLOSET_KEY);
+  let closet: ClosetItem[] = [];
+
+  try {
+    const parsedCloset = rawCloset ? JSON.parse(rawCloset) : [];
+    closet = Array.isArray(parsedCloset) ? parsedCloset : [];
+  } catch {
+    closet = [];
+  }
+
+  const rebuiltIndex = buildClosetRecommendationIndex(
+    closet,
+    revisionResult.state.closetRevision
+  );
+  const serializedIndex = JSON.stringify(rebuiltIndex);
+  const entries: [string, string][] = [
+    [CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY, serializedIndex],
+  ];
+
+  if (revisionResult.status !== "valid") {
+    entries.push([
+      RECOMMENDATION_REVISIONS_STORAGE_KEY,
+      JSON.stringify(revisionResult.state),
+    ]);
+  }
+
+  await AsyncStorage.multiSet(entries);
+
+  const source =
+    revisionResult.status === "missing"
+      ? "rebuilt_revision_missing"
+      : revisionResult.status === "invalid"
+        ? "rebuilt_revision_invalid"
+        : (`rebuilt_${parsedIndex.status}` as ClosetRecommendationIndexLoadResult["source"]);
+
+  return {
+    index: rebuiltIndex,
+    revisions: revisionResult.state,
+    source,
+    serializedCharacters: serializedIndex.length,
+    closetSerializedCharacters: rawCloset?.length || 0,
+    fullClosetParsed: true,
+  };
+}
+
 export async function saveAnalysis(result: any) {
   try {
     const existing = await AsyncStorage.getItem(STORAGE_KEY);
@@ -309,7 +438,14 @@ export async function deleteAnalysis(id: string) {
 
 export async function saveUserProfile(profile: UserProfile) {
   try {
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    const revisions = await getIncrementedRecommendationRevisions([
+      "profileRevision",
+    ]);
+
+    await AsyncStorage.multiSet([
+      [PROFILE_KEY, JSON.stringify(profile)],
+      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+    ]);
   } catch (error) {
     console.error("프로필 저장 실패:", error);
   }
@@ -336,12 +472,15 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
 export async function saveClosetItem(item: ClosetItem) {
   try {
-    const existing = await AsyncStorage.getItem(CLOSET_KEY);
-    const closet = existing ? JSON.parse(existing) : [];
+    const [existing, revisions] = await Promise.all([
+      AsyncStorage.getItem(CLOSET_KEY),
+      getIncrementedRecommendationRevisions(["closetRevision"]),
+    ]);
+    const closet: ClosetItem[] = existing ? JSON.parse(existing) : [];
 
     closet.unshift(item);
 
-    await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(closet));
+    await AsyncStorage.multiSet(getClosetStorageEntries(closet, revisions));
 
     return closet;
   } catch (error) {
@@ -372,24 +511,30 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
 
 export async function deleteClosetItem(id: string) {
   try {
-    const [closet, profile] = await Promise.all([getClosetItems(), getUserProfile()]);
+    const [closet, profile, currentRevisions] = await Promise.all([
+      getClosetItems(),
+      getUserProfile(),
+      getRecommendationRevisionState(),
+    ]);
     const filteredCloset = closet.filter((item) => item.id !== id);
     const nextReferenceClothing = pruneReferenceClothing(
       profile?.referenceClothing,
       filteredCloset
     );
+    const revisions = incrementRecommendationRevisions(
+      currentRevisions,
+      profile ? ["closetRevision", "profileRevision"] : ["closetRevision"]
+    );
+    const entries = getClosetStorageEntries(filteredCloset, revisions);
 
     if (profile) {
-      await AsyncStorage.multiSet([
-        [CLOSET_KEY, JSON.stringify(filteredCloset)],
-        [
-          PROFILE_KEY,
-          JSON.stringify({ ...profile, referenceClothing: nextReferenceClothing }),
-        ],
+      entries.push([
+        PROFILE_KEY,
+        JSON.stringify({ ...profile, referenceClothing: nextReferenceClothing }),
       ]);
-    } else {
-      await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(filteredCloset));
     }
+
+    await AsyncStorage.multiSet(entries);
 
     return filteredCloset;
   } catch (error) {
@@ -400,12 +545,15 @@ export async function deleteClosetItem(id: string) {
 
 export async function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
   try {
-    const closet = await getClosetItems();
+    const [closet, revisions] = await Promise.all([
+      getClosetItems(),
+      getIncrementedRecommendationRevisions(["closetRevision"]),
+    ]);
     const updatedCloset = closet.map((item) =>
       item.id === id ? { ...item, ...updatedItem } : item
     );
 
-    await AsyncStorage.setItem(CLOSET_KEY, JSON.stringify(updatedCloset));
+    await AsyncStorage.multiSet(getClosetStorageEntries(updatedCloset, revisions));
 
     return updatedCloset;
   } catch (error) {
@@ -420,7 +568,13 @@ export async function saveOutfit(outfit: SavedOutfit, updateWearHistory = false)
     const updatedOutfits = [outfit, ...savedOutfits];
 
     if (updateWearHistory) {
-      const closet = await getClosetItems();
+      const [closet, revisions] = await Promise.all([
+        getClosetItems(),
+        getIncrementedRecommendationRevisions([
+          "closetRevision",
+          "savedOutfitRevision",
+        ]),
+      ]);
       const wornItemIds = new Set(outfit.itemIds);
       const wornAt = new Date().toISOString();
       const updatedCloset = closet.map((item) =>
@@ -435,10 +589,16 @@ export async function saveOutfit(outfit: SavedOutfit, updateWearHistory = false)
 
       await AsyncStorage.multiSet([
         [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
-        [CLOSET_KEY, JSON.stringify(updatedCloset)],
+        ...getClosetStorageEntries(updatedCloset, revisions),
       ]);
     } else {
-      await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits));
+      const revisions = await getIncrementedRecommendationRevisions([
+        "savedOutfitRevision",
+      ]);
+      await AsyncStorage.multiSet([
+        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+      ]);
     }
 
     return updatedOutfits;
@@ -469,10 +629,16 @@ export async function getSavedOutfits(): Promise<SavedOutfit[]> {
 
 export async function deleteSavedOutfit(id: string) {
   try {
-    const savedOutfits = await getSavedOutfits();
+    const [savedOutfits, revisions] = await Promise.all([
+      getSavedOutfits(),
+      getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
+    ]);
     const filteredOutfits = savedOutfits.filter((outfit) => outfit.id !== id);
 
-    await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(filteredOutfits));
+    await AsyncStorage.multiSet([
+      [SAVED_OUTFITS_KEY, JSON.stringify(filteredOutfits)],
+      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+    ]);
 
     return filteredOutfits;
   } catch (error) {
@@ -483,12 +649,18 @@ export async function deleteSavedOutfit(id: string) {
 
 export async function updateSavedOutfit(id: string, updatedOutfit: Partial<SavedOutfit>) {
   try {
-    const savedOutfits = await getSavedOutfits();
+    const [savedOutfits, revisions] = await Promise.all([
+      getSavedOutfits(),
+      getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
+    ]);
     const updatedOutfits = savedOutfits.map((outfit) =>
       outfit.id === id ? { ...outfit, ...updatedOutfit } : outfit
     );
 
-    await AsyncStorage.setItem(SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits));
+    await AsyncStorage.multiSet([
+      [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+    ]);
 
     return updatedOutfits;
   } catch (error) {

@@ -94,6 +94,12 @@ npm run test:outfit
 npm run test:product-link
 ```
 
+홈 로딩·추천 캐시·revision 저장을 수정한 작업에서는 다음 테스트도 실행한다.
+
+```bash
+npm run test:home-performance
+```
+
 ## Git
 
 항상 다음 순서를 따른다.
