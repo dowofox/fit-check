@@ -214,6 +214,7 @@ function RecommendationCard({
   onSave,
   onFeedback,
   isFeedbackSaving,
+  isOutfitSaving,
 }: {
   recommendation: OutfitRecommendation;
   index: number;
@@ -223,6 +224,7 @@ function RecommendationCard({
     value: OutfitFeedbackValue
   ) => void;
   isFeedbackSaving: boolean;
+  isOutfitSaving: boolean;
 }) {
   const [isAlternativeOpen, setIsAlternativeOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -432,8 +434,14 @@ function RecommendationCard({
               </ScrollView>
 
               <Pressable
-                style={styles.alternativeSaveButton}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isOutfitSaving }}
+                style={[
+                  styles.alternativeSaveButton,
+                  isOutfitSaving && styles.outfitSaveButtonDisabled,
+                ]}
                 onPress={() => onSave(alternative)}
+                disabled={isOutfitSaving}
               >
                 <Feather name="bookmark" size={15} color={colors.card} />
                 <Text style={styles.alternativeSaveButtonText}>이 버전 저장</Text>
@@ -488,8 +496,14 @@ function RecommendationCard({
       </View>
 
       <Pressable
-        style={styles.saveOutfitButton}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isOutfitSaving }}
+        style={[
+          styles.saveOutfitButton,
+          isOutfitSaving && styles.outfitSaveButtonDisabled,
+        ]}
         onPress={() => onSave(recommendation)}
+        disabled={isOutfitSaving}
       >
         <Feather name="bookmark" size={17} color={colors.card} />
         <Text style={styles.saveOutfitButtonText}>이 코디 저장하기</Text>
@@ -600,9 +614,11 @@ export default function OutfitRecommendScreen() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
+  const [isOutfitSaving, setIsOutfitSaving] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
   const [selectedSituation, setSelectedSituation] = useState<SituationId>("all");
   const recommendationLoadRequestRef = useRef(0);
+  const outfitSaveInProgressRef = useRef(false);
 
   const loadRecommendations = useCallback(async () => {
     const requestId = recommendationLoadRequestRef.current + 1;
@@ -717,34 +733,42 @@ export default function OutfitRecommendScreen() {
       : emptyMessage;
 
   async function handleSaveOutfit(recommendation: OutfitRecommendation) {
+    if (outfitSaveInProgressRef.current) return;
+
+    outfitSaveInProgressRef.current = true;
+    setIsOutfitSaving(true);
     const itemIds = getSortedItemIds(recommendation.items);
     const savedAt = new Date();
 
-    const saveResult = await saveOutfit({
-      id: Date.now().toString(),
-      name: getDefaultOutfitName(savedAt),
-      memo: "",
-      itemIds,
-      score: recommendation.score,
-      grade: recommendation.grade,
-      reasons: recommendation.reasons,
-      warnings: recommendation.warnings,
-      createdAt: savedAt.toISOString(),
-    });
+    try {
+      const saveResult = await saveOutfit({
+        id: Date.now().toString(),
+        name: getDefaultOutfitName(savedAt),
+        memo: "",
+        itemIds,
+        score: recommendation.score,
+        grade: recommendation.grade,
+        reasons: recommendation.reasons,
+        warnings: recommendation.warnings,
+        createdAt: savedAt.toISOString(),
+      });
 
-    if (saveResult.status === "duplicate") {
-      Alert.alert("이미 저장된 코디예요", "같은 아이템 조합이 이미 저장되어 있어요.");
-      return;
+      if (saveResult.status === "duplicate") {
+        Alert.alert("이미 저장된 코디예요", "같은 아이템 조합이 이미 저장되어 있어요.");
+        return;
+      }
+
+      if (saveResult.status === "failed") {
+        Alert.alert("저장 실패", "코디를 저장하지 못했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      await loadRecommendations();
+      Alert.alert("저장 완료", "추천 코디를 저장했어요.");
+    } finally {
+      outfitSaveInProgressRef.current = false;
+      setIsOutfitSaving(false);
     }
-
-    if (saveResult.status === "failed") {
-      Alert.alert("저장 실패", "코디를 저장하지 못했어요. 다시 시도해주세요.");
-      return;
-    }
-
-    await loadRecommendations();
-
-    Alert.alert("저장 완료", "추천 코디를 저장했어요.");
   }
 
   async function handleRecommendationFeedback(
@@ -872,6 +896,7 @@ export default function OutfitRecommendScreen() {
                 onSave={handleSaveOutfit}
                 onFeedback={handleRecommendationFeedback}
                 isFeedbackSaving={isFeedbackSaving}
+                isOutfitSaving={isOutfitSaving}
               />
             ))}
           </View>
@@ -1465,6 +1490,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: "700",
     textAlign: "center",
+  },
+  outfitSaveButtonDisabled: {
+    opacity: 0.5,
   },
   emptyActionButton: {
     marginTop: 18,
