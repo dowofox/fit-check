@@ -55,7 +55,7 @@ import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -563,6 +563,12 @@ export default function AddClothesScreen() {
   const [productUrlInput, setProductUrlInput] = useState("");
   const [productLinkFailure, setProductLinkFailure] = useState<ProductLinkFailure | null>(null);
   const [extractedProduct, setExtractedProduct] = useState<ExtractedProduct | null>(null);
+  const productExtractionRequestRef = useRef(0);
+
+  function invalidateProductExtraction() {
+    productExtractionRequestRef.current += 1;
+    setIsExtractingProduct(false);
+  }
 
   function resetAnalysisState() {
     setAnalysis(null);
@@ -581,8 +587,9 @@ export default function AddClothesScreen() {
   }
 
   function switchAddMode(nextMode: AddMode) {
-    if (nextMode === addMode) return;
+    if (nextMode === addMode || isSaving) return;
 
+    invalidateProductExtraction();
     setAddMode(nextMode);
     setImageUri("");
     setSelectedImages([]);
@@ -596,6 +603,7 @@ export default function AddClothesScreen() {
   }
 
   function switchToPhotoFallback() {
+    invalidateProductExtraction();
     setAddMode("photo");
     setImageUri("");
     setSelectedImages([]);
@@ -732,6 +740,8 @@ export default function AddClothesScreen() {
     const productUrl = validatedUrl.url;
 
     if (isExtractingProduct) return;
+    const requestId = productExtractionRequestRef.current + 1;
+    productExtractionRequestRef.current = requestId;
 
     try {
       setIsExtractingProduct(true);
@@ -749,14 +759,17 @@ export default function AddClothesScreen() {
         },
         body: JSON.stringify({ url: productUrl }),
       }, API_TIMEOUTS.extractProduct);
+      if (requestId !== productExtractionRequestRef.current) return;
 
       if (!response.ok) {
         const errorResponse = (await response.json().catch(() => ({}))) as ProductExtractionErrorResponse;
+        if (requestId !== productExtractionRequestRef.current) return;
         setProductLinkFailure(getProductLinkFailure(errorResponse.error, response.status));
         return;
       }
 
       const product = (await response.json()) as ExtractedProduct;
+      if (requestId !== productExtractionRequestRef.current) return;
 
       if (!product.productImageUrl) {
         setExtractedProduct(product);
@@ -775,10 +788,13 @@ export default function AddClothesScreen() {
       setImageUri(product.productImageUrl);
       setSelectedImages([{ uri: product.productImageUrl }]);
     } catch (error) {
+      if (requestId !== productExtractionRequestRef.current) return;
       console.error("상품 정보 추출 실패:", error);
       setProductLinkFailure(getProductLinkFailure("product_page_unreachable"));
     } finally {
-      setIsExtractingProduct(false);
+      if (requestId === productExtractionRequestRef.current) {
+        setIsExtractingProduct(false);
+      }
     }
   }
 
@@ -1177,6 +1193,7 @@ export default function AddClothesScreen() {
               addMode === "link" && styles.modeOptionCardActive,
             ]}
             onPress={() => switchAddMode("link")}
+            disabled={isSaving}
           >
             <View style={styles.modeOptionIcon}>
               <Feather name="link" size={18} color="#8c6f47" />
@@ -1196,6 +1213,7 @@ export default function AddClothesScreen() {
           <Pressable
             style={[styles.modeOptionCard, addMode === "photo" && styles.modeOptionCardActive]}
             onPress={() => switchAddMode("photo")}
+            disabled={isSaving}
           >
             <View style={styles.modeOptionIcon}>
               <Feather name="camera" size={18} color="#8c6f47" />
@@ -1212,6 +1230,7 @@ export default function AddClothesScreen() {
           <Pressable
             style={[styles.modeOptionCard, addMode === "manual" && styles.modeOptionCardActive]}
             onPress={() => switchAddMode("manual")}
+            disabled={isSaving}
           >
             <View style={styles.modeOptionIcon}>
               <Feather name="edit-3" size={18} color="#8c6f47" />
@@ -1302,6 +1321,7 @@ export default function AddClothesScreen() {
               style={styles.linkInput}
               value={productUrlInput}
               onChangeText={(value) => {
+                if (isExtractingProduct) invalidateProductExtraction();
                 setProductUrlInput(value);
                 setProductLinkFailure(null);
               }}
