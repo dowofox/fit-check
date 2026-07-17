@@ -23,7 +23,7 @@ import {
 } from "@/utils/recommendationInput";
 import {
   ClosetItem,
-  getClosetItems,
+  getClosetItemsLoadResult,
   getOutfitRecommendationFeedbacks,
   getSavedOutfits,
   getUserProfile,
@@ -594,11 +594,13 @@ export default function OutfitRecommendScreen() {
   const [recommendations, setRecommendations] = useState<OutfitRecommendation[]>([]);
   const [shoppingRecommendations, setShoppingRecommendations] = useState<RecommendedShoppingItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasLoadError, setHasLoadError] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
   const [selectedSituation, setSelectedSituation] = useState<SituationId>("all");
 
   const loadRecommendations = useCallback(async () => {
     setIsLoaded(false);
+    setHasLoadError(false);
 
     const source = sourceParam;
     const useWeather = shouldUseRecommendationWeather(source);
@@ -612,12 +614,19 @@ export default function OutfitRecommendScreen() {
           weatherRainChance: weatherRainChanceParam,
         })
       : null;
-    const [items, profile, savedOutfits, feedbacks] = await Promise.all([
-      getClosetItems(),
+    const [closetResult, profile, savedOutfits, feedbacks] = await Promise.all([
+      getClosetItemsLoadResult(),
       getUserProfile(),
       getSavedOutfits(),
       getOutfitRecommendationFeedbacks(),
     ]);
+    if (closetResult.status === "failed") {
+      setHasLoadError(true);
+      setIsLoaded(true);
+      return;
+    }
+
+    const items = closetResult.items;
     const recommendationItems = toRecommendationInputItems(items);
     const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits, items);
     const weather = useWeather
@@ -785,7 +794,27 @@ export default function OutfitRecommendScreen() {
           })}
         </ScrollView>
 
-        {isLoaded && recommendations.length === 0 ? (
+        {hasLoadError ? (
+          <View style={styles.loadErrorCard}>
+            <Feather name="alert-circle" size={20} color={colors.warning} />
+            <View style={styles.loadErrorTextArea}>
+              <Text style={styles.loadErrorTitle}>추천 정보를 불러오지 못했어요</Text>
+              <Text style={styles.loadErrorText}>
+                저장된 옷은 그대로 있어요. 잠시 후 다시 시도해주세요.
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="코디 추천 다시 불러오기"
+              style={styles.loadErrorAction}
+              onPress={loadRecommendations}
+            >
+              <Text style={styles.loadErrorActionText}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {isLoaded && recommendations.length === 0 && !hasLoadError ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIconCircle}>
               <Feather name="layers" size={26} color={colors.point} />
@@ -1414,6 +1443,47 @@ const styles = StyleSheet.create({
     color: colors.card,
     fontSize: 14,
     fontWeight: "800",
+  },
+  loadErrorCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  loadErrorTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  loadErrorTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  loadErrorText: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 3,
+  },
+  loadErrorAction: {
+    minHeight: 30,
+    justifyContent: "center",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    backgroundColor: colors.softCard,
+    flexShrink: 0,
+  },
+  loadErrorActionText: {
+    color: colors.point,
+    fontSize: 11,
+    fontWeight: "700",
   },
   shoppingSection: {
     marginTop: 22,
