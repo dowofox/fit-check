@@ -507,9 +507,18 @@ function getValidMeasurementValue(value?: number) {
   return typeof value === "number" && value > 0 ? value : undefined;
 }
 
-function getBottomReferenceMeasurement(context?: SizeRecommendationContext) {
+function getBottomReferenceMeasurement(
+  item: ClosetItem,
+  context?: SizeRecommendationContext
+) {
   const referenceItem = context?.referenceItem;
-  if (!referenceItem || !isBottomCategory(referenceItem)) return undefined;
+  if (
+    !referenceItem ||
+    referenceItem.id === item.id ||
+    !isBottomCategory(referenceItem)
+  ) {
+    return undefined;
+  }
 
   return getReferenceProductMeasurement(referenceItem);
 }
@@ -523,7 +532,7 @@ function getBottomLengthReference(
   if (!isBottomCategory(item)) return null;
 
   const referenceTotalLength = getValidMeasurementValue(
-    getBottomReferenceMeasurement(context)?.totalLength
+    getBottomReferenceMeasurement(item, context)?.totalLength
   );
   if (referenceTotalLength !== undefined) {
     return {
@@ -587,11 +596,13 @@ function getBottomLengthScoreFromDifference(difference: number, maxScore: number
 }
 
 function hasBottomLengthReferenceInput(
+  item: ClosetItem,
   profile?: UserProfile | null,
   context?: SizeRecommendationContext
 ) {
   return (
-    getValidMeasurementValue(getBottomReferenceMeasurement(context)?.totalLength) !== undefined ||
+    getValidMeasurementValue(getBottomReferenceMeasurement(item, context)?.totalLength) !==
+      undefined ||
     parseMeasurement(profile?.preferredPantsTotalLength) !== undefined
   );
 }
@@ -1050,7 +1061,7 @@ function getRequiredProfileFields(
   context?: SizeRecommendationContext
 ) {
   if (isBottomCategory(item)) {
-    const hasLengthReference = hasBottomLengthReferenceInput(profile, context);
+    const hasLengthReference = hasBottomLengthReferenceInput(item, profile, context);
 
     return [
       !parseMeasurement(profile?.waistCircumference) ? "허리둘레" : "",
