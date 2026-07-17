@@ -365,6 +365,20 @@ export default function ClosetScreen() {
                                     </Text>
                                 </View>
                             </View>
+                        ) : filteredItems.length === 0 ? (
+                            <View style={styles.reviewCompleteCard}>
+                                <Feather name="archive" size={20} color={colors.point} />
+                                <View style={styles.reviewCompleteTextBox}>
+                                    <Text style={styles.reviewCompleteTitle}>
+                                        {selectedDetailCategory === "전체"
+                                            ? `${selectedCategory}에 저장된 옷이 없어요`
+                                            : `${selectedDetailCategory}에 저장된 옷이 없어요`}
+                                    </Text>
+                                    <Text style={styles.reviewCompleteText}>
+                                        다른 분류를 선택하거나 새 옷을 추가해보세요.
+                                    </Text>
+                                </View>
+                            </View>
                         ) : (
                             <View style={styles.closetGrid}>
                                 {displayedItems.map((item) => {
