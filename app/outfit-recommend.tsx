@@ -38,7 +38,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -595,7 +595,7 @@ export default function OutfitRecommendScreen() {
   const weatherTemperatureParam = parseParamValue(params.weatherTemperature);
   const weatherConditionParam = parseParamValue(params.weatherCondition);
   const weatherRainChanceParam = parseParamValue(params.weatherRainChance);
-  const [recommendations, setRecommendations] = useState<OutfitRecommendation[]>([]);
+  const [baseRecommendations, setBaseRecommendations] = useState<OutfitRecommendation[]>([]);
   const [shoppingRecommendations, setShoppingRecommendations] = useState<RecommendedShoppingItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasLoadError, setHasLoadError] = useState(false);
@@ -681,30 +681,33 @@ export default function OutfitRecommendScreen() {
       }
     }
 
-    const situationRecommendations = applyOutfitSituationRanking(
-      nextRecommendations,
-      SITUATION_OPTIONS.find((option) => option.id === selectedSituation)
-    );
-
-    setRecommendations(situationRecommendations);
+    setBaseRecommendations(nextRecommendations);
     setShoppingRecommendations(getRecommendedShoppingItems(items));
-    setEmptyMessage(
-      nextRecommendations.length > 0 && situationRecommendations.length === 0
-        ? {
-            title: "상황에 맞는 추천이 아직 부족해요",
-            text: "현재 옷장에서는 선택한 상황에 자연스럽게 맞는 코디를 찾지 못했어요. 다른 스타일의 옷을 추가해보세요.",
-          }
-        : getOutfitRecommendationEmptyContent(recommendationResult, items)
-    );
+    setEmptyMessage(getOutfitRecommendationEmptyContent(recommendationResult, items));
     setIsLoaded(true);
   }, [
     selectedItemIdsParam,
-    selectedSituation,
     sourceParam,
     weatherConditionParam,
     weatherRainChanceParam,
     weatherTemperatureParam,
   ]);
+
+  const recommendations = useMemo(
+    () =>
+      applyOutfitSituationRanking(
+        baseRecommendations,
+        SITUATION_OPTIONS.find((option) => option.id === selectedSituation)
+      ),
+    [baseRecommendations, selectedSituation]
+  );
+  const visibleEmptyMessage =
+    baseRecommendations.length > 0 && recommendations.length === 0
+      ? {
+          title: "상황에 맞는 추천이 아직 부족해요",
+          text: "현재 옷장에서는 선택한 상황에 자연스럽게 맞는 코디를 찾지 못했어요. 다른 스타일의 옷을 추가해보세요.",
+        }
+      : emptyMessage;
 
   async function handleSaveOutfit(recommendation: OutfitRecommendation) {
     const itemIds = getSortedItemIds(recommendation.items);
@@ -839,8 +842,8 @@ export default function OutfitRecommendScreen() {
             <View style={styles.emptyIconCircle}>
               <Feather name="layers" size={26} color={colors.point} />
             </View>
-            <Text style={styles.emptyTitle}>{emptyMessage.title}</Text>
-            <Text style={styles.emptyText}>{emptyMessage.text}</Text>
+            <Text style={styles.emptyTitle}>{visibleEmptyMessage.title}</Text>
+            <Text style={styles.emptyText}>{visibleEmptyMessage.text}</Text>
             <Pressable
               style={styles.emptyActionButton}
               onPress={() => router.push("/add-clothes")}
