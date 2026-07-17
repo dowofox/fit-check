@@ -58,7 +58,7 @@ import {
   ConfirmedProduct,
   GarmentProfile,
   getClosetItemsLoadResult,
-  getDisplayImageUri,
+  getDisplayImageUris,
   getUserProfileLoadResult,
   ProductSizeGuide,
   ProductSizeMeasurement,
@@ -75,7 +75,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Image as ExpoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Linking,
@@ -2873,20 +2873,21 @@ export default function ClothesDetailScreen() {
       ),
     [item]
   );
-  const displayImageUri = useMemo(() => {
+  const displayImageUris = useMemo(() => {
     const timer = startPerformanceTimer("clothes-detail.getDisplayImageUri");
-    const uri = item ? getDisplayImageUri(item) : "";
+    const uris = item ? getDisplayImageUris(item) : [];
     endPerformanceTimer(timer, {
-      source: item?.cleanImageUri
-        ? "cleanImageUri"
-        : item?.confirmedProduct?.productImageUrl
-          ? "productImageUrl"
-          : item?.imageUri
-            ? "imageUri"
-            : "none",
+      sourceCount: uris.length,
     });
-    return uri;
+    return uris;
   }, [item]);
+  const displayImageSourceKey = JSON.stringify(displayImageUris);
+  const [displayImageIndex, setDisplayImageIndex] = useState(0);
+  const displayImageUri = displayImageUris[displayImageIndex];
+
+  useEffect(() => {
+    setDisplayImageIndex(0);
+  }, [displayImageSourceKey]);
   const fitSuitability = useMemo(
     () => {
       if (
@@ -3075,6 +3076,7 @@ export default function ClothesDetailScreen() {
                 onError={() => {
                   endPerformanceTimer(heroImageTimerRef.current, { failed: true });
                   heroImageTimerRef.current = null;
+                  setDisplayImageIndex((currentIndex) => currentIndex + 1);
                 }}
               />
             ) : (
