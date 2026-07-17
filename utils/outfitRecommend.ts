@@ -2204,19 +2204,17 @@ function getAlternativeRecommendations(
 }
 
 function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation[]) {
-  const recommendationMap = new Map<string, OutfitRecommendation[]>();
+  const sortedRecommendations = [...recommendations].sort(compareRecommendations);
+  const bestRecommendationByCore = new Map<string, OutfitRecommendation>();
 
-  recommendations.forEach((recommendation) => {
+  sortedRecommendations.forEach((recommendation) => {
     const coreKey = getCoreOutfitKey(recommendation);
-    const currentRecommendations = recommendationMap.get(coreKey) || [];
-
-    recommendationMap.set(coreKey, [...currentRecommendations, recommendation]);
+    if (!bestRecommendationByCore.has(coreKey)) {
+      bestRecommendationByCore.set(coreKey, recommendation);
+    }
   });
 
-  const sortedRecommendations = [...recommendations].sort(compareRecommendations);
-
-  return Array.from(recommendationMap.values()).map((coreRecommendations) => {
-    const [bestRecommendation] = [...coreRecommendations].sort(compareRecommendations);
+  return Array.from(bestRecommendationByCore.values()).map((bestRecommendation) => {
     const alternatives = getAlternativeRecommendations(bestRecommendation, sortedRecommendations);
 
     return {
@@ -2264,26 +2262,16 @@ function getSortedItemIds(items: ClosetItem[]) {
   return items.map((item) => item.id).sort();
 }
 
-function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) {
-  const firstSortedIds = [...firstItemIds].sort();
-  const secondSortedIds = [...secondItemIds].sort();
-
-  return (
-    firstSortedIds.length === secondSortedIds.length &&
-    firstSortedIds.every((id, index) => id === secondSortedIds[index])
-  );
-}
-
 function excludeSavedCombinations(recommendations: OutfitRecommendation[], savedOutfitItemIds: string[][]) {
   if (savedOutfitItemIds.length === 0) return recommendations;
 
-  return recommendations.filter((recommendation) => {
-    const itemIds = getSortedItemIds(recommendation.items);
+  const savedCombinationKeys = new Set(
+    savedOutfitItemIds.map((itemIds) => [...itemIds].sort().join("|"))
+  );
 
-    return !savedOutfitItemIds.some((savedItemIds) =>
-      isSameItemCombination(savedItemIds, itemIds)
-    );
-  });
+  return recommendations.filter(
+    (recommendation) => !savedCombinationKeys.has(getItemCombinationKey(recommendation))
+  );
 }
 
 function getMissingCoreCategories(items: ClosetItem[]) {
@@ -2426,13 +2414,13 @@ function buildRecommendationCandidates(
   const accessories = getAccessoryCandidates(byCategory(seasonItems, "액세서리"));
   const recommendations: OutfitRecommendation[] = [];
   const fitSuitabilityCache = new Map<string, ReturnType<typeof getFitSuitability>>();
+  const shoeOptions = shoes.length > 0 ? [null, ...shoes] : [null];
+  const outerOptions = outers.length > 0 ? [null, ...outers] : [null];
+  const accessoryOptions = getAccessoryCombinations(accessories);
 
   for (const top of tops) {
     for (const bottom of bottoms) {
       const baseItems = [top, bottom];
-      const shoeOptions = shoes.length > 0 ? [null, ...shoes] : [null];
-      const outerOptions = outers.length > 0 ? [null, ...outers] : [null];
-      const accessoryOptions = getAccessoryCombinations(accessories);
 
       for (const shoe of shoeOptions) {
         for (const outer of outerOptions) {
