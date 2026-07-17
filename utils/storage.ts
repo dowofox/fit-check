@@ -32,6 +32,16 @@ const CLOSET_KEY = "naes_closet";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
+let savedOutfitMutationQueue: Promise<void> = Promise.resolve();
+
+function runSavedOutfitMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = savedOutfitMutationQueue.then(operation, operation);
+  savedOutfitMutationQueue = result.then(
+    () => undefined,
+    () => undefined
+  );
+  return result;
+}
 
 export type { OutfitFeedbackValue, OutfitRecommendationFeedback };
 export type { OutfitWearRecord };
@@ -303,6 +313,11 @@ export type SavedOutfit = {
   reasons: string[];
   warnings: string[];
   createdAt: string;
+};
+
+export type SaveOutfitResult = {
+  status: "saved" | "duplicate" | "failed";
+  outfits: SavedOutfit[];
 };
 
 export type NaesBackupDataSnapshot = {
@@ -661,23 +676,34 @@ export async function updateClosetItem(id: string, updatedItem: Partial<ClosetIt
   }
 }
 
-export async function saveOutfit(outfit: SavedOutfit) {
-  try {
-    const savedOutfits = await getSavedOutfits();
-    const updatedOutfits = [outfit, ...savedOutfits];
-    const revisions = await getIncrementedRecommendationRevisions([
-      "savedOutfitRevision",
-    ]);
-    await AsyncStorage.multiSet([
-      [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
-      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
-    ]);
+export function saveOutfit(outfit: SavedOutfit): Promise<SaveOutfitResult> {
+  return runSavedOutfitMutation(async () => {
+    try {
+      const savedOutfits = await getSavedOutfits();
+      const itemKey = [...outfit.itemIds].sort().join("|");
+      const isDuplicate = savedOutfits.some(
+        (savedOutfit) => [...savedOutfit.itemIds].sort().join("|") === itemKey
+      );
 
-    return updatedOutfits;
-  } catch (error) {
-    console.error("코디 저장 실패:", error);
-    return [];
-  }
+      if (isDuplicate) {
+        return { status: "duplicate", outfits: savedOutfits };
+      }
+
+      const updatedOutfits = [outfit, ...savedOutfits];
+      const revisions = await getIncrementedRecommendationRevisions([
+        "savedOutfitRevision",
+      ]);
+      await AsyncStorage.multiSet([
+        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+      ]);
+
+      return { status: "saved", outfits: updatedOutfits };
+    } catch (error) {
+      console.error("코디 저장 실패:", error);
+      return { status: "failed", outfits: [] };
+    }
+  });
 }
 
 export async function getOutfitWearRecords(): Promise<OutfitWearRecord[]> {
@@ -890,48 +916,52 @@ export async function setOutfitRecommendationFeedback(
 }
 
 export async function deleteSavedOutfit(id: string): Promise<SavedOutfit[] | null> {
-  try {
-    const [savedOutfits, revisions] = await Promise.all([
-      getSavedOutfits(),
-      getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
-    ]);
-    const filteredOutfits = savedOutfits.filter((outfit) => outfit.id !== id);
+  return runSavedOutfitMutation(async () => {
+    try {
+      const [savedOutfits, revisions] = await Promise.all([
+        getSavedOutfits(),
+        getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
+      ]);
+      const filteredOutfits = savedOutfits.filter((outfit) => outfit.id !== id);
 
-    await AsyncStorage.multiSet([
-      [SAVED_OUTFITS_KEY, JSON.stringify(filteredOutfits)],
-      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
-    ]);
+      await AsyncStorage.multiSet([
+        [SAVED_OUTFITS_KEY, JSON.stringify(filteredOutfits)],
+        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+      ]);
 
-    return filteredOutfits;
-  } catch (error) {
-    console.error("저장된 코디 삭제 실패:", error);
-    return null;
-  }
+      return filteredOutfits;
+    } catch (error) {
+      console.error("저장된 코디 삭제 실패:", error);
+      return null;
+    }
+  });
 }
 
 export async function updateSavedOutfit(
   id: string,
   updatedOutfit: Partial<SavedOutfit>
 ): Promise<SavedOutfit[] | null> {
-  try {
-    const [savedOutfits, revisions] = await Promise.all([
-      getSavedOutfits(),
-      getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
-    ]);
-    const updatedOutfits = savedOutfits.map((outfit) =>
-      outfit.id === id ? { ...outfit, ...updatedOutfit } : outfit
-    );
+  return runSavedOutfitMutation(async () => {
+    try {
+      const [savedOutfits, revisions] = await Promise.all([
+        getSavedOutfits(),
+        getIncrementedRecommendationRevisions(["savedOutfitRevision"]),
+      ]);
+      const updatedOutfits = savedOutfits.map((outfit) =>
+        outfit.id === id ? { ...outfit, ...updatedOutfit } : outfit
+      );
 
-    await AsyncStorage.multiSet([
-      [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
-      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
-    ]);
+      await AsyncStorage.multiSet([
+        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+      ]);
 
-    return updatedOutfits;
-  } catch (error) {
-    console.error("저장된 코디 수정 실패:", error);
-    return null;
-  }
+      return updatedOutfits;
+    } catch (error) {
+      console.error("저장된 코디 수정 실패:", error);
+      return null;
+    }
+  });
 }
 
 export async function getNaesBackupDataSnapshot(): Promise<NaesBackupDataSnapshot> {

@@ -788,19 +788,9 @@ export default function OutfitRecommendScreen() {
 
   async function handleSaveOutfit(recommendation: OutfitRecommendation) {
     const itemIds = getSortedItemIds(recommendation.items);
-    const savedOutfits = await getSavedOutfits();
-    const isDuplicate = savedOutfits.some((outfit) =>
-      isSameItemCombination(outfit.itemIds, itemIds)
-    );
-
-    if (isDuplicate) {
-      Alert.alert("이미 저장된 코디예요", "같은 아이템 조합이 이미 저장되어 있어요.");
-      return;
-    }
-
     const savedAt = new Date();
 
-    const updatedOutfits = await saveOutfit({
+    const saveResult = await saveOutfit({
       id: Date.now().toString(),
       name: getDefaultOutfitName(savedAt),
       memo: "",
@@ -812,7 +802,12 @@ export default function OutfitRecommendScreen() {
       createdAt: savedAt.toISOString(),
     });
 
-    if (updatedOutfits.length === 0) {
+    if (saveResult.status === "duplicate") {
+      Alert.alert("이미 저장된 코디예요", "같은 아이템 조합이 이미 저장되어 있어요.");
+      return;
+    }
+
+    if (saveResult.status === "failed") {
       Alert.alert("저장 실패", "코디를 저장하지 못했어요. 다시 시도해주세요.");
       return;
     }
