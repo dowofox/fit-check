@@ -1,4 +1,8 @@
-import { API_ENDPOINTS } from "@/utils/api";
+import {
+  API_ENDPOINTS,
+  API_TIMEOUTS,
+  fetchApiWithTimeout,
+} from "@/utils/api";
 import { normalizeProductColor } from "@/utils/color";
 import {
   getClosetItemReviewFields,
@@ -2713,13 +2717,13 @@ export default function ClothesDetailScreen() {
       setExtractedProduct(null);
       setProductUrlInput(productUrl);
 
-      const response = await fetch(API_ENDPOINTS.extractProduct, {
+      const response = await fetchApiWithTimeout(API_ENDPOINTS.extractProduct, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url: productUrl }),
-      });
+      }, API_TIMEOUTS.extractProduct);
 
       if (!response.ok) {
         const errorResponse = (await response.json().catch(() => ({}))) as ProductExtractionErrorResponse;

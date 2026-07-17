@@ -15,3 +15,27 @@ export const API_ENDPOINTS = {
   analyzeClothes: `${API_BASE_URL}/analyze-clothes`,
   extractProduct: `${API_BASE_URL}/extract-product`,
 } as const;
+
+export const API_TIMEOUTS = {
+  analyze: 90_000,
+  extractProduct: 30_000,
+} as const;
+
+export async function fetchApiWithTimeout(
+  input: Parameters<typeof fetch>[0],
+  init: RequestInit,
+  timeoutMs: number,
+  fetchImplementation: typeof fetch = fetch
+) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetchImplementation(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

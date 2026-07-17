@@ -29,7 +29,10 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const { validateProductUrlInput } = require("../utils/productUrl.ts");
-const { resolveApiBaseUrl } = require("../utils/api.ts");
+const {
+  fetchApiWithTimeout,
+  resolveApiBaseUrl,
+} = require("../utils/api.ts");
 const {
   formatProductLinkFailure,
   getProductLinkFailure,
@@ -41,6 +44,22 @@ test("API 주소는 환경 설정을 우선하고 끝의 슬래시를 제거한�
     "https://api.naes.example.com"
   );
   assert.equal(resolveApiBaseUrl(), "http://192.168.219.104:3001");
+});
+
+test("API 요청은 제한 시간을 넘기면 중단한다", async () => {
+  const hangingFetch = (_input, init) =>
+    new Promise((_resolve, reject) => {
+      init.signal.addEventListener("abort", () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+
+  await assert.rejects(
+    fetchApiWithTimeout("https://api.naes.example.com", {}, 5, hangingFetch),
+    { name: "AbortError" }
+  );
 });
 
 test("상품 도메인만 붙여넣어도 HTTPS 주소로 정규화한다", () => {

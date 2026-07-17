@@ -1,4 +1,8 @@
-import { API_ENDPOINTS } from "@/utils/api";
+import {
+  API_ENDPOINTS,
+  API_TIMEOUTS,
+  fetchApiWithTimeout,
+} from "@/utils/api";
 import { normalizeProductColor } from "@/utils/color";
 import {
   getProductRegistrationReviewFields,
@@ -229,7 +233,7 @@ async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | 
       })
     : undefined;
 
-  const response = await fetch(API_ENDPOINTS.analyzeClothes, {
+  const response = await fetchApiWithTimeout(API_ENDPOINTS.analyzeClothes, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -239,7 +243,7 @@ async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | 
       imageMimeType: encodedImage.mimeType,
       ...(productContext ? { productContext } : {}),
     }),
-  });
+  }, API_TIMEOUTS.analyze);
 
   if (!response.ok) {
     throw new Error(`Analyze clothes failed: ${response.status}`);
@@ -716,13 +720,13 @@ export default function AddClothesScreen() {
       setSelectedImages([]);
       resetAnalysisState();
 
-      const response = await fetch(API_ENDPOINTS.extractProduct, {
+      const response = await fetchApiWithTimeout(API_ENDPOINTS.extractProduct, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url: productUrl }),
-      });
+      }, API_TIMEOUTS.extractProduct);
 
       if (!response.ok) {
         const errorResponse = (await response.json().catch(() => ({}))) as ProductExtractionErrorResponse;

@@ -1,4 +1,8 @@
-import { API_ENDPOINTS } from "@/utils/api";
+import {
+  API_ENDPOINTS,
+  API_TIMEOUTS,
+  fetchApiWithTimeout,
+} from "@/utils/api";
 import { getUserProfile, saveAnalysis } from "@/utils/storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
@@ -27,7 +31,7 @@ export default function AnalyzingScreen() {
                     reader.readAsDataURL(imageBlob);
                 });
 
-                const response = await fetch(API_ENDPOINTS.analyze, {
+                const response = await fetchApiWithTimeout(API_ENDPOINTS.analyze, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -36,7 +40,7 @@ export default function AnalyzingScreen() {
                         image: base64Image,
                         profile,
                     }),
-                });
+                }, API_TIMEOUTS.analyze);
 
                 const data = await response.json();
 
