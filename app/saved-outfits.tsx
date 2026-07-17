@@ -21,7 +21,7 @@ import { wasOutfitWornOnDate } from "@/utils/outfitWear";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -421,14 +421,18 @@ export default function SavedOutfitsScreen() {
   const [wearRecords, setWearRecords] = useState<OutfitWearRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasLoadError, setHasLoadError] = useState(false);
+  const savedOutfitsLoadRequestRef = useRef(0);
 
-  async function loadSavedOutfits() {
+  const loadSavedOutfits = useCallback(async () => {
+    const requestId = savedOutfitsLoadRequestRef.current + 1;
+    savedOutfitsLoadRequestRef.current = requestId;
     setHasLoadError(false);
     const [outfitsResult, closetResult, wearRecordsResult] = await Promise.all([
       getSavedOutfitsLoadResult(),
       getClosetItemsLoadResult(),
       getOutfitWearRecordsLoadResult(),
     ]);
+    if (requestId !== savedOutfitsLoadRequestRef.current) return;
 
     if (
       outfitsResult.status === "failed" ||
@@ -446,6 +450,10 @@ export default function SavedOutfitsScreen() {
       matchSavedOutfitsWithCloset(outfitsResult.outfits, closetResult.items)
     );
     setIsLoaded(true);
+  }, []);
+
+  function invalidateSavedOutfitsLoad() {
+    savedOutfitsLoadRequestRef.current += 1;
   }
 
   async function refreshClosetMatches(updatedOutfits?: SavedOutfit[]) {
@@ -476,6 +484,7 @@ export default function SavedOutfitsScreen() {
         text: "삭제",
         style: "destructive",
         onPress: async () => {
+          invalidateSavedOutfitsLoad();
           const updatedOutfits = await deleteSavedOutfit(id);
           if (!updatedOutfits) {
             Alert.alert("삭제 실패", "저장한 코디를 삭제하지 못했어요. 다시 시도해주세요.");
@@ -489,6 +498,7 @@ export default function SavedOutfitsScreen() {
   }
 
   async function handleUpdateOutfit(id: string, name: string, memo: string) {
+    invalidateSavedOutfitsLoad();
     const updatedOutfits = await updateSavedOutfit(id, { name, memo });
     if (!updatedOutfits) {
       Alert.alert("수정 실패", "코디 이름과 메모를 저장하지 못했어요. 다시 시도해주세요.");
@@ -499,6 +509,7 @@ export default function SavedOutfitsScreen() {
   }
 
   async function handleWearOutfit(outfit: SavedOutfitWithItems) {
+    invalidateSavedOutfitsLoad();
     const result = await recordSavedOutfitWear(outfit);
 
     if (result.status === "already_recorded") {
@@ -529,6 +540,7 @@ export default function SavedOutfitsScreen() {
         text: "기록 취소",
         style: "destructive",
         onPress: async () => {
+          invalidateSavedOutfitsLoad();
           const result = await deleteOutfitWearRecord(record.id);
 
           if (result.status === "failed") {
@@ -551,8 +563,11 @@ export default function SavedOutfitsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadSavedOutfits();
-    }, [])
+      void loadSavedOutfits();
+      return () => {
+        savedOutfitsLoadRequestRef.current += 1;
+      };
+    }, [loadSavedOutfits])
   );
 
   return (
