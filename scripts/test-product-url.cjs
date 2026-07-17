@@ -29,10 +29,19 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const { validateProductUrlInput } = require("../utils/productUrl.ts");
+const { resolveApiBaseUrl } = require("../utils/api.ts");
 const {
   formatProductLinkFailure,
   getProductLinkFailure,
 } = require("../utils/productLinkFailure.ts");
+
+test("API 주소는 환경 설정을 우선하고 끝의 슬래시를 제거한다", () => {
+  assert.equal(
+    resolveApiBaseUrl(" https://api.naes.example.com/// "),
+    "https://api.naes.example.com"
+  );
+  assert.equal(resolveApiBaseUrl(), "http://192.168.219.104:3001");
+});
 
 test("상품 도메인만 붙여넣어도 HTTPS 주소로 정규화한다", () => {
   assert.deepEqual(validateProductUrlInput("musinsa.com/products/123"), {
