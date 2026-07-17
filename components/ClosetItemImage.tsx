@@ -1,7 +1,8 @@
-import { getDisplayImageUri, type ClosetItem } from "@/utils/storage";
+import { getDisplayImageUris, type ClosetItem } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 type ClosetItemImageProps = {
@@ -17,7 +18,14 @@ export default function ClosetItemImage({
   contentFit = "cover",
   showPlaceholderLabel = false,
 }: ClosetItemImageProps) {
-  const imageUri = getDisplayImageUri(item);
+  const imageUris = getDisplayImageUris(item);
+  const imageSourceKey = JSON.stringify(imageUris);
+  const [imageIndex, setImageIndex] = useState(0);
+  const imageUri = imageUris[imageIndex];
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [imageSourceKey]);
 
   return (
     <View style={[styles.frame, style]}>
@@ -27,7 +35,8 @@ export default function ClosetItemImage({
           style={StyleSheet.absoluteFill}
           contentFit={contentFit}
           cachePolicy="memory-disk"
-          recyclingKey={item.id}
+          recyclingKey={`${item.id}-${imageIndex}`}
+          onError={() => setImageIndex((currentIndex) => currentIndex + 1)}
         />
       ) : (
         <View style={styles.placeholder}>

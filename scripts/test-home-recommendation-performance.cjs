@@ -89,6 +89,7 @@ const {
   deleteOutfitWearRecord,
   getClosetItems,
   getClosetRecommendationIndex,
+  getDisplayImageUris,
   getOutfitRecommendationFeedbacks,
   getOutfitWearRecords,
   getRecommendationRevisionState,
@@ -226,6 +227,30 @@ test("옷 삭제 실패는 마지막 옷을 정상 삭제한 빈 목록과 구�
 
   assert.equal((await getClosetItems()).length, 1);
   assert.deepEqual(await deleteClosetItem(item.id), []);
+});
+
+test("대표 이미지 후보는 배경제거, 상품, 원본 순서로 중복 없이 유지한다", () => {
+  const item = createClosetItem("image-fallback", {
+    cleanImageUri: "file:///clean.png",
+    imageUri: "file:///original.jpg",
+    confirmedProduct: {
+      productImageUrl: "https://example.com/product.jpg",
+    },
+  });
+
+  assert.deepEqual(getDisplayImageUris(item), [
+    "file:///clean.png",
+    "https://example.com/product.jpg",
+    "file:///original.jpg",
+  ]);
+  assert.deepEqual(
+    getDisplayImageUris({
+      ...item,
+      cleanImageUri: "file:///original.jpg",
+      confirmedProduct: { productImageUrl: "file:///original.jpg" },
+    }),
+    ["file:///original.jpg"]
+  );
 });
 
 test("홈 재진입은 추천 revision이 같을 때만 메모리 데이터를 재사용한다", () => {

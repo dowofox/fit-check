@@ -279,8 +279,18 @@ export function isClosetItemAvailableForRecommendation(item: ClosetItem) {
   return item.isArchived !== true;
 }
 
+export function getDisplayImageUris(item: ClosetItem) {
+  return Array.from(
+    new Set(
+      [item.cleanImageUri, item.confirmedProduct?.productImageUrl, item.imageUri]
+        .map((uri) => uri?.trim())
+        .filter((uri): uri is string => Boolean(uri))
+    )
+  );
+}
+
 export function getDisplayImageUri(item: ClosetItem) {
-  return item.cleanImageUri || item.confirmedProduct?.productImageUrl || item.imageUri;
+  return getDisplayImageUris(item)[0];
 }
 
 export type SavedOutfit = {
