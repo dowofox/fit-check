@@ -1057,6 +1057,91 @@ test("저장한 전체 아이템 조합은 새 추천과 다른 버전에서 제
   });
 });
 
+test("현실적인 여름 옷장에서 계절·날씨·저장 제외와 핵심 다양성을 함께 유지한다", () => {
+  const winterTop = createItem("scenario-winter-top", "상의", {
+    detailCategory: "울 터틀넥 니트",
+    material: "울",
+    seasons: ["겨울"],
+    season: "겨울",
+    seasonSource: "user",
+    seasonNeedsReview: false,
+    userEditedClassificationFields: ["season"],
+  });
+  const archivedBottom = createItem("scenario-archived-bottom", "하의", {
+    detailCategory: "보관 중인 카고 팬츠",
+    isArchived: true,
+  });
+  const wardrobe = [
+    ...createWardrobe(),
+    createItem("scenario-blue-top", "상의", {
+      detailCategory: "블루 반팔 셔츠",
+      color: "블루",
+      styleTags: ["미니멀", "데일리"],
+    }),
+    winterTop,
+    archivedBottom,
+  ];
+  const weather = {
+    temperature: 29,
+    condition: "비",
+    rainChance: 80,
+  };
+  const initialResult = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    { weather }
+  );
+
+  assert.ok(initialResult.recommendations.length >= 2);
+
+  const savedItemIds = initialResult.recommendations[0].items.map((item) => item.id);
+  const savedKey = [...savedItemIds].sort().join("|");
+  const nextResult = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [savedItemIds],
+    { weather }
+  );
+  const allVisibleRecommendations = nextResult.recommendations.flatMap(
+    (recommendation) => [recommendation, ...(recommendation.alternatives || [])]
+  );
+
+  assert.ok(nextResult.recommendations.length > 0);
+  assert.equal(
+    new Set(nextResult.recommendations.map(coreKey)).size,
+    nextResult.recommendations.length
+  );
+  assert.ok(
+    allVisibleRecommendations.every(
+      (recommendation) => recommendation.score >= MIN_DISPLAY_RECOMMENDATION_SCORE
+    )
+  );
+  assert.ok(
+    allVisibleRecommendations.every(
+      (recommendation) => itemKey(recommendation) !== savedKey
+    )
+  );
+  assert.ok(
+    allVisibleRecommendations.every((recommendation) =>
+      recommendation.items.every(
+        (item) =>
+          item.id !== winterTop.id &&
+          item.id !== archivedBottom.id
+      )
+    )
+  );
+
+  const topUsage = new Map();
+  nextResult.recommendations.forEach((recommendation) => {
+    const topId = recommendation.items.find((item) => item.category === "상의")?.id;
+    topUsage.set(topId, (topUsage.get(topId) || 0) + 1);
+  });
+  assert.ok([...topUsage.values()].every((count) => count <= 2));
+});
+
 test("사용자가 수정한 소재는 공식 상품 소재보다 우선한다", () => {
   const item = createItem("top-material", "상의", {
     material: "린넨 혼방",
