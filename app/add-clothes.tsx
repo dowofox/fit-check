@@ -12,6 +12,7 @@ import {
   normalizeClosetSeasons,
   wasClosetItemSaved,
 } from "@/utils/closetRegistration";
+import { persistLocalClosetImage } from "@/utils/closetImageFiles";
 import {
   applyProductAnalysisTarget,
   getProductAnalysisTarget,
@@ -433,30 +434,6 @@ async function saveCleanImageToFile(base64?: string | null) {
     console.error("배경제거 이미지 저장 실패:", error);
     return undefined;
   }
-}
-
-function getClosetImageExtension(uri: string) {
-  const cleanUri = uri.split(/[?#]/, 1)[0];
-  const extension = cleanUri.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase();
-
-  return extension && ["jpg", "jpeg", "png", "webp", "heic"].includes(extension)
-    ? extension
-    : "jpg";
-}
-
-async function persistLocalClosetImage(imageUri: string, itemId: string) {
-  if (
-    !imageUri ||
-    !FileSystem.documentDirectory ||
-    imageUri.startsWith(FileSystem.documentDirectory) ||
-    (!imageUri.startsWith("file://") && !imageUri.startsWith("content://"))
-  ) {
-    return imageUri;
-  }
-
-  const targetUri = `${FileSystem.documentDirectory}closet-${itemId}.${getClosetImageExtension(imageUri)}`;
-  await FileSystem.copyAsync({ from: imageUri, to: targetUri });
-  return targetUri;
 }
 
 async function getOptionalCleanImageUri(analysis: ClothesAnalysis) {

@@ -1,5 +1,6 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
+import { deleteUnusedClosetItemImages } from "@/utils/closetImageFiles";
 import { getClosetItemReviewFields } from "@/utils/closetRegistration";
 import {
     filterClosetItemsByQuery,
@@ -138,6 +139,7 @@ export default function ClosetScreen() {
     const hasSearchQuery = searchQuery.trim().length > 0;
 
     async function handleDeleteItem(id: string) {
+        const itemToDelete = items.find((item) => item.id === id);
         const savedOutfits = await getSavedOutfits();
         const savedOutfitUsageCount = getSavedOutfitUsageCount(savedOutfits, id);
         const description = savedOutfitUsageCount > 0
@@ -160,6 +162,13 @@ export default function ClosetScreen() {
                         }
 
                         setItems(updatedItems);
+                        if (itemToDelete) {
+                            try {
+                                await deleteUnusedClosetItemImages(itemToDelete, updatedItems);
+                            } catch (error) {
+                                console.error("옷 이미지 파일 정리 실패:", error);
+                            }
+                        }
                     },
                 },
             ]
