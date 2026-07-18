@@ -48,6 +48,11 @@ export type HomeRecommendationCacheSnapshot = {
   weather?: PersistedHomeRecommendationCacheEntry;
 };
 
+export type HomeRecommendationCacheSnapshotLoadResult = {
+  snapshot: HomeRecommendationCacheSnapshot | null;
+  status: "loaded" | "missing" | "invalid" | "failed";
+};
+
 export type HydratedHomeRecommendationCacheEntry = Omit<
   PersistedHomeRecommendationCacheEntry,
   "recommendations"
@@ -152,6 +157,32 @@ export function parseHomeRecommendationCacheSnapshot(
     };
   } catch {
     return null;
+  }
+}
+
+export function parseHomeRecommendationCacheSnapshotLoadResult(
+  rawValue: string | null
+): HomeRecommendationCacheSnapshotLoadResult {
+  if (!rawValue) return { snapshot: null, status: "missing" };
+
+  try {
+    const rawSnapshot = JSON.parse(rawValue) as Partial<HomeRecommendationCacheSnapshot>;
+    const snapshot = parseHomeRecommendationCacheSnapshot(rawValue);
+
+    if (!snapshot) return { snapshot: null, status: "invalid" };
+    if (
+      (rawSnapshot.initial !== undefined && !snapshot.initial) ||
+      (rawSnapshot.weather !== undefined && !snapshot.weather)
+    ) {
+      return { snapshot: null, status: "invalid" };
+    }
+    if (!snapshot.initial && !snapshot.weather) {
+      return { snapshot: null, status: "missing" };
+    }
+
+    return { snapshot, status: "loaded" };
+  } catch {
+    return { snapshot: null, status: "invalid" };
   }
 }
 
@@ -291,12 +322,16 @@ export function areRecommendationWeathersEquivalent(
 }
 
 export async function getHomeRecommendationCacheSnapshot() {
+  return (await getHomeRecommendationCacheSnapshotLoadResult()).snapshot;
+}
+
+export async function getHomeRecommendationCacheSnapshotLoadResult(): Promise<HomeRecommendationCacheSnapshotLoadResult> {
   try {
     const rawValue = await AsyncStorage.getItem(HOME_RECOMMENDATION_CACHE_STORAGE_KEY);
-    return parseHomeRecommendationCacheSnapshot(rawValue);
+    return parseHomeRecommendationCacheSnapshotLoadResult(rawValue);
   } catch (error) {
     console.error("홈 추천 캐시 불러오기 실패:", error);
-    return null;
+    return { snapshot: null, status: "failed" };
   }
 }
 

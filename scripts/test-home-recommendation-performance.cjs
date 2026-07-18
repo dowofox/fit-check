@@ -83,10 +83,12 @@ const {
   createHomeRecommendationCacheEntry,
   getHomeRecommendationCacheHydrationResult,
   getHomeRecommendationCacheSnapshot,
+  getHomeRecommendationCacheSnapshotLoadResult,
   HOME_RECOMMENDATION_CACHE_STORAGE_KEY,
   HOME_RECOMMENDATION_CACHE_VERSION,
   HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS,
   hydrateHomeRecommendationCacheEntry,
+  parseHomeRecommendationCacheSnapshotLoadResult,
   saveHomeRecommendationCacheSnapshot,
 } = require("../utils/homeRecommendationCache.ts");
 const {
@@ -189,6 +191,50 @@ test.beforeEach(() => {
   storageReadCounts.clear();
   failNextMultiSet = false;
   failNextGetItemKey = null;
+});
+
+test("home recommendation cache loads distinguish missing, invalid, and failed storage", async () => {
+  assert.equal(
+    parseHomeRecommendationCacheSnapshotLoadResult(null).status,
+    "missing"
+  );
+  assert.equal(
+    parseHomeRecommendationCacheSnapshotLoadResult("{broken-json").status,
+    "invalid"
+  );
+  assert.equal(
+    parseHomeRecommendationCacheSnapshotLoadResult(
+      JSON.stringify({ version: HOME_RECOMMENDATION_CACHE_VERSION })
+    ).status,
+    "missing"
+  );
+  assert.equal(
+    parseHomeRecommendationCacheSnapshotLoadResult(
+      JSON.stringify({
+        version: HOME_RECOMMENDATION_CACHE_VERSION,
+        weather: { invalid: true },
+      })
+    ).status,
+    "invalid"
+  );
+
+  storageMemory.set(HOME_RECOMMENDATION_CACHE_STORAGE_KEY, "{broken-json");
+  assert.equal(
+    (await getHomeRecommendationCacheSnapshotLoadResult()).status,
+    "invalid"
+  );
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextGetItemKey = HOME_RECOMMENDATION_CACHE_STORAGE_KEY;
+    assert.equal(
+      (await getHomeRecommendationCacheSnapshotLoadResult()).status,
+      "failed"
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
 });
 
 test("프로필 저장은 실제 저장 성공 여부를 반환한다", async () => {
@@ -966,6 +1012,7 @@ test("홈 추천 영구 캐시는 아이템 ID로 복원하고 stale·삭제 아
   });
 
   const storedJson = storageMemory.get(HOME_RECOMMENDATION_CACHE_STORAGE_KEY);
+  const loadedSnapshot = await getHomeRecommendationCacheSnapshotLoadResult();
   const restoredSnapshot = await getHomeRecommendationCacheSnapshot();
   const hydrated = hydrateHomeRecommendationCacheEntry(
     restoredSnapshot?.weather,
@@ -974,6 +1021,8 @@ test("홈 추천 영구 캐시는 아이템 ID로 복원하고 stale·삭제 아
   );
 
   assert.ok(storedJson);
+  assert.equal(loadedSnapshot.status, "loaded");
+  assert.ok(loadedSnapshot.snapshot?.weather);
   assert.equal(storedJson.includes("productSizeGuide"), false);
   assert.equal(storedJson.includes("productImageUrl"), false);
   assert.deepEqual(

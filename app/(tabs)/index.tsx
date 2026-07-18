@@ -18,8 +18,8 @@ import { canReuseHomeDashboardData } from "@/utils/homeDashboardRefresh";
 import {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
-  getHomeRecommendationCacheSnapshot,
   getHomeRecommendationCacheHydrationResult,
+  getHomeRecommendationCacheSnapshotLoadResult,
   HOME_RECOMMENDATION_CACHE_VERSION,
   isHomeWeatherRecommendationCacheEntryFresh,
   saveHomeRecommendationCacheSnapshot,
@@ -652,7 +652,7 @@ export default function HomeScreen() {
             savedOutfitsLoad,
             profileLoad,
             feedbacksLoad,
-            recommendationCacheSnapshot,
+            recommendationCacheLoad,
           ] = await Promise.all([
             (async () => {
               const timer = startPerformanceTimer("home.storage.closet-load");
@@ -703,10 +703,14 @@ export default function HomeScreen() {
               const timer = startPerformanceTimer(
                 "home.storage.recommendation-cache-load"
               );
-              const result = await getHomeRecommendationCacheSnapshot();
+              const result = await getHomeRecommendationCacheSnapshotLoadResult();
               endPerformanceTimer(timer, {
-                cacheHit: Boolean(result?.initial || result?.weather),
-                cacheMissReason: result ? null : "persistent_cache_empty",
+                cacheHit: result.status === "loaded",
+                cacheMissReason:
+                  result.status === "loaded"
+                    ? null
+                    : `persistent_cache_${result.status}`,
+                status: result.status,
               });
               return result;
             })(),
@@ -779,7 +783,7 @@ export default function HomeScreen() {
           };
           const cacheRestoreResult = restoreCachedRecommendation(
             dataKey,
-            recommendationCacheSnapshot,
+            recommendationCacheLoad.snapshot,
             recommendationItems
           );
           const cacheRestored = cacheRestoreResult.restored;
