@@ -18,8 +18,15 @@ export type DetailMaterialAdjustment = {
   warnings: string[];
 };
 
+const itemTextCache = new WeakMap<ClosetItem, string>();
+const itemDescriptorTextCache = new WeakMap<ClosetItem, string>();
+const materialTextCache = new WeakMap<ClosetItem, string>();
+
 function getItemText(item: ClosetItem) {
-  return [
+  const cachedText = itemTextCache.get(item);
+  if (cachedText !== undefined) return cachedText;
+
+  const text = [
     item.category,
     item.subCategory,
     item.detailCategory,
@@ -30,10 +37,15 @@ function getItemText(item: ClosetItem) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+  itemTextCache.set(item, text);
+  return text;
 }
 
 function getItemDescriptorText(item: ClosetItem) {
-  return [
+  const cachedText = itemDescriptorTextCache.get(item);
+  if (cachedText !== undefined) return cachedText;
+
+  const text = [
     item.category,
     item.subCategory,
     item.detailCategory,
@@ -43,6 +55,8 @@ function getItemDescriptorText(item: ClosetItem) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+  itemDescriptorTextCache.set(item, text);
+  return text;
 }
 
 function includesAny(value: string, keywords: string[]) {
@@ -129,7 +143,12 @@ function conditionMatches(
 }
 
 function getMaterialText(item: ClosetItem) {
-  return getRecommendationMaterialText(item).toLowerCase();
+  const cachedText = materialTextCache.get(item);
+  if (cachedText !== undefined) return cachedText;
+
+  const text = getRecommendationMaterialText(item).toLowerCase();
+  materialTextCache.set(item, text);
+  return text;
 }
 
 function getMaterialPercentageEntries(

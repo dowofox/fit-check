@@ -124,6 +124,28 @@ export type OutfitRecommendationWeather = {
 export type OutfitRecommendationOptions = {
   weather?: OutfitRecommendationWeather | null;
   feedbacks?: OutfitRecommendationFeedback[];
+  onDiagnostics?: (diagnostic: OutfitRecommendationDiagnostic) => void;
+};
+
+export type OutfitRecommendationDiagnostic = {
+  stage:
+    | "filtering"
+    | "category-grouping"
+    | "candidate-selection"
+    | "combination-generation"
+    | "scoring"
+    | "weather-feedback"
+    | "saved-comparison"
+    | "deduplication"
+    | "alternatives"
+    | "final-sorting";
+  durationMs: number;
+  inputItemCount?: number;
+  candidateCount?: number;
+  generatedCombinationCount?: number;
+  scoredCombinationCount?: number;
+  removedDuplicateCount?: number;
+  returnedRecommendationCount?: number;
 };
 
 export const MIN_DISPLAY_RECOMMENDATION_SCORE = 70;
@@ -203,17 +225,24 @@ const STRONG_COLD_WEATHER_KEYWORDS = [
 const COLD_WEATHER_OUTER_KEYWORDS = ["코트", "coat"];
 const styleGroupCache = new Map<string, string[] | undefined>();
 const basicColorCache = new Map<string, boolean>();
+const itemSeasonsCache = new WeakMap<ClosetItem, string[]>();
+const itemStylesCache = new WeakMap<ClosetItem, string[]>();
+const itemSearchTextCache = new WeakMap<ClosetItem, string>();
+const temperatureSafetySearchTextCache = new WeakMap<ClosetItem, string>();
 
 function getItemSeasons(item: ClosetItem) {
-  if (item.seasons?.length) return item.seasons;
-  if (item.season) {
-    const seasons = ["봄", "여름", "가을", "겨울", "사계절", "전체"]
-      .filter((season) => item.season?.includes(season));
+  const cachedSeasons = itemSeasonsCache.get(item);
+  if (cachedSeasons) return cachedSeasons;
 
-    return seasons;
-  }
-
-  return [];
+  const seasons = item.seasons?.length
+    ? item.seasons
+    : item.season
+      ? ["봄", "여름", "가을", "겨울", "사계절", "전체"].filter(
+          (season) => item.season?.includes(season)
+        )
+      : [];
+  itemSeasonsCache.set(item, seasons);
+  return seasons;
 }
 
 function hasUncertainSeason(item: ClosetItem) {
@@ -238,8 +267,16 @@ function hasUserConfirmedSeason(item: ClosetItem) {
 }
 
 function getItemStyles(item: ClosetItem) {
-  if (item.styleTags?.length) return item.styleTags;
-  return item.style ? [item.style] : [];
+  const cachedStyles = itemStylesCache.get(item);
+  if (cachedStyles) return cachedStyles;
+
+  const styles = item.styleTags?.length
+    ? item.styleTags
+    : item.style
+      ? [item.style]
+      : [];
+  itemStylesCache.set(item, styles);
+  return styles;
 }
 
 function getPrimaryStyle(item?: ClosetItem) {
@@ -648,7 +685,10 @@ function isSeasonCandidate(item: ClosetItem, currentSeason: string) {
 }
 
 function getItemSearchText(item: ClosetItem) {
-  return [
+  const cachedText = itemSearchTextCache.get(item);
+  if (cachedText !== undefined) return cachedText;
+
+  const text = [
     item.confirmedProduct?.brand,
     item.confirmedProduct?.productName,
     item.confirmedBrand,
@@ -661,10 +701,15 @@ function getItemSearchText(item: ClosetItem) {
     item.style,
     ...(item.styleTags || []),
   ].filter(Boolean).join(" ");
+  itemSearchTextCache.set(item, text);
+  return text;
 }
 
 function getTemperatureSafetySearchText(item: ClosetItem) {
-  return [
+  const cachedText = temperatureSafetySearchTextCache.get(item);
+  if (cachedText !== undefined) return cachedText;
+
+  const text = [
     item.confirmedProduct?.productName,
     item.category,
     item.subCategory,
@@ -679,6 +724,8 @@ function getTemperatureSafetySearchText(item: ClosetItem) {
     .replace(/다운타운/g, "")
     .replace(/기모노/g, "")
     .replace(/퍼플/g, "");
+  temperatureSafetySearchTextCache.set(item, text);
+  return text;
 }
 
 function hasStrongColdWeatherTrait(item: ClosetItem) {
@@ -1056,10 +1103,19 @@ type ResolvedGarmentProfile = {
   drape: NonNullable<GarmentProfile["drape"]>;
 };
 
+const garmentSearchTextCache = new WeakMap<ClosetItem, string>();
+const resolvedGarmentProfileCache = new WeakMap<
+  ClosetItem,
+  Partial<Record<"impression" | "fallback", ResolvedGarmentProfile>>
+>();
+
 function getGarmentSearchText(item: ClosetItem) {
+  const cachedText = garmentSearchTextCache.get(item);
+  if (cachedText !== undefined) return cachedText;
+
   const resolvedMaterial = getRecommendationMaterialText(item);
 
-  return [
+  const text = [
     item.category,
     item.subCategory,
     item.detailCategory,
@@ -1073,6 +1129,8 @@ function getGarmentSearchText(item: ClosetItem) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+  garmentSearchTextCache.set(item, text);
+  return text;
 }
 
 function getFallbackSilhouette(item: ClosetItem): ResolvedGarmentProfile["silhouette"] {
@@ -1228,6 +1286,10 @@ function getResolvedGarmentProfile(
   item: ClosetItem,
   useImpression = true
 ): ResolvedGarmentProfile {
+  const cacheKey = useImpression ? "impression" : "fallback";
+  const cachedProfile = resolvedGarmentProfileCache.get(item)?.[cacheKey];
+  if (cachedProfile) return cachedProfile;
+
   const explicitProfile = item.garmentProfile;
   const impressionProfile = useImpression ? explicitProfile : undefined;
   const currentMeasurement = getCurrentSizeMeasurement(item);
@@ -1286,7 +1348,7 @@ function getResolvedGarmentProfile(
       ? impressionProfile.pointLevel
       : basePointLevel;
 
-  return {
+  const resolvedProfile: ResolvedGarmentProfile = {
     source,
     silhouette,
     volume: Math.round(baseVolume * 0.75 + impressionVolume * 0.25),
@@ -1298,6 +1360,10 @@ function getResolvedGarmentProfile(
       impressionProfile?.drape ||
       (structure === "soft" ? "high" : structure === "stiff" ? "low" : "medium"),
   };
+  const cachedProfiles = resolvedGarmentProfileCache.get(item) || {};
+  cachedProfiles[cacheKey] = resolvedProfile;
+  resolvedGarmentProfileCache.set(item, cachedProfiles);
+  return resolvedProfile;
 }
 
 function getSourceWeight(source: ResolvedGarmentProfile["source"]) {
@@ -2427,6 +2493,7 @@ function buildRecommendationCandidates(
   currentSeason = getCurrentSeason(),
   options: OutfitRecommendationOptions & { strictSeasonFilter?: boolean } = {}
 ) {
+  const filteringStartedAt = Date.now();
   const strictSeasonFilter = options.strictSeasonFilter ?? true;
   const availableItems = items.filter(isClosetItemAvailableForRecommendation);
   const seasonItems = getSeasonMatchedItems(
@@ -2435,11 +2502,32 @@ function buildRecommendationCandidates(
     options.weather,
     strictSeasonFilter
   );
+  options.onDiagnostics?.({
+    stage: "filtering",
+    durationMs: Date.now() - filteringStartedAt,
+    inputItemCount: items.length,
+    candidateCount: seasonItems.length,
+  });
+
+  const groupingStartedAt = Date.now();
   const allTops = sortBySeasonPriority(byCategory(seasonItems, "상의"), currentSeason);
   const allBottoms = sortBySeasonPriority(byCategory(seasonItems, "하의"), currentSeason);
   const allShoes = sortBySeasonPriority(byCategory(seasonItems, "신발"), currentSeason);
   const allOuters = sortBySeasonPriority(byCategory(seasonItems, "아우터"), currentSeason);
   const allAccessories = getAccessoryCandidates(byCategory(seasonItems, "액세서리"));
+  options.onDiagnostics?.({
+    stage: "category-grouping",
+    durationMs: Date.now() - groupingStartedAt,
+    inputItemCount: seasonItems.length,
+    candidateCount:
+      allTops.length +
+      allBottoms.length +
+      allShoes.length +
+      allOuters.length +
+      allAccessories.length,
+  });
+
+  const selectionStartedAt = Date.now();
   const shouldLimitCandidatePools =
     estimateOutfitCombinationCount({
       topCount: allTops.length,
@@ -2466,11 +2554,41 @@ function buildRecommendationCandidates(
         LARGE_WARDROBE_CANDIDATE_LIMITS.accessories
       )
     : allAccessories;
+  const estimatedCombinationCount = estimateOutfitCombinationCount({
+    topCount: tops.length,
+    bottomCount: bottoms.length,
+    shoeCount: shoes.length,
+    outerCount: outers.length,
+    accessoryCount: accessories.length,
+  });
+  options.onDiagnostics?.({
+    stage: "candidate-selection",
+    durationMs: Date.now() - selectionStartedAt,
+    inputItemCount: seasonItems.length,
+    candidateCount:
+      tops.length + bottoms.length + shoes.length + outers.length + accessories.length,
+    generatedCombinationCount: estimatedCombinationCount,
+  });
   const recommendations: OutfitRecommendation[] = [];
   const fitSuitabilityCache = new Map<string, ReturnType<typeof getFitSuitability>>();
   const shoeOptions = shoes.length > 0 ? [null, ...shoes] : [null];
   const outerOptions = outers.length > 0 ? [null, ...outers] : [null];
+  const combinationStartedAt = Date.now();
   const accessoryOptions = getAccessoryCombinations(accessories);
+  const generatedCombinationCount =
+    tops.length *
+    bottoms.length *
+    shoeOptions.length *
+    outerOptions.length *
+    accessoryOptions.length;
+  options.onDiagnostics?.({
+    stage: "combination-generation",
+    durationMs: Date.now() - combinationStartedAt,
+    candidateCount: accessoryOptions.length,
+    generatedCombinationCount,
+  });
+  const scoringStartedAt = Date.now();
+  let scoredCombinationCount = 0;
 
   for (const top of tops) {
     for (const bottom of bottoms) {
@@ -2491,6 +2609,7 @@ function buildRecommendationCandidates(
               profile,
               fitSuitabilityCache
             );
+            scoredCombinationCount += 1;
 
             if (recommendation) {
               if (strictSeasonFilter) {
@@ -2514,26 +2633,72 @@ function buildRecommendationCandidates(
     }
   }
 
+  options.onDiagnostics?.({
+    stage: "scoring",
+    durationMs: Date.now() - scoringStartedAt,
+    generatedCombinationCount,
+    scoredCombinationCount,
+    returnedRecommendationCount: recommendations.length,
+  });
+
   return recommendations;
 }
 
 function selectRecommendations(
   recommendations: OutfitRecommendation[],
-  savedOutfitItemIds: string[][] = []
+  savedOutfitItemIds: string[][] = [],
+  onDiagnostics?: OutfitRecommendationOptions["onDiagnostics"]
 ) {
+  const savedComparisonStartedAt = Date.now();
   const displayableRecommendations = filterDisplayableRecommendations(
     excludeSavedCombinations(recommendations, savedOutfitItemIds)
   );
+  onDiagnostics?.({
+    stage: "saved-comparison",
+    durationMs: Date.now() - savedComparisonStartedAt,
+    candidateCount: recommendations.length,
+    returnedRecommendationCount: displayableRecommendations.length,
+  });
+
+  const deduplicationStartedAt = Date.now();
   const sortedRecommendations = getBestRecommendationByCoreOutfit(
     displayableRecommendations
-  )
-    .sort(compareRecommendations);
-  const diversifiedRecommendations = diversifyRecommendations(sortedRecommendations, 5);
+  );
+  onDiagnostics?.({
+    stage: "deduplication",
+    durationMs: Date.now() - deduplicationStartedAt,
+    candidateCount: displayableRecommendations.length,
+    removedDuplicateCount:
+      displayableRecommendations.length - sortedRecommendations.length,
+    returnedRecommendationCount: sortedRecommendations.length,
+  });
 
-  return attachAlternativeRecommendations(
+  const sortingStartedAt = Date.now();
+  sortedRecommendations.sort(compareRecommendations);
+  const diversifiedRecommendations = diversifyRecommendations(sortedRecommendations, 5);
+  onDiagnostics?.({
+    stage: "final-sorting",
+    durationMs: Date.now() - sortingStartedAt,
+    candidateCount: sortedRecommendations.length,
+    returnedRecommendationCount: diversifiedRecommendations.length,
+  });
+
+  const alternativesStartedAt = Date.now();
+  const result = attachAlternativeRecommendations(
     diversifiedRecommendations,
     [...displayableRecommendations].sort(compareRecommendations)
   );
+  onDiagnostics?.({
+    stage: "alternatives",
+    durationMs: Date.now() - alternativesStartedAt,
+    candidateCount: displayableRecommendations.length,
+    returnedRecommendationCount: result.reduce(
+      (count, recommendation) => count + (recommendation.alternatives?.length || 0),
+      0
+    ),
+  });
+
+  return result;
 }
 
 function buildRecommendationCandidatesWithFallback(
@@ -2574,7 +2739,8 @@ export function getOutfitRecommendations(
       ),
       options
     ),
-    savedOutfitItemIds
+    savedOutfitItemIds,
+    options.onDiagnostics
   );
 }
 
@@ -2586,25 +2752,33 @@ export function getOutfitRecommendationResult(
   options: OutfitRecommendationOptions = {}
 ): OutfitRecommendationResult {
   const availableItems = items.filter(isClosetItemAvailableForRecommendation);
-  const recommendationCandidates = applyRecommendationOptions(
-    buildRecommendationCandidatesWithFallback(
-      availableItems,
-      profile,
-      currentSeason,
-      options
-    ),
+  const rawRecommendationCandidates = buildRecommendationCandidatesWithFallback(
+    availableItems,
+    profile,
+    currentSeason,
     options
   );
-  const allRecommendations = selectRecommendations(recommendationCandidates);
-  const recommendations = savedOutfitItemIds.length > 0
-    ? selectRecommendations(recommendationCandidates, savedOutfitItemIds)
-    : allRecommendations;
+  const adjustmentStartedAt = Date.now();
+  const recommendationCandidates = applyRecommendationOptions(
+    rawRecommendationCandidates,
+    options
+  );
+  options.onDiagnostics?.({
+    stage: "weather-feedback",
+    durationMs: Date.now() - adjustmentStartedAt,
+    candidateCount: recommendationCandidates.length,
+  });
+  const recommendations = selectRecommendations(
+    recommendationCandidates,
+    savedOutfitItemIds,
+    options.onDiagnostics
+  );
   const displayableRecommendations = filterDisplayableRecommendations(recommendationCandidates);
   const missingCategories = getMissingCoreCategories(availableItems);
 
   return {
     recommendations,
-    hasAnyRecommendation: allRecommendations.length > 0,
+    hasAnyRecommendation: displayableRecommendations.length > 0,
     emptyReason: getEmptyReason({
       items: availableItems,
       recommendationCandidates,

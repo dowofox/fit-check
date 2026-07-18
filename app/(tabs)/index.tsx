@@ -407,7 +407,16 @@ export default function HomeScreen() {
           profile,
           undefined,
           savedOutfitItemIds,
-          { weather, feedbacks }
+          {
+            weather,
+            feedbacks,
+            onDiagnostics: (diagnostic) => {
+              logPerformanceMetric(
+                `home.recommendation.stage.${diagnostic.stage}`,
+                diagnostic
+              );
+            },
+          }
         );
         const recommendations = recommendationResult.recommendations.slice(0, 5);
         const cardRecommendations = recommendations.map((recommendation) => ({

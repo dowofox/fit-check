@@ -230,6 +230,35 @@ function recommendationItemKey(recommendation) {
   return recommendation.items.map((item) => item.id).sort().join("|");
 }
 
+test("recommendation result selects and attaches alternatives only once", () => {
+  const diagnostics = [];
+  const result = getOutfitRecommendationResult(
+    createWardrobe(),
+    null,
+    "여름",
+    [["already-saved-item"]],
+    { onDiagnostics: (diagnostic) => diagnostics.push(diagnostic) }
+  );
+  const scoringDiagnostics = diagnostics.filter(
+    (diagnostic) => diagnostic.stage === "scoring"
+  );
+
+  assert.equal(
+    diagnostics.filter((diagnostic) => diagnostic.stage === "final-sorting").length,
+    1
+  );
+  assert.equal(
+    diagnostics.filter((diagnostic) => diagnostic.stage === "alternatives").length,
+    1
+  );
+  assert.equal(scoringDiagnostics.length, 1);
+  assert.equal(
+    scoringDiagnostics[0].generatedCombinationCount,
+    scoringDiagnostics[0].scoredCombinationCount
+  );
+  assert.ok(result.hasAnyRecommendation);
+});
+
 test("같은 옷장은 저장 순서가 달라도 동일한 추천 순서를 만든다", () => {
   const wardrobe = createWardrobe();
   const forwardResult = getOutfitRecommendationResult(wardrobe, null, "여름");
