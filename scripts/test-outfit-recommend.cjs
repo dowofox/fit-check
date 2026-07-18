@@ -294,6 +294,47 @@ test("대규모 옷장 후보 제한은 예상 조합을 예산 아래로 낮춘
   assert.ok(limitedCount <= MAX_OUTFIT_COMBINATION_BUDGET);
 });
 
+test("15개 현실 옷장은 조합 폭발 전에 후보를 줄여 점수 계산 예산을 지킨다", () => {
+  const wardrobe = [
+    ...Array.from({ length: 3 }, (_, index) =>
+      createItem(`budget-top-${index}`, "상의", { color: `상의색-${index}` })
+    ),
+    ...Array.from({ length: 3 }, (_, index) =>
+      createItem(`budget-bottom-${index}`, "하의", { color: `하의색-${index}` })
+    ),
+    ...Array.from({ length: 2 }, (_, index) =>
+      createItem(`budget-shoes-${index}`, "신발", { color: `신발색-${index}` })
+    ),
+    ...Array.from({ length: 2 }, (_, index) =>
+      createItem(`budget-outer-${index}`, "아우터", { color: `아우터색-${index}` })
+    ),
+    ...Array.from({ length: 5 }, (_, index) =>
+      createItem(`budget-accessory-${index}`, "액세서리", {
+        detailCategory: `액세서리-${index}`,
+        color: `액세서리색-${index}`,
+      })
+    ),
+  ];
+  const originalCount = estimateOutfitCombinationCount({
+    topCount: 3,
+    bottomCount: 3,
+    shoeCount: 2,
+    outerCount: 2,
+    accessoryCount: 5,
+  });
+  const diagnostics = [];
+
+  getOutfitRecommendationResult(wardrobe, null, "여름", [], {
+    onDiagnostics: (diagnostic) => diagnostics.push(diagnostic),
+  });
+
+  const scoring = diagnostics.find((diagnostic) => diagnostic.stage === "scoring");
+  assert.equal(originalCount, 2106);
+  assert.ok(originalCount > MAX_OUTFIT_COMBINATION_BUDGET);
+  assert.ok(scoring.generatedCombinationCount <= MAX_OUTFIT_COMBINATION_BUDGET);
+  assert.equal(scoring.generatedCombinationCount, scoring.scoredCombinationCount);
+});
+
 test("대규모 후보 풀은 사용자 선호와 종류·색상 다양성을 함께 보존한다", () => {
   const candidates = [
     createItem("plain-white-less", "상의", { recommendationPreference: "less" }),

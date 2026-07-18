@@ -1,13 +1,13 @@
 import type { ClosetItem } from "@/utils/storage";
 
-export const MAX_OUTFIT_COMBINATION_BUDGET = 50_000;
+export const MAX_OUTFIT_COMBINATION_BUDGET = 800;
 
 export const LARGE_WARDROBE_CANDIDATE_LIMITS = {
-  tops: 8,
-  bottoms: 8,
-  shoes: 6,
-  outers: 5,
-  accessories: 4,
+  tops: 4,
+  bottoms: 4,
+  shoes: 2,
+  outers: 2,
+  accessories: 2,
 } as const;
 
 export function getAccessoryCombinationCount(accessoryCount: number) {
