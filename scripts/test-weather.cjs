@@ -11,7 +11,10 @@ let permissionResponse;
 let requestedPermissionResponse;
 let requestPermissionCalls;
 let servicesEnabled;
+let lastKnownLocationFactory;
 let currentLocationFactory;
+let lastKnownLocationCalls;
+let currentLocationCalls;
 
 global.__DEV__ = false;
 
@@ -36,7 +39,12 @@ const locationMock = {
   async hasServicesEnabledAsync() {
     return servicesEnabled;
   },
+  getLastKnownPositionAsync() {
+    lastKnownLocationCalls += 1;
+    return lastKnownLocationFactory();
+  },
   getCurrentPositionAsync() {
+    currentLocationCalls += 1;
     return currentLocationFactory();
   },
 };
@@ -118,6 +126,9 @@ test.beforeEach(() => {
   requestedPermissionResponse = undefined;
   requestPermissionCalls = 0;
   servicesEnabled = true;
+  lastKnownLocationCalls = 0;
+  currentLocationCalls = 0;
+  lastKnownLocationFactory = async () => null;
   currentLocationFactory = async () => ({
     coords: { latitude: 37.5, longitude: 127 },
   });
@@ -174,6 +185,56 @@ test("a slow current location is reported as a timeout", async () => {
 
   assert.equal(result.failureReason, "current_location_timeout");
   assert.equal(result.timeout, true);
+});
+
+test("a recent OS location avoids a slower current location request", async () => {
+  lastKnownLocationFactory = async () => ({
+    coords: { latitude: 37.51, longitude: 127.01 },
+  });
+
+  const result = await getCurrentWeatherRecommendationResult(100);
+
+  assert.equal(result.weatherFound, true);
+  assert.equal(result.locationSource, "last-known");
+  assert.equal(lastKnownLocationCalls, 1);
+  assert.equal(currentLocationCalls, 0);
+});
+
+test("concurrent weather callers share one location and API request", async () => {
+  let fetchCalls = 0;
+  let resolveLocation;
+  currentLocationFactory = () =>
+    new Promise((resolve) => {
+      resolveLocation = resolve;
+    });
+  global.fetch = async () => {
+    fetchCalls += 1;
+    return createFetchResponse({
+      data: {
+        current: { temperature_2m: 24, weather_code: 1 },
+        hourly: {
+          time: [new Date().toISOString()],
+          precipitation_probability: [20],
+        },
+      },
+    });
+  };
+
+  const firstRequest = getCurrentWeatherRecommendationResult(200);
+  const secondRequest = getCurrentWeatherRecommendationResult(200);
+  assert.equal(firstRequest, secondRequest);
+
+  await new Promise((resolve) => setImmediate(resolve));
+  resolveLocation({ coords: { latitude: 37.5, longitude: 127 } });
+  const [firstResult, secondResult] = await Promise.all([
+    firstRequest,
+    secondRequest,
+  ]);
+
+  assert.deepEqual(firstResult, secondResult);
+  assert.equal(lastKnownLocationCalls, 1);
+  assert.equal(currentLocationCalls, 1);
+  assert.equal(fetchCalls, 1);
 });
 
 test("weather HTTP and response errors remain distinguishable", async () => {

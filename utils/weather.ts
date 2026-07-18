@@ -25,6 +25,8 @@ type OpenMeteoResponse = {
 const WEATHER_CACHE_KEY = "naes_weather_cache";
 const WEATHER_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 2;
 const DEFAULT_WEATHER_TIMEOUT_MS = 4500;
+const LAST_KNOWN_LOCATION_MAX_AGE_MS = 1000 * 60 * 15;
+const LAST_KNOWN_LOCATION_TIMEOUT_MS = 600;
 
 type WeatherCache = {
   weather: OutfitRecommendationWeather;
@@ -51,7 +53,7 @@ export type CurrentWeatherRecommendationResult = {
   failureReason?: WeatherFailureReason;
   skipReason?: string;
   permissionStatus?: string;
-  locationSource?: "current";
+  locationSource?: "current" | "last-known";
   apiStatus?: number;
   timeout: boolean;
 };
@@ -71,6 +73,8 @@ type TimedResult<T> =
   | { status: "success"; value: T }
   | { status: "timeout" }
   | { status: "failed"; error: unknown };
+
+let currentWeatherRequest: Promise<CurrentWeatherRecommendationResult> | null = null;
 
 function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<TimedResult<T>> {
   return new Promise((resolve) => {
@@ -300,13 +304,13 @@ function createFailureResult(
   };
 }
 
-export async function getCurrentWeatherRecommendationResult(
+async function loadCurrentWeatherRecommendationResult(
   timeoutMs = DEFAULT_WEATHER_TIMEOUT_MS
 ): Promise<CurrentWeatherRecommendationResult> {
   const totalTimer = startPerformanceTimer("weather.refresh.total");
   const deadline = Date.now() + timeoutMs;
   let permissionStatus: string | undefined;
-  let locationSource: "current" | undefined;
+  let locationSource: "current" | "last-known" | undefined;
   let apiStatus: number | undefined;
   let result: CurrentWeatherRecommendationResult = createFailureResult(
     "unknown_error"
@@ -395,43 +399,67 @@ export async function getCurrentWeatherRecommendationResult(
     }
 
     const lastKnownTimer = startPerformanceTimer("weather.location.last-known");
+    const lastKnownResult = await settleWithin(
+      Location.getLastKnownPositionAsync({
+        maxAge: LAST_KNOWN_LOCATION_MAX_AGE_MS,
+        requiredAccuracy: 5000,
+      }),
+      Math.min(getRemainingTime(deadline), LAST_KNOWN_LOCATION_TIMEOUT_MS)
+    );
+    const lastKnownLocation =
+      lastKnownResult.status === "success" ? lastKnownResult.value : null;
+    let location = lastKnownLocation;
+
     endPerformanceTimer(lastKnownTimer, {
-      success: true,
-      skipped: true,
-      skipReason: "diagnostics_only_current_location_policy",
-      locationSource: "none",
+      success: Boolean(lastKnownLocation),
+      skipped: false,
+      failureReason:
+        lastKnownResult.status === "timeout"
+          ? "last_known_location_timeout"
+          : lastKnownResult.status === "failed"
+            ? "last_known_location_unavailable"
+            : lastKnownLocation
+              ? null
+              : "last_known_location_empty",
+      locationSource: lastKnownLocation ? "last-known" : "none",
+      timeout: lastKnownResult.status === "timeout",
     });
 
-    const locationTimer = startPerformanceTimer("weather.location.current");
-    const locationResult = await settleWithin(
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      getRemainingTime(deadline)
-    );
-    if (locationResult.status !== "success") {
-      const failureReason =
-        locationResult.status === "timeout"
-          ? "current_location_timeout"
-          : "current_location_unavailable";
+    if (lastKnownLocation) {
+      locationSource = "last-known";
+    } else {
+      const locationTimer = startPerformanceTimer("weather.location.current");
+      const locationResult = await settleWithin(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        getRemainingTime(deadline)
+      );
+      if (locationResult.status !== "success") {
+        const failureReason =
+          locationResult.status === "timeout"
+            ? "current_location_timeout"
+            : "current_location_unavailable";
+        endPerformanceTimer(locationTimer, {
+          success: false,
+          failureReason,
+          permissionStatus,
+          timeout: locationResult.status === "timeout",
+          locationSource: "current",
+        });
+        result = createFailureResult(failureReason, {
+          permissionStatus,
+          locationSource: "current",
+        });
+        return result;
+      }
+      location = locationResult.value;
+      locationSource = "current";
       endPerformanceTimer(locationTimer, {
-        success: false,
-        failureReason,
+        success: true,
         permissionStatus,
-        timeout: locationResult.status === "timeout",
-        locationSource: "current",
+        locationSource,
+        timeout: false,
       });
-      result = createFailureResult(failureReason, {
-        permissionStatus,
-        locationSource: "current",
-      });
-      return result;
     }
-    locationSource = "current";
-    endPerformanceTimer(locationTimer, {
-      success: true,
-      permissionStatus,
-      locationSource,
-      timeout: false,
-    });
 
     const reverseGeocodeTimer = startPerformanceTimer("weather.reverse-geocode");
     endPerformanceTimer(reverseGeocodeTimer, {
@@ -440,7 +468,15 @@ export async function getCurrentWeatherRecommendationResult(
       skipReason: "open_meteo_accepts_coordinates",
     });
 
-    const { latitude, longitude } = locationResult.value.coords;
+    if (!location) {
+      result = createFailureResult("current_location_unavailable", {
+        permissionStatus,
+        locationSource,
+      });
+      return result;
+    }
+
+    const { latitude, longitude } = location.coords;
     const url =
       "https://api.open-meteo.com/v1/forecast" +
       `?latitude=${latitude}` +
@@ -566,6 +602,20 @@ export async function getCurrentWeatherRecommendationResult(
       weatherFound: result?.weatherFound ?? false,
     });
   }
+}
+
+export function getCurrentWeatherRecommendationResult(
+  timeoutMs = DEFAULT_WEATHER_TIMEOUT_MS
+): Promise<CurrentWeatherRecommendationResult> {
+  if (currentWeatherRequest) return currentWeatherRequest;
+
+  const request = loadCurrentWeatherRecommendationResult(timeoutMs);
+  currentWeatherRequest = request;
+  void request.finally(() => {
+    if (currentWeatherRequest === request) currentWeatherRequest = null;
+  });
+
+  return request;
 }
 
 export async function getCurrentWeatherForRecommendation(
