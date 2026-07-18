@@ -132,6 +132,11 @@ Expo 관련 코드를 수정해야 할 때는 현재 프로젝트의 Expo 버전
 
 기존 Development Build 흐름을 깨뜨리지 않는다.
 
+Expo 네이티브 모듈을 추가하거나 버전을 바꿀 때는 `npx expo install`을 사용하고,
+`package.json`과 lockfile을 함께 갱신한 뒤 `npx expo-doctor`를 실행한다. 작업 완료
+보고에는 네이티브 의존성 변경 여부와 새 Development Build 또는 EAS build가 필요한지
+반드시 명시한다.
+
 ## 작업 종료 후
 
 작업이 끝나면 반드시 다음 내용을 보고한다.

@@ -14,7 +14,6 @@ import type {
   SavedOutfit,
   UserProfile,
 } from "@/utils/storage";
-import { isClosetItemAvailableForRecommendation } from "@/utils/storage";
 
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
 
@@ -137,7 +136,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
 
 export function toRecommendationInputItems(items: ClosetItem[]) {
   return items
-    .filter(isClosetItemAvailableForRecommendation)
+    .filter((item) => item.isArchived !== true)
     .map(toRecommendationInputItem);
 }
 
