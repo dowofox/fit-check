@@ -50,7 +50,12 @@ export type HomeRecommendationCacheSnapshot = {
 
 export type HomeRecommendationCacheSnapshotLoadResult = {
   snapshot: HomeRecommendationCacheSnapshot | null;
-  status: "loaded" | "missing" | "invalid" | "failed";
+  status:
+    | "loaded"
+    | "missing"
+    | "invalid"
+    | "version_mismatch"
+    | "failed";
 };
 
 export type HydratedHomeRecommendationCacheEntry = Omit<
@@ -63,6 +68,10 @@ export type HydratedHomeRecommendationCacheEntry = Omit<
 export type HomeRecommendationCacheMissReason =
   | "cache_empty"
   | "revision_changed"
+  | "closet_revision_changed"
+  | "profile_revision_changed"
+  | "saved_outfit_revision_changed"
+  | "feedback_revision_changed"
   | "weather_expired"
   | "missing_item";
 
@@ -73,6 +82,50 @@ export type HomeRecommendationCacheHydrationResult = {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+type RecommendationRevisionKeyParts = {
+  version: number;
+  closet: number;
+  profile: number;
+  savedOutfit: number;
+  feedback: number;
+};
+
+function parseRecommendationRevisionKey(
+  key: string
+): RecommendationRevisionKeyParts | null {
+  const match = key.match(/^v(\d+)\|c(\d+)\|p(\d+)\|s(\d+)\|f(\d+)/);
+  if (!match) return null;
+
+  return {
+    version: Number(match[1]),
+    closet: Number(match[2]),
+    profile: Number(match[3]),
+    savedOutfit: Number(match[4]),
+    feedback: Number(match[5]),
+  };
+}
+
+export function getHomeRecommendationCacheRevisionMismatchReason(
+  cacheKey: string,
+  revisionKey: string
+): HomeRecommendationCacheMissReason | null {
+  if (isHomeRecommendationCacheKeyForRevision(cacheKey, revisionKey)) return null;
+
+  const cached = parseRecommendationRevisionKey(cacheKey);
+  const current = parseRecommendationRevisionKey(revisionKey);
+  if (!cached || !current || cached.version !== current.version) {
+    return "revision_changed";
+  }
+  if (cached.closet !== current.closet) return "closet_revision_changed";
+  if (cached.profile !== current.profile) return "profile_revision_changed";
+  if (cached.savedOutfit !== current.savedOutfit) {
+    return "saved_outfit_revision_changed";
+  }
+  if (cached.feedback !== current.feedback) return "feedback_revision_changed";
+
+  return "revision_changed";
 }
 
 function isValidWeather(value: unknown): value is OutfitRecommendationWeather | null {
@@ -167,6 +220,9 @@ export function parseHomeRecommendationCacheSnapshotLoadResult(
 
   try {
     const rawSnapshot = JSON.parse(rawValue) as Partial<HomeRecommendationCacheSnapshot>;
+    if (rawSnapshot.version !== HOME_RECOMMENDATION_CACHE_VERSION) {
+      return { snapshot: null, status: "version_mismatch" };
+    }
     const snapshot = parseHomeRecommendationCacheSnapshot(rawValue);
 
     if (!snapshot) return { snapshot: null, status: "invalid" };
@@ -231,7 +287,13 @@ export function getHomeRecommendationCacheHydrationResult(
     return { cache: null, missReason: "cache_empty" };
   }
   if (!isHomeRecommendationCacheKeyForRevision(entry.key, revisionKey)) {
-    return { cache: null, missReason: "revision_changed" };
+    return {
+      cache: null,
+      missReason: getHomeRecommendationCacheRevisionMismatchReason(
+        entry.key,
+        revisionKey
+      ),
+    };
   }
   if (entry.weather && !isHomeWeatherRecommendationCacheEntryFresh(entry, now)) {
     return { cache: null, missReason: "weather_expired" };

@@ -18,6 +18,7 @@ import { canReuseHomeDashboardData } from "@/utils/homeDashboardRefresh";
 import {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
+  getHomeRecommendationCacheRevisionMismatchReason,
   getHomeRecommendationCacheHydrationResult,
   getHomeRecommendationCacheSnapshotLoadResult,
   HOME_RECOMMENDATION_CACHE_VERSION,
@@ -315,21 +316,22 @@ export default function HomeScreen() {
             ? initialCache
             : null;
         const memoryCacheMissReason =
+          (memoryWeatherEntry
+            ? getHomeRecommendationCacheRevisionMismatchReason(
+                memoryWeatherEntry.key,
+                dataKey
+              )
+            : null) ||
+          (memoryInitialEntry
+            ? getHomeRecommendationCacheRevisionMismatchReason(
+                memoryInitialEntry.key,
+                dataKey
+              )
+            : null) ||
           (memoryWeatherEntry &&
-            !isHomeRecommendationCacheKeyForRevision(
-              memoryWeatherEntry.key,
-              dataKey
-            )) ||
-          (memoryInitialEntry &&
-            !isHomeRecommendationCacheKeyForRevision(
-              memoryInitialEntry.key,
-              dataKey
-            ))
-            ? "revision_changed"
-            : memoryWeatherEntry &&
                 !isHomeWeatherRecommendationCacheEntryFresh(memoryWeatherEntry)
-              ? "weather_expired"
-            : null;
+            ? "weather_expired"
+            : null);
         const persistentCacheMissReason =
           persistedWeatherResult.missReason !== "cache_empty"
             ? persistedWeatherResult.missReason

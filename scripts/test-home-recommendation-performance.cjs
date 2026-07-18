@@ -81,6 +81,7 @@ const {
 const {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
+  getHomeRecommendationCacheRevisionMismatchReason,
   getHomeRecommendationCacheHydrationResult,
   getHomeRecommendationCacheSnapshot,
   getHomeRecommendationCacheSnapshotLoadResult,
@@ -210,6 +211,12 @@ test("home recommendation cache loads distinguish missing, invalid, and failed s
   );
   assert.equal(
     parseHomeRecommendationCacheSnapshotLoadResult(
+      JSON.stringify({ version: HOME_RECOMMENDATION_CACHE_VERSION + 1 })
+    ).status,
+    "version_mismatch"
+  );
+  assert.equal(
+    parseHomeRecommendationCacheSnapshotLoadResult(
       JSON.stringify({
         version: HOME_RECOMMENDATION_CACHE_VERSION,
         weather: { invalid: true },
@@ -235,6 +242,34 @@ test("home recommendation cache loads distinguish missing, invalid, and failed s
   } finally {
     console.error = originalConsoleError;
   }
+});
+
+test("home recommendation cache reports the revision that invalidated it", () => {
+  const currentKey = "v1|c4|p3|s2|f1";
+
+  assert.equal(
+    getHomeRecommendationCacheRevisionMismatchReason("v1|c3|p3|s2|f1", currentKey),
+    "closet_revision_changed"
+  );
+  assert.equal(
+    getHomeRecommendationCacheRevisionMismatchReason("v1|c4|p2|s2|f1", currentKey),
+    "profile_revision_changed"
+  );
+  assert.equal(
+    getHomeRecommendationCacheRevisionMismatchReason("v1|c4|p3|s1|f1", currentKey),
+    "saved_outfit_revision_changed"
+  );
+  assert.equal(
+    getHomeRecommendationCacheRevisionMismatchReason("v1|c4|p3|s2|f0", currentKey),
+    "feedback_revision_changed"
+  );
+  assert.equal(
+    getHomeRecommendationCacheRevisionMismatchReason(
+      `${currentKey}|27|clear|0`,
+      currentKey
+    ),
+    null
+  );
 });
 
 test("프로필 저장은 실제 저장 성공 여부를 반환한다", async () => {
@@ -1043,7 +1078,7 @@ test("홈 추천 영구 캐시는 아이템 ID로 복원하고 stale·삭제 아
       items,
       getRecommendationRevisionKey({ ...revisions, closetRevision: 3 })
     ).missReason,
-    "revision_changed"
+    "closet_revision_changed"
   );
   assert.equal(
     getHomeRecommendationCacheHydrationResult(
