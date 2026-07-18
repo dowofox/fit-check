@@ -80,6 +80,7 @@ const {
   getNaesBackupDataSnapshot,
   getOutfitRecommendationFeedbacks,
   getOutfitWearRecords,
+  getRecommendationRevisionState,
   getSavedOutfits,
   getUserProfile,
   restoreNaesBackupDataSnapshot,
@@ -262,6 +263,10 @@ test("backup parsing rejects unsupported versions and missing image assets", asy
 
 test("restored source data replaces storage and rebuilds derived closet data", async () => {
   storageMemory.clear();
+  storageMemory.set(
+    "naes_home_recommendation_cache",
+    JSON.stringify({ version: 2, initial: { key: "stale" } })
+  );
   const snapshot = createSnapshot();
 
   await restoreNaesBackupDataSnapshot(snapshot);
@@ -272,6 +277,14 @@ test("restored source data replaces storage and rebuilds derived closet data", a
   assert.equal((await getOutfitRecommendationFeedbacks()).length, 1);
   assert.equal((await getOutfitWearRecords()).length, 1);
   assert.ok(storageMemory.has("naes_closet_recommendation_index"));
+  assert.equal(storageMemory.get("naes_home_recommendation_cache"), "");
+  assert.deepEqual(await getRecommendationRevisionState(), {
+    version: 1,
+    closetRevision: 1,
+    profileRevision: 1,
+    savedOutfitRevision: 1,
+    feedbackRevision: 1,
+  });
 
   const exportedSnapshot = await getNaesBackupDataSnapshot();
   assert.equal(exportedSnapshot.closetItems.length, 3);

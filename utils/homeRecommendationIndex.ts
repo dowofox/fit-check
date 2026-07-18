@@ -5,6 +5,8 @@ export const CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY =
   "naes_closet_recommendation_index";
 export const RECOMMENDATION_REVISIONS_STORAGE_KEY =
   "naes_recommendation_revisions";
+export const HOME_RECOMMENDATION_CACHE_STORAGE_KEY =
+  "naes_home_recommendation_cache";
 // Bump this when the recommendation input shape or normalization rules change.
 export const CLOSET_RECOMMENDATION_INDEX_VERSION = 1;
 export const RECOMMENDATION_REVISIONS_VERSION = 1;

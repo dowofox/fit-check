@@ -3,6 +3,7 @@ import {
   buildClosetRecommendationIndex,
   CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY,
   getRecommendationRevisionKey,
+  HOME_RECOMMENDATION_CACHE_STORAGE_KEY,
   incrementRecommendationRevisions,
   parseClosetRecommendationIndex,
   parseRecommendationRevisionState,
@@ -1341,5 +1342,6 @@ export async function restoreNaesBackupDataSnapshot(
     [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
     [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
     [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
+    [HOME_RECOMMENDATION_CACHE_STORAGE_KEY, ""],
   ]);
 }

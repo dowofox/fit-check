@@ -1,6 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { isHomeRecommendationCacheKeyForRevision } from "@/utils/homeRecommendationIndex";
+import {
+  HOME_RECOMMENDATION_CACHE_STORAGE_KEY,
+  isHomeRecommendationCacheKeyForRevision,
+} from "@/utils/homeRecommendationIndex";
 import type {
   OutfitRecommendation,
   OutfitRecommendationEmptyReason,
@@ -8,8 +11,7 @@ import type {
 } from "@/utils/outfitRecommend";
 import type { ClosetItem } from "@/utils/storage";
 
-export const HOME_RECOMMENDATION_CACHE_STORAGE_KEY =
-  "naes_home_recommendation_cache";
+export { HOME_RECOMMENDATION_CACHE_STORAGE_KEY };
 export const HOME_RECOMMENDATION_CACHE_VERSION = 2;
 export const HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 2;
 

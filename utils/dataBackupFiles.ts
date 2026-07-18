@@ -16,6 +16,18 @@ import * as Sharing from "expo-sharing";
 
 const MAX_BACKUP_FILE_BYTES = 200 * 1024 * 1024;
 
+async function deleteTemporaryBackupFile(fileUri: string) {
+  if (!FileSystem.cacheDirectory || !fileUri.startsWith(FileSystem.cacheDirectory)) {
+    return;
+  }
+
+  try {
+    await FileSystem.deleteAsync(fileUri, { idempotent: true });
+  } catch (error) {
+    console.error("임시 백업 파일 정리 실패:", error);
+  }
+}
+
 function getBackupFileName(createdAt: string) {
   const date = new Date(createdAt);
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -40,21 +52,25 @@ export async function createAndShareNaesBackup() {
   );
   const fileUri = `${FileSystem.cacheDirectory}${getBackupFileName(payload.createdAt)}`;
 
-  await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(payload), {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
+  try {
+    await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(payload), {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
 
-  if (!(await Sharing.isAvailableAsync())) {
-    throw new Error("이 기기에서는 백업 파일 공유를 사용할 수 없어요.");
+    if (!(await Sharing.isAvailableAsync())) {
+      throw new Error("이 기기에서는 백업 파일 공유를 사용할 수 없어요.");
+    }
+
+    await Sharing.shareAsync(fileUri, {
+      dialogTitle: "NAES 데이터 백업",
+      mimeType: "application/json",
+      UTI: "public.json",
+    });
+
+    return getNaesBackupSummary(payload);
+  } finally {
+    await deleteTemporaryBackupFile(fileUri);
   }
-
-  await Sharing.shareAsync(fileUri, {
-    dialogTitle: "NAES 데이터 백업",
-    mimeType: "application/json",
-    UTI: "public.json",
-  });
-
-  return getNaesBackupSummary(payload);
 }
 
 export async function pickNaesBackupFile(): Promise<NaesBackupPayload | null> {
@@ -71,11 +87,15 @@ export async function pickNaesBackupFile(): Promise<NaesBackupPayload | null> {
     throw new Error("백업 파일이 너무 커요. 200MB 이하 파일을 선택해주세요.");
   }
 
-  const rawValue = await FileSystem.readAsStringAsync(asset.uri, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
+  try {
+    const rawValue = await FileSystem.readAsStringAsync(asset.uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
 
-  return parseNaesBackupJson(rawValue);
+    return parseNaesBackupJson(rawValue);
+  } finally {
+    await deleteTemporaryBackupFile(asset.uri);
+  }
 }
 
 export async function restoreNaesBackup(payload: NaesBackupPayload) {
