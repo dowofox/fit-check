@@ -70,6 +70,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 const {
   buildClosetRecommendationIndex,
   CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY,
+  CLOSET_RECOMMENDATION_INDEX_VERSION,
   getRecommendationRevisionKey,
   isHomeRecommendationCacheKeyForRevision,
   parseClosetRecommendationIndex,
@@ -781,6 +782,7 @@ test("기존 옷장은 경량 인덱스를 한 번 생성한 뒤 전체 JSON을 
   const closetReadsAfterFirstLoad = storageReadCounts.get(CLOSET_KEY) || 0;
 
   assert.equal(firstLoad.fullClosetParsed, true);
+  assert.equal(firstLoad.persisted, true);
   assert.equal(firstLoad.index.recommendationItems.length, 1);
   assert.equal(firstLoad.index.categoryCounts["상의"], 1);
   assert.equal(
@@ -795,7 +797,54 @@ test("기존 옷장은 경량 인덱스를 한 번 생성한 뒤 전체 JSON을 
 
   assert.equal(secondLoad.source, "cache");
   assert.equal(secondLoad.fullClosetParsed, false);
+  assert.equal(secondLoad.persisted, true);
   assert.equal(storageReadCounts.get(CLOSET_KEY), closetReadsAfterFirstLoad);
+});
+
+test("동시 인덱스 요청은 구버전 옷장을 한 번만 읽어 재생성한다", async () => {
+  const legacyItem = createClosetItem("concurrent-index-top");
+  storageMemory.set(CLOSET_KEY, JSON.stringify([legacyItem]));
+
+  const [firstLoad, secondLoad, thirdLoad] = await Promise.all([
+    getClosetRecommendationIndex(),
+    getClosetRecommendationIndex(),
+    getClosetRecommendationIndex(),
+  ]);
+
+  assert.equal(storageReadCounts.get(CLOSET_KEY), 1);
+  assert.strictEqual(firstLoad, secondLoad);
+  assert.strictEqual(secondLoad, thirdLoad);
+  assert.equal(firstLoad.index.recommendationItems[0].id, legacyItem.id);
+  assert.equal(firstLoad.persisted, true);
+});
+
+test("재생성 인덱스 저장 실패는 현재 추천을 막지 않고 다음 요청에서 복구한다", async () => {
+  const legacyItem = createClosetItem("index-write-recovery-top");
+  storageMemory.set(CLOSET_KEY, JSON.stringify([legacyItem]));
+  failNextMultiSet = true;
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  let firstLoad;
+  try {
+    firstLoad = await getClosetRecommendationIndex();
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(firstLoad.persisted, false);
+  assert.equal(firstLoad.index.recommendationItems[0].id, legacyItem.id);
+  assert.equal(storageMemory.has(CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY), false);
+
+  const recoveredLoad = await getClosetRecommendationIndex();
+  assert.equal(recoveredLoad.persisted, true);
+  assert.equal(recoveredLoad.fullClosetParsed, true);
+  assert.equal(storageReadCounts.get(CLOSET_KEY), 2);
+
+  const cachedLoad = await getClosetRecommendationIndex();
+  assert.equal(cachedLoad.source, "cache");
+  assert.equal(cachedLoad.fullClosetParsed, false);
+  assert.equal(storageReadCounts.get(CLOSET_KEY), 2);
 });
 
 test("손상된 옷장 원본으로 빈 홈 추천 인덱스를 만들지 않는다", async () => {
@@ -956,6 +1005,40 @@ test("손상되거나 오래된 인덱스는 사용하지 않는다", async () =
     ).status,
     "version_mismatch"
   );
+});
+
+test("구버전 인덱스는 한 번만 마이그레이션하고 다음 요청부터 캐시한다", async () => {
+  const item = createClosetItem("version-migration-top");
+  const revisions = {
+    version: 1,
+    closetRevision: 8,
+    profileRevision: 0,
+    savedOutfitRevision: 0,
+    feedbackRevision: 0,
+  };
+  const previousIndex = {
+    ...buildClosetRecommendationIndex([item], revisions.closetRevision),
+    version: CLOSET_RECOMMENDATION_INDEX_VERSION - 1,
+  };
+
+  storageMemory.set(CLOSET_KEY, JSON.stringify([item]));
+  storageMemory.set(RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions));
+  storageMemory.set(
+    CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY,
+    JSON.stringify(previousIndex)
+  );
+
+  const migrated = await getClosetRecommendationIndex();
+  assert.equal(migrated.source, "rebuilt_version_mismatch");
+  assert.equal(migrated.fullClosetParsed, true);
+  assert.equal(migrated.persisted, true);
+  assert.equal(storageReadCounts.get(CLOSET_KEY), 1);
+
+  const cached = await getClosetRecommendationIndex();
+  assert.equal(cached.source, "cache");
+  assert.equal(cached.index.version, CLOSET_RECOMMENDATION_INDEX_VERSION);
+  assert.equal(cached.fullClosetParsed, false);
+  assert.equal(storageReadCounts.get(CLOSET_KEY), 1);
 });
 
 test("revision 키는 전체 추천 입력 직렬화보다 작고 동일 입력 캐시를 구분한다", () => {

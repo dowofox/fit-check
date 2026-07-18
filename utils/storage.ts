@@ -592,7 +592,12 @@ export type ClosetRecommendationIndexLoadResult = {
   serializedCharacters: number;
   closetSerializedCharacters: number;
   fullClosetParsed: boolean;
+  persisted: boolean;
 };
+
+let closetRecommendationIndexLoadRequest:
+  | Promise<ClosetRecommendationIndexLoadResult>
+  | null = null;
 
 async function readRecommendationRevisionState() {
   const rawValue = await AsyncStorage.getItem(RECOMMENDATION_REVISIONS_STORAGE_KEY);
@@ -628,7 +633,7 @@ function getClosetStorageEntries(
   ];
 }
 
-export async function getClosetRecommendationIndex(): Promise<ClosetRecommendationIndexLoadResult> {
+async function loadClosetRecommendationIndex(): Promise<ClosetRecommendationIndexLoadResult> {
   const [rawIndex, rawRevisions] = await Promise.all([
     AsyncStorage.getItem(CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY),
     AsyncStorage.getItem(RECOMMENDATION_REVISIONS_STORAGE_KEY),
@@ -647,6 +652,7 @@ export async function getClosetRecommendationIndex(): Promise<ClosetRecommendati
       serializedCharacters: rawIndex?.length || 0,
       closetSerializedCharacters: 0,
       fullClosetParsed: false,
+      persisted: true,
     };
   }
 
@@ -675,7 +681,14 @@ export async function getClosetRecommendationIndex(): Promise<ClosetRecommendati
     ]);
   }
 
-  await AsyncStorage.multiSet(entries);
+  let persisted = true;
+
+  try {
+    await AsyncStorage.multiSet(entries);
+  } catch (error) {
+    persisted = false;
+    console.error("Failed to persist rebuilt recommendation index", error);
+  }
 
   const source =
     revisionResult.status === "missing"
@@ -691,7 +704,23 @@ export async function getClosetRecommendationIndex(): Promise<ClosetRecommendati
     serializedCharacters: serializedIndex.length,
     closetSerializedCharacters: rawCloset?.length || 0,
     fullClosetParsed: true,
+    persisted,
   };
+}
+
+export function getClosetRecommendationIndex(): Promise<ClosetRecommendationIndexLoadResult> {
+  if (closetRecommendationIndexLoadRequest) {
+    return closetRecommendationIndexLoadRequest;
+  }
+
+  const request = loadClosetRecommendationIndex().finally(() => {
+    if (closetRecommendationIndexLoadRequest === request) {
+      closetRecommendationIndexLoadRequest = null;
+    }
+  });
+
+  closetRecommendationIndexLoadRequest = request;
+  return request;
 }
 
 export async function saveAnalysis(result: any) {
