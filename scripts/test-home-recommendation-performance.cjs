@@ -81,6 +81,7 @@ const {
 const {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
+  getHomeRecommendationCacheHydrationResult,
   getHomeRecommendationCacheSnapshot,
   HOME_RECOMMENDATION_CACHE_STORAGE_KEY,
   HOME_RECOMMENDATION_CACHE_VERSION,
@@ -988,12 +989,51 @@ test("홈 추천 영구 캐시는 아이템 ID로 복원하고 stale·삭제 아
     null
   );
   assert.equal(
+    getHomeRecommendationCacheHydrationResult(
+      restoredSnapshot?.weather,
+      items,
+      getRecommendationRevisionKey({ ...revisions, closetRevision: 3 })
+    ).missReason,
+    "revision_changed"
+  );
+  assert.equal(
+    getHomeRecommendationCacheHydrationResult(
+      restoredSnapshot?.weather,
+      items.slice(0, 1),
+      revisionKey
+    ).missReason,
+    "missing_item"
+  );
+  assert.equal(
     hydrateHomeRecommendationCacheEntry(
       restoredSnapshot?.weather,
       items.slice(0, 1),
       revisionKey
     ),
     null
+  );
+  assert.equal(
+    getHomeRecommendationCacheHydrationResult(
+      {
+        ...weatherEntry,
+        cachedAt:
+          weatherEntry.cachedAt -
+          HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS -
+          1,
+      },
+      items,
+      revisionKey,
+      weatherEntry.cachedAt
+    ).missReason,
+    "weather_expired"
+  );
+  assert.equal(
+    getHomeRecommendationCacheHydrationResult(
+      undefined,
+      items,
+      revisionKey
+    ).missReason,
+    "cache_empty"
   );
   assert.equal(
     hydrateHomeRecommendationCacheEntry(

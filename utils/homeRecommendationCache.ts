@@ -55,6 +55,17 @@ export type HydratedHomeRecommendationCacheEntry = Omit<
   recommendations: HomeRecommendationCardData[];
 };
 
+export type HomeRecommendationCacheMissReason =
+  | "cache_empty"
+  | "revision_changed"
+  | "weather_expired"
+  | "missing_item";
+
+export type HomeRecommendationCacheHydrationResult = {
+  cache: HydratedHomeRecommendationCacheEntry | null;
+  missReason: HomeRecommendationCacheMissReason | null;
+};
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
@@ -179,17 +190,20 @@ export function isHomeWeatherRecommendationCacheEntryFresh(
   return now - entry.cachedAt <= HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS;
 }
 
-export function hydrateHomeRecommendationCacheEntry(
+export function getHomeRecommendationCacheHydrationResult(
   entry: PersistedHomeRecommendationCacheEntry | undefined,
   items: ClosetItem[],
   revisionKey: string,
   now = Date.now()
-): HydratedHomeRecommendationCacheEntry | null {
-  if (!entry || !isHomeRecommendationCacheKeyForRevision(entry.key, revisionKey)) {
-    return null;
+): HomeRecommendationCacheHydrationResult {
+  if (!entry) {
+    return { cache: null, missReason: "cache_empty" };
+  }
+  if (!isHomeRecommendationCacheKeyForRevision(entry.key, revisionKey)) {
+    return { cache: null, missReason: "revision_changed" };
   }
   if (entry.weather && !isHomeWeatherRecommendationCacheEntryFresh(entry, now)) {
-    return null;
+    return { cache: null, missReason: "weather_expired" };
   }
 
   const itemsById = new Map(items.map((item) => [item.id, item]));
@@ -207,12 +221,31 @@ export function hydrateHomeRecommendationCacheEntry(
       recommendation.items.length !== entry.recommendations[index].itemIds.length
   );
 
-  if (hasMissingItem) return null;
+  if (hasMissingItem) {
+    return { cache: null, missReason: "missing_item" };
+  }
 
   return {
-    ...entry,
-    recommendations,
+    cache: {
+      ...entry,
+      recommendations,
+    },
+    missReason: null,
   };
+}
+
+export function hydrateHomeRecommendationCacheEntry(
+  entry: PersistedHomeRecommendationCacheEntry | undefined,
+  items: ClosetItem[],
+  revisionKey: string,
+  now = Date.now()
+): HydratedHomeRecommendationCacheEntry | null {
+  return getHomeRecommendationCacheHydrationResult(
+    entry,
+    items,
+    revisionKey,
+    now
+  ).cache;
 }
 
 export function areRecommendationWeathersEquivalent(

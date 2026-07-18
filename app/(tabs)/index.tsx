@@ -19,8 +19,8 @@ import {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
   getHomeRecommendationCacheSnapshot,
+  getHomeRecommendationCacheHydrationResult,
   HOME_RECOMMENDATION_CACHE_VERSION,
-  hydrateHomeRecommendationCacheEntry,
   isHomeWeatherRecommendationCacheEntryFresh,
   saveHomeRecommendationCacheSnapshot,
   type HomeRecommendationCacheSnapshot,
@@ -264,31 +264,33 @@ export default function HomeScreen() {
         const restoreTimer = startPerformanceTimer(
           "home.cached-recommendation-restore"
         );
-        const persistedWeatherCache = hydrateHomeRecommendationCacheEntry(
+        const persistedWeatherResult = getHomeRecommendationCacheHydrationResult(
           persistentSnapshot?.weather,
           items,
           dataKey
         );
-        const persistedInitialCache = hydrateHomeRecommendationCacheEntry(
+        const persistedInitialResult = getHomeRecommendationCacheHydrationResult(
           persistentSnapshot?.initial,
           items,
           dataKey
         );
+        const persistedWeatherCache = persistedWeatherResult.cache;
+        const persistedInitialCache = persistedInitialResult.cache;
+        const memoryWeatherEntry = weatherRecommendationCacheRef.current;
+        const memoryInitialEntry = initialRecommendationCacheRef.current;
         const memoryWeatherCache =
           isHomeRecommendationCacheKeyForRevision(
-            weatherRecommendationCacheRef.current?.key,
+            memoryWeatherEntry?.key,
             dataKey
           ) &&
-          isHomeWeatherRecommendationCacheEntryFresh(
-            weatherRecommendationCacheRef.current
-          )
-          ? weatherRecommendationCacheRef.current
+          isHomeWeatherRecommendationCacheEntryFresh(memoryWeatherEntry)
+          ? memoryWeatherEntry
           : null;
         const memoryInitialCache = isHomeRecommendationCacheKeyForRevision(
-          initialRecommendationCacheRef.current?.key,
+          memoryInitialEntry?.key,
           dataKey
         )
-          ? initialRecommendationCacheRef.current
+          ? memoryInitialEntry
           : null;
         const weatherCache = memoryWeatherCache || persistedWeatherCache;
         const initialCache = memoryInitialCache || persistedInitialCache;
@@ -312,13 +314,29 @@ export default function HomeScreen() {
           : isHomeRecommendationCacheKeyForRevision(initialCache?.key, dataKey)
             ? initialCache
             : null;
+        const memoryCacheMissReason =
+          (memoryWeatherEntry &&
+            !isHomeRecommendationCacheKeyForRevision(
+              memoryWeatherEntry.key,
+              dataKey
+            )) ||
+          (memoryInitialEntry &&
+            !isHomeRecommendationCacheKeyForRevision(
+              memoryInitialEntry.key,
+              dataKey
+            ))
+            ? "revision_changed"
+            : memoryWeatherEntry &&
+                !isHomeWeatherRecommendationCacheEntryFresh(memoryWeatherEntry)
+              ? "weather_expired"
+            : null;
+        const persistentCacheMissReason =
+          persistedWeatherResult.missReason !== "cache_empty"
+            ? persistedWeatherResult.missReason
+            : persistedInitialResult.missReason;
         const cacheMissReason = cachedResult
           ? null
-          : weatherCache || initialCache
-            ? "revision_changed"
-            : persistentSnapshot
-              ? "persistent_cache_invalid"
-              : "cache_empty";
+          : memoryCacheMissReason || persistentCacheMissReason || "cache_empty";
 
         if (cachedResult) {
           applyCachedRecommendation(cachedResult);
@@ -337,7 +355,10 @@ export default function HomeScreen() {
             : "none",
         });
 
-        return Boolean(cachedResult);
+        return {
+          restored: Boolean(cachedResult),
+          missReason: cacheMissReason,
+        };
       }
 
       function persistRecommendationCache(
@@ -756,11 +777,12 @@ export default function HomeScreen() {
             savedOutfitItemIds,
             feedbacks,
           };
-          const cacheRestored = restoreCachedRecommendation(
+          const cacheRestoreResult = restoreCachedRecommendation(
             dataKey,
             recommendationCacheSnapshot,
             recommendationItems
           );
+          const cacheRestored = cacheRestoreResult.restored;
 
           if (!cacheRestored) {
             setTodayRecommendations([]);
@@ -772,7 +794,7 @@ export default function HomeScreen() {
           const baseRenderDetails = {
             itemCount: recommendationItems.length,
             cacheHit: cacheRestored,
-            cacheMissReason: cacheRestored ? null : "recommendation_cache_miss",
+            cacheMissReason: cacheRestoreResult.missReason,
           };
 
           const startWeatherRefresh = (fallbackToInitial = false) => {
