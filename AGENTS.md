@@ -100,6 +100,12 @@ npm run test:product-link
 npm run test:home-performance
 ```
 
+저장 계층이나 추천 입력 모듈의 의존 관계를 수정한 작업에서는 다음 테스트도 실행한다.
+
+```bash
+npm run test:module-boundaries
+```
+
 데이터 백업·복원 형식이나 저장 흐름을 수정한 작업에서는 다음 테스트도 실행한다.
 
 ```bash

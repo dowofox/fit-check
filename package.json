@@ -16,6 +16,7 @@
     "test:product-url": "node scripts/test-product-url.cjs && node scripts/test-product-url-safety.cjs",
     "test:core-flow": "node scripts/test-registration-recommendation-flow.cjs",
     "test:home-performance": "node scripts/test-home-recommendation-performance.cjs",
+    "test:module-boundaries": "node scripts/test-module-boundaries.cjs",
     "test:data-backup": "node scripts/test-data-backup.cjs",
     "test:closet": "node scripts/test-closet-search.cjs",
     "test:size": "node scripts/test-size-recommendation.cjs",
