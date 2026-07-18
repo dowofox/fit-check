@@ -52,8 +52,8 @@ import {
 import { colors, typography } from "@/utils/theme";
 import {
   formatWeatherRecommendationLabel,
-  getCachedWeatherForRecommendation,
-  getCurrentWeatherForRecommendation,
+  getCachedWeatherRecommendationResult,
+  getCurrentWeatherRecommendationResult,
 } from "@/utils/weather";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -495,6 +495,8 @@ export default function HomeScreen() {
         const weatherTimer = startPerformanceTimer("home.weather-background-refresh");
         let weatherSource = "none";
         let failed = false;
+        let failureReason: string | null = null;
+        let weatherFound = false;
         let recommendationAvailable = false;
         let initialFallbackApplied = false;
 
@@ -505,8 +507,13 @@ export default function HomeScreen() {
           let cachedWeather: OutfitRecommendationWeather | null = null;
           let cachedWeatherApplied = false;
 
+          let cachedWeatherResult: Awaited<
+            ReturnType<typeof getCachedWeatherRecommendationResult>
+          > | null = null;
+
           try {
-            cachedWeather = await getCachedWeatherForRecommendation();
+            cachedWeatherResult = await getCachedWeatherRecommendationResult();
+            cachedWeather = cachedWeatherResult.weather;
             if (cachedWeather && isActive) {
               cachedWeatherApplied = applyRecommendation(
                 items,
@@ -518,9 +525,11 @@ export default function HomeScreen() {
                 "cache"
               );
               weatherSource = "cache";
+              weatherFound = true;
               recommendationAvailable = true;
             }
-          } catch {
+          } catch (error) {
+            console.error("캐시 날씨 적용 실패:", error);
             cachedWeather = null;
           } finally {
             endPerformanceTimer(cachedWeatherTimer, {
@@ -528,8 +537,10 @@ export default function HomeScreen() {
               recommendationExecuted: cachedWeatherApplied,
               recommendationExecutionCount:
                 recommendationExecutionCountRef.current.weather,
-              cacheHit: Boolean(cachedWeather) && !cachedWeatherApplied,
-              cacheMissReason: cachedWeather ? null : "weather_cache_empty",
+              cacheHit: cachedWeatherResult?.cacheHit ?? false,
+              cacheMissReason:
+                cachedWeatherResult?.cacheMissReason ??
+                (cachedWeather ? null : "weather_cache_read_failed"),
               weatherSource: "cache",
             });
           }
@@ -537,9 +548,13 @@ export default function HomeScreen() {
           const liveWeatherTimer = startPerformanceTimer("home.live-weather-recommendation");
           let currentWeather: OutfitRecommendationWeather | null = null;
           let liveWeatherApplied = false;
+          let liveWeatherResult: Awaited<
+            ReturnType<typeof getCurrentWeatherRecommendationResult>
+          > | null = null;
 
           try {
-            currentWeather = await getCurrentWeatherForRecommendation();
+            liveWeatherResult = await getCurrentWeatherRecommendationResult();
+            currentWeather = liveWeatherResult.weather;
             if (currentWeather && isActive) {
               liveWeatherApplied = applyRecommendation(
                 items,
@@ -551,18 +566,39 @@ export default function HomeScreen() {
                 "live"
               );
               weatherSource = "current";
+              weatherFound = true;
               recommendationAvailable = true;
             }
-          } catch {
+            if (!weatherFound && liveWeatherResult.failed) {
+              failed = true;
+              failureReason = liveWeatherResult.failureReason || "unknown_error";
+            }
+          } catch (error) {
+            console.error("실시간 날씨 적용 실패:", error);
             currentWeather = null;
+            if (!weatherFound) {
+              failed = true;
+              failureReason = "unknown_error";
+            }
           } finally {
             endPerformanceTimer(liveWeatherTimer, {
               weatherFound: Boolean(currentWeather),
+              failed: liveWeatherResult?.failed ?? !currentWeather,
+              skipped: liveWeatherResult?.skipped ?? false,
+              failureReason:
+                liveWeatherResult?.failureReason ??
+                (currentWeather ? null : "unknown_error"),
+              permissionStatus: liveWeatherResult?.permissionStatus,
+              locationSource: liveWeatherResult?.locationSource ?? "none",
+              apiStatus: liveWeatherResult?.apiStatus,
+              timeout: liveWeatherResult?.timeout ?? false,
               recommendationExecuted: liveWeatherApplied,
               recommendationExecutionCount:
                 recommendationExecutionCountRef.current.weather,
               cacheHit: Boolean(currentWeather) && !liveWeatherApplied,
-              cacheMissReason: currentWeather ? null : "live_weather_unavailable",
+              cacheMissReason: currentWeather
+                ? null
+                : liveWeatherResult?.failureReason || "live_weather_unavailable",
               weatherSource: "live",
             });
           }
@@ -584,6 +620,9 @@ export default function HomeScreen() {
           endPerformanceTimer(weatherTimer, {
             weatherSource,
             failed,
+            failureReason,
+            weatherFound,
+            skipped: false,
             initialFallbackApplied,
             recommendationAvailable,
           });
