@@ -8,7 +8,7 @@ export const RECOMMENDATION_REVISIONS_STORAGE_KEY =
 export const HOME_RECOMMENDATION_CACHE_STORAGE_KEY =
   "naes_home_recommendation_cache";
 // Bump this when the recommendation input shape or normalization rules change.
-export const CLOSET_RECOMMENDATION_INDEX_VERSION = 1;
+export const CLOSET_RECOMMENDATION_INDEX_VERSION = 2;
 export const RECOMMENDATION_REVISIONS_VERSION = 1;
 
 export type RecommendationRevisionState = {
@@ -157,11 +157,14 @@ function isValidRecommendationItem(value: unknown): value is ClosetItem {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<ClosetItem>;
 
+  const measurementRows = item.confirmedProduct?.productSizeGuide?.sizes;
+
   return (
     typeof item.id === "string" &&
     typeof item.category === "string" &&
     typeof item.imageUri === "string" &&
-    typeof item.createdAt === "string"
+    typeof item.createdAt === "string" &&
+    (!measurementRows || measurementRows.length <= 1)
   );
 }
 

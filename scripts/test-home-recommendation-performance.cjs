@@ -79,6 +79,9 @@ const {
   canReuseHomeDashboardData,
 } = require("../utils/homeDashboardRefresh.ts");
 const {
+  getOutfitRecommendationResult,
+} = require("../utils/outfitRecommend.ts");
+const {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
   getHomeRecommendationCacheRevisionMismatchReason,
@@ -1006,6 +1009,69 @@ test("revision 키는 전체 추천 입력 직렬화보다 작고 동일 입력 
     previousRecommendationKey: previousDataKey.length,
     revisionKey: revisionKey.length,
   });
+});
+
+test("15·50·100개 옷장 인덱스는 선택 사이즈 실측만 보존하고 추천 결과를 유지한다", () => {
+  [15, 50, 100].forEach((itemCount) => {
+    const categories = ["상의", "하의", "신발"];
+    const items = Array.from({ length: itemCount }, (_, index) => {
+      const category = categories[index % categories.length];
+      return createClosetItem(`compact-${itemCount}-${index}`, {
+        category,
+        subCategory:
+          category === "상의"
+            ? "셔츠"
+            : category === "하의"
+              ? "팬츠"
+              : "스니커즈",
+        detailCategory:
+          category === "상의"
+            ? "린넨 셔츠"
+            : category === "하의"
+              ? "와이드 팬츠"
+              : "화이트 스니커즈",
+        color: index % 2 === 0 ? "화이트" : "네이비",
+      });
+    });
+    const index = buildClosetRecommendationIndex(
+      items,
+      itemCount,
+      "2026-07-18T00:00:00.000Z"
+    );
+    const fullResult = getOutfitRecommendationResult(items, null, "여름");
+    const indexedResult = getOutfitRecommendationResult(
+      index.recommendationItems,
+      null,
+      "여름"
+    );
+
+    index.recommendationItems.forEach((item) => {
+      const sizeRows = item.confirmedProduct?.productSizeGuide?.sizes || [];
+      assert.ok(sizeRows.length <= 1);
+      if (sizeRows.length === 1) assert.equal(sizeRows[0].size, "XL");
+    });
+    assert.deepEqual(
+      indexedResult.recommendations.map((recommendation) => recommendation.id),
+      fullResult.recommendations.map((recommendation) => recommendation.id)
+    );
+    assert.ok(JSON.stringify(index).length < JSON.stringify(items).length);
+  });
+});
+
+test("여러 실측 행을 담은 이전 추천 인덱스는 재생성 대상으로 처리한다", () => {
+  const item = createClosetItem("oversized-index-item");
+  const index = buildClosetRecommendationIndex(
+    [item],
+    4,
+    "2026-07-18T00:00:00.000Z"
+  );
+  index.recommendationItems[0].confirmedProduct.productSizeGuide.sizes =
+    item.confirmedProduct.productSizeGuide.sizes;
+
+  assert.equal(
+    parseClosetRecommendationIndex(JSON.stringify(index), 4).status,
+    "invalid"
+  );
 });
 
 test("홈 추천 영구 캐시는 아이템 ID로 복원하고 stale·삭제 아이템 캐시를 거부한다", async () => {
