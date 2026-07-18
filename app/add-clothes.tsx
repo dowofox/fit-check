@@ -8,8 +8,10 @@ import {
   createClosetItemId,
   getProductRegistrationReviewFields,
   getRegistrationReviewLabels,
+  getRegistrationValidationMessage,
   normalizeClosetRegistrationBasics,
   normalizeClosetSeasons,
+  validateClosetRegistration,
   wasClosetItemSaved,
 } from "@/utils/closetRegistration";
 import {
@@ -36,6 +38,7 @@ import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus
 import { validateProductUrlInput } from "@/utils/productUrl";
 import {
   CLOSET_SIZE_NOT_ENTERED_LABEL,
+  hasSelectedClosetSize,
   normalizeClosetItemSize,
 } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
@@ -948,23 +951,7 @@ export default function AddClothesScreen() {
     }
   }
 
-  async function saveItem(allowUncertainValues = false) {
-    if (
-      (!imageUri && addMode !== "manual") ||
-      !analysis ||
-      savingOperationRef.current
-    ) return;
-
-    if (addMode === "manual" && !selectedCategory.trim()) {
-      Alert.alert("종류를 선택해주세요", "옷의 카테고리를 선택해야 저장할 수 있어요.");
-      return;
-    }
-
-    if (addMode === "manual" && !selectedColor.trim()) {
-      Alert.alert("색상을 입력해주세요", "대표 색상을 입력하면 코디 추천에 활용할 수 있어요.");
-      return;
-    }
-
+  function getRegistrationFormState() {
     const confirmedProduct = extractedProduct
       ? buildConfirmedProductFromExtractedProduct(extractedProduct)
       : undefined;
@@ -976,31 +963,54 @@ export default function AddClothesScreen() {
       userEdited: seasonWasEdited,
       confirmedProduct,
     });
-    const resolvedSeasons = resolvedSeasonInference.seasons;
+    const registrationInput = {
+      category: selectedCategory,
+      color: selectedColor,
+      seasons: resolvedSeasonInference.seasons,
+    };
+
+    return {
+      confirmedProduct,
+      resolvedSeasonInference,
+      registration: normalizeClosetRegistrationBasics(registrationInput),
+      validation: validateClosetRegistration(registrationInput),
+    };
+  }
+
+  async function saveItem() {
+    if (
+      (!imageUri && addMode !== "manual") ||
+      !analysis ||
+      savingOperationRef.current
+    ) return;
+
+    const formState = getRegistrationFormState();
+    const {
+      confirmedProduct,
+      registration,
+      resolvedSeasonInference,
+      validation,
+    } = formState;
     const resolvedSeasonSource = resolvedSeasonInference.source;
     const resolvedSeasonNeedsReview = resolvedSeasonInference.needsReview;
-    const registration = normalizeClosetRegistrationBasics({
-      category: selectedCategory || analysis.category,
-      color: selectedColor || analysis.color,
-      seasons: resolvedSeasons,
-    });
-    const reviewFields = getProductRegistrationReviewFields({
-      category: registration.category,
-      color: registration.color,
-      seasons: registration.seasons,
-      seasonNeedsReview: resolvedSeasonNeedsReview,
-      missingOfficialFields: extractedProduct?.missingFields,
-      editedFields: manuallyEditedClassificationFields,
-    });
 
-    if (!allowUncertainValues && reviewFields.length > 0) {
+    if (__DEV__) {
+      console.info("[registration.validation]", {
+        valid: validation.valid,
+        missingFields: validation.missingFields,
+        invalidFields: validation.invalidFields,
+        category: registration.category,
+        hasColor: Boolean(registration.color && registration.color !== "색상 확인 필요"),
+        hasSeason: registration.seasons.length > 0,
+        hasSize: hasSelectedClosetSize(selectedSize),
+        source: analysis.source === "manual" ? "manual" : "product-analysis",
+      });
+    }
+
+    if (!validation.valid) {
       Alert.alert(
         "등록 정보를 확인해주세요",
-        `${getRegistrationReviewLabels(reviewFields).join(", ")} 정보가 불확실해요. 수정하거나 현재 값으로 저장할 수 있어요.`,
-        [
-          { text: "돌아가기", style: "cancel" },
-          { text: "현재 값으로 저장", onPress: () => void saveItem(true) },
-        ]
+        getRegistrationValidationMessage(validation)
       );
       return;
     }
@@ -1159,15 +1169,16 @@ export default function AddClothesScreen() {
   }
 
   const sizeOptions = getSizeOptions(selectedCategory || analysis?.category);
-  const canContinue = addMode === "manual" ? Boolean(analysis) : Boolean(imageUri);
-  const registrationReviewFields = analysis
+  const registrationFormState = analysis ? getRegistrationFormState() : null;
+  const canAnalyze = addMode !== "manual" && Boolean(imageUri);
+  const canSave = Boolean(analysis && registrationFormState?.validation.valid);
+  const canContinue = analysis ? canSave : canAnalyze;
+  const registrationReviewFields = registrationFormState
     ? getProductRegistrationReviewFields({
-        category: selectedCategory || analysis.category,
-        color: selectedColor || analysis.color,
-        seasons: selectedSeasons,
-        seasonNeedsReview,
-        missingOfficialFields: extractedProduct?.missingFields,
-        editedFields: manuallyEditedClassificationFields,
+        category: registrationFormState.registration.category,
+        color: registrationFormState.registration.color,
+        seasons: registrationFormState.registration.seasons,
+        seasonNeedsReview: registrationFormState.resolvedSeasonInference.needsReview,
       })
     : [];
   const extractionSummary = extractedProduct

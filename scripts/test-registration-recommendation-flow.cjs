@@ -81,7 +81,9 @@ const {
   createClosetItemId,
   getClosetItemReviewFields,
   getProductRegistrationReviewFields,
+  getRegistrationValidationMessage,
   normalizeClosetRegistrationBasics,
+  validateClosetRegistration,
   wasClosetItemSaved,
 } = require("../utils/closetRegistration.ts");
 const { normalizeProductColor } = require("../utils/color.ts");
@@ -245,13 +247,54 @@ async function main() {
   });
   assert.deepEqual(validRegistration.reviewFields, []);
 
+  const validRegistrationResult = validateClosetRegistration({
+    category: "  상의  ",
+    color: "  아이보리 ",
+    seasons: ["봄", "가을"],
+  });
+  assert.deepEqual(validRegistrationResult, {
+    valid: true,
+    missingFields: [],
+    invalidFields: [],
+  });
+
+  const missingRegistrationResult = validateClosetRegistration({
+    category: "",
+    color: " ",
+    seasons: [],
+  });
+  assert.deepEqual(missingRegistrationResult, {
+    valid: false,
+    missingFields: ["category", "color", "season"],
+    invalidFields: [],
+  });
+  assert.match(
+    getRegistrationValidationMessage(missingRegistrationResult),
+    /종류, 색상, 계절 정보를 입력해주세요/
+  );
+
+  const invalidRegistrationResult = validateClosetRegistration({
+    category: "분류 확인 필요",
+    color: "색상 확인 필요",
+    seasons: ["장마"],
+  });
+  assert.deepEqual(invalidRegistrationResult, {
+    valid: false,
+    missingFields: [],
+    invalidFields: ["category", "color", "season"],
+  });
+  assert.match(
+    getRegistrationValidationMessage(invalidRegistrationResult),
+    /종류, 색상, 계절 정보를 확인해주세요/
+  );
+
   const missingOfficialClassification = getProductRegistrationReviewFields({
     category: "아우터",
     color: "블랙",
     seasons: ["봄", "가을"],
     missingOfficialFields: ["productCategory", "productColor"],
   });
-  assert.deepEqual(missingOfficialClassification, ["category", "color"]);
+  assert.deepEqual(missingOfficialClassification, []);
 
   const confirmedOfficialClassification = getProductRegistrationReviewFields({
     category: "하의",
