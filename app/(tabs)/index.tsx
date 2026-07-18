@@ -466,11 +466,14 @@ export default function HomeScreen() {
         profile: Awaited<ReturnType<typeof getUserProfile>>,
         dataKey: string,
         savedOutfitItemIds: string[][],
-        feedbacks: OutfitRecommendationFeedback[]
+        feedbacks: OutfitRecommendationFeedback[],
+        fallbackToInitial = false
       ) {
         const weatherTimer = startPerformanceTimer("home.weather-background-refresh");
         let weatherSource = "none";
         let failed = false;
+        let recommendationAvailable = false;
+        let initialFallbackApplied = false;
 
         try {
           const cachedWeatherTimer = startPerformanceTimer(
@@ -492,7 +495,10 @@ export default function HomeScreen() {
                 "cache"
               );
               weatherSource = "cache";
+              recommendationAvailable = true;
             }
+          } catch {
+            cachedWeather = null;
           } finally {
             endPerformanceTimer(cachedWeatherTimer, {
               weatherFound: Boolean(cachedWeather),
@@ -522,6 +528,7 @@ export default function HomeScreen() {
                 "live"
               );
               weatherSource = "current";
+              recommendationAvailable = true;
             }
           } catch {
             currentWeather = null;
@@ -539,8 +546,27 @@ export default function HomeScreen() {
         } catch {
           failed = true;
         } finally {
-          endPerformanceTimer(weatherTimer, { weatherSource, failed });
+          if (fallbackToInitial && !recommendationAvailable && isActive) {
+            initialFallbackApplied = applyRecommendation(
+              items,
+              profile,
+              null,
+              dataKey,
+              savedOutfitItemIds,
+              feedbacks
+            );
+            recommendationAvailable = initialFallbackApplied;
+          }
+
+          endPerformanceTimer(weatherTimer, {
+            weatherSource,
+            failed,
+            initialFallbackApplied,
+            recommendationAvailable,
+          });
         }
+
+        return recommendationAvailable;
       }
 
       async function loadDashboard() {
@@ -749,13 +775,14 @@ export default function HomeScreen() {
             cacheMissReason: cacheRestored ? null : "recommendation_cache_miss",
           };
 
-          const startWeatherRefresh = () => {
-            void refreshWeatherRecommendation(
+          const startWeatherRefresh = (fallbackToInitial = false) => {
+            return refreshWeatherRecommendation(
               recommendationItems,
               nextProfile,
               dataKey,
               savedOutfitItemIds,
-              feedbacks
+              feedbacks,
+              fallbackToInitial
             );
           };
 
@@ -770,28 +797,22 @@ export default function HomeScreen() {
                   recommendationExecutionCountRef.current.initial,
                 cacheHit: true,
               });
-              startWeatherRefresh();
+              void startWeatherRefresh();
               return;
             }
 
             deferredTimer = setTimeout(() => {
               if (!isActive) return;
 
-              applyRecommendation(
-                recommendationItems,
-                nextProfile,
-                null,
-                dataKey,
-                savedOutfitItemIds,
-                feedbacks
-              );
-              endFullLoadTimers({
-                initialRecommendationReady: true,
-                recommendationExecutionCount:
-                  recommendationExecutionCountRef.current.initial,
-                cacheHit: false,
+              void startWeatherRefresh(true).finally(() => {
+                endFullLoadTimers({
+                  initialRecommendationReady: true,
+                  recommendationExecutionCount:
+                    recommendationExecutionCountRef.current.initial +
+                    recommendationExecutionCountRef.current.weather,
+                  cacheHit: false,
+                });
               });
-              startWeatherRefresh();
             }, 0);
           });
         } catch (error) {
