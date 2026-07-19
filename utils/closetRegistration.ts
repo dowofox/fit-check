@@ -87,6 +87,28 @@ export function createClosetItemId(
   return `${normalizedTimestamp}-${entropy}`;
 }
 
+export function getUniqueRegistrationImageUris(
+  imageUris: string[],
+  maxCount = 10
+) {
+  const normalizedLimit = Math.max(0, Math.trunc(maxCount));
+  if (normalizedLimit === 0) return [];
+
+  const uniqueUris: string[] = [];
+  const seenUris = new Set<string>();
+
+  for (const imageUri of imageUris) {
+    const normalizedUri = imageUri.trim();
+    if (!normalizedUri || seenUris.has(normalizedUri)) continue;
+
+    seenUris.add(normalizedUri);
+    uniqueUris.push(normalizedUri);
+    if (uniqueUris.length >= normalizedLimit) break;
+  }
+
+  return uniqueUris;
+}
+
 export function normalizeClosetSeasons(value?: string | string[]) {
   const values = Array.isArray(value) ? value : value ? [value] : [];
   const matchedSeasons = SEASONS.filter((season) =>

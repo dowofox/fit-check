@@ -79,6 +79,7 @@ const {
 } = require("../server/productAnalysisContext.js");
 const {
   createClosetItemId,
+  getUniqueRegistrationImageUris,
   getClosetItemReviewFields,
   getProductRegistrationReviewFields,
   getRegistrationValidationMessage,
@@ -201,6 +202,15 @@ async function main() {
   const secondGeneratedItemId = createClosetItemId(1_720_000_000_000, 0.2);
   assert.match(firstGeneratedItemId, /^1720000000000-[a-z0-9]{11}$/);
   assert.notEqual(firstGeneratedItemId, secondGeneratedItemId);
+
+  assert.deepEqual(
+    getUniqueRegistrationImageUris(
+      [" file://first.jpg ", "file://second.jpg", "file://first.jpg", ""],
+      2
+    ),
+    ["file://first.jpg", "file://second.jpg"]
+  );
+  assert.deepEqual(getUniqueRegistrationImageUris(["file://first.jpg"], 0), []);
 
   const savedItem = createClosetItem("saved-item", "상의");
   assert.equal(wasClosetItemSaved([savedItem], savedItem.id), true);

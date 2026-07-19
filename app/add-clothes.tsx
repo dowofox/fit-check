@@ -6,6 +6,7 @@ import {
 import { normalizeProductColor } from "@/utils/color";
 import {
   createClosetItemId,
+  getUniqueRegistrationImageUris,
   getProductRegistrationReviewFields,
   getRegistrationReviewLabels,
   getRegistrationValidationMessage,
@@ -742,7 +743,10 @@ export default function AddClothesScreen() {
     });
 
     if (!result.canceled) {
-      const images = result.assets.map((asset) => ({ uri: asset.uri }));
+      const images = getUniqueRegistrationImageUris(
+        result.assets.map((asset) => asset.uri),
+        MAX_BATCH_IMAGE_SELECTION
+      ).map((uri) => ({ uri }));
 
       setSelectedImages(images);
       setImageUri(images[0]?.uri || "");
