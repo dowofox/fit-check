@@ -21,6 +21,22 @@ export const API_TIMEOUTS = {
   extractProduct: 30_000,
 } as const;
 
+export class ApiRequestTimeoutError extends Error {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`API request exceeded ${timeoutMs}ms`);
+    this.name = "ApiRequestTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+export function isApiRequestTimeoutError(
+  error: unknown
+): error is ApiRequestTimeoutError {
+  return error instanceof ApiRequestTimeoutError;
+}
+
 export async function fetchApiWithTimeout(
   input: Parameters<typeof fetch>[0],
   init: RequestInit,
@@ -28,13 +44,20 @@ export async function fetchApiWithTimeout(
   fetchImplementation: typeof fetch = fetch
 ) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let didTimeout = false;
+  const timeoutId = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
 
   try {
     return await fetchImplementation(input, {
       ...init,
       signal: controller.signal,
     });
+  } catch (error) {
+    if (didTimeout) throw new ApiRequestTimeoutError(timeoutMs);
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }

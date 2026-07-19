@@ -53,11 +53,15 @@ export function getProductLinkFailure(
     };
   }
 
-  if (
-    ["product_page_unreachable", "product_page_timeout"].includes(errorCode || "") ||
-    status === 502 ||
-    status === 504
-  ) {
+  if (errorCode === "product_page_timeout" || status === 504) {
+    return {
+      kind: "connection",
+      title: "상품 정보를 가져오는 데 시간이 오래 걸려요",
+      message: "잠시 후 다시 시도하거나 사진으로 빠르게 등록해주세요.",
+    };
+  }
+
+  if (errorCode === "product_page_unreachable" || status === 502) {
     return {
       kind: "connection",
       title: "상품 페이지에 연결하지 못했어요",

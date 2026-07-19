@@ -33,7 +33,9 @@ const {
   parseExtractedProductResponse,
 } = require("../utils/productExtractionResponse.ts");
 const {
+  ApiRequestTimeoutError,
   fetchApiWithTimeout,
+  isApiRequestTimeoutError,
   resolveApiBaseUrl,
 } = require("../utils/api.ts");
 const {
@@ -61,7 +63,12 @@ test("API 요청은 제한 시간을 넘기면 중단한다", async () => {
 
   await assert.rejects(
     fetchApiWithTimeout("https://api.naes.example.com", {}, 5, hangingFetch),
-    { name: "AbortError" }
+    (error) => {
+      assert.equal(error instanceof ApiRequestTimeoutError, true);
+      assert.equal(error.timeoutMs, 5);
+      assert.equal(isApiRequestTimeoutError(error), true);
+      return true;
+    }
   );
 });
 
@@ -111,8 +118,10 @@ test("상품 추출 오류를 사용자가 취할 행동별로 구분한다", ()
   );
   assert.match(
     formatProductLinkFailure(getProductLinkFailure("product_page_timeout", 504)),
-    /네트워크 상태/
+    /다시 시도/
   );
+  assert.match(getProductLinkFailure("product_page_timeout", 504).title, /시간/);
+  assert.match(getProductLinkFailure("product_page_unreachable", 502).message, /네트워크/);
 });
 
 test("상품 추출 성공 응답은 문자열과 URL을 검증해 정규화한다", () => {

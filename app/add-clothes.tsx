@@ -2,6 +2,7 @@ import {
   API_ENDPOINTS,
   API_TIMEOUTS,
   fetchApiWithTimeout,
+  isApiRequestTimeoutError,
 } from "@/utils/api";
 import {
   encodeAnalysisImageUri,
@@ -811,7 +812,13 @@ export default function AddClothesScreen() {
     } catch (error) {
       if (requestId !== productExtractionRequestRef.current) return;
       console.error("상품 정보 추출 실패:", error);
-      setProductLinkFailure(getProductLinkFailure("product_page_unreachable"));
+      setProductLinkFailure(
+        getProductLinkFailure(
+          isApiRequestTimeoutError(error)
+            ? "product_page_timeout"
+            : "product_page_unreachable"
+        )
+      );
     } finally {
       if (requestId === productExtractionRequestRef.current) {
         setIsExtractingProduct(false);
