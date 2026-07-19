@@ -1093,13 +1093,14 @@ const COMPARISON_FIELDS: {
   key: keyof FitMeasurements;
   productKey: keyof ProductSizeMeasurement;
   label: string;
+  category: "upper" | "bottom";
 }[] = [
-  { key: "shoulder", productKey: "shoulder", label: "어깨" },
-  { key: "chest", productKey: "chest", label: "가슴" },
-  { key: "sleeve", productKey: "sleeve", label: "팔 길이" },
-  { key: "waist", productKey: "waist", label: "허리" },
-  { key: "hip", productKey: "hip", label: "엉덩이" },
-  { key: "thigh", productKey: "thigh", label: "허벅지" },
+  { key: "shoulder", productKey: "shoulder", label: "어깨", category: "upper" },
+  { key: "chest", productKey: "chest", label: "가슴", category: "upper" },
+  { key: "sleeve", productKey: "sleeve", label: "팔 길이", category: "upper" },
+  { key: "waist", productKey: "waist", label: "허리", category: "bottom" },
+  { key: "hip", productKey: "hip", label: "엉덩이", category: "bottom" },
+  { key: "thigh", productKey: "thigh", label: "허벅지", category: "bottom" },
 ];
 
 export function getMeasurementComparison(
@@ -1149,7 +1150,10 @@ export function getMeasurementComparison(
   const canCompareUserShoulder = shouldCompareUserShoulder(item);
   const canCompareUserSleeve = shouldCompareUserSleeve(item);
 
-  COMPARISON_FIELDS.forEach(({ key, productKey, label }) => {
+  const comparisonCategory = isBottomCategory(item) ? "bottom" : "upper";
+
+  COMPARISON_FIELDS.forEach(({ key, productKey, label, category }) => {
+    if (category !== comparisonCategory) return;
     if (key === "shoulder" && !canCompareUserShoulder) return;
     if (key === "sleeve" && !canCompareUserSleeve) return;
 
