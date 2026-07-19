@@ -19,6 +19,7 @@ import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
+import { parseExtractedProductResponse } from "@/utils/productExtractionResponse";
 import { getConfirmedProductSeasonInference } from "@/utils/seasonInference";
 import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import {
@@ -2905,8 +2906,9 @@ export default function ClothesDetailScreen() {
         return;
       }
 
-      const result = await response.json();
+      const result = parseExtractedProductResponse(await response.json(), productUrl);
       if (requestId !== productExtractionRequestRef.current) return;
+      if (!result) throw new Error("Extract product returned an invalid payload");
       const nextDraft: ConfirmedProductDraft = {
         brand: result.brand || "",
         productName: result.productName || "",

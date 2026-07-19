@@ -30,6 +30,9 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 
 const { validateProductUrlInput } = require("../utils/productUrl.ts");
 const {
+  parseExtractedProductResponse,
+} = require("../utils/productExtractionResponse.ts");
+const {
   fetchApiWithTimeout,
   resolveApiBaseUrl,
 } = require("../utils/api.ts");
@@ -109,5 +112,48 @@ test("상품 추출 오류를 사용자가 취할 행동별로 구분한다", ()
   assert.match(
     formatProductLinkFailure(getProductLinkFailure("product_page_timeout", 504)),
     /네트워크 상태/
+  );
+});
+
+test("상품 추출 성공 응답은 문자열과 URL을 검증해 정규화한다", () => {
+  const result = parseExtractedProductResponse(
+    {
+      brand: " NAES ",
+      productName: " 린넨 셔츠 ",
+      productUrl: "shop.example.com/products/1",
+      productImageUrl: "https://cdn.example.com/item.jpg",
+      mallName: 123,
+      missingFields: ["material", 42, " sizeGuide "],
+      extractionStatus: "complete",
+    },
+    "https://fallback.example.com/products/1"
+  );
+
+  assert.equal(result.brand, "NAES");
+  assert.equal(result.productName, "린넨 셔츠");
+  assert.equal(result.productUrl, "https://shop.example.com/products/1");
+  assert.equal(result.productImageUrl, "https://cdn.example.com/item.jpg");
+  assert.equal(result.mallName, undefined);
+  assert.deepEqual(result.missingFields, ["material", "sizeGuide"]);
+});
+
+test("잘못된 상품 이미지 URL은 버리고 비어 있는 성공 응답은 거부한다", () => {
+  const withoutInvalidImage = parseExtractedProductResponse(
+    {
+      productName: "데님 팬츠",
+      productUrl: "https://shop.example.com/products/2",
+      productImageUrl: { src: "https://cdn.example.com/item.jpg" },
+    },
+    "https://shop.example.com/products/2"
+  );
+
+  assert.equal(withoutInvalidImage.productImageUrl, undefined);
+  assert.equal(
+    parseExtractedProductResponse({}, "https://shop.example.com/products/3"),
+    null
+  );
+  assert.equal(
+    parseExtractedProductResponse("not-an-object", "https://shop.example.com/products/3"),
+    null
   );
 });

@@ -32,6 +32,10 @@ import {
 } from "@/utils/productClassification";
 import { getProductExtractionSummary } from "@/utils/productExtractionSummary";
 import {
+  parseExtractedProductResponse,
+  type ExtractedProductResponse,
+} from "@/utils/productExtractionResponse";
+import {
   getProductLinkFailure,
   type ProductExtractionErrorResponse,
   type ProductLinkFailure,
@@ -56,7 +60,6 @@ import type {
   GarmentProfile,
   ProductCandidate,
   ProductClassificationField,
-  ProductSizeGuide,
   SeasonSource,
   StyleProfile,
 } from "@/utils/storage";
@@ -187,22 +190,7 @@ type SelectedImage = {
 
 type AddMode = "photo" | "link" | "manual";
 
-type ExtractedProduct = {
-  brand?: string;
-  productName?: string;
-  productCategory?: string;
-  productColor?: string;
-  productUrl: string;
-  productImageUrl?: string;
-  productSizeGuide?: ProductSizeGuide;
-  materialComposition?: ConfirmedProduct["materialComposition"];
-  sizeGuideStatus?: string;
-  mallName?: string;
-  price?: string;
-  extractionStatus?: "complete" | "partial" | "missing_image";
-  extractionSource?: "musinsa" | "structured_metadata";
-  missingFields?: string[];
-};
+type ExtractedProduct = ExtractedProductResponse;
 
 async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | null) {
   const encodedImage = await encodeAnalysisImageUri(uri);
@@ -800,8 +788,9 @@ export default function AddClothesScreen() {
         return;
       }
 
-      const product = (await response.json()) as ExtractedProduct;
+      const product = parseExtractedProductResponse(await response.json(), productUrl);
       if (requestId !== productExtractionRequestRef.current) return;
+      if (!product) throw new Error("Extract product returned an invalid payload");
 
       if (!product.productImageUrl) {
         setExtractedProduct(product);
