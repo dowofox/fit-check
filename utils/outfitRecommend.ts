@@ -2224,16 +2224,29 @@ function getAccessoryCandidates(accessories: ClosetItem[]) {
     .slice(0, 6);
 }
 
+const coreOutfitKeyCache = new WeakMap<OutfitRecommendation, string>();
+const itemCombinationKeyCache = new WeakMap<OutfitRecommendation, string>();
+
 function getCoreOutfitKey(recommendation: OutfitRecommendation) {
+  const cachedKey = coreOutfitKeyCache.get(recommendation);
+  if (cachedKey) return cachedKey;
+
   const topId = recommendation.items.find((item) => item.category === "상의")?.id || "no-top";
   const bottomId = recommendation.items.find((item) => item.category === "하의")?.id || "no-bottom";
   const shoeId = recommendation.items.find((item) => item.category === "신발")?.id || "no-shoes";
+  const key = [topId, bottomId, shoeId].join("-");
 
-  return [topId, bottomId, shoeId].join("-");
+  coreOutfitKeyCache.set(recommendation, key);
+  return key;
 }
 
 function getItemCombinationKey(recommendation: OutfitRecommendation) {
-  return getSortedItemIds(recommendation.items).join("|");
+  const cachedKey = itemCombinationKeyCache.get(recommendation);
+  if (cachedKey) return cachedKey;
+
+  const key = getSortedItemIds(recommendation.items).join("|");
+  itemCombinationKeyCache.set(recommendation, key);
+  return key;
 }
 
 function isDisplayableRecommendation(recommendation: OutfitRecommendation) {
