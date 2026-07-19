@@ -17,6 +17,15 @@ const TOP_LETTER_SIZE_VALUE: Record<string, number> = {
   XXL: 110,
   XXXL: 115,
 };
+const BOTTOM_LETTER_SIZE_VALUE: Record<string, number> = {
+  XS: 28,
+  S: 30,
+  M: 32,
+  L: 34,
+  XL: 36,
+  XXL: 38,
+  XXXL: 40,
+};
 
 const NAMED_SIZE_ALIASES: Record<string, string> = {
   XSMALL: "XS",
@@ -85,7 +94,92 @@ export function normalizeSize(size?: string) {
   if (upperSize === "2XL") return "XXL";
   if (upperSize === "3XL") return "XXXL";
 
+  const numericSizeMatch = upperSize.match(
+    /^0*(\d{1,3}(?:\.\d+)?)(?:INCHES|INCH|IN|인치|사이즈|["″”])?$/
+  );
+  if (numericSizeMatch) return String(Number(numericSizeMatch[1]));
+
   return upperSize;
+}
+
+export type SizeContext = {
+  category?: string;
+  detailCategory?: string;
+  sizeSystem?: "alpha" | "waist-inch" | "korean-number" | "brand-specific";
+};
+
+export type CanonicalSizeResult = {
+  raw: string;
+  normalized: string;
+  canonical?: string;
+  system?: SizeContext["sizeSystem"] | "free";
+  confidence: "high" | "medium" | "low";
+};
+
+function getNumericSizeInRange(size: string, min: number, max: number) {
+  const numericSize = Number(size);
+  return Number.isFinite(numericSize) && numericSize >= min && numericSize <= max
+    ? numericSize
+    : undefined;
+}
+
+export function canonicalizeSize(
+  value: string | undefined,
+  context: SizeContext = {}
+): CanonicalSizeResult {
+  const raw = String(value || "").trim();
+  const normalized = normalizeSize(raw);
+
+  if (!normalized) return { raw, normalized, confidence: "low" };
+  if (normalized === "FREE") {
+    return {
+      raw,
+      normalized,
+      canonical: "FREE",
+      system: "free",
+      confidence: "high",
+    };
+  }
+
+  if (context.category === "하의") {
+    const waistSize =
+      getNumericSizeInRange(normalized, 20, 60) ??
+      BOTTOM_LETTER_SIZE_VALUE[normalized];
+
+    return waistSize === undefined
+      ? { raw, normalized, confidence: "low" }
+      : {
+          raw,
+          normalized,
+          canonical: `BOTTOM:${waistSize}`,
+          system: /^\d/.test(normalized) ? "waist-inch" : "alpha",
+          confidence: /^\d/.test(normalized) ? "high" : "medium",
+        };
+  }
+
+  if (isTopSizeCategory(context.category)) {
+    const topSize =
+      getNumericSizeInRange(normalized, 80, 130) ??
+      TOP_LETTER_SIZE_VALUE[normalized];
+
+    return topSize === undefined
+      ? { raw, normalized, confidence: "low" }
+      : {
+          raw,
+          normalized,
+          canonical: `TOP:${topSize}`,
+          system: /^\d/.test(normalized) ? "korean-number" : "alpha",
+          confidence: "high",
+        };
+  }
+
+  return {
+    raw,
+    normalized,
+    canonical: normalized,
+    system: LETTER_SIZE_ORDER.includes(normalized) ? "alpha" : context.sizeSystem,
+    confidence: "high",
+  };
 }
 
 export const CLOSET_SIZE_NOT_ENTERED_LABEL = "사이즈 미입력";
@@ -185,13 +279,12 @@ function isTopSizeCategory(category?: string) {
   return category === "상의" || category === "아우터";
 }
 
-function getTopSizeValue(size?: string) {
-  const normalizedSize = normalizeSize(size);
-  const numericSize = Number(normalizedSize);
-
-  if (Number.isFinite(numericSize)) return numericSize;
-
-  return TOP_LETTER_SIZE_VALUE[normalizedSize] ?? null;
+function getCanonicalCategorySizeValue(
+  result: CanonicalSizeResult,
+  category: "TOP" | "BOTTOM"
+) {
+  const match = result.canonical?.match(new RegExp(`^${category}:(\\d+(?:\\.\\d+)?)$`));
+  return match ? Number(match[1]) : null;
 }
 
 function compareSize(profileSize?: string, itemSize?: string, category?: string) {
@@ -199,12 +292,37 @@ function compareSize(profileSize?: string, itemSize?: string, category?: string)
   const normalizedItemSize = normalizeSize(itemSize);
 
   if (isTopSizeCategory(category)) {
-    const profileTopSize = getTopSizeValue(normalizedProfileSize);
-    const itemTopSize = getTopSizeValue(normalizedItemSize);
+    const profileTopSize = getCanonicalCategorySizeValue(
+      canonicalizeSize(profileSize, { category }),
+      "TOP"
+    );
+    const itemTopSize = getCanonicalCategorySizeValue(
+      canonicalizeSize(itemSize, { category }),
+      "TOP"
+    );
 
     if (profileTopSize !== null && itemTopSize !== null) {
       return Math.sign(itemTopSize - profileTopSize);
     }
+
+    return null;
+  }
+
+  if (category === "하의") {
+    const profileBottomSize = getCanonicalCategorySizeValue(
+      canonicalizeSize(profileSize, { category }),
+      "BOTTOM"
+    );
+    const itemBottomSize = getCanonicalCategorySizeValue(
+      canonicalizeSize(itemSize, { category }),
+      "BOTTOM"
+    );
+
+    if (profileBottomSize !== null && itemBottomSize !== null) {
+      return Math.sign(itemBottomSize - profileBottomSize);
+    }
+
+    return null;
   }
 
   const profileNumber = Number(normalizedProfileSize);

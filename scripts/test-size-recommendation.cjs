@@ -32,6 +32,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const {
+  canonicalizeSize,
   getFitSuitability,
   getMeasurementComparison,
   getRecommendedProductSize,
@@ -175,6 +176,40 @@ test("영문 장문 사이즈를 표준 문자 라벨로 비교한다", () => {
   assert.equal(extendedMeasurement?.displaySize, "EXTRA LARGE (33~34)");
   assert.deepEqual(extendedMeasurement?.numericRange, { min: 33, max: 34 });
   assert.equal(doesProductSizeRowMatch(extendedMeasurement, "XL"), true);
+});
+
+test("카테고리별 표준 사이즈는 실측이 없을 때만 같은 체계로 비교한다", () => {
+  assert.deepEqual(canonicalizeSize("m", { category: "하의" }), {
+    raw: "m",
+    normalized: "M",
+    canonical: "BOTTOM:32",
+    system: "alpha",
+    confidence: "medium",
+  });
+  assert.equal(
+    canonicalizeSize("32 inch", { category: "하의" }).canonical,
+    "BOTTOM:32"
+  );
+  assert.equal(canonicalizeSize("032", { category: "하의" }).canonical, "BOTTOM:32");
+  assert.equal(canonicalizeSize("M", { category: "상의" }).canonical, "TOP:95");
+  assert.equal(canonicalizeSize("95", { category: "상의" }).canonical, "TOP:95");
+  assert.equal(canonicalizeSize("32", { category: "상의" }).canonical, undefined);
+
+  const bottomItem = {
+    ...createItem("nominal-bottom", "하의", []),
+    size: "M",
+    confirmedProduct: undefined,
+  };
+  const matchingBottomFit = getFitSuitability(bottomItem, { bottomSize: "32 inch" });
+  assert.match(matchingBottomFit.description, /표기상 프로필 사이즈와 같아요/);
+
+  const topItem = {
+    ...createItem("nominal-top", "상의", []),
+    size: "32",
+    confirmedProduct: undefined,
+  };
+  const unrelatedTopFit = getFitSuitability(topItem, { topSize: "M" });
+  assert.match(unrelatedTopFit.description, /표기 방식이 달라/);
 });
 
 function createItem(id, category, sizes, overrides = {}) {
