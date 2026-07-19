@@ -1303,16 +1303,6 @@ export function getNaesBackupDataSnapshot(): Promise<NaesBackupDataSnapshot> {
       OUTFIT_WEAR_RECORDS_KEY,
     ]);
     const valuesByKey = new Map(entries);
-    const parseBackupArray = (key: string) => {
-      const rawValue = valuesByKey.get(key);
-      if (!rawValue) return [];
-
-      const parsedValue = JSON.parse(rawValue) as unknown;
-      if (!Array.isArray(parsedValue)) {
-        throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${key}`);
-      }
-      return parsedValue;
-    };
     const rawProfile = valuesByKey.get(PROFILE_KEY);
     const parsedProfile = rawProfile ? (JSON.parse(rawProfile) as unknown) : null;
 
@@ -1320,13 +1310,17 @@ export function getNaesBackupDataSnapshot(): Promise<NaesBackupDataSnapshot> {
       throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${PROFILE_KEY}`);
     }
 
-    const closetItems = parseBackupArray(CLOSET_KEY).filter(isStoredClosetItem);
-    const savedOutfits = parseBackupArray(SAVED_OUTFITS_KEY).filter(isStoredSavedOutfit);
-    const outfitFeedbacks = normalizeOutfitRecommendationFeedbacks(
-      parseBackupArray(OUTFIT_FEEDBACK_KEY)
+    const closetItems = parseStoredClosetItemsForMutation(
+      valuesByKey.get(CLOSET_KEY) || null
     );
-    const wearRecords = normalizeOutfitWearRecords(
-      parseBackupArray(OUTFIT_WEAR_RECORDS_KEY)
+    const savedOutfits = parseStoredSavedOutfitsForMutation(
+      valuesByKey.get(SAVED_OUTFITS_KEY) || null
+    );
+    const outfitFeedbacks = parseStoredFeedbacksForMutation(
+      valuesByKey.get(OUTFIT_FEEDBACK_KEY) || null
+    );
+    const wearRecords = parseStoredWearRecordsForMutation(
+      valuesByKey.get(OUTFIT_WEAR_RECORDS_KEY) || null
     );
 
     return {

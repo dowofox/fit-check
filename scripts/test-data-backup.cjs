@@ -386,6 +386,33 @@ test("backup snapshot rejects a corrupted root value", async () => {
   await assert.rejects(getNaesBackupDataSnapshot(), SyntaxError);
 });
 
+test("backup snapshot rejects partially corrupted source arrays", async () => {
+  const snapshot = createSnapshot();
+  const invalidSources = [
+    ["naes_closet", [...snapshot.closetItems, { id: "broken-item" }]],
+    [
+      "naes_saved_outfits",
+      [...snapshot.savedOutfits, { id: "broken-outfit", itemIds: "not-an-array" }],
+    ],
+    [
+      "naes_outfit_recommendation_feedback",
+      [...snapshot.outfitFeedbacks, { itemIds: "not-an-array", value: "like" }],
+    ],
+    [
+      "naes_outfit_wear_records",
+      [...snapshot.wearRecords, { id: "broken-wear", itemIds: [] }],
+    ],
+  ];
+
+  for (const [storageKey, invalidValue] of invalidSources) {
+    storageMemory.clear();
+    await restoreNaesBackupDataSnapshot(snapshot);
+    storageMemory.set(storageKey, JSON.stringify(invalidValue));
+
+    await assert.rejects(getNaesBackupDataSnapshot(), /invalid/);
+  }
+});
+
 test("legacy closet and profile fields survive partial updates and version 1 backup restore", async () => {
   storageMemory.clear();
   const legacyItem = {
