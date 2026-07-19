@@ -2,6 +2,8 @@ import type { ClosetItem } from "@/utils/storage";
 
 export type ClosetSortOrder = "newest" | "oldest";
 
+const closetItemSearchTextCache = new WeakMap<ClosetItem, string>();
+
 export function resolveClosetDetailFilter(
   selectedDetailCategory: string,
   availableDetailCategories: string[]
@@ -12,7 +14,10 @@ export function resolveClosetDetailFilter(
 }
 
 function getClosetItemSearchText(item: ClosetItem) {
-  return [
+  const cachedText = closetItemSearchTextCache.get(item);
+  if (cachedText !== undefined) return cachedText;
+
+  const searchText = [
     item.category,
     item.subCategory,
     item.detailCategory,
@@ -34,6 +39,9 @@ function getClosetItemSearchText(item: ClosetItem) {
     .filter(Boolean)
     .join(" ")
     .toLocaleLowerCase();
+
+  closetItemSearchTextCache.set(item, searchText);
+  return searchText;
 }
 
 export function filterClosetItemsByQuery(items: ClosetItem[], query: string) {
