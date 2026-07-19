@@ -139,6 +139,29 @@ function getNumericRange(size: string) {
   };
 }
 
+export function getProductSizeNumericRange(
+  sizeInfo: ProductSizeMeasurement
+) {
+  const explicitRange = sizeInfo.numericRange;
+
+  if (
+    explicitRange &&
+    Number.isFinite(explicitRange.min) &&
+    Number.isFinite(explicitRange.max) &&
+    explicitRange.min > 0 &&
+    explicitRange.max > 0
+  ) {
+    return {
+      min: Math.min(explicitRange.min, explicitRange.max),
+      max: Math.max(explicitRange.min, explicitRange.max),
+    };
+  }
+
+  return getNumericRange(
+    sizeInfo.displaySize || sizeInfo.rawSize || sizeInfo.size
+  );
+}
+
 function isValidProductSizeName(size?: string) {
   const normalizedSize = size?.trim();
 
@@ -179,6 +202,12 @@ export function sanitizeProductSizeMeasurement(
   PRODUCT_MEASUREMENT_KEYS.forEach((key) => {
     sanitized[key] = parsePositiveMeasurement(sizeInfo[key]);
   });
+  const numericRange = getProductSizeNumericRange(sanitized);
+  if (numericRange) {
+    sanitized.numericRange = numericRange;
+  } else {
+    delete sanitized.numericRange;
+  }
 
   return hasValidProductSizeMeasurements(sanitized) ? sanitized : null;
 }
@@ -243,7 +272,7 @@ export function getProductSizeDisplayName(sizeInfo: ProductSizeMeasurement) {
 
 function isSizeInNumericRange(size: string | undefined, sizeInfo: ProductSizeMeasurement) {
   const numericSize = Number((size || "").trim());
-  const numericRange = sizeInfo.numericRange || getNumericRange(getProductSizeDisplayName(sizeInfo));
+  const numericRange = getProductSizeNumericRange(sizeInfo);
 
   return (
     Number.isFinite(numericSize) &&

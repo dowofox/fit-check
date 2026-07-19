@@ -45,6 +45,7 @@ const {
 const {
   buildProductSizeMeasurement,
   doesProductSizeRowMatch,
+  getProductSizeNumericRange,
   getValidProductSizeRows,
   normalizeProductSizeForCompare,
   removeProductSizeMeasurement,
@@ -818,6 +819,41 @@ test("숫자 범위가 겹쳐도 서로 다른 상품 사이즈 행은 덮어쓰
     rows.map((row) => row.size),
     ["XL", "33"]
   );
+});
+
+test("복합 사이즈 표시명만 남은 기존 실측도 상품별 숫자 범위를 복원한다", () => {
+  const [measurement] = getValidProductSizeRows({
+    unit: "cm",
+    sizes: [
+      {
+        size: "XL",
+        displaySize: "XL(33~34)",
+        totalLength: 104,
+        waist: 41,
+        hip: 52,
+        thigh: 33,
+      },
+    ],
+  });
+
+  assert.deepEqual(getProductSizeNumericRange(measurement), { min: 33, max: 34 });
+  assert.deepEqual(measurement.numericRange, { min: 33, max: 34 });
+  assert.equal(doesProductSizeRowMatch(measurement, "33"), true);
+
+  const item = createItem("legacy-range-bottom", "하의", [measurement], {
+    size: "33",
+  });
+  const fit = getFitSuitability(item, {
+    height: "175",
+    bottomSize: "33",
+    waistCircumference: "82",
+    hipCircumference: "104",
+    thighCircumference: "64",
+    preferredPantsTotalLength: 104,
+  });
+
+  assert.notEqual(fit.blockedReason, "unmatched_item_size");
+  assert.match(fit.description, /상품 실측 기준으로 비교했어요/);
 });
 
 test("같은 사이즈의 분리된 실측 행은 유효 필드를 합쳐 보존한다", () => {
