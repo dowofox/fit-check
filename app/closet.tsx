@@ -46,6 +46,7 @@ const CLOSET_FILTERS = [
 const SCREEN_HORIZONTAL_PADDING = 18;
 const GRID_GAP = 12;
 const GRID_COLUMN_COUNT = 3;
+const CLOSET_PAGE_SIZE = 30;
 
 function getItemTitle(item: ClosetItem) {
     return item.detailCategory || item.subCategory || item.category || "아이템";
@@ -82,6 +83,7 @@ export default function ClosetScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOrder, setSortOrder] = useState<ClosetSortOrder>("newest");
     const [hasLoadError, setHasLoadError] = useState(false);
+    const [visibleWindow, setVisibleWindow] = useState({ key: "", count: CLOSET_PAGE_SIZE });
     const closetLoadRequestRef = useRef(0);
 
     useFocusEffect(
@@ -164,6 +166,20 @@ export default function ClosetScreen() {
         () => sortClosetItems(filteredItems, sortOrder),
         [filteredItems, sortOrder]
     );
+    const visibleWindowKey = [
+        selectedCategory,
+        selectedDetailCategory,
+        searchQuery.trim(),
+        sortOrder,
+    ].join("\u0000");
+    const visibleItemCount = visibleWindow.key === visibleWindowKey
+        ? visibleWindow.count
+        : CLOSET_PAGE_SIZE;
+    const visibleItems = useMemo(
+        () => displayedItems.slice(0, visibleItemCount),
+        [displayedItems, visibleItemCount]
+    );
+    const remainingItemCount = displayedItems.length - visibleItems.length;
     const hasSearchQuery = searchQuery.trim().length > 0;
     const closetCardWidth = Math.max(
         0,
@@ -470,8 +486,9 @@ export default function ClosetScreen() {
                                 </View>
                             </View>
                         ) : (
+                            <>
                             <View style={styles.closetGrid}>
-                                {displayedItems.map((item) => {
+                                {visibleItems.map((item) => {
                                     const reviewLabel = getRecommendationInfoReviewLabel(item);
 
                                     return (
@@ -535,6 +552,28 @@ export default function ClosetScreen() {
                                     );
                                 })}
                             </View>
+                            {remainingItemCount > 0 ? (
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`옷장 아이템 ${Math.min(
+                                        CLOSET_PAGE_SIZE,
+                                        remainingItemCount
+                                    )}개 더 보기`}
+                                    style={styles.loadMoreButton}
+                                    onPress={() =>
+                                        setVisibleWindow({
+                                            key: visibleWindowKey,
+                                            count: visibleItemCount + CLOSET_PAGE_SIZE,
+                                        })
+                                    }
+                                >
+                                    <Text style={styles.loadMoreButtonText}>
+                                        더 보기 · {remainingItemCount}개 남음
+                                    </Text>
+                                    <Feather name="chevron-down" size={15} color={colors.point} />
+                                </Pressable>
+                            ) : null}
+                            </>
                         )}
                     </View>
                 )}
@@ -802,6 +841,23 @@ const styles = StyleSheet.create({
         flexWrap: "wrap",
         columnGap: GRID_GAP,
         rowGap: 18,
+    },
+    loadMoreButton: {
+        minHeight: 44,
+        marginTop: 18,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.softCard,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+    },
+    loadMoreButtonText: {
+        color: colors.point,
+        fontSize: 12,
+        fontWeight: "700",
     },
     closetCard: {
         minWidth: 0,
