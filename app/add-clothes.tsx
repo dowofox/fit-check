@@ -76,6 +76,7 @@ const AUTO_APPLY_BACKGROUND_REMOVAL = false;
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const CATEGORY_OPTIONS = ["상의", "하의", "신발", "아우터", "액세서리"];
 const DEFAULT_SIZE = CLOSET_SIZE_NOT_ENTERED_LABEL;
+const MAX_BATCH_IMAGE_SELECTION = 10;
 const TOP_SIZE_OPTIONS = ["FREE", "S", "M", "L", "XL", "2XL", "3XL"];
 const BOTTOM_SIZE_OPTIONS = ["FREE", "28", "29", "30", "31", "32", "33", "34", "36"];
 const SHOE_SIZE_OPTIONS = ["FREE", "250", "255", "260", "265", "270", "275", "280", "285"];
@@ -717,7 +718,7 @@ export default function AddClothesScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: !extractedProduct,
-      selectionLimit: extractedProduct ? 1 : 0,
+      selectionLimit: extractedProduct ? 1 : MAX_BATCH_IMAGE_SELECTION,
       quality: 0.8,
     });
 
