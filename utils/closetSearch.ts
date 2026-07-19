@@ -2,6 +2,15 @@ import type { ClosetItem } from "@/utils/storage";
 
 export type ClosetSortOrder = "newest" | "oldest";
 
+export function resolveClosetDetailFilter(
+  selectedDetailCategory: string,
+  availableDetailCategories: string[]
+) {
+  return availableDetailCategories.includes(selectedDetailCategory)
+    ? selectedDetailCategory
+    : "전체";
+}
+
 function getClosetItemSearchText(item: ClosetItem) {
   return [
     item.category,

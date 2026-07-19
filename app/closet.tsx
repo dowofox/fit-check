@@ -4,6 +4,7 @@ import { deleteUnusedClosetItemImages } from "@/utils/closetImageFiles";
 import { getClosetItemReviewFields } from "@/utils/closetRegistration";
 import {
     filterClosetItemsByQuery,
+    resolveClosetDetailFilter,
     sortClosetItems,
     type ClosetSortOrder,
 } from "@/utils/closetSearch";
@@ -150,13 +151,17 @@ export default function ClosetScreen() {
         ],
         [categoryItems]
     );
+    const activeDetailCategory = resolveClosetDetailFilter(
+        selectedDetailCategory,
+        detailFilters
+    );
     const detailFilteredItems = useMemo(
-        () => selectedDetailCategory === "전체"
+        () => activeDetailCategory === "전체"
             ? categoryItems
             : categoryItems.filter(
-                (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
+                (item) => (item.detailCategory || item.subCategory) === activeDetailCategory
             ),
-        [categoryItems, selectedDetailCategory]
+        [activeDetailCategory, categoryItems]
     );
     const filteredItems = useMemo(
         () => filterClosetItemsByQuery(detailFilteredItems, searchQuery),
@@ -168,7 +173,7 @@ export default function ClosetScreen() {
     );
     const visibleWindowKey = [
         selectedCategory,
-        selectedDetailCategory,
+        activeDetailCategory,
         searchQuery.trim(),
         sortOrder,
     ].join("\u0000");
@@ -373,7 +378,7 @@ export default function ClosetScreen() {
                                 contentContainerStyle={styles.detailFilterRow}
                             >
                                 {detailFilters.map((filter) => {
-                                    const isActive = selectedDetailCategory === filter;
+                                    const isActive = activeDetailCategory === filter;
 
                                     return (
                                         <Pressable
@@ -408,9 +413,9 @@ export default function ClosetScreen() {
                                         ? `${REVIEW_FILTER} ${filteredItems.length}개`
                                     : selectedCategory === ARCHIVED_FILTER
                                         ? `${ARCHIVED_FILTER} ${filteredItems.length}개`
-                                    : selectedDetailCategory === "전체"
+                                    : activeDetailCategory === "전체"
                                         ? `${selectedCategory} ${filteredItems.length}개`
-                                        : `${selectedDetailCategory} ${filteredItems.length}개`}
+                                        : `${activeDetailCategory} ${filteredItems.length}개`}
                             </Text>
                             <View style={styles.sortControl}>
                                 {(["newest", "oldest"] as const).map((order) => {
@@ -476,9 +481,9 @@ export default function ClosetScreen() {
                                 <Feather name="archive" size={20} color={colors.point} />
                                 <View style={styles.reviewCompleteTextBox}>
                                     <Text style={styles.reviewCompleteTitle}>
-                                        {selectedDetailCategory === "전체"
+                                        {activeDetailCategory === "전체"
                                             ? `${selectedCategory}에 저장된 옷이 없어요`
-                                            : `${selectedDetailCategory}에 저장된 옷이 없어요`}
+                                            : `${activeDetailCategory}에 저장된 옷이 없어요`}
                                     </Text>
                                     <Text style={styles.reviewCompleteText}>
                                         다른 분류를 선택하거나 새 옷을 추가해보세요.

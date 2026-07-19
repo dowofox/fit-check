@@ -30,6 +30,7 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 
 const {
   filterClosetItemsByQuery,
+  resolveClosetDetailFilter,
   sortClosetItems,
 } = require("../utils/closetSearch.ts");
 
@@ -93,6 +94,20 @@ test("옷장 검색은 계절, 사이즈, 핏과 공식 혼용률을 찾는다",
 
 test("빈 검색어는 기존 목록과 순서를 유지한다", () => {
   assert.equal(filterClosetItemsByQuery(items, "   "), items);
+});
+
+test("선택한 세부 분류가 남아 있으면 그대로 유지한다", () => {
+  assert.equal(
+    resolveClosetDetailFilter("반팔 니트", ["전체", "반팔 니트", "셔츠"]),
+    "반팔 니트"
+  );
+});
+
+test("선택한 세부 분류가 사라지면 전체로 복구한다", () => {
+  assert.equal(
+    resolveClosetDetailFilter("반팔 니트", ["전체", "셔츠"]),
+    "전체"
+  );
 });
 
 test("옷장 정렬은 등록일을 기준으로 하고 잘못된 날짜는 마지막에 둔다", () => {
