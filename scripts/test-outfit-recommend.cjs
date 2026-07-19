@@ -409,6 +409,64 @@ test("같은 입력과 날씨는 홈과 추천 화면에 같은 순서의 결과
   );
 });
 
+test("홈에서 선택한 코디는 후보를 다시 생성하지 않고 첫 번째로 유지한다", () => {
+  const wardrobe = createWardrobe();
+  const baseline = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    { weather: summerWeather }
+  );
+  const selectedRecommendation = baseline.recommendations[1];
+  assert.ok(selectedRecommendation);
+
+  const diagnostics = [];
+  const selectedItemIds = selectedRecommendation.items.map((item) => item.id);
+  const result = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    {
+      weather: summerWeather,
+      preferredItemIds: selectedItemIds,
+      onDiagnostics: (diagnostic) => diagnostics.push(diagnostic),
+    }
+  );
+
+  assert.equal(
+    recommendationItemKey(result.recommendations[0]),
+    recommendationItemKey(selectedRecommendation)
+  );
+  assert.equal(
+    diagnostics.filter((diagnostic) => diagnostic.stage === "scoring").length,
+    1
+  );
+});
+
+test("홈 선택 코디 우선 배치는 저장 코디 제외를 우회하지 않는다", () => {
+  const wardrobe = createWardrobe();
+  const baseline = getOutfitRecommendationResult(wardrobe, null, "여름");
+  const selectedRecommendation = baseline.recommendations[0];
+  const selectedItemIds = selectedRecommendation.items.map((item) => item.id);
+  const result = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [selectedItemIds],
+    { preferredItemIds: selectedItemIds }
+  );
+
+  assert.ok(
+    result.recommendations.every(
+      (recommendation) =>
+        recommendationItemKey(recommendation) !==
+        recommendationItemKey(selectedRecommendation)
+    )
+  );
+});
+
 test("필수 카테고리 부족은 홈과 추천 화면에서 같은 빈 상태 안내를 사용한다", () => {
   const wardrobe = createWardrobe().filter((item) => item.category !== "상의");
   const result = getOutfitRecommendationResult(wardrobe, null, "여름");

@@ -132,48 +132,6 @@ async function getWeatherForRecommendation(
   return getCurrentWeatherForRecommendation();
 }
 
-function isSameItemCombination(firstItemIds: string[], secondItemIds: string[]) {
-  const firstSortedIds = [...firstItemIds].sort();
-  const secondSortedIds = [...secondItemIds].sort();
-
-  return (
-    firstSortedIds.length === secondSortedIds.length &&
-    firstSortedIds.every((id, index) => id === secondSortedIds[index])
-  );
-}
-
-function isRecommendationSameAsSelected(
-  recommendation: OutfitRecommendation,
-  selectedItemIds: string[]
-) {
-  if (selectedItemIds.length === 0) return false;
-  return isSameItemCombination(getSortedItemIds(recommendation.items), selectedItemIds);
-}
-
-function isSavedSelectedCombination(savedOutfitItemIds: string[][], selectedItemIds: string[]) {
-  return savedOutfitItemIds.some((itemIds) => isSameItemCombination(itemIds, selectedItemIds));
-}
-
-function moveSelectedRecommendationFirst(
-  recommendations: OutfitRecommendation[],
-  selectedItemIds: string[]
-) {
-  if (selectedItemIds.length === 0) return recommendations;
-
-  const selectedIndex = recommendations.findIndex((recommendation) =>
-    isRecommendationSameAsSelected(recommendation, selectedItemIds)
-  );
-
-  if (selectedIndex <= 0) return recommendations;
-
-  const selectedRecommendation = recommendations[selectedIndex];
-  return [
-    selectedRecommendation,
-    ...recommendations.slice(0, selectedIndex),
-    ...recommendations.slice(selectedIndex + 1),
-  ];
-}
-
 function getDefaultOutfitName(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -673,36 +631,13 @@ export default function OutfitRecommendScreen() {
       profile,
       undefined,
       savedOutfitItemIds,
-      { weather, feedbacks }
-    );
-    let nextRecommendations = moveSelectedRecommendationFirst(
-      recommendationResult.recommendations,
-      selectedItemIds
-    );
-
-    if (
-      source === "home" &&
-      selectedItemIds.length > 0 &&
-      !nextRecommendations.some((recommendation) =>
-        isRecommendationSameAsSelected(recommendation, selectedItemIds)
-      ) &&
-      !isSavedSelectedCombination(savedOutfitItemIds, selectedItemIds)
-    ) {
-      const allRecommendationResult = getOutfitRecommendationResult(
-        recommendationItems,
-        profile,
-        undefined,
-        [],
-        { weather, feedbacks }
-      );
-      const selectedRecommendation = allRecommendationResult.recommendations.find(
-        (recommendation) => isRecommendationSameAsSelected(recommendation, selectedItemIds)
-      );
-
-      if (selectedRecommendation) {
-        nextRecommendations = [selectedRecommendation, ...nextRecommendations];
+      {
+        weather,
+        feedbacks,
+        preferredItemIds: source === "home" ? selectedItemIds : undefined,
       }
-    }
+    );
+    const nextRecommendations = recommendationResult.recommendations;
 
     setBaseRecommendations(nextRecommendations);
     setShoppingRecommendations(getRecommendedShoppingItems(items));

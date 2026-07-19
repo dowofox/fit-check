@@ -124,6 +124,7 @@ export type OutfitRecommendationWeather = {
 export type OutfitRecommendationOptions = {
   weather?: OutfitRecommendationWeather | null;
   feedbacks?: OutfitRecommendationFeedback[];
+  preferredItemIds?: string[];
   onDiagnostics?: (diagnostic: OutfitRecommendationDiagnostic) => void;
 };
 
@@ -2647,6 +2648,7 @@ function buildRecommendationCandidates(
 function selectRecommendations(
   recommendations: OutfitRecommendation[],
   savedOutfitItemIds: string[][] = [],
+  preferredItemIds: string[] = [],
   onDiagnostics?: OutfitRecommendationOptions["onDiagnostics"]
 ) {
   const savedComparisonStartedAt = Date.now();
@@ -2675,7 +2677,25 @@ function selectRecommendations(
 
   const sortingStartedAt = Date.now();
   sortedRecommendations.sort(compareRecommendations);
-  const diversifiedRecommendations = diversifyRecommendations(sortedRecommendations, 5);
+  const preferredItemKey = [...preferredItemIds].sort().join("|");
+  const preferredRecommendation = preferredItemKey
+    ? displayableRecommendations.find(
+        (recommendation) => getItemCombinationKey(recommendation) === preferredItemKey
+      )
+    : undefined;
+  const recommendationsForDiversity = preferredRecommendation
+    ? [
+        stripAlternatives(preferredRecommendation),
+        ...sortedRecommendations.filter(
+          (recommendation) =>
+            getCoreOutfitKey(recommendation) !== getCoreOutfitKey(preferredRecommendation)
+        ),
+      ]
+    : sortedRecommendations;
+  const diversifiedRecommendations = diversifyRecommendations(
+    recommendationsForDiversity,
+    5
+  );
   onDiagnostics?.({
     stage: "final-sorting",
     durationMs: Date.now() - sortingStartedAt,
@@ -2740,6 +2760,7 @@ export function getOutfitRecommendations(
       options
     ),
     savedOutfitItemIds,
+    options.preferredItemIds,
     options.onDiagnostics
   );
 }
@@ -2771,6 +2792,7 @@ export function getOutfitRecommendationResult(
   const recommendations = selectRecommendations(
     recommendationCandidates,
     savedOutfitItemIds,
+    options.preferredItemIds,
     options.onDiagnostics
   );
   const displayableRecommendations = filterDisplayableRecommendations(recommendationCandidates);
