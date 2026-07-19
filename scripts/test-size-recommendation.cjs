@@ -989,3 +989,25 @@ test("size ranking keeps precision when display scores round to the same value",
   assert.equal(result.sizeRecommendations[0].score, result.sizeRecommendations[1].score);
   assert.equal(result.recommendedSize, "L");
 });
+
+test("reference clothing ranking keeps precision before display score rounding", () => {
+  const candidate = createItem(
+    "precise-reference-candidate",
+    "\uC0C1\uC758",
+    [
+      { size: "M", totalLength: 70.05, shoulder: 48, chest: 55, sleeve: 61 },
+      { size: "L", totalLength: 70.04, shoulder: 48, chest: 55, sleeve: 61 },
+    ]
+  );
+  const referenceItem = createItem(
+    "precise-reference-item",
+    "\uC0C1\uC758",
+    [{ size: "L", totalLength: 70, shoulder: 48, chest: 55, sleeve: 61 }],
+    { size: "L" }
+  );
+
+  const result = getRecommendedProductSize(candidate, null, { referenceItem });
+
+  assert.equal(result.sizeRecommendations[0].score, result.sizeRecommendations[1].score);
+  assert.equal(result.recommendedSize, "L");
+});

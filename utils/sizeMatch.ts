@@ -1680,7 +1680,7 @@ function getReferenceComparison(
   );
 
   return {
-    score: Math.max(0, Math.min(100, Math.round(weightedScoreSum / usedWeightSum))),
+    score: Math.max(0, Math.min(100, weightedScoreSum / usedWeightSum)),
     comparisons,
     reasons: sortedComparisons
       .slice(0, 2)
