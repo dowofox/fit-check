@@ -1095,6 +1095,41 @@ export type RecordOutfitWearResult =
   | { status: "missing_items"; records: OutfitWearRecord[] }
   | { status: "failed"; records: OutfitWearRecord[] };
 
+async function persistOutfitWearMutation({
+  currentCloset,
+  currentRecords,
+  currentRevisions,
+  updatedCloset,
+  updatedRecords,
+  updatedRevisions,
+}: {
+  currentCloset: ClosetItem[];
+  currentRecords: OutfitWearRecord[];
+  currentRevisions: RecommendationRevisionState;
+  updatedCloset: ClosetItem[];
+  updatedRecords: OutfitWearRecord[];
+  updatedRevisions: RecommendationRevisionState;
+}) {
+  const previousEntries: [string, string][] = [
+    [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(currentRecords)],
+    ...getClosetStorageEntries(currentCloset, currentRevisions),
+  ];
+
+  try {
+    await AsyncStorage.multiSet([
+      [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(updatedRecords)],
+      ...getClosetStorageEntries(updatedCloset, updatedRevisions),
+    ]);
+  } catch (error) {
+    try {
+      await AsyncStorage.multiSet(previousEntries);
+    } catch (rollbackError) {
+      console.error("착용 기록 저장 롤백 실패:", rollbackError);
+    }
+    throw error;
+  }
+}
+
 export function recordSavedOutfitWear(
   outfit: SavedOutfit,
   wornAt = new Date()
@@ -1149,10 +1184,14 @@ export function recordSavedOutfitWear(
       "closetRevision",
     ]);
 
-    await AsyncStorage.multiSet([
-      [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(updatedRecords)],
-      ...getClosetStorageEntries(updatedCloset, revisions),
-    ]);
+    await persistOutfitWearMutation({
+      currentCloset: closet,
+      currentRecords: records,
+      currentRevisions,
+      updatedCloset,
+      updatedRecords,
+      updatedRevisions: revisions,
+    });
 
     return { status: "recorded", records: updatedRecords };
     } catch (error) {
@@ -1206,10 +1245,14 @@ export function deleteOutfitWearRecord(
       "closetRevision",
     ]);
 
-    await AsyncStorage.multiSet([
-      [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(updatedRecords)],
-      ...getClosetStorageEntries(updatedCloset, revisions),
-    ]);
+    await persistOutfitWearMutation({
+      currentCloset: closet,
+      currentRecords: records,
+      currentRevisions,
+      updatedCloset,
+      updatedRecords,
+      updatedRevisions: revisions,
+    });
 
     return { status: "deleted", records: updatedRecords };
     } catch (error) {

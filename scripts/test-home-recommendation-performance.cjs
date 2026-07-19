@@ -9,6 +9,7 @@ const projectRoot = path.resolve(__dirname, "..");
 const storageMemory = new Map();
 const storageReadCounts = new Map();
 let failNextMultiSet = false;
+let failNextMultiSetAfterFirstEntry = false;
 let failNextGetItemKey = null;
 
 global.__DEV__ = false;
@@ -26,6 +27,12 @@ const asyncStorage = {
     storageMemory.set(key, value);
   },
   async multiSet(entries) {
+    if (failNextMultiSetAfterFirstEntry) {
+      failNextMultiSetAfterFirstEntry = false;
+      const [firstEntry] = entries;
+      if (firstEntry) storageMemory.set(firstEntry[0], firstEntry[1]);
+      throw new Error("mock partial multiSet failure");
+    }
     if (failNextMultiSet) {
       failNextMultiSet = false;
       throw new Error("mock multiSet failure");
@@ -458,6 +465,47 @@ test("wear record mutations preserve history when the source read fails", async 
     failNextGetItemKey = OUTFIT_WEAR_RECORDS_KEY;
     assert.equal(
       (await deleteOutfitWearRecord(firstWear.records[0].id)).status,
+      "failed"
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal((await getOutfitWearRecords()).length, 1);
+  assert.equal((await getClosetItems())[0].wearCount, 1);
+});
+
+test("partial wear record writes roll back history and closet rotation data", async () => {
+  const item = createClosetItem("wear-partial-write");
+  const outfit = createSavedOutfit("wear-partial-outfit", [item.id]);
+  await saveClosetItem(item);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(
+      (await recordSavedOutfitWear(outfit, new Date(2026, 6, 19, 10, 0, 0))).status,
+      "failed"
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal((await getOutfitWearRecords()).length, 0);
+  assert.equal((await getClosetItems())[0].wearCount, undefined);
+
+  const recorded = await recordSavedOutfitWear(
+    outfit,
+    new Date(2026, 6, 19, 10, 0, 0)
+  );
+  assert.equal(recorded.status, "recorded");
+
+  console.error = () => {};
+  try {
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(
+      (await deleteOutfitWearRecord(recorded.records[0].id)).status,
       "failed"
     );
   } finally {
