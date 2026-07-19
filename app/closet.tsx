@@ -20,7 +20,7 @@ import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Pressable,
@@ -155,6 +155,11 @@ export default function ClosetScreen() {
         selectedDetailCategory,
         detailFilters
     );
+    useEffect(() => {
+        if (selectedDetailCategory !== activeDetailCategory) {
+            setSelectedDetailCategory(activeDetailCategory);
+        }
+    }, [activeDetailCategory, selectedDetailCategory]);
     const detailFilteredItems = useMemo(
         () => activeDetailCategory === "전체"
             ? categoryItems
