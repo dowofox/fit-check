@@ -209,6 +209,43 @@ function createItem(id, category, overrides = {}) {
   };
 }
 
+test("선택형 샌들은 양말 없음으로 뭉개지 않고 대체 양말을 함께 제공한다", () => {
+  const items = [
+    createItem("sock-top", "상의"),
+    createItem("sock-bottom", "하의"),
+    createItem("sock-birkenstock", "신발", {
+      subCategory: "샌들",
+      detailCategory: "버켄스탁 샌들",
+      color: "브라운",
+    }),
+  ];
+  const [recommendation] = getOutfitRecommendations(items, null, "여름");
+
+  assert.ok(recommendation);
+  assert.equal(recommendation.sockRecommendation.required, false);
+  assert.equal(recommendation.sockRecommendation.optional, true);
+  assert.match(recommendation.sockRecommendation.type, /크루삭스/);
+  assert.match(recommendation.sockRecommendation.reason, /양말 없이도 자연스럽고/);
+});
+
+test("일반 샌들은 양말을 권하지 않는 결과를 유지한다", () => {
+  const items = [
+    createItem("no-sock-top", "상의"),
+    createItem("no-sock-bottom", "하의"),
+    createItem("no-sock-sandal", "신발", {
+      subCategory: "샌들",
+      detailCategory: "스트랩 샌들",
+      color: "블랙",
+    }),
+  ];
+  const [recommendation] = getOutfitRecommendations(items, null, "여름");
+
+  assert.ok(recommendation);
+  assert.equal(recommendation.sockRecommendation.required, false);
+  assert.equal(recommendation.sockRecommendation.optional, undefined);
+  assert.equal(recommendation.sockRecommendation.type, "양말 없음");
+});
+
 function createWardrobe() {
   return [
     createItem("top-white", "상의"),

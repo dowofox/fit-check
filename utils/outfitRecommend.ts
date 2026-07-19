@@ -32,6 +32,7 @@ export type OutfitRecommendation = {
   };
   sockRecommendation: {
     required: boolean;
+    optional?: boolean;
     type: string;
     color: string;
     reason: string;
@@ -474,6 +475,7 @@ function getSockRecommendation(
 
   return {
     required: !isOptionalSockShoe,
+    optional: isOptionalSockShoe || undefined,
     type,
     color,
     reason,

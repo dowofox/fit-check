@@ -319,17 +319,19 @@ function RecommendationCard({
         <View style={styles.addonCard}>
           <Feather name="circle" size={15} color={colors.point} />
           <Text style={styles.addonLabel}>
-            {sockRecommendation.required ? "추천 양말" : "양말"}
+            {sockRecommendation.required
+              ? "추천 양말"
+              : sockRecommendation.optional
+                ? "양말 선택"
+                : "양말"}
           </Text>
           <Text style={styles.addonTitle} numberOfLines={1}>
-            {sockRecommendation.required
+            {sockRecommendation.required || sockRecommendation.optional
               ? `${sockRecommendation.color} ${sockRecommendation.type}`
               : "양말 없음"}
           </Text>
           <Text style={styles.addonText} numberOfLines={2}>
-            {sockRecommendation.required
-              ? sockRecommendation.reason
-              : "착용하지 않아도 자연스러운 코디입니다."}
+            {sockRecommendation.reason}
           </Text>
         </View>
         ) : null}
