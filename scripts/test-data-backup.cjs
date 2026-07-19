@@ -8,6 +8,7 @@ const ts = require("typescript");
 const projectRoot = path.resolve(__dirname, "..");
 const storageMemory = new Map();
 let failNextMultiGet = false;
+let nextMultiSetBarrier = null;
 
 global.__DEV__ = false;
 
@@ -19,6 +20,13 @@ const asyncStorage = {
     storageMemory.set(key, value);
   },
   async multiSet(entries) {
+    const barrier = nextMultiSetBarrier;
+    if (barrier) {
+      nextMultiSetBarrier = null;
+      barrier.markStarted();
+      await barrier.waitForRelease;
+    }
+
     entries.forEach(([key, value]) => storageMemory.set(key, value));
   },
   async multiGet(keys) {
@@ -84,12 +92,28 @@ const {
   getSavedOutfits,
   getUserProfile,
   restoreNaesBackupDataSnapshot,
+  saveClosetItem,
   updateClosetItem,
 } = require("../utils/storage.ts");
 
 test.beforeEach(() => {
   failNextMultiGet = false;
+  nextMultiSetBarrier = null;
 });
+
+function pauseNextMultiSet() {
+  let markStarted;
+  let release;
+  const started = new Promise((resolve) => {
+    markStarted = resolve;
+  });
+  const waitForRelease = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  nextMultiSetBarrier = { markStarted, waitForRelease };
+  return { started, release };
+}
 
 function createSnapshot() {
   return {
@@ -321,6 +345,38 @@ test("backup snapshot fails instead of exporting empty data after a storage read
     /mock backup read failure/
   );
   assert.equal((await getClosetItems()).length, 3);
+});
+
+test("backup snapshot waits for an in-flight closet mutation", async () => {
+  storageMemory.clear();
+  const barrier = pauseNextMultiSet();
+  const item = {
+    id: "concurrent-top",
+    imageUri: "https://example.com/concurrent-top.jpg",
+    category: "상의",
+    detailCategory: "반팔 티셔츠",
+    createdAt: "2026-07-19T00:00:00.000Z",
+  };
+  const savePromise = saveClosetItem(item);
+
+  await barrier.started;
+
+  let snapshotSettled = false;
+  const snapshotPromise = getNaesBackupDataSnapshot().then((snapshot) => {
+    snapshotSettled = true;
+    return snapshot;
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(snapshotSettled, false);
+
+  barrier.release();
+  await savePromise;
+  const snapshot = await snapshotPromise;
+
+  assert.deepEqual(snapshot.closetItems.map((closetItem) => closetItem.id), [
+    item.id,
+  ]);
 });
 
 test("backup snapshot rejects a corrupted root value", async () => {

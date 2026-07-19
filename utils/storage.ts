@@ -1293,80 +1293,84 @@ export async function updateSavedOutfit(
   });
 }
 
-export async function getNaesBackupDataSnapshot(): Promise<NaesBackupDataSnapshot> {
-  const entries = await AsyncStorage.multiGet([
-    CLOSET_KEY,
-    PROFILE_KEY,
-    SAVED_OUTFITS_KEY,
-    OUTFIT_FEEDBACK_KEY,
-    OUTFIT_WEAR_RECORDS_KEY,
-  ]);
-  const valuesByKey = new Map(entries);
-  const parseBackupArray = (key: string) => {
-    const rawValue = valuesByKey.get(key);
-    if (!rawValue) return [];
+export function getNaesBackupDataSnapshot(): Promise<NaesBackupDataSnapshot> {
+  return runRecommendationDataMutation(async () => {
+    const entries = await AsyncStorage.multiGet([
+      CLOSET_KEY,
+      PROFILE_KEY,
+      SAVED_OUTFITS_KEY,
+      OUTFIT_FEEDBACK_KEY,
+      OUTFIT_WEAR_RECORDS_KEY,
+    ]);
+    const valuesByKey = new Map(entries);
+    const parseBackupArray = (key: string) => {
+      const rawValue = valuesByKey.get(key);
+      if (!rawValue) return [];
 
-    const parsedValue = JSON.parse(rawValue) as unknown;
-    if (!Array.isArray(parsedValue)) {
-      throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${key}`);
+      const parsedValue = JSON.parse(rawValue) as unknown;
+      if (!Array.isArray(parsedValue)) {
+        throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${key}`);
+      }
+      return parsedValue;
+    };
+    const rawProfile = valuesByKey.get(PROFILE_KEY);
+    const parsedProfile = rawProfile ? (JSON.parse(rawProfile) as unknown) : null;
+
+    if (parsedProfile !== null && !isStoredRecord(parsedProfile)) {
+      throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${PROFILE_KEY}`);
     }
-    return parsedValue;
-  };
-  const rawProfile = valuesByKey.get(PROFILE_KEY);
-  const parsedProfile = rawProfile ? (JSON.parse(rawProfile) as unknown) : null;
 
-  if (parsedProfile !== null && !isStoredRecord(parsedProfile)) {
-    throw new Error(`백업 원본 데이터 형식이 올바르지 않아요: ${PROFILE_KEY}`);
-  }
+    const closetItems = parseBackupArray(CLOSET_KEY).filter(isStoredClosetItem);
+    const savedOutfits = parseBackupArray(SAVED_OUTFITS_KEY).filter(isStoredSavedOutfit);
+    const outfitFeedbacks = normalizeOutfitRecommendationFeedbacks(
+      parseBackupArray(OUTFIT_FEEDBACK_KEY)
+    );
+    const wearRecords = normalizeOutfitWearRecords(
+      parseBackupArray(OUTFIT_WEAR_RECORDS_KEY)
+    );
 
-  const closetItems = parseBackupArray(CLOSET_KEY).filter(isStoredClosetItem);
-  const savedOutfits = parseBackupArray(SAVED_OUTFITS_KEY).filter(isStoredSavedOutfit);
-  const outfitFeedbacks = normalizeOutfitRecommendationFeedbacks(
-    parseBackupArray(OUTFIT_FEEDBACK_KEY)
-  );
-  const wearRecords = normalizeOutfitWearRecords(
-    parseBackupArray(OUTFIT_WEAR_RECORDS_KEY)
-  );
-
-  return {
-    closetItems,
-    profile: parsedProfile as UserProfile | null,
-    savedOutfits,
-    outfitFeedbacks,
-    wearRecords,
-  };
+    return {
+      closetItems,
+      profile: parsedProfile as UserProfile | null,
+      savedOutfits,
+      outfitFeedbacks,
+      wearRecords,
+    };
+  });
 }
 
-export async function restoreNaesBackupDataSnapshot(
+export function restoreNaesBackupDataSnapshot(
   snapshot: NaesBackupDataSnapshot
-) {
-  const currentRevisions = await getRecommendationRevisionState();
-  const revisions = incrementRecommendationRevisions(currentRevisions, [
-    "closetRevision",
-    "profileRevision",
-    "savedOutfitRevision",
-    "feedbackRevision",
-  ]);
-  const outfitFeedbacks = normalizeOutfitRecommendationFeedbacks(
-    snapshot.outfitFeedbacks
-  );
-  const wearRecords = normalizeOutfitWearRecords(snapshot.wearRecords);
-  const restoredProfile = snapshot.profile?.referenceClothing
-    ? {
-        ...snapshot.profile,
-        referenceClothing: pruneReferenceClothing(
-          snapshot.profile.referenceClothing,
-          snapshot.closetItems
-        ),
-      }
-    : snapshot.profile;
+): Promise<void> {
+  return runRecommendationDataMutation(async () => {
+    const currentRevisions = await getRecommendationRevisionState();
+    const revisions = incrementRecommendationRevisions(currentRevisions, [
+      "closetRevision",
+      "profileRevision",
+      "savedOutfitRevision",
+      "feedbackRevision",
+    ]);
+    const outfitFeedbacks = normalizeOutfitRecommendationFeedbacks(
+      snapshot.outfitFeedbacks
+    );
+    const wearRecords = normalizeOutfitWearRecords(snapshot.wearRecords);
+    const restoredProfile = snapshot.profile?.referenceClothing
+      ? {
+          ...snapshot.profile,
+          referenceClothing: pruneReferenceClothing(
+            snapshot.profile.referenceClothing,
+            snapshot.closetItems
+          ),
+        }
+      : snapshot.profile;
 
-  await AsyncStorage.multiSet([
-    ...getClosetStorageEntries(snapshot.closetItems, revisions),
-    [PROFILE_KEY, JSON.stringify(restoredProfile)],
-    [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
-    [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
-    [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
-    [HOME_RECOMMENDATION_CACHE_STORAGE_KEY, ""],
-  ]);
+    await AsyncStorage.multiSet([
+      ...getClosetStorageEntries(snapshot.closetItems, revisions),
+      [PROFILE_KEY, JSON.stringify(restoredProfile)],
+      [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
+      [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
+      [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
+      [HOME_RECOMMENDATION_CACHE_STORAGE_KEY, ""],
+    ]);
+  });
 }
