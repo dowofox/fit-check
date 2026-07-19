@@ -16,7 +16,7 @@ import {
   getUserProfileLoadResult,
   pruneReferenceClothing,
   ReferenceClothing,
-  saveUserProfile,
+  updateUserProfile,
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -182,10 +182,13 @@ export default function ProfileScreen() {
       setReferenceClothing(validReferenceClothing);
 
       if (hadStaleReference) {
-        await saveUserProfile({
-          ...profile,
-          referenceClothing: validReferenceClothing,
-        });
+        await updateUserProfile((currentProfile) => ({
+          ...(currentProfile || profile),
+          referenceClothing: pruneReferenceClothing(
+            currentProfile?.referenceClothing || profile.referenceClothing,
+            savedClosetItems
+          ),
+        }));
         if (requestId !== profileLoadRequestRef.current) return;
       }
       setIsProfileReady(true);
@@ -316,7 +319,8 @@ export default function ProfileScreen() {
 
     setIsSavingProfile(true);
     try {
-      const didSave = await saveUserProfile({
+      const updatedProfile = await updateUserProfile((currentProfile) => ({
+        ...(currentProfile || {}),
         gender,
         age,
         height: normalizedMeasurements.height,
@@ -333,16 +337,17 @@ export default function ProfileScreen() {
         inseam: normalizedMeasurements.inseam,
         thighCircumference: normalizedMeasurements.thighCircumference,
         preferredPantsTotalLength: normalizedPreferredPantsTotalLength,
-        referenceClothing,
-      });
+      }));
 
-      if (!didSave) {
+      if (!updatedProfile) {
         Alert.alert(
           "저장 실패",
           "프로필 정보를 저장하지 못했어요. 입력한 값은 그대로 두었으니 다시 시도해주세요."
         );
         return;
       }
+
+      setReferenceClothing(updatedProfile.referenceClothing || {});
 
       setTopSize(normalizedTopSize);
       setBottomSize(normalizedBottomSize);

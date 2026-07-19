@@ -800,6 +800,33 @@ export function saveUserProfile(profile: UserProfile): Promise<boolean> {
   });
 }
 
+export function updateUserProfile(
+  updater: (currentProfile: UserProfile | null) => UserProfile
+): Promise<UserProfile | null> {
+  return runRecommendationDataMutation(async () => {
+    try {
+      const profileLoad = await getUserProfileLoadResult();
+      if (profileLoad.status === "failed") {
+        throw new Error("Stored profile data could not be loaded");
+      }
+
+      const updatedProfile = updater(profileLoad.profile);
+      const revisions = await getIncrementedRecommendationRevisions([
+        "profileRevision",
+      ]);
+
+      await AsyncStorage.multiSet([
+        [PROFILE_KEY, JSON.stringify(updatedProfile)],
+        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+      ]);
+      return updatedProfile;
+    } catch (error) {
+      console.error("프로필 수정 실패:", error);
+      return null;
+    }
+  });
+}
+
 export async function getUserProfileLoadResult(): Promise<UserProfileLoadResult> {
   const timer = startPerformanceTimer("storage.getUserProfile");
 

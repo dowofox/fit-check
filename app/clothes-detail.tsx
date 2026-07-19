@@ -64,9 +64,9 @@ import {
   ProductSizeMeasurement,
   ProductClassificationField,
   ReferenceClothing,
-  saveUserProfile,
   StyleProfile,
   updateClosetItem,
+  updateUserProfile,
   UserProfile,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
@@ -2491,24 +2491,22 @@ export default function ClothesDetailScreen() {
     const referenceKey = getReferenceClothingKey(item);
     if (!referenceKey) return;
 
-    const nextProfile: UserProfile = {
-      ...(profile || {}),
-      referenceClothing: {
-        ...(profile?.referenceClothing || {}),
-        [referenceKey]: item.id,
-      },
-    };
-
     try {
       setIsSavingReferenceClothing(true);
       invalidateClothesDetailLoad();
-      const didSave = await saveUserProfile(nextProfile);
-      if (!didSave) {
+      const updatedProfile = await updateUserProfile((currentProfile) => ({
+        ...(currentProfile || {}),
+        referenceClothing: {
+          ...(currentProfile?.referenceClothing || {}),
+          [referenceKey]: item.id,
+        },
+      }));
+      if (!updatedProfile) {
         Alert.alert("저장 실패", "기준 옷을 저장하지 못했어요. 다시 시도해주세요.");
         return;
       }
 
-      setProfile(nextProfile);
+      setProfile(updatedProfile);
       setReferenceItem(null);
       Alert.alert(
         "기준 옷 설정 완료",

@@ -122,6 +122,7 @@ const {
   saveUserProfile,
   setOutfitRecommendationFeedback,
   updateClosetItem,
+  updateUserProfile,
   updateSavedOutfit,
 } = require("../utils/storage.ts");
 
@@ -1063,6 +1064,35 @@ test("서로 다른 추천 데이터를 동시에 변경해도 모든 revision�
     ),
     true
   );
+});
+
+test("concurrent profile field and reference updates preserve both changes", async () => {
+  await saveUserProfile({
+    height: "175",
+    referenceClothing: { topItemId: "previous-top" },
+  });
+
+  await Promise.all([
+    updateUserProfile((currentProfile) => ({
+      ...(currentProfile || {}),
+      height: "180",
+    })),
+    updateUserProfile((currentProfile) => ({
+      ...(currentProfile || {}),
+      referenceClothing: {
+        ...(currentProfile?.referenceClothing || {}),
+        bottomItemId: "new-bottom",
+      },
+    })),
+  ]);
+
+  assert.deepEqual(await getUserProfile(), {
+    height: "180",
+    referenceClothing: {
+      topItemId: "previous-top",
+      bottomItemId: "new-bottom",
+    },
+  });
 });
 
 test("손상되거나 오래된 인덱스는 사용하지 않는다", async () => {
