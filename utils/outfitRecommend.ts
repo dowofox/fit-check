@@ -2294,8 +2294,9 @@ function getAlternativeRecommendations(
   return alternatives;
 }
 
-function getBestRecommendationByCoreOutfit(recommendations: OutfitRecommendation[]) {
-  const sortedRecommendations = [...recommendations].sort(compareRecommendations);
+function getBestRecommendationByCoreOutfit(
+  sortedRecommendations: OutfitRecommendation[]
+) {
   const bestRecommendationByCore = new Map<string, OutfitRecommendation>();
 
   sortedRecommendations.forEach((recommendation) => {
@@ -2676,8 +2677,11 @@ function selectRecommendations(
   });
 
   const deduplicationStartedAt = Date.now();
+  const sortedDisplayableRecommendations = [...displayableRecommendations].sort(
+    compareRecommendations
+  );
   const sortedRecommendations = getBestRecommendationByCoreOutfit(
-    displayableRecommendations
+    sortedDisplayableRecommendations
   );
   onDiagnostics?.({
     stage: "deduplication",
@@ -2718,7 +2722,7 @@ function selectRecommendations(
   const alternativesStartedAt = Date.now();
   const result = attachAlternativeRecommendations(
     diversifiedRecommendations,
-    [...displayableRecommendations].sort(compareRecommendations)
+    sortedDisplayableRecommendations
   );
   onDiagnostics?.({
     stage: "alternatives",
