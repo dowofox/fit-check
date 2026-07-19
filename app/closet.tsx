@@ -19,7 +19,7 @@ import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Pressable,
@@ -127,28 +127,43 @@ export default function ClosetScreen() {
         });
     }
 
-    const categoryItems = selectedCategory === "전체"
-        ? items
-        : selectedCategory === REVIEW_FILTER
-            ? items.filter((item) => getClosetItemReviewFields(item).length > 0)
-            : selectedCategory === ARCHIVED_FILTER
-                ? items.filter((item) => item.isArchived === true)
-            : items.filter((item) => item.category === selectedCategory);
-    const detailFilters = [
-        "전체",
-        ...Array.from(new Set(
-            categoryItems
-                .map((item) => item.detailCategory || item.subCategory)
-                .filter((detail): detail is string => Boolean(detail?.trim()))
-        )),
-    ];
-    const detailFilteredItems = selectedDetailCategory === "전체"
-        ? categoryItems
-        : categoryItems.filter(
-            (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
-        );
-    const filteredItems = filterClosetItemsByQuery(detailFilteredItems, searchQuery);
-    const displayedItems = sortClosetItems(filteredItems, sortOrder);
+    const categoryItems = useMemo(
+        () => selectedCategory === "전체"
+            ? items
+            : selectedCategory === REVIEW_FILTER
+                ? items.filter((item) => getClosetItemReviewFields(item).length > 0)
+                : selectedCategory === ARCHIVED_FILTER
+                    ? items.filter((item) => item.isArchived === true)
+                : items.filter((item) => item.category === selectedCategory),
+        [items, selectedCategory]
+    );
+    const detailFilters = useMemo(
+        () => [
+            "전체",
+            ...Array.from(new Set(
+                categoryItems
+                    .map((item) => item.detailCategory || item.subCategory)
+                    .filter((detail): detail is string => Boolean(detail?.trim()))
+            )),
+        ],
+        [categoryItems]
+    );
+    const detailFilteredItems = useMemo(
+        () => selectedDetailCategory === "전체"
+            ? categoryItems
+            : categoryItems.filter(
+                (item) => (item.detailCategory || item.subCategory) === selectedDetailCategory
+            ),
+        [categoryItems, selectedDetailCategory]
+    );
+    const filteredItems = useMemo(
+        () => filterClosetItemsByQuery(detailFilteredItems, searchQuery),
+        [detailFilteredItems, searchQuery]
+    );
+    const displayedItems = useMemo(
+        () => sortClosetItems(filteredItems, sortOrder),
+        [filteredItems, sortOrder]
+    );
     const hasSearchQuery = searchQuery.trim().length > 0;
     const closetCardWidth = Math.max(
         0,
