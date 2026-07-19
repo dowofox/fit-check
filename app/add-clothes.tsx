@@ -624,7 +624,14 @@ export default function AddClothesScreen() {
   }
 
   function switchAddMode(nextMode: AddMode) {
-    if (nextMode === addMode || savingOperationRef.current) return;
+    if (savingOperationRef.current) return;
+
+    if (nextMode === addMode) {
+      if (nextMode === "manual" && !analysis) {
+        applyAnalysisToForm(createManualAnalysis());
+      }
+      return;
+    }
 
     invalidateProductExtraction();
     setAddMode(nextMode);
