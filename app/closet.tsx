@@ -13,7 +13,7 @@ import {
     ClosetItem,
     deleteClosetItem,
     getClosetItemsLoadResult,
-    getSavedOutfits,
+    getSavedOutfitsLoadResult,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
@@ -156,8 +156,20 @@ export default function ClosetScreen() {
 
     async function handleDeleteItem(id: string) {
         const itemToDelete = items.find((item) => item.id === id);
-        const savedOutfits = await getSavedOutfits();
-        const savedOutfitUsageCount = getSavedOutfitUsageCount(savedOutfits, id);
+        const savedOutfitsResult = await getSavedOutfitsLoadResult();
+
+        if (savedOutfitsResult.status === "failed") {
+            Alert.alert(
+                "삭제 정보를 확인하지 못했어요",
+                "저장한 코디에 포함된 옷인지 확인한 뒤 삭제할 수 있어요. 잠시 후 다시 시도해주세요."
+            );
+            return;
+        }
+
+        const savedOutfitUsageCount = getSavedOutfitUsageCount(
+            savedOutfitsResult.outfits,
+            id
+        );
         const description = savedOutfitUsageCount > 0
             ? `저장한 코디 ${savedOutfitUsageCount}개에 포함된 옷이에요. 삭제 후 해당 코디에는 찾을 수 없는 옷으로 표시돼요.`
             : "삭제하면 옷장에서 바로 사라져요.";
