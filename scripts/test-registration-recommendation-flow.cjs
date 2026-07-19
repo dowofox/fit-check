@@ -78,6 +78,7 @@ const {
   normalizeProductAnalysisContext,
 } = require("../server/productAnalysisContext.js");
 const {
+  encodeAnalysisImageUri,
   AnalysisImageError,
   MAX_ANALYSIS_IMAGE_BYTES,
   validateAnalysisImageMetadata,
@@ -186,6 +187,14 @@ function createClosetItem(id, category, overrides = {}) {
 }
 
 const fixtureServer = http.createServer((request, response) => {
+  if (request.url === "/slow-image") {
+    setTimeout(() => {
+      response.setHeader("Content-Type", "image/jpeg");
+      response.end("delayed-image");
+    }, 100);
+    return;
+  }
+
   response.setHeader("Content-Type", "text/html; charset=utf-8");
   response.end(`<!doctype html><html><head>
     <meta property="og:site_name" content="NAES SHOP">
@@ -408,6 +417,10 @@ async function main() {
   );
 
   await listen(fixtureServer, fixturePort);
+  await assert.rejects(
+    () => encodeAnalysisImageUri(`http://127.0.0.1:${fixturePort}/slow-image`, 10),
+    (error) => error instanceof AnalysisImageError && error.code === "fetch_timeout"
+  );
   const apiProcess = spawn(process.execPath, ["server/index.js"], {
     cwd: projectRoot,
     env: {

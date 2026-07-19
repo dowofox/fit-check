@@ -1,4 +1,5 @@
 export const MAX_ANALYSIS_IMAGE_BYTES = 15 * 1024 * 1024;
+export const ANALYSIS_IMAGE_FETCH_TIMEOUT_MS = 15_000;
 
 export type EncodedAnalysisImage = {
   base64: string;
@@ -10,6 +11,7 @@ export type AnalysisImageErrorCode =
   | "too_large"
   | "unexpected_type"
   | "fetch_failed"
+  | "fetch_timeout"
   | "encoding_failed";
 
 export class AnalysisImageError extends Error {
@@ -58,8 +60,41 @@ function getImageDataFromDataUrl(dataUrl: string): EncodedAnalysisImage {
   };
 }
 
-export async function encodeAnalysisImageUri(uri: string) {
-  const imageResponse = await fetch(uri);
+async function fetchAnalysisImage(
+  uri: string,
+  timeoutMs: number
+) {
+  const controller = new AbortController();
+  let didTimeout = false;
+  const timeoutId = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(uri, { signal: controller.signal });
+  } catch (error) {
+    if (didTimeout) {
+      throw new AnalysisImageError(
+        "fetch_timeout",
+        "Image fetch exceeded the analysis timeout"
+      );
+    }
+
+    throw new AnalysisImageError(
+      "fetch_failed",
+      error instanceof Error ? error.message : "Image fetch failed"
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function encodeAnalysisImageUri(
+  uri: string,
+  fetchTimeoutMs = ANALYSIS_IMAGE_FETCH_TIMEOUT_MS
+) {
+  const imageResponse = await fetchAnalysisImage(uri, fetchTimeoutMs);
   const isRemoteImage = /^https?:\/\//i.test(uri);
 
   if (isRemoteImage && !imageResponse.ok) {
