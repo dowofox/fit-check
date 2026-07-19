@@ -33,35 +33,29 @@ const CLOSET_KEY = "naes_closet";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
-let closetMutationQueue: Promise<void> = Promise.resolve();
-let feedbackMutationQueue: Promise<void> = Promise.resolve();
-let savedOutfitMutationQueue: Promise<void> = Promise.resolve();
+let recommendationDataMutationQueue: Promise<void> = Promise.resolve();
 
-function runClosetMutation<T>(operation: () => Promise<T>): Promise<T> {
-  const result = closetMutationQueue.then(operation, operation);
-  closetMutationQueue = result.then(
+function runRecommendationDataMutation<T>(
+  operation: () => Promise<T>
+): Promise<T> {
+  const result = recommendationDataMutationQueue.then(operation, operation);
+  recommendationDataMutationQueue = result.then(
     () => undefined,
     () => undefined
   );
   return result;
+}
+
+function runClosetMutation<T>(operation: () => Promise<T>): Promise<T> {
+  return runRecommendationDataMutation(operation);
 }
 
 function runSavedOutfitMutation<T>(operation: () => Promise<T>): Promise<T> {
-  const result = savedOutfitMutationQueue.then(operation, operation);
-  savedOutfitMutationQueue = result.then(
-    () => undefined,
-    () => undefined
-  );
-  return result;
+  return runRecommendationDataMutation(operation);
 }
 
 function runFeedbackMutation<T>(operation: () => Promise<T>): Promise<T> {
-  const result = feedbackMutationQueue.then(operation, operation);
-  feedbackMutationQueue = result.then(
-    () => undefined,
-    () => undefined
-  );
-  return result;
+  return runRecommendationDataMutation(operation);
 }
 
 export type { OutfitFeedbackValue, OutfitRecommendationFeedback };
@@ -770,21 +764,23 @@ export async function deleteAnalysis(id: string) {
   }
 }
 
-export async function saveUserProfile(profile: UserProfile): Promise<boolean> {
-  try {
-    const revisions = await getIncrementedRecommendationRevisions([
-      "profileRevision",
-    ]);
+export function saveUserProfile(profile: UserProfile): Promise<boolean> {
+  return runRecommendationDataMutation(async () => {
+    try {
+      const revisions = await getIncrementedRecommendationRevisions([
+        "profileRevision",
+      ]);
 
-    await AsyncStorage.multiSet([
-      [PROFILE_KEY, JSON.stringify(profile)],
-      [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
-    ]);
-    return true;
-  } catch (error) {
-    console.error("프로필 저장 실패:", error);
-    return false;
-  }
+      await AsyncStorage.multiSet([
+        [PROFILE_KEY, JSON.stringify(profile)],
+        [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
+      ]);
+      return true;
+    } catch (error) {
+      console.error("프로필 저장 실패:", error);
+      return false;
+    }
+  });
 }
 
 export async function getUserProfileLoadResult(): Promise<UserProfileLoadResult> {

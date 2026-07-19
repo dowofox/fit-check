@@ -981,6 +981,51 @@ test("옷장·프로필·저장 코디 변경은 각 revision과 추천 키를 �
   assert.equal((await getClosetRecommendationIndex()).index.recommendationItems.length, 0);
 });
 
+test("서로 다른 추천 데이터를 동시에 변경해도 모든 revision을 보존한다", async () => {
+  const revisionsBefore = await getRecommendationRevisionState();
+  const item = createClosetItem("cross-domain-revision-item");
+  const outfit = createSavedOutfit("cross-domain-revision-outfit", [
+    item.id,
+    "cross-domain-bottom",
+  ]);
+
+  await Promise.all([
+    saveClosetItem(item),
+    saveUserProfile({ height: "175", topSize: "L" }),
+    saveOutfit(outfit),
+    setOutfitRecommendationFeedback(
+      [item.id, "cross-domain-bottom"],
+      "like"
+    ),
+  ]);
+
+  const revisionsAfter = await getRecommendationRevisionState();
+  assert.equal(
+    revisionsAfter.closetRevision,
+    revisionsBefore.closetRevision + 1
+  );
+  assert.equal(
+    revisionsAfter.profileRevision,
+    revisionsBefore.profileRevision + 1
+  );
+  assert.equal(
+    revisionsAfter.savedOutfitRevision,
+    revisionsBefore.savedOutfitRevision + 1
+  );
+  assert.equal(
+    revisionsAfter.feedbackRevision,
+    revisionsBefore.feedbackRevision + 1
+  );
+  assert.equal((await getClosetItems()).some(({ id }) => id === item.id), true);
+  assert.equal((await getSavedOutfits()).some(({ id }) => id === outfit.id), true);
+  assert.equal(
+    (await getOutfitRecommendationFeedbacks()).some(
+      ({ itemIds }) => itemIds.includes(item.id)
+    ),
+    true
+  );
+});
+
 test("손상되거나 오래된 인덱스는 사용하지 않는다", async () => {
   const item = createClosetItem("repair-top");
   storageMemory.set(CLOSET_KEY, JSON.stringify([item]));
