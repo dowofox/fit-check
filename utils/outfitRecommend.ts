@@ -2447,7 +2447,7 @@ function getShoeRecommendationScore(
   currentSeason: string,
   isCurrent: boolean
 ): ShoeRecommendation | null {
-  if (!isSeasonCandidate(shoe, currentSeason)) return null;
+  if (!isCurrent && !isSeasonCandidate(shoe, currentSeason)) return null;
 
   const baseItems = outfitItems.filter((item) => !["신발"].includes(item.category));
   const outfitColors = getOutfitColorsWithoutShoes(outfitItems);

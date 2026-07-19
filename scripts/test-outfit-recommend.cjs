@@ -1841,6 +1841,42 @@ test("보관 중인 신발은 새 신발 후보에서 제외하되 저장 코디
   );
 });
 
+test("저장 코디의 현재 신발은 계절이 달라도 표시하고 새 신발만 계절로 거른다", () => {
+  const wardrobe = createWardrobe();
+  const winterCurrentShoe = createItem("winter-current-shoe", "신발", {
+    detailCategory: "방한 부츠",
+    seasons: ["겨울"],
+    season: "겨울",
+  });
+  const winterAlternativeShoe = createItem("winter-alternative-shoe", "신발", {
+    detailCategory: "퍼 부츠",
+    seasons: ["겨울"],
+    season: "겨울",
+  });
+  const outfitItems = [
+    wardrobe.find((item) => item.category === "상의"),
+    wardrobe.find((item) => item.category === "하의"),
+    winterCurrentShoe,
+  ].filter(Boolean);
+  const shoeResult = getShoeRecommendationsForOutfit(
+    outfitItems,
+    [...wardrobe, winterCurrentShoe, winterAlternativeShoe],
+    "여름"
+  );
+
+  assert.ok(
+    shoeResult.currentShoes.some(
+      (recommendation) => recommendation.shoe.id === winterCurrentShoe.id
+    )
+  );
+  assert.equal(
+    shoeResult.recommendations.some(
+      (recommendation) => recommendation.shoe.id === winterAlternativeShoe.id
+    ),
+    false
+  );
+});
+
 test("보관 중인 옷은 부족한 아이템 추천의 보유 수에서도 제외한다", () => {
   const activeTop = createItem("active-top", "상의");
   const archivedBottom = createItem("archived-bottom", "하의", {
