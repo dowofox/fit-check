@@ -385,6 +385,10 @@ export type SizeRecommendation = {
   reasons: string[];
 };
 
+type ScoredSizeRecommendation = Omit<SizeRecommendation, "rank"> & {
+  rankingScore: number;
+};
+
 export type SizeRecommendationResult = {
   recommendedSize?: string;
   recommendedDisplaySize?: string;
@@ -1708,7 +1712,7 @@ function scoreSizeMeasurement(
     sleeve: true,
   },
   referenceComparison: ReferenceSizeComparisonResult | null = null
-): Omit<SizeRecommendation, "rank"> {
+): ScoredSizeRecommendation {
   const productSizeGuide = item.confirmedProduct?.productSizeGuide;
   const measurementItem: ClosetItem = {
     ...item,
@@ -1803,10 +1807,13 @@ function scoreSizeMeasurement(
       : referenceComparison.score;
   }
 
+  const rankingScore = Math.max(0, Math.min(100, score));
+
   return {
     size: measurement.size,
     displaySize: getSizeDisplayName(measurement),
-    score: Math.max(0, Math.min(100, Math.round(score))),
+    score: Math.round(rankingScore),
+    rankingScore,
     fitResult: comparison.fitResult,
     lengthResult: comparison.lengthResult,
     widthResult: comparison.widthResult,
@@ -1910,8 +1917,17 @@ export function getRecommendedProductSize(
         referenceComparisonByMeasurement.get(measurement) || null
       )
     )
-    .sort((first, second) => second.score - first.score)
-    .map((recommendation, index) => ({ ...recommendation, rank: index + 1 }));
+    .sort((first, second) => second.rankingScore - first.rankingScore)
+    .map((recommendation, index) => ({
+      size: recommendation.size,
+      displaySize: recommendation.displaySize,
+      score: recommendation.score,
+      rank: index + 1,
+      fitResult: recommendation.fitResult,
+      lengthResult: recommendation.lengthResult,
+      widthResult: recommendation.widthResult,
+      reasons: recommendation.reasons,
+    }));
   const recommended = scoredRows[0];
 
   return {

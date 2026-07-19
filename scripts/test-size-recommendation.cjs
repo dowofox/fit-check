@@ -967,3 +967,25 @@ test("기준 옷 참조는 남아 있는 같은 카테고리 ID만 유지한다"
     outerItemId: "outer",
   });
 });
+
+test("size ranking keeps precision when display scores round to the same value", () => {
+  const item = createItem(
+    "precise-ranking-bottom",
+    "\uD558\uC758",
+    [
+      { size: "M", totalLength: 104.05, waist: 41, hip: 52, thigh: 33 },
+      { size: "L", totalLength: 104.04, waist: 41, hip: 52, thigh: 33 },
+    ]
+  );
+  const profile = {
+    preferredPantsTotalLength: 104,
+    waistCircumference: "82",
+    hipCircumference: "104",
+    thighCircumference: "64",
+  };
+
+  const result = getRecommendedProductSize(item, profile);
+
+  assert.equal(result.sizeRecommendations[0].score, result.sizeRecommendations[1].score);
+  assert.equal(result.recommendedSize, "L");
+});
