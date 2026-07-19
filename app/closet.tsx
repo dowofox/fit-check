@@ -22,12 +22,12 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
     Alert,
-    Dimensions,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
+    useWindowDimensions,
     View,
 } from "react-native";
 
@@ -46,10 +46,6 @@ const CLOSET_FILTERS = [
 const SCREEN_HORIZONTAL_PADDING = 18;
 const GRID_GAP = 12;
 const GRID_COLUMN_COUNT = 3;
-const CLOSET_CARD_WIDTH = Math.floor(
-    (Dimensions.get("window").width - SCREEN_HORIZONTAL_PADDING * 2 - GRID_GAP * (GRID_COLUMN_COUNT - 1))
-    / GRID_COLUMN_COUNT
-);
 
 function getItemTitle(item: ClosetItem) {
     return item.detailCategory || item.subCategory || item.category || "아이템";
@@ -78,6 +74,7 @@ function formatDate(value?: string) {
 
 export default function ClosetScreen() {
     const { category } = useLocalSearchParams<{ category?: string }>();
+    const { width: screenWidth } = useWindowDimensions();
     const [items, setItems] = useState<ClosetItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("전체");
     const [selectedDetailCategory, setSelectedDetailCategory] = useState("전체");
@@ -153,6 +150,15 @@ export default function ClosetScreen() {
     const filteredItems = filterClosetItemsByQuery(detailFilteredItems, searchQuery);
     const displayedItems = sortClosetItems(filteredItems, sortOrder);
     const hasSearchQuery = searchQuery.trim().length > 0;
+    const closetCardWidth = Math.max(
+        0,
+        Math.floor(
+            (screenWidth -
+                SCREEN_HORIZONTAL_PADDING * 2 -
+                GRID_GAP * (GRID_COLUMN_COUNT - 1)) /
+                GRID_COLUMN_COUNT
+        )
+    );
 
     async function handleDeleteItem(id: string) {
         const itemToDelete = items.find((item) => item.id === id);
@@ -456,7 +462,7 @@ export default function ClosetScreen() {
                                     return (
                                         <Pressable
                                             key={item.id}
-                                            style={styles.closetCard}
+                                            style={[styles.closetCard, { width: closetCardWidth }]}
                                             onPress={() => router.push({
                                                 pathname: "/clothes-detail",
                                                 params: { id: item.id },
@@ -783,11 +789,11 @@ const styles = StyleSheet.create({
         rowGap: 18,
     },
     closetCard: {
-        width: CLOSET_CARD_WIDTH,
+        minWidth: 0,
     },
     imageBox: {
         width: "100%",
-        height: CLOSET_CARD_WIDTH,
+        aspectRatio: 1,
         borderRadius: 12,
         backgroundColor: colors.softCard,
         overflow: "hidden",
