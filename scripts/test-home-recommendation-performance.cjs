@@ -209,6 +209,7 @@ test.beforeEach(() => {
   storageMemory.clear();
   storageReadCounts.clear();
   failNextMultiSet = false;
+  failNextMultiSetAfterFirstEntry = false;
   failNextGetItemKey = null;
 });
 
@@ -715,6 +716,44 @@ test("closet mutations preserve existing data when the source read fails", async
   assert.equal(closet.length, 1);
   assert.equal(closet[0].id, item.id);
   assert.equal(closet[0].color, item.color);
+});
+
+test("partial closet writes roll back add, update, and delete mutations", async () => {
+  const item = createClosetItem("closet-partial-write");
+  await saveClosetItem(item);
+  await saveUserProfile({
+    height: "175",
+    referenceClothing: { topItemId: item.id },
+  });
+
+  const assertStorageMatches = (snapshot) => {
+    assert.equal(storageMemory.size, snapshot.size);
+    snapshot.forEach((value, key) => assert.equal(storageMemory.get(key), value));
+  };
+  const originalConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    let snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.deepEqual(await updateClosetItem(item.id, { color: "블랙" }), []);
+    assertStorageMatches(snapshot);
+
+    snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(await deleteClosetItem(item.id), null);
+    assertStorageMatches(snapshot);
+
+    snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.deepEqual(await saveClosetItem(createClosetItem("partial-new-item")), []);
+    assertStorageMatches(snapshot);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal((await getClosetItems())[0].color, item.color);
+  assert.equal((await getUserProfile()).referenceClothing.topItemId, item.id);
 });
 
 test("기준 옷의 카테고리 변경은 프로필 참조와 함께 저장한다", async () => {

@@ -664,6 +664,31 @@ function getClosetStorageEntries(
   ];
 }
 
+async function persistClosetMutationEntries(entries: [string, string][]) {
+  const keys = Array.from(new Set(entries.map(([key]) => key)));
+  const previousEntries = await Promise.all(
+    keys.map(async (key) => [key, await AsyncStorage.getItem(key)] as const)
+  );
+
+  try {
+    await AsyncStorage.multiSet(entries);
+  } catch (error) {
+    try {
+      await Promise.all(
+        previousEntries.map(([key, value]) =>
+          value === null
+            ? AsyncStorage.removeItem(key)
+            : AsyncStorage.setItem(key, value)
+        )
+      );
+    } catch (rollbackError) {
+      console.error("옷장 변경 롤백 실패:", rollbackError);
+    }
+
+    throw error;
+  }
+}
+
 async function loadClosetRecommendationIndex(): Promise<ClosetRecommendationIndexLoadResult> {
   const [rawIndex, rawRevisions] = await Promise.all([
     AsyncStorage.getItem(CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY),
@@ -905,7 +930,7 @@ export function saveClosetItem(item: ClosetItem) {
 
     closet.unshift(item);
 
-    await AsyncStorage.multiSet(getClosetStorageEntries(closet, revisions));
+    await persistClosetMutationEntries(getClosetStorageEntries(closet, revisions));
 
     return closet;
     } catch (error) {
@@ -972,7 +997,7 @@ export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
       ]);
     }
 
-    await AsyncStorage.multiSet(entries);
+    await persistClosetMutationEntries(entries);
 
     return filteredCloset;
     } catch (error) {
@@ -1025,7 +1050,7 @@ export function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
       ]);
     }
 
-    await AsyncStorage.multiSet(entries);
+    await persistClosetMutationEntries(entries);
 
     return updatedCloset;
     } catch (error) {
