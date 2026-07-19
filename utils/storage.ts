@@ -1382,7 +1382,7 @@ export async function setOutfitRecommendationFeedback(
           ]
         : remainingFeedbacks;
 
-      await AsyncStorage.multiSet([
+      await persistStorageMutationEntries([
         [OUTFIT_FEEDBACK_KEY, JSON.stringify(updatedFeedbacks)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);

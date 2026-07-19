@@ -449,6 +449,30 @@ test("feedback mutations preserve existing data when the source read fails", asy
   assert.equal(feedbacks[0].value, "like");
 });
 
+test("partial feedback writes roll back feedback and recommendation revision", async () => {
+  await setOutfitRecommendationFeedback(["top-1", "bottom-1"], "like");
+  const snapshot = new Map(storageMemory);
+  const originalConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(
+      await setOutfitRecommendationFeedback(["top-2", "bottom-2"], "less"),
+      null
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(storageMemory.size, snapshot.size);
+  snapshot.forEach((value, key) => assert.equal(storageMemory.get(key), value));
+  const feedbacks = await getOutfitRecommendationFeedbacks();
+  assert.equal(feedbacks.length, 1);
+  assert.deepEqual(feedbacks[0].itemIds, ["bottom-1", "top-1"]);
+  assert.equal(feedbacks[0].value, "like");
+});
+
 test("feedback reads distinguish storage failures from no feedback", async () => {
   await setOutfitRecommendationFeedback(["top-1", "bottom-1"], "like");
 
