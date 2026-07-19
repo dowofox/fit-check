@@ -3,6 +3,7 @@ import {
   API_TIMEOUTS,
   fetchApiWithTimeout,
 } from "@/utils/api";
+import { encodeAnalysisImageUri } from "@/utils/analysisImage";
 import { getUserProfile, saveAnalysis } from "@/utils/storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
@@ -15,21 +16,7 @@ export default function AnalyzingScreen() {
         const analyzeOutfit = async () => {
             try {
                 const profile = await getUserProfile();
-                const imageResponse = await fetch(imageUri as string);
-                const imageBlob = await imageResponse.blob();
-
-                const base64Image = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-
-                    reader.onloadend = () => {
-                        const result = reader.result as string;
-                        const base64 = result.split(",")[1];
-                        resolve(base64);
-                    };
-
-                    reader.onerror = reject;
-                    reader.readAsDataURL(imageBlob);
-                });
+                const encodedImage = await encodeAnalysisImageUri(imageUri as string);
 
                 const response = await fetchApiWithTimeout(API_ENDPOINTS.analyze, {
                     method: "POST",
@@ -37,7 +24,7 @@ export default function AnalyzingScreen() {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        image: base64Image,
+                        image: encodedImage.base64,
                         profile,
                     }),
                 }, API_TIMEOUTS.analyze);

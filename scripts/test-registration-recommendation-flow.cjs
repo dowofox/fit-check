@@ -78,6 +78,11 @@ const {
   normalizeProductAnalysisContext,
 } = require("../server/productAnalysisContext.js");
 const {
+  AnalysisImageError,
+  MAX_ANALYSIS_IMAGE_BYTES,
+  validateAnalysisImageMetadata,
+} = require("../utils/analysisImage.ts");
+const {
   createClosetItemId,
   getUniqueRegistrationImageUris,
   getClosetItemReviewFields,
@@ -211,6 +216,18 @@ async function main() {
     ["file://first.jpg", "file://second.jpg"]
   );
   assert.deepEqual(getUniqueRegistrationImageUris(["file://first.jpg"], 0), []);
+
+  assert.doesNotThrow(() =>
+    validateAnalysisImageMetadata(MAX_ANALYSIS_IMAGE_BYTES, "image/jpeg")
+  );
+  assert.throws(
+    () => validateAnalysisImageMetadata(MAX_ANALYSIS_IMAGE_BYTES + 1, "image/jpeg"),
+    (error) => error instanceof AnalysisImageError && error.code === "too_large"
+  );
+  assert.throws(
+    () => validateAnalysisImageMetadata(1024, "text/html"),
+    (error) => error instanceof AnalysisImageError && error.code === "unexpected_type"
+  );
 
   const savedItem = createClosetItem("saved-item", "상의");
   assert.equal(wasClosetItemSaved([savedItem], savedItem.id), true);

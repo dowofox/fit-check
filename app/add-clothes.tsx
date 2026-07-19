@@ -3,6 +3,10 @@ import {
   API_TIMEOUTS,
   fetchApiWithTimeout,
 } from "@/utils/api";
+import {
+  encodeAnalysisImageUri,
+  isAnalysisImageTooLargeError,
+} from "@/utils/analysisImage";
 import { normalizeProductColor } from "@/utils/color";
 import {
   createClosetItemId,
@@ -176,11 +180,6 @@ type ClothesAnalysis = {
   cleanImageBase64?: string | null;
 };
 
-type EncodedImage = {
-  base64: string;
-  mimeType: string;
-};
-
 type SelectedImage = {
   uri: string;
 };
@@ -204,54 +203,8 @@ type ExtractedProduct = {
   missingFields?: string[];
 };
 
-function getImageDataFromDataUrl(dataUrl: string): EncodedImage {
-  const [header, base64] = dataUrl.split(",");
-  const mimeType = header.match(/^data:(.*?);base64$/)?.[1] || "image/jpeg";
-
-  return {
-    base64,
-    mimeType,
-  };
-}
-
-async function encodeImageUri(uri: string) {
-  const imageResponse = await fetch(uri);
-  const isRemoteImage = /^https?:\/\//i.test(uri);
-
-  if (isRemoteImage && !imageResponse.ok) {
-    throw new Error(`Image fetch failed: ${imageResponse.status}`);
-  }
-
-  const imageBlob = await imageResponse.blob();
-  const blobType = imageBlob.type.toLocaleLowerCase();
-
-  if (imageBlob.size <= 0) {
-    throw new Error("Image response was empty");
-  }
-
-  if (
-    blobType &&
-    blobType !== "application/octet-stream" &&
-    !blobType.startsWith("image/")
-  ) {
-    throw new Error(`Unexpected image response type: ${blobType}`);
-  }
-
-  return new Promise<EncodedImage>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      resolve(getImageDataFromDataUrl(result));
-    };
-
-    reader.onerror = reject;
-    reader.readAsDataURL(imageBlob);
-  });
-}
-
 async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | null) {
-  const encodedImage = await encodeImageUri(uri);
+  const encodedImage = await encodeAnalysisImageUri(uri);
   const productContext = product
     ? getProductAnalysisTarget({
         productName: product.productName,
@@ -887,6 +840,14 @@ export default function AddClothesScreen() {
       applyAnalysisToForm({ ...nextAnalysis, source: "image" });
     } catch (error) {
       console.error("옷 분석 실패:", error);
+
+      if (isAnalysisImageTooLargeError(error)) {
+        Alert.alert(
+          "사진 용량이 너무 커요",
+          "15MB 이하 사진을 선택하면 안정적으로 분석할 수 있어요."
+        );
+        return;
+      }
 
       if (extractedProduct) {
         applyAnalysisToForm(createProductFallbackAnalysis(extractedProduct));
