@@ -1254,6 +1254,16 @@ function getRequiredProfileFields(
 
   if (isBottomCategory(item)) {
     const hasLengthReference = hasBottomLengthReferenceInput(item, profile, context);
+    const hasRiseAcrossAllSizes = hasProductMeasurementAcrossAllSizes("rise");
+    const hasHeight = Boolean(parseMeasurement(profile?.height));
+    const hasInseam = Boolean(parseMeasurement(profile?.inseam));
+    const missingLengthField = hasLengthReference || hasHeight
+      ? ""
+      : hasRiseAcrossAllSizes
+        ? hasInseam
+          ? ""
+          : "인심 또는 키"
+        : "키";
 
     return [
       hasProductMeasurement("waist") && !parseMeasurement(profile?.waistCircumference)
@@ -1267,11 +1277,7 @@ function getRequiredProfileFields(
       !parseMeasurement(profile?.thighCircumference)
         ? "허벅지둘레"
         : "",
-      !hasLengthReference &&
-      !parseMeasurement(profile?.inseam) &&
-      !parseMeasurement(profile?.height)
-        ? "인심 또는 키"
-        : "",
+      missingLengthField,
     ].filter(Boolean);
   }
 
