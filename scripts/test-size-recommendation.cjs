@@ -809,6 +809,57 @@ test("같은 반바지 형태의 기준 옷은 기존 실측 비교에 사용한
   assert.match(result.sizeRecommendations[0].reasons.join(" "), /기준 바지/);
 });
 
+test("크롭 상의 기준 옷은 일반 상의 사이즈 추천에 사용하지 않는다", () => {
+  const candidate = createItem(
+    "candidate-regular-top",
+    "상의",
+    [
+      { size: "M", totalLength: 66, shoulder: 45, chest: 51, sleeve: 22 },
+      { size: "L", totalLength: 69, shoulder: 48, chest: 55, sleeve: 24 },
+    ],
+    { detailCategory: "반팔 티셔츠" }
+  );
+  const croppedReference = createItem(
+    "reference-cropped-top",
+    "상의",
+    [{ size: "L", totalLength: 43, shoulder: 48, chest: 55, sleeve: 24 }],
+    { size: "L", detailCategory: "크롭 반팔 티셔츠" }
+  );
+
+  const result = getRecommendedProductSize(candidate, null, {
+    referenceItem: croppedReference,
+  });
+
+  assert.equal(result.recommendedSize, undefined);
+  assert.equal(result.blockedReason, "missing_profile_measurements");
+  assert.ok(result.missingFields.length > 0);
+});
+
+test("같은 크롭 상의 형태의 기준 옷은 기존 실측 비교에 사용한다", () => {
+  const candidate = createItem(
+    "candidate-cropped-top",
+    "상의",
+    [
+      { size: "M", totalLength: 40, shoulder: 45, chest: 51, sleeve: 22 },
+      { size: "L", totalLength: 43, shoulder: 48, chest: 55, sleeve: 24 },
+    ],
+    { detailCategory: "크롭 반팔 티셔츠" }
+  );
+  const croppedReference = createItem(
+    "reference-cropped-top-compatible",
+    "상의",
+    [{ size: "L", totalLength: 43, shoulder: 48, chest: 55, sleeve: 24 }],
+    { size: "L", detailCategory: "크롭 반팔 티셔츠" }
+  );
+
+  const result = getRecommendedProductSize(candidate, null, {
+    referenceItem: croppedReference,
+  });
+
+  assert.equal(result.recommendedSize, "L");
+  assert.match(result.sizeRecommendations[0].reasons.join(" "), /기준 옷/);
+});
+
 test("일반 재킷 기준 옷은 롱 코트 사이즈 추천에 사용하지 않는다", () => {
   const candidate = createItem(
     "candidate-long-coat",

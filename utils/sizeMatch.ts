@@ -1522,6 +1522,7 @@ function getReferenceProductMeasurement(referenceItem?: ClosetItem | null) {
 }
 
 type BottomReferenceShape = "fullLength" | "shorts" | "skirt";
+type TopReferenceShape = "cropped" | "regular" | "long";
 type OuterReferenceShape = "regular" | "long" | "vest";
 
 const BOTTOM_SHORTS_KEYWORDS = [
@@ -1535,6 +1536,26 @@ const BOTTOM_SHORTS_KEYWORDS = [
   "shorts",
 ];
 const BOTTOM_SKIRT_KEYWORDS = ["스커트", "치마", "skirt"];
+const TOP_CROPPED_KEYWORDS = [
+  "크롭",
+  "숏기장",
+  "숏 기장",
+  "crop top",
+  "cropped",
+  "short length",
+];
+const TOP_LONG_KEYWORDS = [
+  "롱기장",
+  "롱 기장",
+  "롱티",
+  "롱 티셔츠",
+  "롱 셔츠",
+  "튜닉",
+  "longline",
+  "long length",
+  "long-length",
+  "tunic",
+];
 const OUTER_LONG_KEYWORDS = [
   "코트",
   "트렌치",
@@ -1552,6 +1573,9 @@ function getReferenceShapeSource(item: ClosetItem) {
     item.subCategory,
     item.confirmedProduct?.productName,
     item.inferredProductName,
+    item.styleProfile?.lengthType,
+    item.garmentProfile?.silhouette,
+    item.garmentProfile?.lengthBalance,
     item.description,
   ]
     .filter(Boolean)
@@ -1572,6 +1596,31 @@ function getBottomReferenceShape(item: ClosetItem): BottomReferenceShape {
   return "fullLength";
 }
 
+function getTopReferenceShape(item: ClosetItem): TopReferenceShape {
+  if (
+    item.garmentProfile?.silhouette === "cropped" ||
+    item.garmentProfile?.lengthBalance === "short"
+  ) {
+    return "cropped";
+  }
+  if (
+    item.garmentProfile?.silhouette === "long" ||
+    item.garmentProfile?.lengthBalance === "long"
+  ) {
+    return "long";
+  }
+
+  const source = getReferenceShapeSource(item);
+  if (TOP_CROPPED_KEYWORDS.some((keyword) => source.includes(keyword))) {
+    return "cropped";
+  }
+  if (TOP_LONG_KEYWORDS.some((keyword) => source.includes(keyword))) {
+    return "long";
+  }
+
+  return "regular";
+}
+
 function getOuterReferenceShape(item: ClosetItem): OuterReferenceShape {
   const source = getReferenceShapeSource(item);
 
@@ -1590,6 +1639,9 @@ function isComparableReferenceCategory(item: ClosetItem, referenceItem: ClosetIt
 
   if (isBottomCategory(item) && isBottomCategory(referenceItem)) {
     return getBottomReferenceShape(item) === getBottomReferenceShape(referenceItem);
+  }
+  if (item.category === "상의" && referenceItem.category === "상의") {
+    return getTopReferenceShape(item) === getTopReferenceShape(referenceItem);
   }
   if (item.category === "아우터" && referenceItem.category === "아우터") {
     return getOuterReferenceShape(item) === getOuterReferenceShape(referenceItem);
