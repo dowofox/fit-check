@@ -809,6 +809,56 @@ test("같은 반바지 형태의 기준 옷은 기존 실측 비교에 사용한
   assert.match(result.sizeRecommendations[0].reasons.join(" "), /기준 바지/);
 });
 
+test("일반 재킷 기준 옷은 롱 코트 사이즈 추천에 사용하지 않는다", () => {
+  const candidate = createItem(
+    "candidate-long-coat",
+    "아우터",
+    [
+      { size: "M", totalLength: 108, shoulder: 47, chest: 56, sleeve: 60 },
+      { size: "L", totalLength: 112, shoulder: 50, chest: 60, sleeve: 62 },
+    ],
+    { subCategory: "코트", detailCategory: "발마칸 롱 코트" }
+  );
+  const jacketReference = createItem(
+    "reference-jacket",
+    "아우터",
+    [{ size: "L", totalLength: 68, shoulder: 50, chest: 60, sleeve: 62 }],
+    { size: "L", subCategory: "자켓", detailCategory: "블루종 자켓" }
+  );
+
+  const result = getRecommendedProductSize(candidate, null, {
+    referenceItem: jacketReference,
+  });
+
+  assert.equal(result.recommendedSize, undefined);
+  assert.equal(result.blockedReason, "missing_profile_measurements");
+});
+
+test("같은 롱 아우터 형태의 기준 옷은 기존 실측 비교에 사용한다", () => {
+  const candidate = createItem(
+    "candidate-long-coat-compatible",
+    "아우터",
+    [
+      { size: "M", totalLength: 108, shoulder: 47, chest: 56, sleeve: 60 },
+      { size: "L", totalLength: 112, shoulder: 50, chest: 60, sleeve: 62 },
+    ],
+    { subCategory: "코트", detailCategory: "발마칸 롱 코트" }
+  );
+  const coatReference = createItem(
+    "reference-long-coat",
+    "아우터",
+    [{ size: "L", totalLength: 112, shoulder: 50, chest: 60, sleeve: 62 }],
+    { size: "L", subCategory: "코트", detailCategory: "트렌치 코트" }
+  );
+
+  const result = getRecommendedProductSize(candidate, null, {
+    referenceItem: coatReference,
+  });
+
+  assert.equal(result.recommendedSize, "L");
+  assert.match(result.sizeRecommendations[0].reasons.join(" "), /기준 옷/);
+});
+
 test("실측이 불완전한 같은 카테고리 기준 옷은 추천 근거로 사용하지 않는다", () => {
   const candidate = createItem("candidate-bottom", "하의", [
     { size: "M", totalLength: 101, waist: 39, hip: 50, thigh: 31 },

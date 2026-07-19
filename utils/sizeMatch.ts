@@ -1522,6 +1522,7 @@ function getReferenceProductMeasurement(referenceItem?: ClosetItem | null) {
 }
 
 type BottomReferenceShape = "fullLength" | "shorts" | "skirt";
+type OuterReferenceShape = "regular" | "long" | "vest";
 
 const BOTTOM_SHORTS_KEYWORDS = [
   "반바지",
@@ -1534,9 +1535,19 @@ const BOTTOM_SHORTS_KEYWORDS = [
   "shorts",
 ];
 const BOTTOM_SKIRT_KEYWORDS = ["스커트", "치마", "skirt"];
+const OUTER_LONG_KEYWORDS = [
+  "코트",
+  "트렌치",
+  "발마칸",
+  "롱패딩",
+  "롱 패딩",
+  "coat",
+  "trench",
+];
+const OUTER_VEST_KEYWORDS = ["베스트", "조끼", "vest", "waistcoat"];
 
-function getBottomReferenceShape(item: ClosetItem): BottomReferenceShape {
-  const source = [
+function getReferenceShapeSource(item: ClosetItem) {
+  return [
     item.detailCategory,
     item.subCategory,
     item.confirmedProduct?.productName,
@@ -1546,6 +1557,10 @@ function getBottomReferenceShape(item: ClosetItem): BottomReferenceShape {
     .filter(Boolean)
     .join(" ")
     .toLocaleLowerCase();
+}
+
+function getBottomReferenceShape(item: ClosetItem): BottomReferenceShape {
+  const source = getReferenceShapeSource(item);
 
   if (BOTTOM_SKIRT_KEYWORDS.some((keyword) => source.includes(keyword))) {
     return "skirt";
@@ -1557,11 +1572,27 @@ function getBottomReferenceShape(item: ClosetItem): BottomReferenceShape {
   return "fullLength";
 }
 
+function getOuterReferenceShape(item: ClosetItem): OuterReferenceShape {
+  const source = getReferenceShapeSource(item);
+
+  if (OUTER_VEST_KEYWORDS.some((keyword) => source.includes(keyword))) {
+    return "vest";
+  }
+  if (OUTER_LONG_KEYWORDS.some((keyword) => source.includes(keyword))) {
+    return "long";
+  }
+
+  return "regular";
+}
+
 function isComparableReferenceCategory(item: ClosetItem, referenceItem: ClosetItem) {
   if (item.category !== referenceItem.category) return false;
 
   if (isBottomCategory(item) && isBottomCategory(referenceItem)) {
     return getBottomReferenceShape(item) === getBottomReferenceShape(referenceItem);
+  }
+  if (item.category === "아우터" && referenceItem.category === "아우터") {
+    return getOuterReferenceShape(item) === getOuterReferenceShape(referenceItem);
   }
 
   return true;
