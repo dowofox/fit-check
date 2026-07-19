@@ -664,7 +664,7 @@ function getClosetStorageEntries(
   ];
 }
 
-async function persistClosetMutationEntries(entries: [string, string][]) {
+async function persistStorageMutationEntries(entries: [string, string][]) {
   const keys = Array.from(new Set(entries.map(([key]) => key)));
   const previousEntries = await Promise.all(
     keys.map(async (key) => [key, await AsyncStorage.getItem(key)] as const)
@@ -682,7 +682,7 @@ async function persistClosetMutationEntries(entries: [string, string][]) {
         )
       );
     } catch (rollbackError) {
-      console.error("옷장 변경 롤백 실패:", rollbackError);
+      console.error("저장 변경 롤백 실패:", rollbackError);
     }
 
     throw error;
@@ -852,7 +852,7 @@ export function saveUserProfile(profile: UserProfile): Promise<boolean> {
         "profileRevision",
       ]);
 
-      await AsyncStorage.multiSet([
+      await persistStorageMutationEntries([
         [PROFILE_KEY, JSON.stringify(profile)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
@@ -879,7 +879,7 @@ export function updateUserProfile(
         "profileRevision",
       ]);
 
-      await AsyncStorage.multiSet([
+      await persistStorageMutationEntries([
         [PROFILE_KEY, JSON.stringify(updatedProfile)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
@@ -930,7 +930,7 @@ export function saveClosetItem(item: ClosetItem) {
 
     closet.unshift(item);
 
-    await persistClosetMutationEntries(getClosetStorageEntries(closet, revisions));
+    await persistStorageMutationEntries(getClosetStorageEntries(closet, revisions));
 
     return closet;
     } catch (error) {
@@ -997,7 +997,7 @@ export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
       ]);
     }
 
-    await persistClosetMutationEntries(entries);
+    await persistStorageMutationEntries(entries);
 
     return filteredCloset;
     } catch (error) {
@@ -1050,7 +1050,7 @@ export function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
       ]);
     }
 
-    await persistClosetMutationEntries(entries);
+    await persistStorageMutationEntries(entries);
 
     return updatedCloset;
     } catch (error) {

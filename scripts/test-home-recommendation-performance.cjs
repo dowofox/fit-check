@@ -355,6 +355,39 @@ test("프로필 저장은 실제 저장 성공 여부를 반환한다", async ()
   assert.deepEqual(await getUserProfile(), { height: "175" });
 });
 
+test("partial profile writes roll back profile and recommendation revision", async () => {
+  await saveUserProfile({ height: "175", topSize: "L" });
+
+  const assertStorageMatches = (snapshot) => {
+    assert.equal(storageMemory.size, snapshot.size);
+    snapshot.forEach((value, key) => assert.equal(storageMemory.get(key), value));
+  };
+  const originalConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    let snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(await saveUserProfile({ height: "180", topSize: "XL" }), false);
+    assertStorageMatches(snapshot);
+
+    snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(
+      await updateUserProfile((profile) => ({
+        ...(profile || {}),
+        bottomSize: "32",
+      })),
+      null
+    );
+    assertStorageMatches(snapshot);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(await getUserProfile(), { height: "175", topSize: "L" });
+});
+
 test("profile reads distinguish storage failures from an unregistered profile", async () => {
   await saveUserProfile({ height: "175" });
 
