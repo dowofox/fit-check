@@ -1933,8 +1933,14 @@ function applyWeatherAdjustment(
     ...recommendation.breakdown,
     weather: weatherBreakdownScore,
   };
+  const previousWarningPenalty = getWarningPenalty(recommendation.warnings);
+  const warningPenalty = getWarningPenalty(warnings);
+  const addedWarningPenalty = Math.max(0, warningPenalty - previousWarningPenalty);
   const score = applyScoreCaps(
-    recommendation.score + weatherBreakdownScore - recommendation.breakdown.weather,
+    recommendation.score +
+      weatherBreakdownScore -
+      recommendation.breakdown.weather -
+      addedWarningPenalty,
     warnings,
     reasons,
     breakdown,
@@ -1948,6 +1954,7 @@ function applyWeatherAdjustment(
     reasons,
     warnings,
     breakdown,
+    penalty: warningPenalty,
   };
 }
 

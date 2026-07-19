@@ -384,6 +384,42 @@ const summerWeather = {
   rainChance: 10,
 };
 
+test("날씨로 추가된 경고는 최종 점수와 penalty에 함께 반영한다", () => {
+  const wardrobe = [
+    createItem("weather-top", "상의"),
+    createItem("weather-bottom", "하의"),
+    createItem("weather-white-shoes", "신발", { color: "화이트" }),
+  ];
+  const dryResult = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    { weather: summerWeather }
+  );
+  const rainyResult = getOutfitRecommendationResult(
+    wardrobe,
+    null,
+    "여름",
+    [],
+    {
+      weather: {
+        temperature: 27,
+        condition: "비",
+        rainChance: 80,
+      },
+    }
+  );
+  const dryRecommendation = dryResult.recommendations[0];
+  const rainyRecommendation = rainyResult.recommendations[0];
+
+  assert.ok(dryRecommendation);
+  assert.ok(rainyRecommendation);
+  assert.ok(rainyRecommendation.warnings.some((warning) => warning.includes("밝은 흰 신발")));
+  assert.ok((rainyRecommendation.penalty ?? 0) > (dryRecommendation.penalty ?? 0));
+  assert.ok(rainyRecommendation.score < dryRecommendation.score);
+});
+
 test("같은 입력과 날씨는 홈과 추천 화면에 같은 순서의 결과를 만든다", () => {
   const wardrobe = createWardrobe();
   const homeResult = getOutfitRecommendationResult(
