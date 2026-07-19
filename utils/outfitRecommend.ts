@@ -2275,24 +2275,30 @@ function stripAlternatives(recommendation: OutfitRecommendation): OutfitRecommen
 function getAlternativeRecommendations(
   baseRecommendation: OutfitRecommendation,
   recommendations: OutfitRecommendation[],
-  reservedItemKeys = new Set<string>()
+  reservedItemKeys = new Set<string>(),
+  reservedCoreKeys = new Set<string>()
 ) {
   const baseCoreKey = getCoreOutfitKey(baseRecommendation);
   const baseItemKey = getItemCombinationKey(baseRecommendation);
   const usedItemKeys = new Set<string>();
+  const usedCoreKeys = new Set<string>();
   const alternatives: OutfitRecommendation[] = [];
 
   for (const recommendation of recommendations) {
     if (!isDisplayableRecommendation(recommendation)) continue;
 
     const itemKey = getItemCombinationKey(recommendation);
+    const coreKey = getCoreOutfitKey(recommendation);
 
     if (itemKey === baseItemKey) continue;
-    if (getCoreOutfitKey(recommendation) === baseCoreKey) continue;
+    if (coreKey === baseCoreKey) continue;
     if (reservedItemKeys.has(itemKey)) continue;
+    if (reservedCoreKeys.has(coreKey)) continue;
     if (usedItemKeys.has(itemKey)) continue;
+    if (usedCoreKeys.has(coreKey)) continue;
 
     usedItemKeys.add(itemKey);
+    usedCoreKeys.add(coreKey);
     alternatives.push(stripAlternatives(recommendation));
 
     if (alternatives.length >= 3) break;
@@ -2321,16 +2327,19 @@ function attachAlternativeRecommendations(
   allRecommendations: OutfitRecommendation[]
 ) {
   const reservedItemKeys = new Set(baseRecommendations.map(getItemCombinationKey));
+  const reservedCoreKeys = new Set(baseRecommendations.map(getCoreOutfitKey));
 
   return baseRecommendations.map((baseRecommendation) => {
     const alternatives = getAlternativeRecommendations(
       baseRecommendation,
       allRecommendations,
-      reservedItemKeys
+      reservedItemKeys,
+      reservedCoreKeys
     );
 
     alternatives.forEach((alternative) => {
       reservedItemKeys.add(getItemCombinationKey(alternative));
+      reservedCoreKeys.add(getCoreOutfitKey(alternative));
     });
 
     return {

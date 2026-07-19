@@ -1316,9 +1316,11 @@ test("다른 버전은 기본 추천과 핵심 조합이 다르고 서로 완전
   result.recommendations.forEach((recommendation) => {
     const alternatives = recommendation.alternatives || [];
     const alternativeItemKeys = alternatives.map(itemKey);
+    const alternativeCoreKeys = alternatives.map(coreKey);
 
     assert.equal(recommendation.alternativeCount, alternatives.length);
     assert.equal(new Set(alternativeItemKeys).size, alternativeItemKeys.length);
+    assert.equal(new Set(alternativeCoreKeys).size, alternativeCoreKeys.length);
     alternatives.forEach((alternative) => {
       assert.notEqual(itemKey(alternative), itemKey(recommendation));
       assert.notEqual(coreKey(alternative), coreKey(recommendation));
@@ -1329,14 +1331,20 @@ test("다른 버전은 기본 추천과 핵심 조합이 다르고 서로 완전
 test("다른 버전은 화면의 대표 추천이나 다른 카드의 대체 조합을 반복하지 않는다", () => {
   const recommendations = getOutfitRecommendations(createWardrobe(), null, "여름");
   const mainItemKeys = new Set(recommendations.map(itemKey));
+  const mainCoreKeys = new Set(recommendations.map(coreKey));
   const alternativeItemKeys = recommendations.flatMap((recommendation) =>
     (recommendation.alternatives || []).map(itemKey)
   );
+  const alternativeCoreKeys = recommendations.flatMap((recommendation) =>
+    (recommendation.alternatives || []).map(coreKey)
+  );
 
-  alternativeItemKeys.forEach((alternativeItemKey) => {
+  alternativeItemKeys.forEach((alternativeItemKey, index) => {
     assert.equal(mainItemKeys.has(alternativeItemKey), false);
+    assert.equal(mainCoreKeys.has(alternativeCoreKeys[index]), false);
   });
   assert.equal(new Set(alternativeItemKeys).size, alternativeItemKeys.length);
+  assert.equal(new Set(alternativeCoreKeys).size, alternativeCoreKeys.length);
 });
 
 test("저장한 전체 아이템 조합은 새 추천과 다른 버전에서 제외된다", () => {
