@@ -215,7 +215,26 @@ function getImageDataFromDataUrl(dataUrl: string): EncodedImage {
 
 async function encodeImageUri(uri: string) {
   const imageResponse = await fetch(uri);
+  const isRemoteImage = /^https?:\/\//i.test(uri);
+
+  if (isRemoteImage && !imageResponse.ok) {
+    throw new Error(`Image fetch failed: ${imageResponse.status}`);
+  }
+
   const imageBlob = await imageResponse.blob();
+  const blobType = imageBlob.type.toLocaleLowerCase();
+
+  if (imageBlob.size <= 0) {
+    throw new Error("Image response was empty");
+  }
+
+  if (
+    blobType &&
+    blobType !== "application/octet-stream" &&
+    !blobType.startsWith("image/")
+  ) {
+    throw new Error(`Unexpected image response type: ${blobType}`);
+  }
 
   return new Promise<EncodedImage>((resolve, reject) => {
     const reader = new FileReader();
