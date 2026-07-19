@@ -2676,7 +2676,6 @@ function selectRecommendations(
   });
 
   const sortingStartedAt = Date.now();
-  sortedRecommendations.sort(compareRecommendations);
   const preferredItemKey = [...preferredItemIds].sort().join("|");
   const preferredRecommendation = preferredItemKey
     ? displayableRecommendations.find(
