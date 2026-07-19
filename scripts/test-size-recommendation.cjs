@@ -758,6 +758,57 @@ test("다른 카테고리 기준 옷은 프로필 실측 부족을 우회하지 
   assert.ok(result.missingFields.length > 0);
 });
 
+test("반바지 기준 옷은 긴 바지의 길이와 사이즈 추천에 사용하지 않는다", () => {
+  const candidate = createItem(
+    "candidate-full-length-bottom",
+    "하의",
+    [
+      { size: "M", totalLength: 101, waist: 39, hip: 50, thigh: 31 },
+      { size: "L", totalLength: 104, waist: 42, hip: 53, thigh: 34 },
+    ],
+    { detailCategory: "와이드 데님 팬츠" }
+  );
+  const shortsReference = createItem(
+    "reference-shorts",
+    "하의",
+    [{ size: "L", totalLength: 52, waist: 42, hip: 53, thigh: 34 }],
+    { size: "L", subCategory: "반바지", detailCategory: "버뮤다 쇼츠" }
+  );
+
+  const result = getRecommendedProductSize(candidate, null, {
+    referenceItem: shortsReference,
+  });
+
+  assert.equal(result.recommendedSize, undefined);
+  assert.equal(result.blockedReason, "missing_profile_measurements");
+  assert.ok(result.missingFields.length > 0);
+});
+
+test("같은 반바지 형태의 기준 옷은 기존 실측 비교에 사용한다", () => {
+  const candidate = createItem(
+    "candidate-shorts",
+    "하의",
+    [
+      { size: "M", totalLength: 49, waist: 39, hip: 50, thigh: 31 },
+      { size: "L", totalLength: 52, waist: 42, hip: 53, thigh: 34 },
+    ],
+    { subCategory: "반바지", detailCategory: "코튼 쇼츠" }
+  );
+  const shortsReference = createItem(
+    "reference-shorts-compatible",
+    "하의",
+    [{ size: "L", totalLength: 52, waist: 42, hip: 53, thigh: 34 }],
+    { size: "L", subCategory: "반바지", detailCategory: "버뮤다 쇼츠" }
+  );
+
+  const result = getRecommendedProductSize(candidate, null, {
+    referenceItem: shortsReference,
+  });
+
+  assert.equal(result.recommendedSize, "L");
+  assert.match(result.sizeRecommendations[0].reasons.join(" "), /기준 바지/);
+});
+
 test("실측이 불완전한 같은 카테고리 기준 옷은 추천 근거로 사용하지 않는다", () => {
   const candidate = createItem("candidate-bottom", "하의", [
     { size: "M", totalLength: 101, waist: 39, hip: 50, thigh: 31 },

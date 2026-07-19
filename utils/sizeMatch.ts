@@ -1521,8 +1521,50 @@ function getReferenceProductMeasurement(referenceItem?: ClosetItem | null) {
   return getCurrentProductMeasurement(referenceItem);
 }
 
+type BottomReferenceShape = "fullLength" | "shorts" | "skirt";
+
+const BOTTOM_SHORTS_KEYWORDS = [
+  "반바지",
+  "쇼츠",
+  "숏팬츠",
+  "숏 팬츠",
+  "하프팬츠",
+  "하프 팬츠",
+  "버뮤다",
+  "shorts",
+];
+const BOTTOM_SKIRT_KEYWORDS = ["스커트", "치마", "skirt"];
+
+function getBottomReferenceShape(item: ClosetItem): BottomReferenceShape {
+  const source = [
+    item.detailCategory,
+    item.subCategory,
+    item.confirmedProduct?.productName,
+    item.inferredProductName,
+    item.description,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase();
+
+  if (BOTTOM_SKIRT_KEYWORDS.some((keyword) => source.includes(keyword))) {
+    return "skirt";
+  }
+  if (BOTTOM_SHORTS_KEYWORDS.some((keyword) => source.includes(keyword))) {
+    return "shorts";
+  }
+
+  return "fullLength";
+}
+
 function isComparableReferenceCategory(item: ClosetItem, referenceItem: ClosetItem) {
-  return item.category === referenceItem.category;
+  if (item.category !== referenceItem.category) return false;
+
+  if (isBottomCategory(item) && isBottomCategory(referenceItem)) {
+    return getBottomReferenceShape(item) === getBottomReferenceShape(referenceItem);
+  }
+
+  return true;
 }
 
 function getMeasurementValue(
