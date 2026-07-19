@@ -754,15 +754,27 @@ export function saveAnalysis(result: any): Promise<boolean> {
   });
 }
 
-export async function getAnalysisHistory() {
+export type AnalysisHistoryLoadResult = {
+  status: "loaded" | "failed";
+  history: any[];
+};
+
+export async function getAnalysisHistoryLoadResult(): Promise<AnalysisHistoryLoadResult> {
   try {
     const data = await AsyncStorage.getItem(STORAGE_KEY);
 
-    return parseAnalysisHistoryForMutation(data);
+    return {
+      status: "loaded",
+      history: parseAnalysisHistoryForMutation(data),
+    };
   } catch (error) {
     console.error("불러오기 실패:", error);
-    return [];
+    return { status: "failed", history: [] };
   }
+}
+
+export async function getAnalysisHistory() {
+  return (await getAnalysisHistoryLoadResult()).history;
 }
 
 export function deleteAnalysis(id: string): Promise<any[] | null> {

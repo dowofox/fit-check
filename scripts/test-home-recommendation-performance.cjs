@@ -105,6 +105,7 @@ const {
   getClosetItemsLoadResult,
   getClosetRecommendationIndex,
   getAnalysisHistory,
+  getAnalysisHistoryLoadResult,
   getDisplayImageUris,
   getOutfitRecommendationFeedbacks,
   getOutfitRecommendationFeedbacksLoadResult,
@@ -228,6 +229,19 @@ test("analysis deletion preserves history when the source read fails", async () 
 
   assert.equal(await deleteAnalysis(history[0].id), null);
   assert.equal(storageMemory.get(ANALYSIS_HISTORY_KEY), serializedHistory);
+});
+
+test("analysis history reads distinguish storage failures from an empty history", async () => {
+  assert.deepEqual(await getAnalysisHistoryLoadResult(), {
+    status: "loaded",
+    history: [],
+  });
+
+  failNextGetItemKey = ANALYSIS_HISTORY_KEY;
+  assert.deepEqual(await getAnalysisHistoryLoadResult(), {
+    status: "failed",
+    history: [],
+  });
 });
 
 test("analysis saves do not replace malformed stored history", async () => {

@@ -1,9 +1,9 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
-import { deleteAnalysis, getAnalysisHistory } from "@/utils/storage";
+import { deleteAnalysis, getAnalysisHistoryLoadResult } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 function formatDate(createdAt?: string) {
@@ -27,16 +27,31 @@ function getCreatedAtTime(createdAt?: string) {
 export default function HistoryScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const [openedMenuId, setOpenedMenuId] = useState<string | null>(null);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const historyLoadRequestRef = useRef(0);
 
   const loadHistory = useCallback(async () => {
-    const data = await getAnalysisHistory();
-    setHistory(data);
+    const requestId = historyLoadRequestRef.current + 1;
+    historyLoadRequestRef.current = requestId;
+    const result = await getAnalysisHistoryLoadResult();
+
+    if (requestId !== historyLoadRequestRef.current) return;
+
+    if (result.status === "loaded") {
+      setHistory(result.history);
+      setHasLoadError(false);
+    } else {
+      setHasLoadError(true);
+    }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadHistory();
+      void loadHistory();
       setOpenedMenuId(null);
+      return () => {
+        historyLoadRequestRef.current += 1;
+      };
     }, [loadHistory])
   );
 
@@ -53,12 +68,14 @@ export default function HistoryScreen() {
         text: "삭제",
         style: "destructive",
         onPress: async () => {
+          historyLoadRequestRef.current += 1;
           const updatedHistory = await deleteAnalysis(id);
           if (!updatedHistory) {
             Alert.alert("삭제 실패", "코디 기록을 불러오지 못했어요. 다시 시도해주세요.");
             return;
           }
           setHistory(updatedHistory);
+          setHasLoadError(false);
           setOpenedMenuId(null);
         },
       },
@@ -97,7 +114,22 @@ export default function HistoryScreen() {
             </View>
           </View>
 
-          {history.length === 0 ? (
+          {hasLoadError ? (
+            <View style={styles.loadErrorCard}>
+              <Feather name="alert-circle" size={20} color="#B45309" />
+              <View style={styles.loadErrorTextArea}>
+                <Text style={styles.loadErrorTitle}>코디 기록을 불러오지 못했어요</Text>
+                <Text style={styles.loadErrorText}>
+                  저장된 기록은 그대로 있어요. 잠시 후 다시 시도해주세요.
+                </Text>
+              </View>
+              <Pressable style={styles.loadErrorAction} onPress={loadHistory}>
+                <Text style={styles.loadErrorActionText}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {history.length === 0 && !hasLoadError ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyIcon}>◇</Text>
               <Text style={styles.emptyTitle}>기록이 없어요</Text>
@@ -186,6 +218,12 @@ const styles = StyleSheet.create({
   statsCopy: { flex: 1, minWidth: 0 },
   statValue: { fontSize: 18, fontWeight: "800", color: "#111" },
   statLabel: { marginTop: 3, fontSize: 12, lineHeight: 18, fontWeight: "600", color: "#8c8175" },
+  loadErrorCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#fff8ed", borderRadius: 18, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: "#f0d8b8" },
+  loadErrorTextArea: { flex: 1, minWidth: 0 },
+  loadErrorTitle: { color: "#111", fontSize: 14, fontWeight: "800" },
+  loadErrorText: { color: "#777064", fontSize: 12, lineHeight: 18, marginTop: 3, fontWeight: "600" },
+  loadErrorAction: { flexShrink: 0, backgroundColor: "#111", borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9 },
+  loadErrorActionText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   emptyCard: { backgroundColor: "#fff", borderRadius: 24, padding: 34, alignItems: "center", borderWidth: 1, borderColor: "#f0eee9" },
   emptyIcon: { fontSize: 38, color: "#cbb89c", marginBottom: 12 },
   emptyTitle: { fontSize: 20, fontWeight: "900", color: "#111", marginBottom: 8 },
