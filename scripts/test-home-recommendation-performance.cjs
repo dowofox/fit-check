@@ -621,6 +621,45 @@ test("저장 코디 변경 실패는 정상적인 빈 목록과 구분한다", a
   assert.deepEqual(await deleteSavedOutfit(outfit.id), []);
 });
 
+test("partial saved outfit writes roll back add, update, delete, and revision", async () => {
+  const outfit = createSavedOutfit("saved-partial-write", ["top-1", "bottom-1"]);
+  await saveOutfit(outfit);
+
+  const assertStorageMatches = (snapshot) => {
+    assert.equal(storageMemory.size, snapshot.size);
+    snapshot.forEach((value, key) => assert.equal(storageMemory.get(key), value));
+  };
+  const originalConsoleError = console.error;
+  console.error = () => {};
+
+  try {
+    let snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(
+      (await saveOutfit(createSavedOutfit("saved-partial-add", ["top-2", "bottom-2"]))).status,
+      "failed"
+    );
+    assertStorageMatches(snapshot);
+
+    snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(await updateSavedOutfit(outfit.id, { name: "수정 이름" }), null);
+    assertStorageMatches(snapshot);
+
+    snapshot = new Map(storageMemory);
+    failNextMultiSetAfterFirstEntry = true;
+    assert.equal(await deleteSavedOutfit(outfit.id), null);
+    assertStorageMatches(snapshot);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  const savedOutfits = await getSavedOutfits();
+  assert.equal(savedOutfits.length, 1);
+  assert.equal(savedOutfits[0].id, outfit.id);
+  assert.equal(savedOutfits[0].name, undefined);
+});
+
 test("동시에 같은 코디를 저장해도 저장 경계에서 한 번만 기록한다", async () => {
   const firstOutfit = createSavedOutfit("concurrent-1", ["top-1", "bottom-1"]);
   const secondOutfit = createSavedOutfit("concurrent-2", ["bottom-1", "top-1"]);

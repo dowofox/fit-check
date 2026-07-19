@@ -1077,7 +1077,7 @@ export function saveOutfit(outfit: SavedOutfit): Promise<SaveOutfitResult> {
       const revisions = await getIncrementedRecommendationRevisions([
         "savedOutfitRevision",
       ]);
-      await AsyncStorage.multiSet([
+      await persistStorageMutationEntries([
         [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
@@ -1404,7 +1404,7 @@ export async function deleteSavedOutfit(id: string): Promise<SavedOutfit[] | nul
       ]);
       const filteredOutfits = savedOutfits.filter((outfit) => outfit.id !== id);
 
-      await AsyncStorage.multiSet([
+      await persistStorageMutationEntries([
         [SAVED_OUTFITS_KEY, JSON.stringify(filteredOutfits)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
@@ -1431,7 +1431,7 @@ export async function updateSavedOutfit(
         outfit.id === id ? { ...outfit, ...updatedOutfit } : outfit
       );
 
-      await AsyncStorage.multiSet([
+      await persistStorageMutationEntries([
         [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
