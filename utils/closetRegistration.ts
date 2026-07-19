@@ -27,6 +27,20 @@ type ClosetRegistrationBasicsInput = {
   seasons?: string | string[];
 };
 
+export function isUsableClothesAnalysisResponse(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const analysis = value as Record<string, unknown>;
+  const category = typeof analysis.category === "string"
+    ? analysis.category.trim()
+    : "";
+  const color = typeof analysis.color === "string"
+    ? analysis.color.trim()
+    : "";
+
+  return Boolean(category && category !== "분석 실패" && color);
+}
+
 export function validateClosetRegistration({
   category,
   color,

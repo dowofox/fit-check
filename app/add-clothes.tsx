@@ -14,6 +14,7 @@ import {
   getProductRegistrationReviewFields,
   getRegistrationReviewLabels,
   getRegistrationValidationMessage,
+  isUsableClothesAnalysisResponse,
   normalizeClosetRegistrationBasics,
   normalizeClosetSeasons,
   validateClosetRegistration,
@@ -231,7 +232,11 @@ async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | 
     throw new Error(`Analyze clothes failed: ${response.status}`);
   }
 
-  const analysis = await response.json();
+  const analysis: unknown = await response.json();
+
+  if (!isUsableClothesAnalysisResponse(analysis)) {
+    throw new Error("Analyze clothes returned an invalid payload");
+  }
 
   return applyProductAnalysisTarget(analysis as ClothesAnalysis, productContext);
 }

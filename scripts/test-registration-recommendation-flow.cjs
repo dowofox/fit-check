@@ -88,6 +88,7 @@ const {
   getClosetItemReviewFields,
   getProductRegistrationReviewFields,
   getRegistrationValidationMessage,
+  isUsableClothesAnalysisResponse,
   normalizeClosetRegistrationBasics,
   validateClosetRegistration,
   wasClosetItemSaved,
@@ -216,6 +217,22 @@ async function main() {
     ["file://first.jpg", "file://second.jpg"]
   );
   assert.deepEqual(getUniqueRegistrationImageUris(["file://first.jpg"], 0), []);
+
+  assert.equal(
+    isUsableClothesAnalysisResponse({
+      category: "상의",
+      color: "화이트",
+      seasons: [],
+    }),
+    true
+  );
+  assert.equal(isUsableClothesAnalysisResponse({ error: "temporary failure" }), false);
+  assert.equal(
+    isUsableClothesAnalysisResponse({ category: "분석 실패", color: "미확인" }),
+    false
+  );
+  assert.equal(isUsableClothesAnalysisResponse({ category: "상의", color: "" }), false);
+  assert.equal(isUsableClothesAnalysisResponse([]), false);
 
   assert.doesNotThrow(() =>
     validateAnalysisImageMetadata(MAX_ANALYSIS_IMAGE_BYTES, "image/jpeg")
