@@ -8,6 +8,7 @@ const ts = require("typescript");
 const projectRoot = path.resolve(__dirname, "..");
 const storageMemory = new Map();
 let failNextMultiGet = false;
+let failNextMultiSetAfterFirstEntry = false;
 let nextMultiSetBarrier = null;
 
 global.__DEV__ = false;
@@ -27,7 +28,16 @@ const asyncStorage = {
       await barrier.waitForRelease;
     }
 
+    if (failNextMultiSetAfterFirstEntry) {
+      failNextMultiSetAfterFirstEntry = false;
+      if (entries[0]) storageMemory.set(entries[0][0], entries[0][1]);
+      throw new Error("mock partial backup restore failure");
+    }
+
     entries.forEach(([key, value]) => storageMemory.set(key, value));
+  },
+  async multiRemove(keys) {
+    keys.forEach((key) => storageMemory.delete(key));
   },
   async multiGet(keys) {
     if (failNextMultiGet) {
@@ -98,6 +108,7 @@ const {
 
 test.beforeEach(() => {
   failNextMultiGet = false;
+  failNextMultiSetAfterFirstEntry = false;
   nextMultiSetBarrier = null;
 });
 
@@ -313,6 +324,39 @@ test("restored source data replaces storage and rebuilds derived closet data", a
   const exportedSnapshot = await getNaesBackupDataSnapshot();
   assert.equal(exportedSnapshot.closetItems.length, 3);
   assert.equal(exportedSnapshot.savedOutfits.length, 1);
+});
+
+test("partial backup restore writes are rolled back to the previous app data", async () => {
+  storageMemory.clear();
+  const previousSnapshot = createSnapshot();
+  await restoreNaesBackupDataSnapshot(previousSnapshot);
+  storageMemory.set(
+    "naes_home_recommendation_cache",
+    JSON.stringify({ version: 2, initial: { key: "previous-cache" } })
+  );
+  const previousStorage = new Map(storageMemory);
+  const replacementSnapshot = {
+    ...createSnapshot(),
+    closetItems: [
+      {
+        id: "replacement-top",
+        imageUri: "https://example.com/replacement.jpg",
+        category: "상의",
+        createdAt: "2026-07-20T00:00:00.000Z",
+      },
+    ],
+    profile: { height: "180", topSize: "XL" },
+  };
+
+  failNextMultiSetAfterFirstEntry = true;
+
+  await assert.rejects(
+    restoreNaesBackupDataSnapshot(replacementSnapshot),
+    /mock partial backup restore failure/
+  );
+  assert.deepEqual(storageMemory, previousStorage);
+  assert.deepEqual(await getClosetItems(), previousSnapshot.closetItems);
+  assert.deepEqual(await getUserProfile(), previousSnapshot.profile);
 });
 
 test("backup restore keeps only reference clothing that exists in the matching category", async () => {

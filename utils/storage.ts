@@ -33,6 +33,16 @@ const CLOSET_KEY = "naes_closet";
 const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
+const BACKUP_RESTORE_STORAGE_KEYS = [
+  CLOSET_KEY,
+  CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY,
+  RECOMMENDATION_REVISIONS_STORAGE_KEY,
+  PROFILE_KEY,
+  SAVED_OUTFITS_KEY,
+  OUTFIT_FEEDBACK_KEY,
+  OUTFIT_WEAR_RECORDS_KEY,
+  HOME_RECOMMENDATION_CACHE_STORAGE_KEY,
+];
 let recommendationDataMutationQueue: Promise<void> = Promise.resolve();
 let analysisHistoryMutationQueue: Promise<void> = Promise.resolve();
 
@@ -1410,6 +1420,9 @@ export function restoreNaesBackupDataSnapshot(
   snapshot: NaesBackupDataSnapshot
 ): Promise<void> {
   return runRecommendationDataMutation(async () => {
+    const previousEntries = await AsyncStorage.multiGet(
+      BACKUP_RESTORE_STORAGE_KEYS
+    );
     const currentRevisions = await getRecommendationRevisionState();
     const revisions = incrementRecommendationRevisions(currentRevisions, [
       "closetRevision",
@@ -1431,13 +1444,39 @@ export function restoreNaesBackupDataSnapshot(
         }
       : snapshot.profile;
 
-    await AsyncStorage.multiSet([
-      ...getClosetStorageEntries(snapshot.closetItems, revisions),
-      [PROFILE_KEY, JSON.stringify(restoredProfile)],
-      [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
-      [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
-      [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
-      [HOME_RECOMMENDATION_CACHE_STORAGE_KEY, ""],
-    ]);
+    try {
+      await AsyncStorage.multiSet([
+        ...getClosetStorageEntries(snapshot.closetItems, revisions),
+        [PROFILE_KEY, JSON.stringify(restoredProfile)],
+        [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
+        [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
+        [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
+        [HOME_RECOMMENDATION_CACHE_STORAGE_KEY, ""],
+      ]);
+    } catch (error) {
+      try {
+        const entriesToRestore = previousEntries.filter(
+          (entry): entry is [string, string] => entry[1] !== null
+        );
+        const keysToRemove = previousEntries
+          .filter(([, value]) => value === null)
+          .map(([key]) => key);
+
+        if (entriesToRestore.length > 0) {
+          await AsyncStorage.multiSet(entriesToRestore);
+        }
+        if (keysToRemove.length > 0) {
+          await AsyncStorage.multiRemove(keysToRemove);
+        }
+      } catch (rollbackError) {
+        console.error("백업 복원 롤백 실패:", rollbackError);
+        throw new Error(
+          "백업 복원에 실패했고 기존 데이터를 자동으로 되돌리지 못했어요.",
+          { cause: rollbackError }
+        );
+      }
+
+      throw error;
+    }
   });
 }
