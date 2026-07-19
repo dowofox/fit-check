@@ -1239,6 +1239,14 @@ function getRequiredProfileFields(
       (measurement) =>
         typeof measurement[key] === "number" && measurement[key] > 0
     );
+  const hasProductMeasurementAcrossAllSizes = (
+    key: keyof ProductSizeMeasurement
+  ) =>
+    !measurements ||
+    measurements.every(
+      (measurement) =>
+        typeof measurement[key] === "number" && measurement[key] > 0
+    );
 
   if (isBottomCategory(item)) {
     const hasLengthReference = hasBottomLengthReferenceInput(item, profile, context);
@@ -1247,10 +1255,12 @@ function getRequiredProfileFields(
       hasProductMeasurement("waist") && !parseMeasurement(profile?.waistCircumference)
         ? "허리둘레"
         : "",
-      hasProductMeasurement("hip") && !parseMeasurement(profile?.hipCircumference)
+      hasProductMeasurementAcrossAllSizes("hip") &&
+      !parseMeasurement(profile?.hipCircumference)
         ? "엉덩이둘레"
         : "",
-      hasProductMeasurement("thigh") && !parseMeasurement(profile?.thighCircumference)
+      hasProductMeasurementAcrossAllSizes("thigh") &&
+      !parseMeasurement(profile?.thighCircumference)
         ? "허벅지둘레"
         : "",
       !hasLengthReference &&
@@ -1275,7 +1285,7 @@ function getRequiredProfileFields(
         ? "키"
         : "",
       shouldCompareUserSleeve(item) &&
-      hasProductMeasurement("sleeve") &&
+      hasProductMeasurementAcrossAllSizes("sleeve") &&
       !parseMeasurement(profile?.armLength)
         ? "팔 길이"
         : "",
