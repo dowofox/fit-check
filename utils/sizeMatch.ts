@@ -1706,7 +1706,8 @@ function scoreSizeMeasurement(
     hip: true,
     thigh: true,
     sleeve: true,
-  }
+  },
+  referenceComparison: ReferenceSizeComparisonResult | null = null
 ): Omit<SizeRecommendation, "rank"> {
   const productSizeGuide = item.confirmedProduct?.productSizeGuide;
   const measurementItem: ClosetItem = {
@@ -1724,11 +1725,6 @@ function scoreSizeMeasurement(
   };
   const comparison = getMeasurementComparison(measurementItem, profile, context);
   const preference = getFitPreference(item.intendedFit);
-  const referenceComparison = getReferenceComparison(
-    item,
-    measurement,
-    context?.referenceItem
-  );
   let score = 0;
 
   if (canUseProfileMeasurements) {
@@ -1872,9 +1868,15 @@ export function getRecommendedProductSize(
     reliableSizeRows
   );
 
-  const hasReferenceComparison = reliableSizeRows.some((measurement) =>
-    Boolean(getReferenceComparison(item, measurement, context?.referenceItem))
+  const referenceComparisonByMeasurement = new Map(
+    reliableSizeRows.map((measurement) => [
+      measurement,
+      getReferenceComparison(item, measurement, context?.referenceItem),
+    ])
   );
+  const hasReferenceComparison = Array.from(
+    referenceComparisonByMeasurement.values()
+  ).some(Boolean);
 
   if (missingFields.length > 0 && !hasReferenceComparison) {
     return {
@@ -1904,7 +1906,8 @@ export function getRecommendedProductSize(
         profile,
         context,
         canUseProfileMeasurements,
-        coverage
+        coverage,
+        referenceComparisonByMeasurement.get(measurement) || null
       )
     )
     .sort((first, second) => second.score - first.score)
