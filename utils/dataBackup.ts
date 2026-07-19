@@ -66,7 +66,6 @@ function isValidClosetItem(value: unknown): value is ClosetItem {
     typeof value.id === "string" &&
     Boolean(value.id) &&
     typeof value.imageUri === "string" &&
-    Boolean(value.imageUri) &&
     typeof value.category === "string" &&
     Boolean(value.category) &&
     typeof value.createdAt === "string" &&

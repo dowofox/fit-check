@@ -222,6 +222,28 @@ test("full backup embeds local images once and keeps remote images portable", as
   });
 });
 
+test("photo-less manual closet items remain valid in backup files", async () => {
+  const snapshot = createSnapshot();
+  snapshot.closetItems = [
+    {
+      id: "manual-accessory",
+      imageUri: "",
+      category: "액세서리",
+      detailCategory: "벨트",
+      color: "블랙",
+      createdAt: "2026-07-20T01:00:00.000Z",
+    },
+  ];
+
+  const payload = await buildNaesBackupPayload(snapshot, async () => {
+    throw new Error("manual items must not request an image read");
+  });
+  const parsedPayload = parseNaesBackupJson(JSON.stringify(payload));
+
+  assert.equal(parsedPayload.data.closetItems.at(-1).imageUri, "");
+  assert.equal(parsedPayload.images.length, 0);
+});
+
 test("restore writes embedded images and reconnects every closet image field", async () => {
   const payload = await buildNaesBackupPayload(createSnapshot(), async (uri) =>
     Buffer.from(uri).toString("base64")
