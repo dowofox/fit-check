@@ -16,6 +16,31 @@ export type ProductClassificationRule = {
 // 구체적인 상품명이 먼저 오도록 정렬합니다. 새 분류는 이 테이블에만 추가합니다.
 export const PRODUCT_CLASSIFICATION_RULES: ProductClassificationRule[] = [
   {
+    id: "knit-zip-up",
+    group: "아우터",
+    label: "니트 집업",
+    keywords: [
+      "니트 집업",
+      "집업 니트",
+      "니트 가디건 집업",
+      "니트 카디건 집업",
+      "케이블 집업",
+      "knit zip up",
+      "knit zip cardigan",
+      "knitted zip cardigan",
+      "zip knit cardigan",
+      "cable knit zip",
+    ],
+    overridesCategoryGroup: true,
+    attributes: {
+      category: "아우터",
+      subCategory: "집업",
+      detailCategory: "니트 집업",
+      material: "니트",
+      styleTags: ["미니멀", "깔끔함"],
+    },
+  },
+  {
     id: "knit-cardigan",
     group: "아우터",
     label: "니트 가디건",
@@ -1290,7 +1315,14 @@ export const PRODUCT_CATEGORY_FALLBACK_RULES: ProductClassificationRule[] = [
     id: "generic-zip-up",
     group: "아우터",
     label: "집업",
-    keywords: ["집업", "zip up", "zip-up"],
+    keywords: [
+      "집업",
+      "zip up",
+      "zip-up",
+      "zip sweatshirt",
+      "zip-up sweatshirt",
+      "sweat zip up",
+    ],
     attributes: {
       category: "아우터",
       subCategory: "집업",

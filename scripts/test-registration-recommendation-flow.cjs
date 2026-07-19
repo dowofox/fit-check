@@ -519,6 +519,56 @@ async function main() {
         .detailCategory,
       "반팔 니트"
     );
+    const knitZipUpCases = [
+      ["면 100% 니트 집업", "면 100%"],
+      ["코튼 니트 집업", "코튼 100%"],
+      ["울 니트 집업", "울 100%"],
+      ["아크릴 니트 집업", "아크릴 100%"],
+      ["니트 가디건 집업", "면 100%"],
+      ["KNITTED ZIP CARDIGAN", "cotton 100%"],
+    ];
+    knitZipUpCases.forEach(([productName, summary]) => {
+      const target = getProductAnalysisTarget({
+        productName,
+        productCategory: "Apparel > Tops",
+        materialComposition: { summary, source: "official" },
+      });
+      assert.equal(target.category, "아우터", productName);
+      assert.equal(target.subCategory, "집업", productName);
+      assert.equal(target.detailCategory, "니트 집업", productName);
+      assert.equal(target.material, "니트", productName);
+    });
+
+    const regularZipUpCases = [
+      ["면 100% 후드 집업", "후드 집업"],
+      ["COTTON ZIP SWEATSHIRT", "집업"],
+      ["쭈리 집업", "집업"],
+      ["저지 트랙 집업", "집업"],
+    ];
+    regularZipUpCases.forEach(([productName, detailCategory]) => {
+      assert.equal(
+        getProductAnalysisTarget({
+          productName,
+          materialComposition: { summary: "면 100%", source: "official" },
+        }).detailCategory,
+        detailCategory,
+        productName
+      );
+    });
+
+    const protectedKnitZipUp = inferProductAttributesFromConfirmedProduct({
+      productName: "코튼 니트 집업",
+      currentItem: {
+        id: "protected-knit-zip-up",
+        imageUri: "file:///protected-knit-zip-up.png",
+        category: "아우터",
+        subCategory: "집업",
+        detailCategory: "사용자 지정 집업",
+        userEditedClassificationFields: ["detailCategory"],
+        createdAt,
+      },
+    });
+    assert.equal(protectedKnitZipUp.detailCategory, undefined);
     assert.equal(
       getProductAnalysisTarget({ productName: "OXFORD SHORT SLEEVE SHIRT" })
         .detailCategory,
