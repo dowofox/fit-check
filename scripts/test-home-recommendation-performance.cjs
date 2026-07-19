@@ -97,12 +97,14 @@ const {
   saveHomeRecommendationCacheSnapshot,
 } = require("../utils/homeRecommendationCache.ts");
 const {
+  deleteAnalysis,
   deleteClosetItem,
   deleteSavedOutfit,
   deleteOutfitWearRecord,
   getClosetItems,
   getClosetItemsLoadResult,
   getClosetRecommendationIndex,
+  getAnalysisHistory,
   getDisplayImageUris,
   getOutfitRecommendationFeedbacks,
   getOutfitRecommendationFeedbacksLoadResult,
@@ -115,6 +117,7 @@ const {
   getUserProfileLoadResult,
   recordSavedOutfitWear,
   saveClosetItem,
+  saveAnalysis,
   saveOutfit,
   saveUserProfile,
   setOutfitRecommendationFeedback,
@@ -123,6 +126,7 @@ const {
 } = require("../utils/storage.ts");
 
 const CLOSET_KEY = "naes_closet";
+const ANALYSIS_HISTORY_KEY = "analysis_history";
 const PROFILE_KEY = "naes_profile";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
@@ -196,6 +200,41 @@ test.beforeEach(() => {
   storageReadCounts.clear();
   failNextMultiSet = false;
   failNextGetItemKey = null;
+});
+
+test("concurrent analysis saves preserve every completed record", async () => {
+  const first = { id: "analysis-first", createdAt: "2026-07-19T00:00:00.000Z" };
+  const second = { id: "analysis-second", createdAt: "2026-07-19T00:01:00.000Z" };
+
+  assert.deepEqual(await Promise.all([saveAnalysis(first), saveAnalysis(second)]), [
+    true,
+    true,
+  ]);
+  assert.deepEqual(
+    (await getAnalysisHistory()).map(({ id }) => id).sort(),
+    [first.id, second.id]
+  );
+});
+
+test("analysis deletion preserves history when the source read fails", async () => {
+  const history = [
+    { id: "analysis-first" },
+    { id: "analysis-second" },
+  ];
+  const serializedHistory = JSON.stringify(history);
+  storageMemory.set(ANALYSIS_HISTORY_KEY, serializedHistory);
+  failNextGetItemKey = ANALYSIS_HISTORY_KEY;
+
+  assert.equal(await deleteAnalysis(history[0].id), null);
+  assert.equal(storageMemory.get(ANALYSIS_HISTORY_KEY), serializedHistory);
+});
+
+test("analysis saves do not replace malformed stored history", async () => {
+  const malformedHistory = JSON.stringify({ id: "not-an-array" });
+  storageMemory.set(ANALYSIS_HISTORY_KEY, malformedHistory);
+
+  assert.equal(await saveAnalysis({ id: "new-analysis" }), false);
+  assert.equal(storageMemory.get(ANALYSIS_HISTORY_KEY), malformedHistory);
 });
 
 test("home recommendation cache loads distinguish missing, invalid, and failed storage", async () => {

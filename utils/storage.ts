@@ -34,6 +34,7 @@ const SAVED_OUTFITS_KEY = "naes_saved_outfits";
 const OUTFIT_FEEDBACK_KEY = "naes_outfit_recommendation_feedback";
 const OUTFIT_WEAR_RECORDS_KEY = "naes_outfit_wear_records";
 let recommendationDataMutationQueue: Promise<void> = Promise.resolve();
+let analysisHistoryMutationQueue: Promise<void> = Promise.resolve();
 
 function runRecommendationDataMutation<T>(
   operation: () => Promise<T>
@@ -56,6 +57,15 @@ function runSavedOutfitMutation<T>(operation: () => Promise<T>): Promise<T> {
 
 function runFeedbackMutation<T>(operation: () => Promise<T>): Promise<T> {
   return runRecommendationDataMutation(operation);
+}
+
+function runAnalysisHistoryMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = analysisHistoryMutationQueue.then(operation, operation);
+  analysisHistoryMutationQueue = result.then(
+    () => undefined,
+    () => undefined
+  );
+  return result;
 }
 
 export type { OutfitFeedbackValue, OutfitRecommendationFeedback };
@@ -717,51 +727,58 @@ export function getClosetRecommendationIndex(): Promise<ClosetRecommendationInde
   return request;
 }
 
-export async function saveAnalysis(result: any) {
-  try {
-    const existing = await AsyncStorage.getItem(STORAGE_KEY);
+function parseAnalysisHistoryForMutation(value: string | null): any[] {
+  if (!value) return [];
 
-    const history = existing ? JSON.parse(existing) : [];
-
-    history.unshift(result);
-    const limitedHistory = history.slice(0, 20);
-
-    await AsyncStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(limitedHistory)
-    );
-
-  } catch (error) {
-    console.error("저장 실패:", error);
+  const parsed = JSON.parse(value) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error("Stored analysis history is not an array");
   }
+
+  return parsed;
+}
+
+export function saveAnalysis(result: any): Promise<boolean> {
+  return runAnalysisHistoryMutation(async () => {
+    try {
+      const existing = await AsyncStorage.getItem(STORAGE_KEY);
+      const history = parseAnalysisHistoryForMutation(existing);
+      const limitedHistory = [result, ...history].slice(0, 20);
+
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(limitedHistory));
+      return true;
+    } catch (error) {
+      console.error("저장 실패:", error);
+      return false;
+    }
+  });
 }
 
 export async function getAnalysisHistory() {
   try {
     const data = await AsyncStorage.getItem(STORAGE_KEY);
 
-    return data ? JSON.parse(data) : [];
+    return parseAnalysisHistoryForMutation(data);
   } catch (error) {
     console.error("불러오기 실패:", error);
     return [];
   }
 }
 
-export async function deleteAnalysis(id: string) {
-  try {
-    const history = await getAnalysisHistory();
-    const filteredHistory = history.filter((item: any) => item.id !== id);
+export function deleteAnalysis(id: string): Promise<any[] | null> {
+  return runAnalysisHistoryMutation(async () => {
+    try {
+      const existing = await AsyncStorage.getItem(STORAGE_KEY);
+      const history = parseAnalysisHistoryForMutation(existing);
+      const filteredHistory = history.filter((item: any) => item.id !== id);
 
-    await AsyncStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(filteredHistory)
-    );
-
-    return filteredHistory;
-  } catch (error) {
-    console.error("삭제 실패:", error);
-    return [];
-  }
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filteredHistory));
+      return filteredHistory;
+    } catch (error) {
+      console.error("삭제 실패:", error);
+      return null;
+    }
+  });
 }
 
 export function saveUserProfile(profile: UserProfile): Promise<boolean> {

@@ -54,6 +54,10 @@ export default function HistoryScreen() {
         style: "destructive",
         onPress: async () => {
           const updatedHistory = await deleteAnalysis(id);
+          if (!updatedHistory) {
+            Alert.alert("삭제 실패", "코디 기록을 불러오지 못했어요. 다시 시도해주세요.");
+            return;
+          }
           setHistory(updatedHistory);
           setOpenedMenuId(null);
         },
