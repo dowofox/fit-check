@@ -23,6 +23,7 @@ import {
 } from "@/utils/recommendationInput";
 import {
   ClosetItem,
+  createSavedOutfitId,
   getClosetItemsLoadResult,
   getOutfitRecommendationFeedbacksLoadResult,
   getSavedOutfitsLoadResult,
@@ -677,7 +678,7 @@ export default function OutfitRecommendScreen() {
 
     try {
       const saveResult = await saveOutfit({
-        id: Date.now().toString(),
+        id: createSavedOutfitId(savedAt.getTime()),
         name: getDefaultOutfitName(savedAt),
         memo: "",
         itemIds,

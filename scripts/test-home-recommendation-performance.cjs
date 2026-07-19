@@ -97,6 +97,7 @@ const {
   saveHomeRecommendationCacheSnapshot,
 } = require("../utils/homeRecommendationCache.ts");
 const {
+  createSavedOutfitId,
   deleteAnalysis,
   deleteClosetItem,
   deleteSavedOutfit,
@@ -527,6 +528,15 @@ test("동시에 같은 코디를 저장해도 저장 경계에서 한 번만 기
     ["saved", "duplicate"]
   );
   assert.equal((await getSavedOutfits()).length, 1);
+});
+
+test("같은 시각에 만든 서로 다른 저장 코디 ID가 충돌하지 않는다", () => {
+  const timestamp = 1_720_000_000_000;
+  const firstId = createSavedOutfitId(timestamp, 0.1);
+  const secondId = createSavedOutfitId(timestamp, 0.2);
+
+  assert.match(firstId, /^1720000000000-[a-z0-9]{11}$/);
+  assert.notEqual(firstId, secondId);
 });
 
 test("saved outfit mutations preserve existing data when the source read fails", async () => {
