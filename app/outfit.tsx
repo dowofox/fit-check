@@ -1,6 +1,6 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import { getClosetItems, getSavedOutfits } from "@/utils/storage";
-import { colors, radius, shadow, typography } from "@/utils/theme";
+import { colors, radius, shadow } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack } from "expo-router";
@@ -31,9 +31,13 @@ export default function OutfitHubScreen() {
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>OUTFIT</Text>
-        <Text style={styles.title}>코디</Text>
-        <Text style={styles.subtitle}>추천받고, 저장한 조합을 다시 확인해보세요.</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerSide} />
+
+          <Text style={styles.headerTitle}>코디</Text>
+
+          <View style={styles.headerSide} />
+        </View>
 
         <View style={styles.summaryCard}>
           <View>
@@ -80,24 +84,24 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 28,
-    paddingHorizontal: 20,
+    paddingTop: 42,
+    paddingHorizontal: 18,
     paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
-  eyebrow: {
-    ...typography.eyebrow,
-    color: colors.point,
-    marginBottom: 5,
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 24,
   },
-  title: {
-    ...typography.title,
+  headerSide: {
+    width: 64,
+  },
+  headerTitle: {
     color: colors.text,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.subText,
-    marginTop: 8,
-    marginBottom: 10,
+    fontSize: 24,
+    fontWeight: "800",
+    textAlign: "center",
   },
   summaryCard: {
     backgroundColor: colors.softCard,
