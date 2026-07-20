@@ -13,6 +13,7 @@ import { getSavedOutfitUsageCount } from "@/utils/savedOutfitIntegrity";
 import {
     ClosetItem,
     deleteClosetItem,
+    deleteClosetItems,
     getClosetItemsLoadResult,
     getSavedOutfitsLoadResult,
 } from "@/utils/storage";
@@ -84,7 +85,16 @@ export default function ClosetScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOrder, setSortOrder] = useState<ClosetSortOrder>("newest");
     const [hasLoadError, setHasLoadError] = useState(false);
-    const [visibleWindow, setVisibleWindow] = useState({ key: "", count: CLOSET_PAGE_SIZE });
+    const [visibleWindow, setVisibleWindow] = useState({
+        key: "",
+        count: CLOSET_PAGE_SIZE,
+    });
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
+        () => new Set()
+    );
+    const [isDeletingSelected, setIsDeletingSelected] = useState(false);
+
     const closetLoadRequestRef = useRef(0);
 
     useFocusEffect(
@@ -200,6 +210,110 @@ export default function ClosetScreen() {
             GRID_COLUMN_COUNT
         )
     );
+
+    function enterSelectionMode(id: string) {
+        setIsSelectionMode(true);
+        setSelectedItemIds(new Set([id]));
+    }
+
+    function exitSelectionMode() {
+        if (isDeletingSelected) return;
+
+        setIsSelectionMode(false);
+        setSelectedItemIds(new Set());
+    }
+
+    function toggleSelectedItem(id: string) {
+        setSelectedItemIds((currentIds) => {
+            const nextIds = new Set(currentIds);
+
+            if (nextIds.has(id)) {
+                nextIds.delete(id);
+            } else {
+                nextIds.add(id);
+            }
+
+            return nextIds;
+        });
+    }
+
+    useEffect(() => {
+        if (isSelectionMode && selectedItemIds.size === 0) {
+            setIsSelectionMode(false);
+        }
+    }, [isSelectionMode, selectedItemIds]);
+
+    async function handleDeleteSelectedItems() {
+        if (selectedItemIds.size === 0 || isDeletingSelected) return;
+
+        const selectedIds = Array.from(selectedItemIds);
+        const selectedIdSet = new Set(selectedIds);
+        const selectedItems = items.filter((item) => selectedIdSet.has(item.id));
+        const savedOutfitsResult = await getSavedOutfitsLoadResult();
+
+        if (savedOutfitsResult.status === "failed") {
+            Alert.alert(
+                "삭제 정보를 확인하지 못했어요",
+                "저장한 코디에 포함된 옷인지 확인한 뒤 삭제할 수 있어요. 잠시 후 다시 시도해주세요."
+            );
+            return;
+        }
+
+        const affectedSavedOutfitCount = savedOutfitsResult.outfits.filter(
+            (outfit) => outfit.itemIds.some((itemId) => selectedIdSet.has(itemId))
+        ).length;
+
+        const description =
+            affectedSavedOutfitCount > 0
+                ? `선택한 옷 중 일부가 저장한 코디 ${affectedSavedOutfitCount}개에 포함되어 있어요. 삭제 후 해당 코디에는 찾을 수 없는 옷으로 표시돼요.`
+                : "선택한 옷을 옷장에서 삭제해요.";
+
+        Alert.alert(
+            `${selectedIds.length}개의 옷을 삭제할까요?`,
+            description,
+            [
+                {
+                    text: "취소",
+                    style: "cancel",
+                },
+                {
+                    text: "삭제",
+                    style: "destructive",
+                    onPress: async () => {
+                        setIsDeletingSelected(true);
+                        closetLoadRequestRef.current += 1;
+
+                        const updatedItems = await deleteClosetItems(selectedIds);
+
+                        if (!updatedItems) {
+                            setIsDeletingSelected(false);
+                            Alert.alert(
+                                "삭제 실패",
+                                "선택한 옷을 삭제하지 못했어요. 다시 시도해주세요."
+                            );
+                            return;
+                        }
+
+                        setItems(updatedItems);
+                        setSelectedItemIds(new Set());
+                        setIsSelectionMode(false);
+                        setIsDeletingSelected(false);
+
+                        for (const deletedItem of selectedItems) {
+                            try {
+                                await deleteUnusedClosetItemImages(
+                                    deletedItem,
+                                    updatedItems
+                                );
+                            } catch (error) {
+                                console.error("옷 이미지 파일 정리 실패:", error);
+                            }
+                        }
+                    },
+                },
+            ]
+        );
+    }
 
     async function handleDeleteItem(id: string) {
         const itemToDelete = items.find((item) => item.id === id);

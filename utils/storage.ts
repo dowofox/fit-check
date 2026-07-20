@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   buildClosetRecommendationIndex,
   CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY,
@@ -12,7 +11,6 @@ import {
   type RecommendationRevisionField,
   type RecommendationRevisionState,
 } from "@/utils/homeRecommendationIndex";
-import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 import {
   getOutfitFeedbackKey,
   normalizeOutfitRecommendationFeedbacks,
@@ -23,9 +21,11 @@ import {
   getLocalDateKey,
   getOutfitWearItemKey,
   normalizeOutfitWearRecords,
-  type OutfitWearRecord,
   wasOutfitWornOnDate,
+  type OutfitWearRecord,
 } from "@/utils/outfitWear";
+import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "analysis_history";
 const PROFILE_KEY = "naes_profile";
@@ -78,8 +78,7 @@ function runAnalysisHistoryMutation<T>(operation: () => Promise<T>): Promise<T> 
   return result;
 }
 
-export type { OutfitFeedbackValue, OutfitRecommendationFeedback };
-export type { OutfitWearRecord };
+export type { OutfitFeedbackValue, OutfitRecommendationFeedback, OutfitWearRecord };
 
 export type ReferenceClothing = {
   topItemId?: string;
@@ -965,46 +964,69 @@ export async function getClosetItems(): Promise<ClosetItem[]> {
   return (await getClosetItemsLoadResult()).items;
 }
 
-export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
+export function deleteClosetItems(ids: string[]): Promise<ClosetItem[] | null> {
   return runClosetMutation(async () => {
     try {
-    const [closet, profileLoad, currentRevisions] = await Promise.all([
-      getClosetItemsForMutation(),
-      getUserProfileLoadResult(),
-      getRecommendationRevisionState(),
-    ]);
+      const uniqueIds = new Set(ids.filter(Boolean));
 
-    if (profileLoad.status === "failed") {
-      throw new Error("Stored profile data could not be loaded");
-    }
+      if (uniqueIds.size === 0) {
+        return getClosetItemsForMutation();
+      }
 
-    const profile = profileLoad.profile;
-    const filteredCloset = closet.filter((item) => item.id !== id);
-    const nextReferenceClothing = pruneReferenceClothing(
-      profile?.referenceClothing,
-      filteredCloset
-    );
-    const revisions = incrementRecommendationRevisions(
-      currentRevisions,
-      profile ? ["closetRevision", "profileRevision"] : ["closetRevision"]
-    );
-    const entries = getClosetStorageEntries(filteredCloset, revisions);
-
-    if (profile) {
-      entries.push([
-        PROFILE_KEY,
-        JSON.stringify({ ...profile, referenceClothing: nextReferenceClothing }),
+      const [closet, profileLoad, currentRevisions] = await Promise.all([
+        getClosetItemsForMutation(),
+        getUserProfileLoadResult(),
+        getRecommendationRevisionState(),
       ]);
-    }
 
-    await persistStorageMutationEntries(entries);
+      if (profileLoad.status === "failed") {
+        throw new Error("Stored profile data could not be loaded");
+      }
 
-    return filteredCloset;
+      const profile = profileLoad.profile;
+      const filteredCloset = closet.filter((item) => !uniqueIds.has(item.id));
+
+      const nextReferenceClothing = pruneReferenceClothing(
+        profile?.referenceClothing,
+        filteredCloset
+      );
+
+      const didReferencesChange =
+        Boolean(profile) &&
+        JSON.stringify(profile?.referenceClothing || {}) !==
+          JSON.stringify(nextReferenceClothing || {});
+
+      const revisions = incrementRecommendationRevisions(
+        currentRevisions,
+        didReferencesChange
+          ? ["closetRevision", "profileRevision"]
+          : ["closetRevision"]
+      );
+
+      const entries = getClosetStorageEntries(filteredCloset, revisions);
+
+      if (profile && didReferencesChange) {
+        entries.push([
+          PROFILE_KEY,
+          JSON.stringify({
+            ...profile,
+            referenceClothing: nextReferenceClothing,
+          }),
+        ]);
+      }
+
+      await persistStorageMutationEntries(entries);
+
+      return filteredCloset;
     } catch (error) {
-      console.error("옷장 삭제 실패:", error);
+      console.error("옷장 일괄 삭제 실패:", error);
       return null;
     }
   });
+}
+
+export function deleteClosetItem(id: string): Promise<ClosetItem[] | null> {
+  return deleteClosetItems([id]);
 }
 
 export function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
