@@ -5,11 +5,11 @@ import {
   pickNaesBackupFile,
   restoreNaesBackup,
 } from "@/utils/dataBackupFiles";
-import { normalizeSize } from "@/utils/sizeMatch";
 import {
   countValidProfileMeasurements,
   validateProfileMeasurementInputs,
 } from "@/utils/profileMeasurements";
+import { normalizeSize } from "@/utils/sizeMatch";
 import {
   ClosetItem,
   getClosetItemsLoadResult,
@@ -38,11 +38,11 @@ const referenceClothingSlots: {
   key: keyof ReferenceClothing;
   label: string;
 }[] = [
-  { key: "topItemId", label: "상의" },
-  { key: "bottomItemId", label: "하의" },
-  { key: "outerItemId", label: "아우터" },
-  { key: "shoesItemId", label: "신발" },
-];
+    { key: "topItemId", label: "상의" },
+    { key: "bottomItemId", label: "하의" },
+    { key: "outerItemId", label: "아우터" },
+    { key: "shoesItemId", label: "신발" },
+  ];
 
 function getClosetItemName(item?: ClosetItem) {
   return item?.detailCategory || item?.subCategory || item?.category || "";
@@ -425,13 +425,14 @@ export default function ProfileScreen() {
 
         <View style={styles.referenceClothingCard}>
           <View style={styles.referenceClothingHeader}>
-            <View>
+            <View style={styles.referenceClothingTitleWrap}>
               <Text style={styles.sectionEyebrow}>REFERENCE CLOTHING</Text>
               <Text style={styles.sectionTitle}>내 기준 옷</Text>
               <Text style={styles.referenceClothingDescription}>
                 옷 상세 화면에서 가장 잘 맞는 옷을 기준으로 설정할 수 있어요.
               </Text>
             </View>
+
             <View style={styles.summaryIconCircle}>
               <Feather name="bookmark" size={14} color="#111" />
             </View>
@@ -730,7 +731,7 @@ export default function ProfileScreen() {
             (!isProfileReady ||
               hasProfileLoadError ||
               isProfileDataOperationInProgress) &&
-              styles.saveButtonDisabled,
+            styles.saveButtonDisabled,
           ]}
           onPress={handleSave}
           disabled={
@@ -761,8 +762,8 @@ export default function ProfileScreen() {
               styles.dataActionButton,
               styles.dataActionButtonPrimary,
               isDataManagementDisabled &&
-                !isCreatingBackup &&
-                styles.dataActionButtonDisabled,
+              !isCreatingBackup &&
+              styles.dataActionButtonDisabled,
             ]}
             onPress={() => void handleCreateBackup()}
             disabled={isDataManagementDisabled}
@@ -781,8 +782,8 @@ export default function ProfileScreen() {
             style={[
               styles.dataActionButton,
               isDataManagementDisabled &&
-                !isRestoringBackup &&
-                styles.dataActionButtonDisabled,
+              !isRestoringBackup &&
+              styles.dataActionButtonDisabled,
             ]}
             onPress={() => void handlePickBackup()}
             disabled={isDataManagementDisabled}
@@ -1001,6 +1002,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#E8DED2",
+    flexShrink: 0,
   },
   sectionEyebrow: {
     color: "#9b7a4b",
@@ -1255,5 +1257,9 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: "500",
     marginTop: 2,
+  },
+  referenceClothingTitleWrap: {
+    flex: 1,
+    minWidth: 0,
   },
 });
