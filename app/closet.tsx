@@ -9,10 +9,8 @@ import {
     type ClosetSortOrder,
 } from "@/utils/closetSearch";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
-import { getSavedOutfitUsageCount } from "@/utils/savedOutfitIntegrity";
 import {
     ClosetItem,
-    deleteClosetItem,
     deleteClosetItems,
     getClosetItemsLoadResult,
     getSavedOutfitsLoadResult,
@@ -315,89 +313,67 @@ export default function ClosetScreen() {
         );
     }
 
-    async function handleDeleteItem(id: string) {
-        const itemToDelete = items.find((item) => item.id === id);
-        const savedOutfitsResult = await getSavedOutfitsLoadResult();
-
-        if (savedOutfitsResult.status === "failed") {
-            Alert.alert(
-                "삭제 정보를 확인하지 못했어요",
-                "저장한 코디에 포함된 옷인지 확인한 뒤 삭제할 수 있어요. 잠시 후 다시 시도해주세요."
-            );
-            return;
-        }
-
-        const savedOutfitUsageCount = getSavedOutfitUsageCount(
-            savedOutfitsResult.outfits,
-            id
-        );
-        const description = savedOutfitUsageCount > 0
-            ? `저장한 코디 ${savedOutfitUsageCount}개에 포함된 옷이에요. 삭제 후 해당 코디에는 찾을 수 없는 옷으로 표시돼요.`
-            : "삭제하면 옷장에서 바로 사라져요.";
-
-        Alert.alert(
-            "옷을 삭제할까요?",
-            description,
-            [
-                { text: "취소", style: "cancel" },
-                {
-                    text: "삭제",
-                    style: "destructive",
-                    onPress: async () => {
-                        closetLoadRequestRef.current += 1;
-                        const updatedItems = await deleteClosetItem(id);
-                        if (!updatedItems) {
-                            Alert.alert("삭제 실패", "옷을 삭제하지 못했어요. 다시 시도해주세요.");
-                            return;
-                        }
-
-                        setItems(updatedItems);
-                        if (itemToDelete) {
-                            try {
-                                await deleteUnusedClosetItemImages(itemToDelete, updatedItems);
-                            } catch (error) {
-                                console.error("옷 이미지 파일 정리 실패:", error);
-                            }
-                        }
-                    },
-                },
-            ]
-        );
-    }
 
     return (
         <View style={styles.screen}>
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerRow}>
-                    <View style={styles.headerSide} />
+                    {isSelectionMode ? (
+                        <>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel="선택 취소"
+                                style={styles.selectionHeaderSide}
+                                disabled={isDeletingSelected}
+                                onPress={exitSelectionMode}
+                            >
+                                <Feather name="x" size={22} color={colors.text} />
+                            </Pressable>
 
-                    <Text style={styles.headerTitle}>옷장</Text>
+                            <Text style={styles.headerTitle}>
+                                {selectedItemIds.size}개 선택
+                            </Text>
 
-                    <View style={styles.headerActions}>
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={isSearchVisible ? "옷장 검색 닫기" : "옷장 검색"}
-                            style={styles.iconButton}
-                            onPress={() => {
-                                setIsSearchVisible((visible) => {
-                                    if (visible) setSearchQuery("");
-                                    return !visible;
-                                });
-                            }}
-                        >
-                            <Feather
-                                name={isSearchVisible ? "x" : "search"}
-                                size={22}
-                                color={colors.text}
-                            />
-                        </Pressable>
-                        <Pressable style={styles.iconButton} onPress={() => router.push("/add-clothes")}>
-                            <Feather name="plus" size={24} color={colors.text} />
-                        </Pressable>
-                    </View>
+                            <View style={styles.selectionHeaderSide} />
+                        </>
+                    ) : (
+                        <>
+                            <View style={styles.headerSide} />
+
+                            <Text style={styles.headerTitle}>옷장</Text>
+
+                            <View style={styles.headerActions}>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityLabel={isSearchVisible ? "옷장 검색 닫기" : "옷장 검색"}
+                                    style={styles.iconButton}
+                                    onPress={() => {
+                                        setIsSearchVisible((visible) => {
+                                            if (visible) setSearchQuery("");
+                                            return !visible;
+                                        });
+                                    }}
+                                >
+                                    <Feather
+                                        name={isSearchVisible ? "x" : "search"}
+                                        size={22}
+                                        color={colors.text}
+                                    />
+                                </Pressable>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityLabel="옷 추가"
+                                    style={styles.iconButton}
+                                    onPress={() => router.push("/add-clothes")}
+                                >
+                                    <Feather name="plus" size={24} color={colors.text} />
+                                </Pressable>
+                            </View>
+                        </>
+                    )}
                 </View>
 
-                {isSearchVisible && items.length > 0 ? (
+                {!isSelectionMode && isSearchVisible && items.length > 0 ? (
                     <View style={styles.searchBox}>
                         <Feather name="search" size={17} color={colors.subText} />
                         <TextInput
@@ -618,14 +594,47 @@ export default function ClosetScreen() {
                                         return (
                                             <Pressable
                                                 key={item.id}
-                                                style={[styles.closetCard, { width: closetCardWidth }]}
-                                                onPress={() => router.push({
-                                                    pathname: "/clothes-detail",
-                                                    params: { id: item.id },
-                                                })}
-                                                onLongPress={() => handleDeleteItem(item.id)}
+                                                accessibilityRole="button"
+                                                accessibilityState={{ selected: selectedItemIds.has(item.id) }}
+                                                style={[
+                                                    styles.closetCard,
+                                                    { width: closetCardWidth },
+                                                    selectedItemIds.has(item.id) && styles.closetCardSelected,
+                                                ]}
+                                                onPress={() => {
+                                                    if (isSelectionMode) {
+                                                        toggleSelectedItem(item.id);
+                                                        return;
+                                                    }
+
+                                                    router.push({
+                                                        pathname: "/clothes-detail",
+                                                        params: { id: item.id },
+                                                    });
+                                                }}
+                                                onLongPress={() => {
+                                                    if (isSelectionMode) {
+                                                        toggleSelectedItem(item.id);
+                                                        return;
+                                                    }
+
+                                                    enterSelectionMode(item.id);
+                                                }}
                                             >
                                                 <View style={styles.imageBox}>
+                                                    {isSelectionMode ? (
+                                                        <View
+                                                            style={[
+                                                                styles.selectionCheck,
+                                                                selectedItemIds.has(item.id) &&
+                                                                    styles.selectionCheckSelected,
+                                                            ]}
+                                                        >
+                                                            {selectedItemIds.has(item.id) ? (
+                                                                <Feather name="check" size={14} color={colors.card} />
+                                                            ) : null}
+                                                        </View>
+                                                    ) : null}
                                                     <ClosetItemImage
                                                         item={item}
                                                         style={[
@@ -640,13 +649,19 @@ export default function ClosetScreen() {
                                                             <Text style={styles.archivedBadgeText}>보관 중</Text>
                                                         </View>
                                                     ) : null}
-                                                    {reviewLabel ? (
+                                                    {!isSelectionMode && reviewLabel ? (
                                                         <Pressable
                                                             accessibilityRole="button"
                                                             accessibilityLabel={`${reviewLabel} 정보 수정`}
                                                             style={styles.infoReviewBadge}
                                                             onPress={(event) => {
                                                                 event.stopPropagation();
+
+                                                                if (isSelectionMode) {
+                                                                    toggleSelectedItem(item.id);
+                                                                    return;
+                                                                }
+
                                                                 router.push({
                                                                     pathname: "/clothes-detail",
                                                                     params: {
@@ -703,7 +718,37 @@ export default function ClosetScreen() {
                 )}
             </ScrollView>
 
-            <BottomNav activeTab="closet" />
+            {isSelectionMode ? (
+                <View style={styles.selectionActionBar}>
+                    <View style={styles.selectionActionTextBox}>
+                        <Text style={styles.selectionActionCount}>
+                            {selectedItemIds.size}개 선택됨
+                        </Text>
+                        <Text style={styles.selectionActionHint}>
+                            삭제할 옷을 더 선택할 수 있어요
+                        </Text>
+                    </View>
+
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`선택한 옷 ${selectedItemIds.size}개 삭제`}
+                        disabled={selectedItemIds.size === 0 || isDeletingSelected}
+                        style={[
+                            styles.selectionDeleteButton,
+                            (selectedItemIds.size === 0 || isDeletingSelected) &&
+                                styles.selectionDeleteButtonDisabled,
+                        ]}
+                        onPress={handleDeleteSelectedItems}
+                    >
+                        <Feather name="trash-2" size={17} color={colors.card} />
+                        <Text style={styles.selectionDeleteButtonText}>
+                            {isDeletingSelected ? "삭제 중" : "삭제"}
+                        </Text>
+                    </Pressable>
+                </View>
+            ) : (
+                <BottomNav activeTab="closet" />
+            )}
         </View>
     );
 }
@@ -727,6 +772,12 @@ const styles = StyleSheet.create({
     },
     headerSide: {
         width: 64,
+    },
+    selectionHeaderSide: {
+        width: 64,
+        minHeight: 32,
+        alignItems: "flex-start",
+        justifyContent: "center",
     },
     headerTitle: {
         color: colors.text,
@@ -985,6 +1036,27 @@ const styles = StyleSheet.create({
     closetCard: {
         minWidth: 0,
     },
+    closetCardSelected: {
+        opacity: 0.82,
+    },
+    selectionCheck: {
+        position: "absolute",
+        top: 8,
+        left: 8,
+        zIndex: 5,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: colors.card,
+        backgroundColor: "rgba(0, 0, 0, 0.28)",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    selectionCheckSelected: {
+        backgroundColor: colors.point,
+        borderColor: colors.point,
+    },
     imageBox: {
         width: "100%",
         aspectRatio: 1,
@@ -1054,5 +1126,56 @@ const styles = StyleSheet.create({
         color: colors.subText,
         fontWeight: "500",
         paddingTop: 3,
+    },
+    selectionActionBar: {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        minHeight: 82,
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 16,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        backgroundColor: colors.card,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+    },
+    selectionActionTextBox: {
+        flex: 1,
+        minWidth: 0,
+    },
+    selectionActionCount: {
+        color: colors.text,
+        fontSize: 14,
+        fontWeight: "800",
+    },
+    selectionActionHint: {
+        color: colors.subText,
+        fontSize: 11,
+        fontWeight: "600",
+        marginTop: 3,
+    },
+    selectionDeleteButton: {
+        minHeight: 42,
+        paddingHorizontal: 17,
+        borderRadius: 14,
+        backgroundColor: "#C94A4A",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+        flexShrink: 0,
+    },
+    selectionDeleteButtonDisabled: {
+        opacity: 0.45,
+    },
+    selectionDeleteButtonText: {
+        color: colors.card,
+        fontSize: 13,
+        fontWeight: "800",
     },
 });
