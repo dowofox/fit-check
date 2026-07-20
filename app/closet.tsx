@@ -30,6 +30,7 @@ import {
     useWindowDimensions,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const REVIEW_FILTER = "확인 필요";
 const ARCHIVED_FILTER = "보관 중";
@@ -76,6 +77,7 @@ function formatDate(value?: string) {
 export default function ClosetScreen() {
     const { category } = useLocalSearchParams<{ category?: string }>();
     const { width: screenWidth } = useWindowDimensions();
+    const safeAreaInsets = useSafeAreaInsets();
     const [items, setItems] = useState<ClosetItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("전체");
     const [selectedDetailCategory, setSelectedDetailCategory] = useState("전체");
@@ -719,7 +721,12 @@ export default function ClosetScreen() {
             </ScrollView>
 
             {isSelectionMode ? (
-                <View style={styles.selectionActionBar}>
+                <View
+                    style={[
+                        styles.selectionActionBar,
+                        { paddingBottom: Math.max(safeAreaInsets.bottom, 16) },
+                    ]}
+                >
                     <View style={styles.selectionActionTextBox}>
                         <Text style={styles.selectionActionCount}>
                             {selectedItemIds.size}개 선택됨
