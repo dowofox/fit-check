@@ -137,7 +137,7 @@ export default function ClosetScreen() {
                 ? items.filter((item) => getClosetItemReviewFields(item).length > 0)
                 : selectedCategory === ARCHIVED_FILTER
                     ? items.filter((item) => item.isArchived === true)
-                : items.filter((item) => item.category === selectedCategory),
+                    : items.filter((item) => item.category === selectedCategory),
         [items, selectedCategory]
     );
     const detailFilters = useMemo(
@@ -197,7 +197,7 @@ export default function ClosetScreen() {
             (screenWidth -
                 SCREEN_HORIZONTAL_PADDING * 2 -
                 GRID_GAP * (GRID_COLUMN_COUNT - 1)) /
-                GRID_COLUMN_COUNT
+            GRID_COLUMN_COUNT
         )
     );
 
@@ -374,9 +374,9 @@ export default function ClosetScreen() {
                         </ScrollView>
 
                         {selectedCategory !== "전체" &&
-                        selectedCategory !== REVIEW_FILTER &&
-                        selectedCategory !== ARCHIVED_FILTER &&
-                        detailFilters.length > 1 ? (
+                            selectedCategory !== REVIEW_FILTER &&
+                            selectedCategory !== ARCHIVED_FILTER &&
+                            detailFilters.length > 1 ? (
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -413,14 +413,14 @@ export default function ClosetScreen() {
                                 {hasSearchQuery
                                     ? `검색 결과 ${filteredItems.length}개`
                                     : selectedCategory === "전체"
-                                    ? `전체 ${items.length}개`
-                                    : selectedCategory === REVIEW_FILTER
-                                        ? `${REVIEW_FILTER} ${filteredItems.length}개`
-                                    : selectedCategory === ARCHIVED_FILTER
-                                        ? `${ARCHIVED_FILTER} ${filteredItems.length}개`
-                                    : activeDetailCategory === "전체"
-                                        ? `${selectedCategory} ${filteredItems.length}개`
-                                        : `${activeDetailCategory} ${filteredItems.length}개`}
+                                        ? `전체 ${items.length}개`
+                                        : selectedCategory === REVIEW_FILTER
+                                            ? `${REVIEW_FILTER} ${filteredItems.length}개`
+                                            : selectedCategory === ARCHIVED_FILTER
+                                                ? `${ARCHIVED_FILTER} ${filteredItems.length}개`
+                                                : activeDetailCategory === "전체"
+                                                    ? `${selectedCategory} ${filteredItems.length}개`
+                                                    : `${activeDetailCategory} ${filteredItems.length}개`}
                             </Text>
                             <View style={styles.sortControl}>
                                 {(["newest", "oldest"] as const).map((order) => {
@@ -497,92 +497,92 @@ export default function ClosetScreen() {
                             </View>
                         ) : (
                             <>
-                            <View style={styles.closetGrid}>
-                                {visibleItems.map((item) => {
-                                    const reviewLabel = getRecommendationInfoReviewLabel(item);
+                                <View style={styles.closetGrid}>
+                                    {visibleItems.map((item) => {
+                                        const reviewLabel = getRecommendationInfoReviewLabel(item);
 
-                                    return (
-                                        <Pressable
-                                            key={item.id}
-                                            style={[styles.closetCard, { width: closetCardWidth }]}
-                                            onPress={() => router.push({
-                                                pathname: "/clothes-detail",
-                                                params: { id: item.id },
-                                            })}
-                                            onLongPress={() => handleDeleteItem(item.id)}
-                                        >
-                                            <View style={styles.imageBox}>
-                                                <ClosetItemImage
-                                                    item={item}
-                                                    style={[
-                                                        styles.closetImage,
-                                                        item.isArchived && styles.closetImageArchived,
-                                                    ]}
-                                                    contentFit="contain"
-                                                />
-                                                {item.isArchived ? (
-                                                    <View style={styles.archivedBadge}>
-                                                        <Feather name="archive" size={10} color={colors.point} />
-                                                        <Text style={styles.archivedBadgeText}>보관 중</Text>
-                                                    </View>
-                                                ) : null}
-                                                {reviewLabel ? (
-                                                    <Pressable
-                                                        accessibilityRole="button"
-                                                        accessibilityLabel={`${reviewLabel} 정보 수정`}
-                                                        style={styles.infoReviewBadge}
-                                                        onPress={(event) => {
-                                                            event.stopPropagation();
-                                                            router.push({
-                                                                pathname: "/clothes-detail",
-                                                                params: {
-                                                                    id: item.id,
-                                                                    openEdit:
-                                                                        reviewLabel === "계절 확인"
-                                                                            ? "season"
-                                                                            : "1",
-                                                                },
-                                                            });
-                                                        }}
-                                                    >
-                                                        <Feather name="alert-circle" size={11} color={colors.warning} />
-                                                        <Text style={styles.infoReviewBadgeText}>{reviewLabel}</Text>
-                                                    </Pressable>
-                                                ) : null}
-                                            </View>
+                                        return (
+                                            <Pressable
+                                                key={item.id}
+                                                style={[styles.closetCard, { width: closetCardWidth }]}
+                                                onPress={() => router.push({
+                                                    pathname: "/clothes-detail",
+                                                    params: { id: item.id },
+                                                })}
+                                                onLongPress={() => handleDeleteItem(item.id)}
+                                            >
+                                                <View style={styles.imageBox}>
+                                                    <ClosetItemImage
+                                                        item={item}
+                                                        style={[
+                                                            styles.closetImage,
+                                                            item.isArchived && styles.closetImageArchived,
+                                                        ]}
+                                                        contentFit="contain"
+                                                    />
+                                                    {item.isArchived ? (
+                                                        <View style={styles.archivedBadge}>
+                                                            <Feather name="archive" size={10} color={colors.point} />
+                                                            <Text style={styles.archivedBadgeText}>보관 중</Text>
+                                                        </View>
+                                                    ) : null}
+                                                    {reviewLabel ? (
+                                                        <Pressable
+                                                            accessibilityRole="button"
+                                                            accessibilityLabel={`${reviewLabel} 정보 수정`}
+                                                            style={styles.infoReviewBadge}
+                                                            onPress={(event) => {
+                                                                event.stopPropagation();
+                                                                router.push({
+                                                                    pathname: "/clothes-detail",
+                                                                    params: {
+                                                                        id: item.id,
+                                                                        openEdit:
+                                                                            reviewLabel === "계절 확인"
+                                                                                ? "season"
+                                                                                : "1",
+                                                                    },
+                                                                });
+                                                            }}
+                                                        >
+                                                            <Feather name="alert-circle" size={11} color={colors.warning} />
+                                                            <Text style={styles.infoReviewBadgeText}>{reviewLabel}</Text>
+                                                        </Pressable>
+                                                    ) : null}
+                                                </View>
 
-                                            <Text style={styles.closetCategory} numberOfLines={1}>
-                                                {getItemTitle(item)}
-                                            </Text>
+                                                <Text style={styles.closetCategory} numberOfLines={1}>
+                                                    {getItemTitle(item)}
+                                                </Text>
 
-                                            <Text style={styles.closetSubText} numberOfLines={1}>
-                                                {formatDate(item.createdAt)}
-                                            </Text>
-                                        </Pressable>
-                                    );
-                                })}
-                            </View>
-                            {remainingItemCount > 0 ? (
-                                <Pressable
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`옷장 아이템 ${Math.min(
-                                        CLOSET_PAGE_SIZE,
-                                        remainingItemCount
-                                    )}개 더 보기`}
-                                    style={styles.loadMoreButton}
-                                    onPress={() =>
-                                        setVisibleWindow({
-                                            key: visibleWindowKey,
-                                            count: visibleItemCount + CLOSET_PAGE_SIZE,
-                                        })
-                                    }
-                                >
-                                    <Text style={styles.loadMoreButtonText}>
-                                        더 보기 · {remainingItemCount}개 남음
-                                    </Text>
-                                    <Feather name="chevron-down" size={15} color={colors.point} />
-                                </Pressable>
-                            ) : null}
+                                                <Text style={styles.closetSubText} numberOfLines={1}>
+                                                    {formatDate(item.createdAt)}
+                                                </Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                                {remainingItemCount > 0 ? (
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`옷장 아이템 ${Math.min(
+                                            CLOSET_PAGE_SIZE,
+                                            remainingItemCount
+                                        )}개 더 보기`}
+                                        style={styles.loadMoreButton}
+                                        onPress={() =>
+                                            setVisibleWindow({
+                                                key: visibleWindowKey,
+                                                count: visibleItemCount + CLOSET_PAGE_SIZE,
+                                            })
+                                        }
+                                    >
+                                        <Text style={styles.loadMoreButtonText}>
+                                            더 보기 · {remainingItemCount}개 남음
+                                        </Text>
+                                        <Feather name="chevron-down" size={15} color={colors.point} />
+                                    </Pressable>
+                                ) : null}
                             </>
                         )}
                     </View>
@@ -734,7 +734,6 @@ const styles = StyleSheet.create({
     detailFilterRow: {
         gap: 8,
         paddingRight: 18,
-        marginTop: -8,
         marginBottom: 16,
     },
     detailFilterChip: {
