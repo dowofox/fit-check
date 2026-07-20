@@ -131,9 +131,43 @@ export function parseMaterialSummaryItems(summary?: string): MaterialItem[] {
     : percentageItems;
 }
 
+export function getMaterialPercentageTotal(
+  items?: MaterialComposition["items"]
+) {
+  return (items || []).reduce((total, item) => {
+    if (
+      item.percentage == null ||
+      !Number.isFinite(item.percentage)
+    ) {
+      return total;
+    }
+
+    return total + item.percentage;
+  }, 0);
+}
+
+export function hasInvalidMaterialPercentageTotal(
+  materialComposition?: MaterialComposition
+) {
+  const total = getMaterialPercentageTotal(materialComposition?.items);
+
+  if (total === 0) {
+    return false;
+  }
+
+  return total > 100.5;
+}
+
 function getMaterialItems(materialComposition?: MaterialComposition) {
+
+  if (hasInvalidMaterialPercentageTotal(materialComposition)) {
+    return [];
+  }
+
   const officialItems = materialComposition?.items || [];
-  const parsedSummaryItems = parseMaterialSummaryItems(materialComposition?.summary);
+  const parsedSummaryItems =
+    parseMaterialSummaryItems(materialComposition?.summary);
+
   const hasOfficialSections = officialItems.some((item) => item.section);
   const hasSummarySections = parsedSummaryItems.some((item) => item.section);
 

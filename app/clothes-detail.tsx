@@ -3,31 +3,36 @@ import {
   API_TIMEOUTS,
   fetchApiWithTimeout,
 } from "@/utils/api";
-import { normalizeProductColor } from "@/utils/color";
-import {
-  getClosetItemReviewFields,
-  getRegistrationReviewLabels,
-  normalizeClosetRegistrationBasics,
-} from "@/utils/closetRegistration";
 import {
   deleteManagedClosetImageFiles,
   deleteUnusedClosetItemImages,
   persistClosetImage,
 } from "@/utils/closetImageFiles";
 import {
-  getResolvedItemMaterial,
+  getClosetItemReviewFields,
+  getRegistrationReviewLabels,
+  normalizeClosetRegistrationBasics,
+} from "@/utils/closetRegistration";
+import { normalizeProductColor } from "@/utils/color";
+import { hasInvalidMaterialPercentageTotal } from "@/utils/materialComposition";
+import {
+  endPerformanceTimer,
+  startPerformanceTimer,
+  type PerformanceTimer,
+} from "@/utils/performance";
+import {
   getProductClassificationNotice,
+  getResolvedItemMaterial,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
 import { parseExtractedProductResponse } from "@/utils/productExtractionResponse";
-import { getConfirmedProductSeasonInference } from "@/utils/seasonInference";
-import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import {
   formatProductLinkFailure,
   getProductLinkFailure,
   type ProductExtractionErrorResponse,
 } from "@/utils/productLinkFailure";
-import { validateProductUrlInput } from "@/utils/productUrl";
+import { openProductSearch } from "@/utils/productSearch";
+import { getProductSizeGuideStatusMessage } from "@/utils/productSizeGuideStatus";
 import {
   buildProductSizeMeasurement,
   doesProductSizeRowMatch,
@@ -35,9 +40,11 @@ import {
   getValidProductSizeRows,
   normalizeProductSizeForCompare,
   removeProductSizeMeasurement,
-  type ProductMeasurementDraft,
   upsertProductSizeMeasurement,
+  type ProductMeasurementDraft,
 } from "@/utils/productSizeMeasurements";
+import { validateProductUrlInput } from "@/utils/productUrl";
+import { getConfirmedProductSeasonInference } from "@/utils/seasonInference";
 import {
   getFitSuitability,
   getRecommendedProductSize,
@@ -48,12 +55,6 @@ import {
   type FitSuitabilityResult,
   type SizeRecommendationResult,
 } from "@/utils/sizeMatch";
-import { openProductSearch } from "@/utils/productSearch";
-import {
-  endPerformanceTimer,
-  startPerformanceTimer,
-  type PerformanceTimer,
-} from "@/utils/performance";
 import {
   ClosetItem,
   ConfirmedProduct,
@@ -61,9 +62,9 @@ import {
   getClosetItemsLoadResult,
   getDisplayImageUris,
   getUserProfileLoadResult,
+  ProductClassificationField,
   ProductSizeGuide,
   ProductSizeMeasurement,
-  ProductClassificationField,
   ReferenceClothing,
   StyleProfile,
   updateClosetItem,
@@ -235,10 +236,10 @@ const RECOMMENDATION_PREFERENCE_OPTIONS: {
   value: RecommendationPreference;
   label: string;
 }[] = [
-  { value: "prefer", label: "자주 추천" },
-  { value: "normal", label: "기본" },
-  { value: "less", label: "잠시 덜 추천" },
-];
+    { value: "prefer", label: "자주 추천" },
+    { value: "normal", label: "기본" },
+    { value: "less", label: "잠시 덜 추천" },
+  ];
 const SEASON_OPTIONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const STYLE_TAG_OPTIONS = [
   "미니멀",
@@ -687,7 +688,7 @@ function hasMeaningfulAiAnalysisValue(value?: string) {
   const normalized = value?.trim();
   return Boolean(
     normalized &&
-      !["없음", "미분석", "판단 어려움", "확정 없음", "추정 없음"].includes(normalized)
+    !["없음", "미분석", "판단 어려움", "확정 없음", "추정 없음"].includes(normalized)
   );
 }
 
@@ -896,11 +897,10 @@ function AnalysisActionNoticeCard({ item }: { item: ClosetItem }) {
       ? "공식 소재를 자동으로 찾지 못했어요. 현재는 사진/입력 소재만 참고해요."
       : "",
     hasImageActionWarning
-      ? `사진 상태가 ${getImageQualityLabel(quality?.imageQuality)}이라 분석이 제한될 수 있어요. ${
-          missingHints.length > 0
-            ? `${missingHints.join(", ")} 사진을 추가하면 더 정확해져요.`
-            : "전체 실루엣이나 라벨 사진이 있으면 더 정확해져요."
-        }`
+      ? `사진 상태가 ${getImageQualityLabel(quality?.imageQuality)}이라 분석이 제한될 수 있어요. ${missingHints.length > 0
+        ? `${missingHints.join(", ")} 사진을 추가하면 더 정확해져요.`
+        : "전체 실루엣이나 라벨 사진이 있으면 더 정확해져요."
+      }`
       : "",
   ].filter(Boolean);
 
@@ -939,10 +939,10 @@ function AiAnalysisAccordion({
   const analysisRows = getAiAnalysisRows(item);
   const hasContent = Boolean(
     item.analysisWarnings?.length ||
-      hasMeaningfulNestedValue(item.analysisQuality) ||
-      hasMeaningfulNestedValue(item.garmentProfile) ||
-      hasMeaningfulNestedValue(item.styleProfile) ||
-      analysisRows.length
+    hasMeaningfulNestedValue(item.analysisQuality) ||
+    hasMeaningfulNestedValue(item.garmentProfile) ||
+    hasMeaningfulNestedValue(item.styleProfile) ||
+    analysisRows.length
   );
 
   if (!hasContent) return null;
@@ -2014,7 +2014,7 @@ function RecommendedSizeCard({
   const currentSizeMatches = recommendedRow
     ? doesProductSizeRowMatch(recommendedRow, item.size)
     : normalizeProductSizeForCompare(item.size) ===
-      normalizeProductSizeForCompare(result.recommendedSize);
+    normalizeProductSizeForCompare(result.recommendedSize);
   const alternatives = displayedRecommendations.slice(1);
   const isFreeRecommendation =
     normalizeProductSizeForCompare(result.recommendedSize) === "FREE";
@@ -2567,17 +2567,17 @@ export default function ClothesDetailScreen() {
         ...(classification.material ? { material: classification.material } : {}),
         ...(classification.styleTags
           ? {
-              styleTags: classification.styleTags,
-              style: classification.styleTags[0] || item.style,
-            }
+            styleTags: classification.styleTags,
+            style: classification.styleTags[0] || item.style,
+          }
           : {}),
         ...(officialSeasonInference
           ? {
-              season: officialSeasonInference.seasons.join(", "),
-              seasons: officialSeasonInference.seasons,
-              seasonSource: officialSeasonInference.source,
-              seasonNeedsReview: officialSeasonInference.needsReview,
-            }
+            season: officialSeasonInference.seasons.join(", "),
+            seasons: officialSeasonInference.seasons,
+            seasonSource: officialSeasonInference.source,
+            seasonNeedsReview: officialSeasonInference.needsReview,
+          }
           : {}),
       };
       const classificationNotice = getProductClassificationNotice(classification, item);
@@ -2991,8 +2991,8 @@ export default function ClothesDetailScreen() {
     () =>
       Boolean(
         item &&
-          (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
-          item.confirmedProduct
+        (item.category === "상의" || item.category === "하의" || item.category === "아우터") &&
+        item.confirmedProduct
       ),
     [item]
   );
@@ -3042,21 +3042,21 @@ export default function ClothesDetailScreen() {
   );
   const shouldShowRecommendedSizeCard = Boolean(
     hasSizeRecommendationContext &&
-      sizeRecommendation &&
-      (sizeRecommendation.sizeRecommendations.length > 0 ||
-        sizeRecommendation.missingFields.length > 0 ||
-        sizeRecommendation.blockedReason === "missing_product_measurements")
+    sizeRecommendation &&
+    (sizeRecommendation.sizeRecommendations.length > 0 ||
+      sizeRecommendation.missingFields.length > 0 ||
+      sizeRecommendation.blockedReason === "missing_product_measurements")
   );
   const shouldShowFitSuitabilityCard = Boolean(
     fitSuitability &&
-      !(
-        fitSuitability.blockedReason === "missing_profile_measurements" &&
-        (sizeRecommendation?.sizeRecommendations.length || 0) > 0
-      ) &&
-      !(
-        sizeRecommendation?.blockedReason === "missing_product_measurements" ||
-        sizeRecommendation?.blockedReason === "missing_profile_measurements"
-      )
+    !(
+      fitSuitability.blockedReason === "missing_profile_measurements" &&
+      (sizeRecommendation?.sizeRecommendations.length || 0) > 0
+    ) &&
+    !(
+      sizeRecommendation?.blockedReason === "missing_product_measurements" ||
+      sizeRecommendation?.blockedReason === "missing_profile_measurements"
+    )
   );
   const referenceClothingKey = item ? getReferenceClothingKey(item) : null;
   const recommendationReviewFields = item
@@ -3064,8 +3064,8 @@ export default function ClothesDetailScreen() {
     : [];
   const isCurrentReferenceClothing = Boolean(
     item &&
-      referenceClothingKey &&
-      profile?.referenceClothing?.[referenceClothingKey] === item.id
+    referenceClothingKey &&
+    profile?.referenceClothing?.[referenceClothingKey] === item.id
   );
 
   if (isLoaded && hasClosetLoadError && !item) {
@@ -3342,7 +3342,16 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="상세 종류" value={item.detailCategory || item.subCategory} />
                   <DetailRow label="브랜드" value={getDisplayBrand(item)} />
                   <DetailRow label="색상" value={item.color} />
-                  <DetailRow label="소재" value={getDisplayMaterial(item)} />
+                  <DetailRow
+                    label="소재"
+                    value={
+                      hasInvalidMaterialPercentageTotal(
+                        item.confirmedProduct?.materialComposition
+                      )
+                        ? "소재 정보 확인 필요"
+                        : getDisplayMaterial(item)
+                    }
+                  />
                   <DetailRow
                     label="계절"
                     value={getItemSeasons(item).join(", ") || "계절 확인 필요"}
