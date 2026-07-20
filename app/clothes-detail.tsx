@@ -661,15 +661,23 @@ function getDisplayTitle(item: ClosetItem) {
 
 function getDisplayMaterial(item: ClosetItem) {
   const resolvedMaterial = getResolvedItemMaterial(item);
+  const materialComposition =
+    item.confirmedProduct?.materialComposition;
 
   if (item.userEditedClassificationFields?.includes("material")) {
     return resolvedMaterial ? `${resolvedMaterial} (직접 수정)` : "";
   }
 
-  const officialMaterial = getMaterialCompositionSummary(
-    item.confirmedProduct?.materialComposition
-  );
-  if (officialMaterial) return `${officialMaterial} (공식 소재)`;
+  if (hasInvalidMaterialPercentageTotal(materialComposition)) {
+    return "소재 정보 확인 필요";
+  }
+
+  const officialMaterial =
+    getMaterialCompositionSummary(materialComposition);
+
+  if (officialMaterial) {
+    return `${officialMaterial} (공식 소재)`;
+  }
 
   return resolvedMaterial && resolvedMaterial !== "판단 어려움"
     ? `${resolvedMaterial} (사진/입력 기준)`
@@ -1319,6 +1327,10 @@ function ConfirmedProductCard({
   const isAccessoryOrBag = isAccessoryOrBagItem(item);
   const meta = [confirmedProduct.mallName, confirmedProduct.price].filter(Boolean).join(" / ");
   const materialSummary = getMaterialCompositionSummary(confirmedProduct.materialComposition);
+  const hasInvalidMaterial =
+    hasInvalidMaterialPercentageTotal(
+      confirmedProduct.materialComposition
+    );
   const sizeGuideSummary = useMemo(
     () =>
       isAccessoryOrBag
@@ -1379,7 +1391,11 @@ function ConfirmedProductCard({
             {confirmedProduct.productName}
           </Text>
           {meta ? <Text style={styles.productReferenceReason} numberOfLines={2}>{meta}</Text> : null}
-          {materialSummary ? (
+          {hasInvalidMaterial ? (
+            <Text style={styles.productReferenceReason} numberOfLines={3}>
+              공식 소재: 소재 정보 확인 필요
+            </Text>
+          ) : materialSummary ? (
             <Text style={styles.productReferenceReason} numberOfLines={3}>
               공식 소재: {materialSummary}
             </Text>
@@ -3344,13 +3360,7 @@ export default function ClothesDetailScreen() {
                   <DetailRow label="색상" value={item.color} />
                   <DetailRow
                     label="소재"
-                    value={
-                      hasInvalidMaterialPercentageTotal(
-                        item.confirmedProduct?.materialComposition
-                      )
-                        ? "소재 정보 확인 필요"
-                        : getDisplayMaterial(item)
-                    }
+                    value={getDisplayMaterial(item)}
                   />
                   <DetailRow
                     label="계절"
