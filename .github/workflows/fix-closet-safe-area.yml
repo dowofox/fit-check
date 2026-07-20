@@ -1,0 +1,62 @@
+name: Apply closet safe area fix
+
+on:
+  push:
+    paths:
+      - .github/workflows/fix-closet-safe-area.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update closet safe area handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/closet.tsx")
+          text = path.read_text(encoding="utf-8")
+
+          import_anchor = 'import { useFocusEffect } from "@react-navigation/native";\n'
+          safe_import = 'import { useSafeAreaInsets } from "react-native-safe-area-context";\n'
+          if safe_import not in text:
+              if import_anchor not in text:
+                  raise SystemExit("Could not find navigation import anchor")
+              text = text.replace(import_anchor, import_anchor + safe_import, 1)
+
+          dimensions_anchor = '    const { width: screenWidth } = useWindowDimensions();\n'
+          inset_line = '    const safeAreaInsets = useSafeAreaInsets();\n'
+          if inset_line not in text:
+              if dimensions_anchor not in text:
+                  raise SystemExit("Could not find window dimensions anchor")
+              text = text.replace(dimensions_anchor, dimensions_anchor + inset_line, 1)
+
+          old_bar = '                <View style={styles.selectionActionBar}>\n'
+          new_bar = '''                <View
+                    style={[
+                        styles.selectionActionBar,
+                        { paddingBottom: Math.max(safeAreaInsets.bottom, 16) },
+                    ]}
+                >
+'''
+          if new_bar not in text:
+              if old_bar not in text:
+                  raise SystemExit("Could not find selection action bar")
+              text = text.replace(old_bar, new_bar, 1)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Commit fix and remove temporary workflow
+        run: |
+          rm .github/workflows/fix-closet-safe-area.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/closet.tsx .github/workflows/fix-closet-safe-area.yml
+          git commit -m "fix: keep closet delete bar above system navigation"
+          git push
