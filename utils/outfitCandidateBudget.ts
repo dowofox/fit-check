@@ -11,10 +11,9 @@ export const LARGE_WARDROBE_CANDIDATE_LIMITS = {
 } as const;
 
 export function getAccessoryCombinationCount(accessoryCount: number) {
-  const count = Math.max(0, Math.floor(accessoryCount));
-  const pairs = count >= 2 ? (count * (count - 1)) / 2 : 0;
-  const triples = count >= 3 ? (count * (count - 1) * (count - 2)) / 6 : 0;
-  return 1 + count + pairs + triples;
+  // 액세서리는 핵심 조합 생성 후 평가하므로 조합 수를 늘리지 않는다.
+  void accessoryCount;
+  return 1;
 }
 
 export function estimateOutfitCombinationCount({

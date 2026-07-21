@@ -26,6 +26,10 @@ const EMPTY_CONTENT_BY_REASON: Partial<
     title: "추천할 만한 조합이 아직 부족해요",
     text: "현재 옷으로는 충분히 잘 맞는 조합을 찾지 못했어요. 다른 색상이나 실루엣의 옷을 추가해보세요.",
   },
+  no_situation_match: {
+    title: "이 상황에 자신 있게 추천할 코디가 없어요",
+    text: "현재 옷장에서는 선택한 상황에 충분히 어울리는 조합을 찾지 못했어요. 상황에 맞는 상의나 하의, 신발을 추가해보세요.",
+  },
   saved_combinations_exhausted: {
     title: "새로운 추천 조합이 없어요",
     text: "추천 가능한 조합을 이미 저장했어요. 옷을 더 추가하면 새로운 코디를 만들 수 있어요.",

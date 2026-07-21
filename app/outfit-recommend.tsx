@@ -8,9 +8,13 @@ import {
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import {
+  type OutfitRecommendationFeedback,
   type OutfitFeedbackValue,
 } from "@/utils/outfitFeedback";
-import { applyOutfitSituationRanking } from "@/utils/outfitSituation";
+import {
+  OUTFIT_SITUATIONS,
+  type OutfitSituationId,
+} from "@/utils/outfitSituation";
 import { openProductSearch } from "@/utils/productSearch";
 import {
   getRecommendedShoppingItems,
@@ -23,6 +27,7 @@ import {
 } from "@/utils/recommendationInput";
 import {
   ClosetItem,
+  type UserProfile,
   createSavedOutfitId,
   getClosetItemsLoadResult,
   getOutfitRecommendationFeedbacksLoadResult,
@@ -39,7 +44,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -51,34 +56,15 @@ import {
 
 const DEFAULT_EMPTY_MESSAGE = getOutfitRecommendationEmptyContent({});
 
-const SITUATION_OPTIONS = [
-  { id: "all", label: "전체", keywords: [] },
-  {
-    id: "date",
-    label: "데이트",
-    keywords: ["데이트", "깔끔", "미니멀", "댄디", "포멀", "러블리", "페미닌", "로퍼", "니트", "셔츠"],
-    reason: "데이트 상황에 어울리도록 깔끔하고 부드러운 인상의 아이템을 우선했어요.",
-  },
-  {
-    id: "clean",
-    label: "깔끔한",
-    keywords: ["깔끔", "미니멀", "포멀", "댄디", "모던", "클래식", "셔츠", "슬랙스", "로퍼", "더비"],
-    reason: "깔끔한 상황에 맞게 단정한 소재와 미니멀한 조합을 우선했어요.",
-  },
-  {
-    id: "daily",
-    label: "데일리",
-    keywords: ["데일리", "캐주얼", "편안", "청바지", "데님", "스니커즈", "티셔츠"],
-    reason: "데일리로 입기 좋은 편안한 카테고리와 무난한 조합을 우선했어요.",
-  },
-  {
-    id: "relaxed",
-    label: "편안한",
-    keywords: ["편안", "캐주얼", "후드", "맨투맨", "와이드", "조거", "스니커즈"],
-    reason: "편안한 상황에 맞게 여유로운 실루엣과 캐주얼한 아이템을 우선했어요.",
-  },
-] as const;
-type SituationId = (typeof SITUATION_OPTIONS)[number]["id"];
+type LoadedRecommendationContext = {
+  items: ClosetItem[];
+  recommendationItems: ClosetItem[];
+  profile: UserProfile | null;
+  savedOutfitItemIds: string[][];
+  weather?: OutfitRecommendationWeather | null;
+  feedbacks: OutfitRecommendationFeedback[];
+  preferredItemIds?: string[];
+};
 
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
@@ -577,9 +563,43 @@ export default function OutfitRecommendScreen() {
   const [isFeedbackSaving, setIsFeedbackSaving] = useState(false);
   const [isOutfitSaving, setIsOutfitSaving] = useState(false);
   const [emptyMessage, setEmptyMessage] = useState(DEFAULT_EMPTY_MESSAGE);
-  const [selectedSituation, setSelectedSituation] = useState<SituationId>("all");
+  const [selectedSituation, setSelectedSituation] = useState<OutfitSituationId>("all");
   const recommendationLoadRequestRef = useRef(0);
   const outfitSaveInProgressRef = useRef(false);
+  const selectedSituationRef = useRef<OutfitSituationId>("all");
+  const recommendationContextRef = useRef<LoadedRecommendationContext | null>(null);
+
+  function applyRecommendationContext(
+    context: LoadedRecommendationContext,
+    situationId: OutfitSituationId
+  ) {
+    const recommendationResult = getOutfitRecommendationResult(
+      context.recommendationItems,
+      context.profile,
+      undefined,
+      context.savedOutfitItemIds,
+      {
+        weather: context.weather,
+        feedbacks: context.feedbacks,
+        preferredItemIds: context.preferredItemIds,
+        situation: OUTFIT_SITUATIONS.find((option) => option.id === situationId),
+      }
+    );
+
+    setBaseRecommendations(recommendationResult.recommendations);
+    setEmptyMessage(
+      getOutfitRecommendationEmptyContent(recommendationResult, context.items)
+    );
+  }
+
+  function handleSituationChange(situationId: OutfitSituationId) {
+    selectedSituationRef.current = situationId;
+    setSelectedSituation(situationId);
+
+    if (recommendationContextRef.current) {
+      applyRecommendationContext(recommendationContextRef.current, situationId);
+    }
+  }
 
   const loadRecommendations = useCallback(async () => {
     const requestId = recommendationLoadRequestRef.current + 1;
@@ -629,22 +649,22 @@ export default function OutfitRecommendScreen() {
       : undefined;
     if (requestId !== recommendationLoadRequestRef.current) return;
 
-    const recommendationResult = getOutfitRecommendationResult(
+    const recommendationContext: LoadedRecommendationContext = {
+      items,
       recommendationItems,
       profile,
-      undefined,
       savedOutfitItemIds,
-      {
-        weather,
-        feedbacks,
-        preferredItemIds: source === "home" ? selectedItemIds : undefined,
-      }
-    );
-    const nextRecommendations = recommendationResult.recommendations;
+      weather,
+      feedbacks,
+      preferredItemIds: source === "home" ? selectedItemIds : undefined,
+    };
 
-    setBaseRecommendations(nextRecommendations);
+    recommendationContextRef.current = recommendationContext;
+    applyRecommendationContext(
+      recommendationContext,
+      selectedSituationRef.current
+    );
     setShoppingRecommendations(getRecommendedShoppingItems(items));
-    setEmptyMessage(getOutfitRecommendationEmptyContent(recommendationResult, items));
     setIsLoaded(true);
   }, [
     selectedItemIdsParam,
@@ -654,21 +674,8 @@ export default function OutfitRecommendScreen() {
     weatherTemperatureParam,
   ]);
 
-  const recommendations = useMemo(
-    () =>
-      applyOutfitSituationRanking(
-        baseRecommendations,
-        SITUATION_OPTIONS.find((option) => option.id === selectedSituation)
-      ),
-    [baseRecommendations, selectedSituation]
-  );
-  const visibleEmptyMessage =
-    baseRecommendations.length > 0 && recommendations.length === 0
-      ? {
-          title: "상황에 맞는 추천이 아직 부족해요",
-          text: "현재 옷장에서는 선택한 상황에 자연스럽게 맞는 코디를 찾지 못했어요. 다른 스타일의 옷을 추가해보세요.",
-        }
-      : emptyMessage;
+  const recommendations = baseRecommendations;
+  const visibleEmptyMessage = emptyMessage;
 
   async function handleSaveOutfit(recommendation: OutfitRecommendation) {
     if (outfitSaveInProgressRef.current) return;
@@ -767,14 +774,14 @@ export default function OutfitRecommendScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.situationFilterRow}
         >
-          {SITUATION_OPTIONS.map((option) => {
+          {OUTFIT_SITUATIONS.map((option) => {
             const isActive = selectedSituation === option.id;
 
             return (
               <Pressable
                 key={option.id}
                 style={[styles.situationChip, isActive && styles.situationChipActive]}
-                onPress={() => setSelectedSituation(option.id)}
+                onPress={() => handleSituationChange(option.id)}
               >
                 <Text
                   style={[

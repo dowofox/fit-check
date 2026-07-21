@@ -33,9 +33,11 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 
 const {
   getShoeRecommendationsForOutfit,
+  getAccessoryMatchScore,
   getOutfitRecommendationResult,
   getOutfitRecommendations,
   MIN_DISPLAY_RECOMMENDATION_SCORE,
+  MIN_ACCESSORY_MATCH_SCORE,
 } = require("../utils/outfitRecommend.ts");
 const {
   estimateOutfitCombinationCount,
@@ -48,6 +50,7 @@ const {
 } = require("../utils/outfitRecommendationEmptyState.ts");
 const {
   applyOutfitSituationRanking,
+  OUTFIT_SITUATIONS,
 } = require("../utils/outfitSituation.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
 const {
@@ -79,7 +82,11 @@ test("상황 적합성은 추천 순서만 바꾸고 품질 점수와 등급은 
     title: "캐주얼 대체 코디",
     tags: ["캐주얼"],
     reasons: [],
-    items: [{ category: "상의", styleTags: ["캐주얼"] }],
+    items: [
+      { category: "상의", detailCategory: "반팔 티셔츠", styleTags: ["캐주얼"] },
+      { category: "하의", detailCategory: "데님 팬츠", styleTags: ["캐주얼"] },
+      { category: "신발", detailCategory: "스니커즈", styleTags: ["캐주얼"] },
+    ],
     score: 70,
     grade: "B",
   };
@@ -88,7 +95,11 @@ test("상황 적합성은 추천 순서만 바꾸고 품질 점수와 등급은 
     title: "캐주얼 데일리 코디",
     tags: ["캐주얼", "데일리"],
     reasons: [],
-    items: [{ category: "상의", styleTags: ["캐주얼", "데일리"] }],
+    items: [
+      { category: "상의", detailCategory: "반팔 티셔츠", styleTags: ["캐주얼", "데일리"] },
+      { category: "하의", detailCategory: "데님 팬츠", styleTags: ["캐주얼"] },
+      { category: "신발", detailCategory: "스니커즈", styleTags: ["캐주얼"] },
+    ],
     score: 72,
     grade: "B",
     alternatives: [alternative],
@@ -267,6 +278,181 @@ function recommendationItemKey(recommendation) {
   return recommendation.items.map((item) => item.id).sort().join("|");
 }
 
+test("액세서리가 있어도 코디 적합도가 낮으면 추천에 포함하지 않는다", () => {
+  const outfitItems = [
+    createItem("accessory-low-top", "상의"),
+    createItem("accessory-low-bottom", "하의"),
+    createItem("accessory-low-shoes", "신발"),
+  ];
+  const accessory = createItem("accessory-low-formal", "액세서리", {
+    detailCategory: "레드 메탈 목걸이",
+    color: "레드",
+    style: "포멀",
+    styleTags: ["포멀"],
+    garmentProfile: {
+      silhouette: "regular",
+      volume: 2,
+      visualWeight: 8,
+      lengthBalance: "regular",
+      fitIntent: "structured",
+      pointLevel: 9,
+      structure: "stiff",
+      drape: "low",
+    },
+  });
+  const result = getOutfitRecommendationResult(
+    [...outfitItems, accessory],
+    null,
+    "여름"
+  );
+
+  assert.ok(getAccessoryMatchScore(accessory, outfitItems) < MIN_ACCESSORY_MATCH_SCORE);
+  assert.ok(result.recommendations.length > 0);
+  assert.ok(
+    result.recommendations.every((recommendation) =>
+      recommendation.items.every((item) => item.category !== "액세서리")
+    )
+  );
+});
+
+test("적합도가 높은 액세서리는 최고 한 개만 추천에 포함한다", () => {
+  const outfitItems = [
+    createItem("accessory-high-top", "상의"),
+    createItem("accessory-high-bottom", "하의"),
+    createItem("accessory-high-shoes", "신발"),
+  ];
+  const basicAccessory = createItem("accessory-a-black-cap", "액세서리", {
+    detailCategory: "블랙 볼캡",
+    color: "블랙",
+  });
+  const matchingAccessory = createItem("accessory-b-white-bag", "액세서리", {
+    detailCategory: "화이트 크로스백",
+    color: "화이트",
+  });
+  const result = getOutfitRecommendationResult(
+    [...outfitItems, basicAccessory, matchingAccessory],
+    null,
+    "여름"
+  );
+  const firstRecommendation = result.recommendations[0];
+  const selectedAccessories = firstRecommendation.items.filter(
+    (item) => item.category === "액세서리"
+  );
+
+  assert.ok(getAccessoryMatchScore(basicAccessory, outfitItems) >= MIN_ACCESSORY_MATCH_SCORE);
+  assert.ok(
+    getAccessoryMatchScore(matchingAccessory, outfitItems) >
+      getAccessoryMatchScore(basicAccessory, outfitItems)
+  );
+  assert.equal(selectedAccessories.length, 1);
+  assert.equal(selectedAccessories[0].id, matchingAccessory.id);
+  assert.ok(
+    result.recommendations.every(
+      (recommendation) =>
+        recommendation.items.filter((item) => item.category === "액세서리").length <= 1
+    )
+  );
+});
+
+test("데이트와 편안한 상황은 서로 다른 핵심 조합을 우선한다", () => {
+  const formalItems = [
+    createItem("situation-formal-top", "상의", {
+      detailCategory: "미니멀 셔츠",
+      style: "댄디",
+      styleTags: ["미니멀", "댄디"],
+    }),
+    createItem("situation-formal-bottom", "하의", {
+      detailCategory: "와이드 슬랙스",
+      material: "폴리에스터",
+      style: "포멀",
+      styleTags: ["포멀", "댄디"],
+      color: "블랙",
+    }),
+    createItem("situation-formal-shoes", "신발", {
+      detailCategory: "블랙 로퍼",
+      style: "포멀",
+      styleTags: ["포멀", "댄디"],
+      color: "블랙",
+    }),
+  ];
+  const relaxedItems = [
+    createItem("situation-relaxed-top", "상의", {
+      detailCategory: "후드 티셔츠",
+      style: "편안함",
+      styleTags: ["캐주얼", "편안함"],
+    }),
+    createItem("situation-relaxed-bottom", "하의", {
+      detailCategory: "와이드 조거 팬츠",
+      style: "편안함",
+      styleTags: ["캐주얼", "편안함"],
+      color: "그레이",
+    }),
+    createItem("situation-relaxed-shoes", "신발", {
+      detailCategory: "화이트 스니커즈",
+      style: "캐주얼",
+      styleTags: ["캐주얼", "편안함"],
+    }),
+  ];
+  const wardrobe = [...formalItems, ...relaxedItems];
+  const dateSituation = OUTFIT_SITUATIONS.find((situation) => situation.id === "date");
+  const relaxedSituation = OUTFIT_SITUATIONS.find(
+    (situation) => situation.id === "relaxed"
+  );
+  const dateResult = getOutfitRecommendationResult(wardrobe, null, "여름", [], {
+    situation: dateSituation,
+  });
+  const relaxedResult = getOutfitRecommendationResult(wardrobe, null, "여름", [], {
+    situation: relaxedSituation,
+  });
+
+  assert.ok(dateResult.recommendations[0]);
+  assert.ok(relaxedResult.recommendations[0]);
+  assert.ok(
+    dateResult.recommendations[0].items.some((item) => item.id === "situation-formal-top")
+  );
+  assert.ok(
+    relaxedResult.recommendations[0].items.some(
+      (item) => item.id === "situation-relaxed-top"
+    )
+  );
+  assert.notEqual(
+    coreKey(dateResult.recommendations[0]),
+    coreKey(relaxedResult.recommendations[0])
+  );
+});
+
+test("상황 적합도 기준을 통과한 조합이 없으면 별도 빈 상태를 반환한다", () => {
+  const wardrobe = [
+    createItem("situation-none-top", "상의", {
+      detailCategory: "러닝 반팔 티셔츠",
+      style: "스포티",
+      styleTags: ["스포티"],
+    }),
+    createItem("situation-none-bottom", "하의", {
+      detailCategory: "트레이닝 조거 팬츠",
+      style: "스포티",
+      styleTags: ["스포티"],
+    }),
+    createItem("situation-none-shoes", "신발", {
+      detailCategory: "러닝화",
+      style: "스포티",
+      styleTags: ["스포티"],
+    }),
+  ];
+  const dateSituation = OUTFIT_SITUATIONS.find((situation) => situation.id === "date");
+  const result = getOutfitRecommendationResult(wardrobe, null, "여름", [], {
+    situation: dateSituation,
+  });
+
+  assert.deepEqual(result.recommendations, []);
+  assert.equal(result.emptyReason, "no_situation_match");
+  assert.equal(result.hasAnyRecommendation, false);
+  assert.match(
+    getOutfitRecommendationEmptyContent(result, wardrobe).title,
+    /자신 있게 추천할 코디가 없어요/
+  );
+});
+
 test("recommendation result selects and attaches alternatives only once", () => {
   const diagnostics = [];
   const result = getOutfitRecommendationResult(
@@ -331,7 +517,7 @@ test("대규모 옷장 후보 제한은 예상 조합을 예산 아래로 낮춘
   assert.ok(limitedCount <= MAX_OUTFIT_COMBINATION_BUDGET);
 });
 
-test("15개 현실 옷장은 조합 폭발 전에 후보를 줄여 점수 계산 예산을 지킨다", () => {
+test("액세서리는 핵심 조합 수를 늘리지 않고 별도 후처리한다", () => {
   const wardrobe = [
     ...Array.from({ length: 3 }, (_, index) =>
       createItem(`budget-top-${index}`, "상의", { color: `상의색-${index}` })
@@ -366,8 +552,9 @@ test("15개 현실 옷장은 조합 폭발 전에 후보를 줄여 점수 계산
   });
 
   const scoring = diagnostics.find((diagnostic) => diagnostic.stage === "scoring");
-  assert.equal(originalCount, 2106);
-  assert.ok(originalCount > MAX_OUTFIT_COMBINATION_BUDGET);
+  assert.equal(originalCount, 81);
+  assert.ok(originalCount <= MAX_OUTFIT_COMBINATION_BUDGET);
+  assert.equal(scoring.generatedCombinationCount, 81);
   assert.ok(scoring.generatedCombinationCount <= MAX_OUTFIT_COMBINATION_BUDGET);
   assert.equal(scoring.generatedCombinationCount, scoring.scoredCombinationCount);
 });
