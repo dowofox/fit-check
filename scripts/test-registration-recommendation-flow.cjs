@@ -101,6 +101,7 @@ const {
 const {
   getPrimaryMaterialText,
   getSignificantMaterialText,
+  hasInvalidMaterialPercentageTotal,
   parseMaterialSummaryItems,
 } = require("../utils/materialComposition.ts");
 const {
@@ -927,9 +928,14 @@ async function main() {
         "겉감1: 면 100% / 겉감 2: 나일론 100% / 안감(1): 폴리에스터 100%"
       ),
       [
-        { name: "면", percentage: 100, section: "outer" },
-        { name: "나일론", percentage: 100, section: "outer" },
-        { name: "폴리에스터", percentage: 100, section: "lining" },
+        { name: "면", percentage: 100, section: "outer", sectionGroup: "outer:1" },
+        { name: "나일론", percentage: 100, section: "outer", sectionGroup: "outer:2" },
+        {
+          name: "폴리에스터",
+          percentage: 100,
+          section: "lining",
+          sectionGroup: "lining:1",
+        },
       ]
     );
     assert.deepEqual(
@@ -937,8 +943,18 @@ async function main() {
         "shell 1: cotton 100% / lining (2): polyester 100%"
       ),
       [
-        { name: "cotton", percentage: 100, section: "outer" },
-        { name: "polyester", percentage: 100, section: "lining" },
+        {
+          name: "cotton",
+          percentage: 100,
+          section: "outer",
+          sectionGroup: "outer:1",
+        },
+        {
+          name: "polyester",
+          percentage: 100,
+          section: "lining",
+          sectionGroup: "lining:2",
+        },
       ]
     );
     assert.deepEqual(
@@ -946,9 +962,24 @@ async function main() {
         "겉감 1 면 60%, 나일론 40% / 안감(2) 폴리에스터 100%"
       ),
       [
-        { name: "면", percentage: 60, section: "outer" },
-        { name: "나일론", percentage: 40, section: "outer" },
-        { name: "폴리에스터", percentage: 100, section: "lining" },
+        {
+          name: "면",
+          percentage: 60,
+          section: "outer",
+          sectionGroup: "outer:1",
+        },
+        {
+          name: "나일론",
+          percentage: 40,
+          section: "outer",
+          sectionGroup: "outer:1",
+        },
+        {
+          name: "폴리에스터",
+          percentage: 100,
+          section: "lining",
+          sectionGroup: "lining:2",
+        },
       ]
     );
     assert.deepEqual(
@@ -956,8 +987,18 @@ async function main() {
         "shell 1 cotton 100% / lining (2) polyester 100%"
       ),
       [
-        { name: "cotton", percentage: 100, section: "outer" },
-        { name: "polyester", percentage: 100, section: "lining" },
+        {
+          name: "cotton",
+          percentage: 100,
+          section: "outer",
+          sectionGroup: "outer:1",
+        },
+        {
+          name: "polyester",
+          percentage: 100,
+          section: "lining",
+          sectionGroup: "lining:2",
+        },
       ]
     );
     assert.deepEqual(
@@ -1007,7 +1048,139 @@ async function main() {
         { name: "울", percentage: 100, section: "trim" },
       ],
     };
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          { name: "면", percentage: 60 },
+          { name: "나일론", percentage: 40 },
+        ],
+      }),
+      false
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          {
+            name: "면",
+            percentage: 60,
+            section: "outer",
+            sectionGroup: "outer:1",
+          },
+          { name: "나일론", percentage: 40, section: "outer" },
+        ],
+      }),
+      true
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          { name: "면", percentage: 70 },
+          { name: "나일론", percentage: 40 },
+        ],
+      }),
+      true
+    );
+    assert.equal(hasInvalidMaterialPercentageTotal(trimWoolComposition), false);
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          { name: "면", percentage: 60, section: "outer" },
+          { name: "나일론", percentage: 40, section: "outer" },
+          { name: "폴리에스터", percentage: 100, section: "lining" },
+        ],
+      }),
+      false
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          { name: "면", percentage: 70, section: "outer" },
+          { name: "나일론", percentage: 40, section: "outer" },
+        ],
+      }),
+      true
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          { name: "폴리에스터", percentage: 60, section: "lining" },
+          { name: "레이온", percentage: 40.6, section: "lining" },
+        ],
+      }),
+      true
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          {
+            name: "면",
+            percentage: 100,
+            section: "outer",
+            sectionGroup: "outer:1",
+          },
+          {
+            name: "나일론",
+            percentage: 100,
+            section: "outer",
+            sectionGroup: "outer:2",
+          },
+        ],
+      }),
+      false
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          { name: "면", percentage: 70 },
+          { name: "폴리에스터", percentage: 40 },
+          { name: "나일론", percentage: 100, section: "outer" },
+        ],
+      }),
+      true
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [
+          { name: "면", percentage: 60 },
+          { name: "폴리에스터", percentage: 40 },
+          { name: "나일론", percentage: 100, section: "outer" },
+        ],
+      }),
+      false
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [{ name: "면", percentage: -1 }],
+      }),
+      true
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [{ name: "면", percentage: 100.6 }],
+      }),
+      true
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [{ name: "면", percentage: Number.NaN }],
+      }),
+      true
+    );
+    assert.equal(
+      hasInvalidMaterialPercentageTotal({
+        items: [{ name: "면", percentage: "100" }],
+      }),
+      true
+    );
     assert.equal(getSignificantMaterialText(trimWoolComposition), "면");
+    assert.equal(
+      getSignificantMaterialText({
+        items: [
+          { name: "폴리에스터", percentage: 100, section: "filling" },
+        ],
+      }),
+      "충전재 폴리에스터"
+    );
     assert.equal(
       getProductAnalysisTarget({
         productName: "베이직 상의",

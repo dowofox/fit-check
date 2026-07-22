@@ -39,7 +39,14 @@ function getMaterialSection(value: string): MaterialSection | undefined {
   return undefined;
 }
 
-function getMaterialSectionAt(value: string, index: number) {
+function getMaterialSectionGroup(value: string, section?: MaterialSection) {
+  if (!section) return undefined;
+
+  const indexMatch = value.match(/\(?([0-9]+)\)?/);
+  return indexMatch ? `${section}:${Number(indexMatch[1])}` : undefined;
+}
+
+function getMaterialSectionContextAt(value: string, index: number) {
   const sectionMatches = value.matchAll(
     new RegExp(
       `(?:^|[\\s,/|;()])(${MATERIAL_SECTION_NAME_PATTERN})${MATERIAL_SECTION_INDEX_PATTERN}(?:\\s*(?:소재|material))?${MATERIAL_SECTION_INDEX_PATTERN}${MATERIAL_SECTION_SEPARATOR_PATTERN}`,
@@ -47,13 +54,15 @@ function getMaterialSectionAt(value: string, index: number) {
     )
   );
   let section: MaterialSection | undefined;
+  let sectionGroup: string | undefined;
 
   for (const match of sectionMatches) {
     if ((match.index ?? 0) > index) break;
     section = getMaterialSection(match[1]);
+    sectionGroup = getMaterialSectionGroup(match[0], section);
   }
 
-  return section;
+  return { section, sectionGroup };
 }
 
 function parseSectionedMaterialNameItems(summary: string): MaterialItem[] {
@@ -69,6 +78,7 @@ function parseSectionedMaterialNameItems(summary: string): MaterialItem[] {
   return sectionMatches.flatMap((match, index) => {
     const section = getMaterialSection(match[1]);
     if (!section) return [];
+    const sectionGroup = getMaterialSectionGroup(match[0], section);
 
     const contentStart = (match.index ?? 0) + match[0].length;
     const contentEnd = sectionMatches[index + 1]?.index ?? summary.length;
@@ -82,7 +92,12 @@ function parseSectionedMaterialNameItems(summary: string): MaterialItem[] {
           .trim()
       )
       .filter(Boolean)
-      .map((name) => ({ name, percentage: null, section }));
+      .map((name) => ({
+        name,
+        percentage: null,
+        section,
+        ...(sectionGroup ? { sectionGroup } : {}),
+      }));
   });
 }
 
@@ -96,7 +111,8 @@ function mergeMaterialSummaryItems(
     const existingItem = mergedItems.find(
       (candidate) =>
         candidate.name.trim().toLowerCase() === item.name.trim().toLowerCase() &&
-        candidate.section === item.section
+        candidate.section === item.section &&
+        candidate.sectionGroup === item.sectionGroup
     );
     if (existingItem) {
       existingItem.percentage = item.percentage;
@@ -114,13 +130,18 @@ export function parseMaterialSummaryItems(summary?: string): MaterialItem[] {
     materialSummary.matchAll(/([^0-9%,/|·;\n]+?)\s*(\d+(?:\.\d+)?)\s*%/gi)
   )
     .map((match) => {
-      const section =
-        getMaterialSectionAt(materialSummary, match.index ?? 0) ||
-        getMaterialSection(match[1]);
+      const sectionContext = getMaterialSectionContextAt(
+        materialSummary,
+        match.index ?? 0
+      );
+      const section = sectionContext.section || getMaterialSection(match[1]);
+      const sectionGroup =
+        sectionContext.sectionGroup || getMaterialSectionGroup(match[1], section);
       return {
         name: cleanMaterialName(match[1]),
         percentage: Number(match[2]),
         ...(section ? { section } : {}),
+        ...(sectionGroup ? { sectionGroup } : {}),
       };
     })
     .filter((item) => item.name && Number.isFinite(item.percentage));
@@ -149,32 +170,53 @@ export function getMaterialPercentageTotal(
 export function hasInvalidMaterialPercentageTotal(
   materialComposition?: MaterialComposition
 ) {
-  const percentageItems = (materialComposition?.items || []).filter(
-    (item) => item.percentage != null && Number.isFinite(item.percentage)
+  const valuesWithPercentage = (materialComposition?.items || []).filter(
+    (item) => item.percentage != null
   );
 
   if (
-    percentageItems.some(
+    valuesWithPercentage.some(
       (item) =>
+        typeof item.percentage !== "number" ||
+        !Number.isFinite(item.percentage) ||
         (item.percentage ?? 0) < 0 || (item.percentage ?? 0) > 100.5
     )
   ) {
     return true;
   }
 
-  // 겉감·안감·충전재·배색은 각각 독립된 100% 조성일 수 있다.
-  // 섹션 인덱스까지 보존하지 않는 현재 구조에서는 섹션 간 합계를 검증하지 않는다.
-  if (percentageItems.some((item) => item.section)) {
-    return false;
+  const percentageItems = valuesWithPercentage as (MaterialItem & {
+    percentage: number;
+  })[];
+  const groupedSections = new Set(
+    percentageItems
+      .filter((item) => item.sectionGroup)
+      .map((item) => item.section)
+      .filter((section): section is MaterialSection => Boolean(section))
+  );
+  const ungroupedSections = new Set(
+    percentageItems
+      .filter((item) => item.section && !item.sectionGroup)
+      .map((item) => item.section as MaterialSection)
+  );
+
+  if ([...groupedSections].some((section) => ungroupedSections.has(section))) {
+    return true;
   }
 
-  const total = getMaterialPercentageTotal(percentageItems);
+  const itemsByGroup = new Map<string, MaterialItem[]>();
+  percentageItems.forEach((item) => {
+    const groupKey = item.sectionGroup
+      ? `group:${item.sectionGroup}`
+      : item.section
+        ? `section:${item.section}`
+        : "material";
+    itemsByGroup.set(groupKey, [...(itemsByGroup.get(groupKey) || []), item]);
+  });
 
-  if (total === 0) {
-    return false;
-  }
-
-  return total > 100.5;
+  return [...itemsByGroup.values()].some(
+    (items) => getMaterialPercentageTotal(items) > 100.5
+  );
 }
 
 function getMaterialItems(materialComposition?: MaterialComposition) {

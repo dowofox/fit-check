@@ -367,6 +367,21 @@ const fixtureServer = http.createServer((request, response) => {
     return;
   }
 
+  if (request.url === "/independent-outer-material") {
+    response.end(`<!doctype html><html><head>
+      <script type="application/ld+json">{
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"이중 겉감 재킷",
+        "brand":{"@type":"Brand","name":"NAES"},
+        "image":"/images/independent-outer-jacket.jpg"
+      }</script>
+    </head><body>
+      <dl><dt>소재</dt><dd>겉감1: 면 100% / 겉감2: 나일론 100%</dd></dl>
+    </body></html>`);
+    return;
+  }
+
   if (request.url === "/colonless-layered-material") {
     response.end(`<!doctype html><html><head>
       <script type="application/ld+json">{
@@ -1175,9 +1190,41 @@ async function main() {
       "겉감: 나일론 60%, 폴리에스터 40% / 안감: 레이온 100%"
     );
     assert.deepEqual(layeredMaterial.body.materialComposition.items, [
-      { name: "나일론", percentage: 60, section: "outer" },
-      { name: "폴리에스터", percentage: 40, section: "outer" },
-      { name: "레이온", percentage: 100, section: "lining" },
+      {
+        name: "나일론",
+        percentage: 60,
+        section: "outer",
+        sectionGroup: "outer:1",
+      },
+      {
+        name: "폴리에스터",
+        percentage: 40,
+        section: "outer",
+        sectionGroup: "outer:1",
+      },
+      {
+        name: "레이온",
+        percentage: 100,
+        section: "lining",
+        sectionGroup: "lining:2",
+      },
+    ]);
+
+    const independentOuterMaterial = await extract("/independent-outer-material");
+    assert.equal(independentOuterMaterial.response.status, 200);
+    assert.deepEqual(independentOuterMaterial.body.materialComposition.items, [
+      {
+        name: "면",
+        percentage: 100,
+        section: "outer",
+        sectionGroup: "outer:1",
+      },
+      {
+        name: "나일론",
+        percentage: 100,
+        section: "outer",
+        sectionGroup: "outer:2",
+      },
     ]);
 
     const colonlessLayeredMaterial = await extract("/colonless-layered-material");
@@ -1187,9 +1234,24 @@ async function main() {
       "겉감: 면 60%, 나일론 40% / 안감: 폴리에스터 100%"
     );
     assert.deepEqual(colonlessLayeredMaterial.body.materialComposition.items, [
-      { name: "면", percentage: 60, section: "outer" },
-      { name: "나일론", percentage: 40, section: "outer" },
-      { name: "폴리에스터", percentage: 100, section: "lining" },
+      {
+        name: "면",
+        percentage: 60,
+        section: "outer",
+        sectionGroup: "outer:1",
+      },
+      {
+        name: "나일론",
+        percentage: 40,
+        section: "outer",
+        sectionGroup: "outer:1",
+      },
+      {
+        name: "폴리에스터",
+        percentage: 100,
+        section: "lining",
+        sectionGroup: "lining:2",
+      },
     ]);
 
     const structuredSectionMaterial = await extract("/structured-section-material");

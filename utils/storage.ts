@@ -147,6 +147,7 @@ export type MaterialComposition = {
     name: string;
     percentage?: number | null;
     section?: MaterialSection;
+    sectionGroup?: string;
   }[];
   source?: string;
 };

@@ -961,10 +961,11 @@ function getMaterialCompositionSignature(materialComposition) {
         name: item.name,
         percentage: item.percentage ?? null,
         section: item.section || null,
+        sectionGroup: item.sectionGroup || null,
       }))
       .sort((first, second) =>
-        `${first.section || ""}:${first.name}`.localeCompare(
-          `${second.section || ""}:${second.name}`,
+        `${first.sectionGroup || first.section || ""}:${first.name}`.localeCompare(
+          `${second.sectionGroup || second.section || ""}:${second.name}`,
         ),
       ),
   );
@@ -973,11 +974,20 @@ function getMaterialCompositionSignature(materialComposition) {
 function getMaterialCompositionDetailRank(materialComposition) {
   const items = materialComposition?.items || [];
   const sectionCount = new Set(items.map((item) => item.section).filter(Boolean)).size;
+  const sectionGroupCount = new Set(
+    items.map((item) => item.sectionGroup).filter(Boolean),
+  ).size;
   const percentageCount = items.filter(
     (item) => typeof item.percentage === "number",
   ).length;
 
-  return [sectionCount > 0 ? 1 : 0, sectionCount, percentageCount, items.length];
+  return [
+    sectionCount > 0 ? 1 : 0,
+    sectionCount,
+    sectionGroupCount,
+    percentageCount,
+    items.length,
+  ];
 }
 
 function compareMaterialCompositionDetail(first, second) {
@@ -1955,7 +1965,14 @@ function normalizeMaterialSection(value) {
   )?.section;
 }
 
-function getMaterialSectionAt(text, index, contextLabel = "") {
+function normalizeMaterialSectionGroup(value, section) {
+  if (!section) return undefined;
+
+  const indexMatch = String(value || "").match(/\(?([0-9]+)\)?/);
+  return indexMatch ? `${section}:${Number(indexMatch[1])}` : undefined;
+}
+
+function getMaterialSectionContextAt(text, index, contextLabel = "") {
   const aliases = MATERIAL_SECTION_DEFINITIONS.flatMap(({ aliases: values }) => values)
     .sort((first, second) => second.length - first.length)
     .map(escapeRegularExpression)
@@ -1965,13 +1982,20 @@ function getMaterialSectionAt(text, index, contextLabel = "") {
     "gi",
   );
   let section;
+  let sectionGroup;
 
   for (const match of text.matchAll(sectionPattern)) {
     if ((match.index ?? 0) > index) break;
     section = normalizeMaterialSection(match[1]);
+    sectionGroup = normalizeMaterialSectionGroup(match[0], section);
   }
 
-  return section || normalizeMaterialSection(contextLabel);
+  const fallbackSection = section || normalizeMaterialSection(contextLabel);
+  return {
+    section: fallbackSection,
+    sectionGroup:
+      sectionGroup || normalizeMaterialSectionGroup(contextLabel, fallbackSection),
+  };
 }
 
 function getMaterialSectionLabel(section) {
@@ -1984,10 +2008,15 @@ function buildMaterialSummary(items) {
   const groups = [];
 
   for (const item of items) {
-    const key = item.section || "material";
+    const key = item.sectionGroup || item.section || "material";
     let group = groups.find((candidate) => candidate.key === key);
     if (!group) {
-      group = { key, section: item.section, items: [] };
+      group = {
+        key,
+        section: item.section,
+        sectionGroup: item.sectionGroup,
+        items: [],
+      };
       groups.push(group);
     }
     group.items.push(item);
@@ -2014,9 +2043,17 @@ function buildMaterialComposition(items, source) {
     if (!name) continue;
 
     const percentage = normalizeMaterialPercentage(item?.percentage);
-    const section = normalizeMaterialSection(item?.section);
+    const section =
+      normalizeMaterialSection(item?.section) ||
+      normalizeMaterialSection(String(item?.sectionGroup || "").split(":")[0]);
+    const sectionGroup =
+      normalizeMaterialSectionGroup(item?.sectionGroup, section) ||
+      normalizeMaterialSectionGroup(item?.section, section);
     const existingItem = uniqueItems.find(
-      (candidate) => candidate.name === name && candidate.section === section,
+      (candidate) =>
+        candidate.name === name &&
+        candidate.section === section &&
+        candidate.sectionGroup === sectionGroup,
     );
 
     if (existingItem) {
@@ -2030,6 +2067,7 @@ function buildMaterialComposition(items, source) {
       name,
       percentage,
       ...(section ? { section } : {}),
+      ...(sectionGroup ? { sectionGroup } : {}),
     });
   }
 
@@ -2083,16 +2121,32 @@ function parseMaterialCompositionText(
     "gi",
   );
   const percentageItems = [
-    ...[...text.matchAll(percentagePattern)].map((match) => ({
-      name: match[1],
-      percentage: match[2],
-      section: getMaterialSectionAt(text, match.index ?? 0, contextLabel),
-    })),
-    ...[...text.matchAll(reversePercentagePattern)].map((match) => ({
-      name: match[2],
-      percentage: match[1],
-      section: getMaterialSectionAt(text, match.index ?? 0, contextLabel),
-    })),
+    ...[...text.matchAll(percentagePattern)].map((match) => {
+      const sectionContext = getMaterialSectionContextAt(
+        text,
+        match.index ?? 0,
+        contextLabel,
+      );
+      return {
+        name: match[1],
+        percentage: match[2],
+        section: sectionContext.section,
+        sectionGroup: sectionContext.sectionGroup,
+      };
+    }),
+    ...[...text.matchAll(reversePercentagePattern)].map((match) => {
+      const sectionContext = getMaterialSectionContextAt(
+        text,
+        match.index ?? 0,
+        contextLabel,
+      );
+      return {
+        name: match[2],
+        percentage: match[1],
+        section: sectionContext.section,
+        sectionGroup: sectionContext.sectionGroup,
+      };
+    }),
   ];
 
   const hasStrongMaterialContext =
@@ -2113,13 +2167,18 @@ function parseMaterialCompositionText(
       getMaterialAliasIndexes(text, alias).map((index) => ({
         name,
         percentage: null,
-        section: getMaterialSectionAt(text, index, contextLabel),
+        ...getMaterialSectionContextAt(text, index, contextLabel),
         index,
       })),
     ),
   )
     .sort((first, second) => first.index - second.index)
-    .map(({ name, percentage, section }) => ({ name, percentage, section }));
+    .map(({ name, percentage, section, sectionGroup }) => ({
+      name,
+      percentage,
+      section,
+      sectionGroup,
+    }));
 
   if (percentageItems.length > 0) {
     return buildMaterialComposition([...nameItems, ...percentageItems], source);
@@ -2134,32 +2193,8 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
   }
 
   if (Array.isArray(value)) {
-    const structuredItems = value.map((item) => ({
-      name:
-        item && typeof item === "object"
-          ? getProductSizeValue(item, [
-              "name",
-              "material",
-              "materialName",
-              "fabric",
-              "fiber",
-              "label",
-              "title",
-              "type",
-            ])
-          : item,
-      percentage:
-        item && typeof item === "object"
-          ? getProductSizeValue(item, [
-              "percentage",
-              "ratio",
-              "rate",
-              "contentRate",
-              "percent",
-              "value",
-            ])
-          : null,
-      section:
+    const structuredItems = value.map((item) => {
+      const section =
         item && typeof item === "object"
           ? getProductSizeValue(item, [
               "section",
@@ -2169,8 +2204,44 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
               "location",
               "group",
             ]) || contextLabel
-          : contextLabel,
-    }));
+          : contextLabel;
+      return {
+        name:
+          item && typeof item === "object"
+            ? getProductSizeValue(item, [
+                "name",
+                "material",
+                "materialName",
+                "fabric",
+                "fiber",
+                "label",
+                "title",
+                "type",
+              ])
+            : item,
+        percentage:
+          item && typeof item === "object"
+            ? getProductSizeValue(item, [
+                "percentage",
+                "ratio",
+                "rate",
+                "contentRate",
+                "percent",
+                "value",
+              ])
+            : null,
+        section,
+        sectionGroup:
+          item && typeof item === "object"
+            ? getProductSizeValue(item, [
+                "sectionGroup",
+                "sectionIndex",
+                "sectionNo",
+                "groupIndex",
+              ])
+            : undefined,
+      };
+    });
     const structuredComposition = buildMaterialComposition(structuredItems, source);
 
     return (
@@ -2184,6 +2255,15 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
   const sectionedComposition = extractStructuredMaterialSectionComposition(value, source);
   if (sectionedComposition) return sectionedComposition;
 
+  const directSection =
+    getProductSizeValue(value, [
+      "section",
+      "part",
+      "component",
+      "area",
+      "location",
+      "group",
+    ]) || contextLabel;
   const directMaterialComposition = buildMaterialComposition(
     [
       {
@@ -2205,15 +2285,13 @@ function normalizeMaterialCompositionValue(value, source, contextLabel = "") {
           "percent",
           "value",
         ]),
-        section:
-          getProductSizeValue(value, [
-            "section",
-            "part",
-            "component",
-            "area",
-            "location",
-            "group",
-          ]) || contextLabel,
+        section: directSection,
+        sectionGroup: getProductSizeValue(value, [
+          "sectionGroup",
+          "sectionIndex",
+          "sectionNo",
+          "groupIndex",
+        ]),
       },
     ],
     source,
