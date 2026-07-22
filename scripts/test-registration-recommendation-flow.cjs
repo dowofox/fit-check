@@ -800,7 +800,7 @@ async function main() {
       ["RELAXED DAILY SHIRT", "상의", "셔츠"],
       ["OVERSIZED DAILY JACKET", "아우터", "자켓"],
       ["PLEATED MIDI SKIRT", "하의", "스커트"],
-      ["DAILY WALKING SHOES", "신발", "신발"],
+      ["DAILY SHOES", "신발", "신발"],
       ["CITY DAILY BAG", "액세서리", "가방"],
       ["SUMMER SUN HAT", "액세서리", "모자"],
       ["SILVER ACCESSORY", "액세서리", "액세서리"],
@@ -829,6 +829,10 @@ async function main() {
     });
     assert.equal(specificRuleTarget.category, "신발");
     assert.equal(specificRuleTarget.detailCategory, "러닝화");
+    assert.equal(
+      getProductAnalysisTarget({ productName: "DAILY WALKING SHOES" }).detailCategory,
+      "워킹화"
+    );
     assert.equal(
       getProductAnalysisTarget({ productName: "WHATEVER DAILY ITEM" }).category,
       undefined

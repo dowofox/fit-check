@@ -15,6 +15,10 @@ const {
   normalizeProductAnalysisContext,
 } = require("./productAnalysisContext");
 const {
+  getPhotoClassificationTaxonomyInstruction,
+  normalizePhotoDetailCategory,
+} = require("./clothingTaxonomy");
+const {
   ProductUrlSafetyError,
   fetchPublicProductPage,
 } = require("./productUrlSafety");
@@ -3939,6 +3943,7 @@ app.post("/analyze-clothes", async (req, res) => {
                 type: "text",
                 text: `
 ${getProductAnalysisInstruction(normalizedProductContext)}
+${getPhotoClassificationTaxonomyInstruction()}
 
 분석 대상 옷 하나를 옷장에 저장할 정보로 만들어주세요.
 
@@ -4143,7 +4148,9 @@ ${getProductAnalysisInstruction(normalizedProductContext)}
       "분석 전"
     );
     const sanitizedDetailCategory = generalizeBrandTerms(
-      normalizedProductContext?.detailCategory || parsed.detailCategory || parsed.subCategory,
+      normalizePhotoDetailCategory(
+        normalizedProductContext?.detailCategory || parsed.detailCategory || parsed.subCategory,
+      ),
       "상세 분류 전"
     );
     const sanitizedDescription = generalizeBrandTerms(

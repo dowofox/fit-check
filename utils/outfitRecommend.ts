@@ -414,8 +414,22 @@ function getSockRecommendation(
   const shoeColor = shoe?.color || recommendedShoes?.type || "";
   const bottomLabel = bottom ? getItemLabel(bottom) : "하의";
   const shoeLabel = shoe ? `${shoeColor || ""} ${getItemLabel(shoe)}`.trim() : recommendedShoes?.type || "신발";
-  const noSockKeywords = ["슬리퍼", "샌들", "크록스", "쪼리", "플립플랍", "플립플롭"];
-  const optionalSockKeywords = ["버켄스탁", "피셔맨 샌들", "피셔맨"];
+  const noSockKeywords = [
+    "슬리퍼",
+    "샌들",
+    "슬라이드",
+    "플립플랍",
+    "플립플롭",
+    "쪼리",
+    "뮬",
+    "크록스",
+  ];
+  const optionalSockKeywords = [
+    "버켄스탁",
+    "피셔맨 샌들",
+    "피셔맨",
+    "클로그",
+  ];
   const sockRecommendedKeywords = ["운동화", "스니커즈", "러닝화", "로퍼", "더비슈즈", "더비", "부츠", "워커"];
   const isNoSockShoe = noSockKeywords.some((keyword) => shoeText.includes(keyword)) &&
     !optionalSockKeywords.some((keyword) => shoeText.includes(keyword));

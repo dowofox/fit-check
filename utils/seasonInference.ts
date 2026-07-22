@@ -88,7 +88,21 @@ const OFFICIAL_SEASON_RULES: Array<{
   },
   {
     id: "summer-footwear",
-    keywords: ["샌들", "슬리퍼", "쪼리", "크록스", "sandal", "slides", "flip flop"],
+    keywords: [
+      "샌들",
+      "슬리퍼",
+      "슬라이드",
+      "플립플롭",
+      "쪼리",
+      "뮬",
+      "클로그",
+      "크록스",
+      "sandal",
+      "slides",
+      "flip flop",
+      "mule",
+      "clog",
+    ],
     seasons: ["여름"],
   },
   {
@@ -195,6 +209,18 @@ const OFFICIAL_SEASON_RULES: Array<{
     seasons: ["가을", "겨울"],
   },
   {
+    id: "rain-footwear",
+    keywords: [
+      "레인부츠",
+      "레인 부츠",
+      "장화",
+      "rain boots",
+      "rain boot",
+      "wellington boots",
+    ],
+    seasons: ["봄", "여름", "가을"],
+  },
+  {
     id: "winter-footwear",
     keywords: [
       "부츠",
@@ -211,7 +237,17 @@ const OFFICIAL_SEASON_RULES: Array<{
       "chelsea boots",
       "snow boots",
     ],
-    excludedKeywords: ["부츠컷", "bootcut", "boot cut"],
+    excludedKeywords: [
+      "부츠컷",
+      "bootcut",
+      "boot cut",
+      "레인부츠",
+      "레인 부츠",
+      "장화",
+      "rain boots",
+      "rain boot",
+      "wellington boots",
+    ],
     seasons: ["가을", "겨울"],
   },
   {

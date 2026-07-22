@@ -63,7 +63,11 @@ function getSeasonOuterRecommendation(season: Season) {
 
 function inferCategory(query: string) {
   if (/팬츠|슬랙스|데님|바지/.test(query)) return "하의";
-  if (/스니커즈|운동화|로퍼|부츠|신발/.test(query)) return "신발";
+  if (
+    /스니커즈|운동화|러닝화|워킹화|슈즈|로퍼|구두|옥스포드|더비|몽크|펌프스|플랫|힐|부츠|샌들|슬리퍼|슬라이드|플립플롭|뮬|클로그|신발/.test(query)
+  ) {
+    return "신발";
+  }
   if (/재킷|자켓|코트|패딩|아우터|가디건/.test(query)) return "아우터";
   if (/볼캡|가방|백|모자|액세서리/.test(query)) return "액세서리";
   return "상의";

@@ -58,7 +58,21 @@ const SITUATION_RULES: Record<Exclude<OutfitSituationId, "all">, SituationRule> 
     positive: [
       { keywords: ["미니멀", "댄디", "포멀", "클래식", "페미닌", "러블리"], score: 3 },
       { keywords: ["니트", "셔츠", "가디건", "블라우스"], score: 2 },
-      { keywords: ["로퍼", "더비", "첼시부츠"], score: 2 },
+      {
+        keywords: [
+          "로퍼",
+          "더비",
+          "옥스포드",
+          "몽크스트랩",
+          "브로그",
+          "윙팁",
+          "펌프스",
+          "메리제인",
+          "플랫 슈즈",
+          "첼시부츠",
+        ],
+        score: 2,
+      },
       { keywords: ["슬랙스", "치노"], score: 1 },
     ],
     negative: [
@@ -73,7 +87,20 @@ const SITUATION_RULES: Record<Exclude<OutfitSituationId, "all">, SituationRule> 
       { keywords: ["미니멀", "모던", "클래식", "댄디", "깔끔함", "포멀"], score: 3 },
       { keywords: ["셔츠", "니트", "블라우스"], score: 2 },
       { keywords: ["슬랙스", "치노"], score: 2 },
-      { keywords: ["로퍼", "더비"], score: 1 },
+      {
+        keywords: [
+          "로퍼",
+          "더비",
+          "옥스포드",
+          "몽크스트랩",
+          "브로그",
+          "윙팁",
+          "펌프스",
+          "메리제인",
+          "플랫 슈즈",
+        ],
+        score: 1,
+      },
     ],
     negative: [
       { keywords: ["그래픽", "카모", "네온", "테크웨어"], score: 3 },

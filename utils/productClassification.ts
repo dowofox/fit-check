@@ -4,9 +4,11 @@ import type {
   ProductClassificationField,
 } from "@/utils/storage";
 import {
-  PRODUCT_CATEGORY_FALLBACK_RULES,
-  PRODUCT_CLASSIFICATION_RULES,
-} from "@/utils/productClassificationRules";
+  findProductClassificationRule,
+  includesAnyTaxonomyKeyword,
+  isUnsupportedOnePieceClassification,
+  normalizeTaxonomyText,
+} from "@/utils/clothingTaxonomy";
 import { normalizeProductColor } from "@/utils/color";
 import {
   getPrimaryMaterialText,
@@ -82,46 +84,8 @@ export function getRecommendationMaterialText(item: ClosetItem) {
   return officialMaterial || itemMaterial || "";
 }
 
-function normalizeSearchText(value?: string) {
-  return (value || "")
-    .toLowerCase()
-    .replace(/[\-_\/]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function includesKeyword(value: string, keyword: string) {
-  const normalizedKeyword = normalizeSearchText(keyword);
-  const keywordParts = normalizedKeyword.split(/\s+/).filter(Boolean);
-  const isEnglishKeyword = /^[a-z0-9 ]+$/.test(normalizedKeyword);
-
-  if (isEnglishKeyword) {
-    const valueParts = value.split(/\s+/).filter(Boolean);
-    return keywordParts.every((part) => valueParts.includes(part));
-  }
-
-  if (/^[가-힣]$/.test(normalizedKeyword)) {
-    return value
-      .split(/[\s,/%()[\]{}·:;]+/)
-      .filter(Boolean)
-      .includes(normalizedKeyword);
-  }
-
-  if (value.includes(normalizedKeyword)) return true;
-
-  if (keywordParts.length < 2 || keywordParts.some((part) => part.length < 2)) {
-    return false;
-  }
-
-  return keywordParts.every((part) => value.includes(part));
-}
-
-function includesAny(value: string, keywords: string[]) {
-  return keywords.some((keyword) => includesKeyword(value, keyword));
-}
-
 function getMaterialSearchText(materialComposition?: MaterialComposition) {
-  return normalizeSearchText(getPrimaryMaterialText(materialComposition));
+  return normalizeTaxonomyText(getPrimaryMaterialText(materialComposition));
 }
 
 function getOfficialMaterial(
@@ -132,8 +96,8 @@ function getOfficialMaterial(
   const materialSummary =
     materialComposition?.summary?.trim() || getSignificantMaterialText(materialComposition);
   const primaryMaterial = getPrimaryMaterialText(materialComposition);
-  const hasNamedLinen = includesAny(productName, ["린넨", "linen"]);
-  const hasNamedWool = includesAny(productName, [
+  const hasNamedLinen = includesAnyTaxonomyKeyword(productName, ["린넨", "linen"]);
+  const hasNamedWool = includesAnyTaxonomyKeyword(productName, [
     "울 ",
     "울100",
     "울 100",
@@ -142,8 +106,8 @@ function getOfficialMaterial(
     "모100",
     "모 100",
   ]);
-  const hasOfficialLinen = includesAny(materialText, ["린넨", "linen"]);
-  const hasOfficialWool = includesAny(materialText, [
+  const hasOfficialLinen = includesAnyTaxonomyKeyword(materialText, ["린넨", "linen"]);
+  const hasOfficialWool = includesAnyTaxonomyKeyword(materialText, [
     "울",
     "wool",
     "모 ",
@@ -151,15 +115,15 @@ function getOfficialMaterial(
     "모 100",
   ]);
 
-  if (includesAny(productName, ["데님", "denim", "jeans", "청바지"])) return "데님";
+  if (includesAnyTaxonomyKeyword(productName, ["데님", "denim", "jeans", "청바지"])) return "데님";
   if (hasNamedLinen && hasNamedWool) return materialSummary || "린넨 울";
   if (hasNamedLinen) return "린넨";
   if (hasNamedWool) return "울";
   if (hasOfficialLinen && hasOfficialWool) return materialSummary || "린넨 울";
   if (hasOfficialLinen) return "린넨";
   if (hasOfficialWool) return "울";
-  if (includesAny(productName, ["플란넬", "flannel"])) return "플란넬";
-  if (includesAny(productName, ["니트", "knit"])) return "니트";
+  if (includesAnyTaxonomyKeyword(productName, ["플란넬", "flannel"])) return "플란넬";
+  if (includesAnyTaxonomyKeyword(productName, ["니트", "knit"])) return "니트";
   if (hasMaterialSectionData(materialComposition)) {
     return primaryMaterial || undefined;
   }
@@ -180,31 +144,10 @@ function getKeywordClassification(
   const classificationText = [productName, productCategory].filter(Boolean).join(" ");
   const officialMaterial = getOfficialMaterial(classificationText, materialComposition);
   const currentTags = currentItem?.styleTags;
-  const overridingNameRule = PRODUCT_CLASSIFICATION_RULES.find(
-    (rule) =>
-      rule.overridesCategoryGroup && includesAny(productName, rule.keywords)
-  );
-  const officialCategoryGroup =
-    overridingNameRule?.group ||
-    PRODUCT_CATEGORY_FALLBACK_RULES.find((rule) =>
-      includesAny(productCategory, rule.keywords)
-    )?.group;
-  const specificRules = officialCategoryGroup
-    ? PRODUCT_CLASSIFICATION_RULES.filter((rule) => rule.group === officialCategoryGroup)
-    : PRODUCT_CLASSIFICATION_RULES;
-  const fallbackRules = officialCategoryGroup
-    ? PRODUCT_CATEGORY_FALLBACK_RULES.filter((rule) => rule.group === officialCategoryGroup)
-    : PRODUCT_CATEGORY_FALLBACK_RULES;
-  const specificRule =
-    overridingNameRule ||
-    specificRules.find((rule) =>
-      includesAny(classificationText, rule.keywords)
-    );
-  const matchedRule =
-    specificRule ||
-    fallbackRules.find((rule) =>
-      includesAny(classificationText, rule.keywords)
-    );
+  const matchedRule = findProductClassificationRule({
+    productName,
+    productCategory,
+  });
   const candidate: ClassificationCandidate = matchedRule
     ? {
         ...matchedRule.attributes,
@@ -227,8 +170,8 @@ export function inferProductAttributesFromConfirmedProduct({
   materialComposition,
   currentItem,
 }: ProductClassificationInput): ProductClassificationResult {
-  const normalizedProductName = normalizeSearchText(productName);
-  const normalizedProductCategory = normalizeSearchText(productCategory);
+  const normalizedProductName = normalizeTaxonomyText(productName);
+  const normalizedProductCategory = normalizeTaxonomyText(productCategory);
   const classificationText = [normalizedProductName, normalizedProductCategory]
     .filter(Boolean)
     .join(" ");
@@ -291,6 +234,17 @@ export function getProductAnalysisTarget(
   const productName = input.productName?.trim() || undefined;
   const brand = input.brand?.trim() || undefined;
   const color = normalizeProductColor(input.productColor);
+
+  if (isUnsupportedOnePieceClassification(input)) {
+    return {
+      productName,
+      brand,
+      color,
+      category: "기타",
+      subCategory: "분류 확인 필요",
+      detailCategory: "분류 확인 필요",
+    };
+  }
 
   return {
     productName,

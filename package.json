@@ -21,7 +21,8 @@
     "test:data-backup": "node scripts/test-data-backup.cjs",
     "test:closet": "node scripts/test-closet-search.cjs",
     "test:size": "node scripts/test-size-recommendation.cjs",
-    "test:season": "node scripts/test-clothes-season.cjs && node scripts/test-season-inference.cjs"
+    "test:season": "node scripts/test-clothes-season.cjs && node scripts/test-season-inference.cjs",
+    "test:classification": "node scripts/test-product-classification-coverage.cjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -257,6 +257,41 @@ test("일반 샌들은 양말을 권하지 않는 결과를 유지한다", () =>
   assert.equal(recommendation.sockRecommendation.type, "양말 없음");
 });
 
+test("슬라이드는 양말 없이, 클로그는 양말 선택 사항으로 안내한다", () => {
+  const coreItems = [
+    createItem("open-shoe-top", "상의"),
+    createItem("open-shoe-bottom", "하의"),
+  ];
+  const [slideRecommendation] = getOutfitRecommendations(
+    [
+      ...coreItems,
+      createItem("open-shoe-slide", "신발", {
+        subCategory: "슬리퍼",
+        detailCategory: "슬라이드",
+      }),
+    ],
+    null,
+    "여름",
+  );
+  const [clogRecommendation] = getOutfitRecommendations(
+    [
+      ...coreItems,
+      createItem("open-shoe-clog", "신발", {
+        subCategory: "슬리퍼",
+        detailCategory: "클로그",
+      }),
+    ],
+    null,
+    "여름",
+  );
+
+  assert.equal(slideRecommendation.sockRecommendation.required, false);
+  assert.equal(slideRecommendation.sockRecommendation.optional, undefined);
+  assert.equal(slideRecommendation.sockRecommendation.type, "양말 없음");
+  assert.equal(clogRecommendation.sockRecommendation.required, false);
+  assert.equal(clogRecommendation.sockRecommendation.optional, true);
+});
+
 function createWardrobe() {
   return [
     createItem("top-white", "상의"),

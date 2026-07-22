@@ -31,6 +31,7 @@ import {
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
+import { normalizePhotoClassificationWithTaxonomy } from "@/utils/clothingTaxonomy";
 import { getProductExtractionSummary } from "@/utils/productExtractionSummary";
 import {
   parseExtractedProductResponse,
@@ -227,7 +228,9 @@ async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | 
     throw new Error("Analyze clothes returned an invalid payload");
   }
 
-  return applyProductAnalysisTarget(analysis as ClothesAnalysis, productContext);
+  return normalizePhotoClassificationWithTaxonomy(
+    applyProductAnalysisTarget(analysis as ClothesAnalysis, productContext)
+  );
 }
 
 function toggleSeason(currentSeasons: string[], season: string) {
