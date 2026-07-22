@@ -149,7 +149,26 @@ export function getMaterialPercentageTotal(
 export function hasInvalidMaterialPercentageTotal(
   materialComposition?: MaterialComposition
 ) {
-  const total = getMaterialPercentageTotal(materialComposition?.items);
+  const percentageItems = (materialComposition?.items || []).filter(
+    (item) => item.percentage != null && Number.isFinite(item.percentage)
+  );
+
+  if (
+    percentageItems.some(
+      (item) =>
+        (item.percentage ?? 0) < 0 || (item.percentage ?? 0) > 100.5
+    )
+  ) {
+    return true;
+  }
+
+  // 겉감·안감·충전재·배색은 각각 독립된 100% 조성일 수 있다.
+  // 섹션 인덱스까지 보존하지 않는 현재 구조에서는 섹션 간 합계를 검증하지 않는다.
+  if (percentageItems.some((item) => item.section)) {
+    return false;
+  }
+
+  const total = getMaterialPercentageTotal(percentageItems);
 
   if (total === 0) {
     return false;
