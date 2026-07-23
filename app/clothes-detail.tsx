@@ -3,6 +3,16 @@ import {
   API_TIMEOUTS,
   fetchApiWithTimeout,
 } from "@/utils/api";
+import { AnalysisImageError } from "@/utils/analysisImage";
+import { requestClothesAnalysis } from "@/utils/clothesAnalysis";
+import { CURRENT_CLASSIFICATION_VERSION } from "@/utils/clothesAnalysisVersions";
+import {
+  getAnalysisStatusLabel,
+  getClosetItemAnalysisImageUris,
+  getClosetItemAnalysisUpdateAvailability,
+  getClosetItemLocalAnalysisUpdate,
+  mergeClosetItemAnalysisUpdate,
+} from "@/utils/closetAnalysisRefresh";
 import {
   deleteManagedClosetImageFiles,
   deleteUnusedClosetItemImages,
@@ -232,6 +242,31 @@ function getSizeOptions(category: string) {
 
 const INTENDED_FIT_OPTIONS = ["딱 맞게", "여유 있게", "오버핏", "상관없음"];
 const SHOW_INTERNAL_AI_ANALYSIS = false;
+
+function formatAnalysisDate(value?: string) {
+  if (!value) return "기록 없음";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "기록 없음";
+
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join(".");
+}
+
+function getAnalysisDiffMessage(
+  diffs: ReturnType<typeof mergeClosetItemAnalysisUpdate>["diffs"]
+) {
+  const visibleDiffs = diffs.slice(0, 6);
+  const lines = visibleDiffs.map(
+    (diff) => `${diff.label}\n${diff.before} → ${diff.after}`
+  );
+  if (diffs.length > visibleDiffs.length) {
+    lines.push(`외 ${diffs.length - visibleDiffs.length}개 항목`);
+  }
+  return lines.join("\n\n");
+}
 const RECOMMENDATION_PREFERENCE_OPTIONS: {
   value: RecommendationPreference;
   label: string;
@@ -2169,12 +2204,14 @@ export default function ClothesDetailScreen() {
   const [isMeasurementFormOpen, setIsMeasurementFormOpen] = useState(false);
   const [isSavingProductMeasurement, setIsSavingProductMeasurement] = useState(false);
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
+  const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
   const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
   );
   const heroImageTimerRef = useRef<PerformanceTimer>(null);
   const productExtractionRequestRef = useRef(0);
+  const analysisRefreshRequestRef = useRef(0);
   const clothesDetailLoadRequestRef = useRef(0);
   const productMeasurementMutationRef = useRef(false);
   const shouldOpenMeasurementRef = useRef(openMeasurement === "1");
@@ -2184,6 +2221,7 @@ export default function ClothesDetailScreen() {
   useEffect(
     () => () => {
       productExtractionRequestRef.current += 1;
+      analysisRefreshRequestRef.current += 1;
     },
     [id]
   );
@@ -2371,6 +2409,9 @@ export default function ClothesDetailScreen() {
       invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         imageUri: persistedImageUri,
+        photoAnalysisVersion: 0,
+        lastAnalyzedAt: undefined,
+        updatedAt: new Date().toISOString(),
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
@@ -2399,6 +2440,202 @@ export default function ClothesDetailScreen() {
     } finally {
       setIsUpdatingImage(false);
     }
+  }
+
+  async function applyAnalysisRefresh(
+    currentItem: ClosetItem,
+    changes: Partial<ClosetItem>,
+    requestId: number,
+    successMessage: string
+  ) {
+    if (requestId !== analysisRefreshRequestRef.current) return;
+
+    try {
+      setIsRefreshingAnalysis(true);
+      invalidateClothesDetailLoad();
+      const updatedCloset = await updateClosetItem(currentItem.id, changes);
+      if (requestId !== analysisRefreshRequestRef.current) return;
+
+      const updatedItem = updatedCloset.find(
+        (closetItem) => closetItem.id === currentItem.id
+      );
+      if (!updatedItem) {
+        Alert.alert("업데이트 실패", "기존 옷 정보는 그대로 유지했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      setItem(updatedItem);
+      setDraft(getEditableValues(updatedItem));
+      if (__DEV__) {
+        console.info("[closet-analysis-refresh]", {
+          itemId: currentItem.id,
+          previousClassificationVersion: currentItem.classificationVersion || 0,
+          nextClassificationVersion: updatedItem.classificationVersion || 0,
+          previousPhotoAnalysisVersion: currentItem.photoAnalysisVersion || 0,
+          nextPhotoAnalysisVersion: updatedItem.photoAnalysisVersion || 0,
+          changedFields: Object.keys(changes).filter(
+            (field) =>
+              ![
+                "classificationVersion",
+                "photoAnalysisVersion",
+                "lastAnalyzedAt",
+                "lastClassificationUpdatedAt",
+                "updatedAt",
+              ].includes(field)
+          ),
+          source: changes.photoAnalysisVersion ? "photo_and_classification" : "classification",
+        });
+      }
+      Alert.alert("분석 업데이트 완료", successMessage);
+    } catch (error) {
+      console.error("옷 분석 업데이트 저장 실패:", error);
+      Alert.alert("업데이트 실패", "기존 옷 정보는 그대로 유지했어요. 다시 시도해주세요.");
+    } finally {
+      if (requestId === analysisRefreshRequestRef.current) {
+        setIsRefreshingAnalysis(false);
+      }
+    }
+  }
+
+  async function runAnalysisRefresh(currentItem: ClosetItem) {
+    const requestId = analysisRefreshRequestRef.current + 1;
+    analysisRefreshRequestRef.current = requestId;
+    const availability = getClosetItemAnalysisUpdateAvailability(currentItem);
+    let refreshResult:
+      | ReturnType<typeof mergeClosetItemAnalysisUpdate>
+      | undefined;
+    let usedPhotoAnalysis = false;
+
+    setIsRefreshingAnalysis(true);
+
+    try {
+      if (availability.canRefreshPhoto && availability.analysisImageUri) {
+        try {
+          let analysis;
+          let lastImageError: unknown;
+
+          for (const imageUri of getClosetItemAnalysisImageUris(currentItem)) {
+            try {
+              analysis = await requestClothesAnalysis(
+                imageUri,
+                currentItem.confirmedProduct
+              );
+              break;
+            } catch (error) {
+              if (!(error instanceof AnalysisImageError)) throw error;
+              lastImageError = error;
+            }
+          }
+          if (!analysis) {
+            throw lastImageError || new Error("No usable analysis image");
+          }
+          if (requestId !== analysisRefreshRequestRef.current) return;
+          refreshResult = mergeClosetItemAnalysisUpdate(currentItem, analysis, {
+            applyClassification: true,
+            applyPhotoAnalysis: true,
+          });
+          usedPhotoAnalysis = true;
+        } catch (error) {
+          if (
+            error instanceof AnalysisImageError &&
+            availability.canRefreshClassification
+          ) {
+            refreshResult = getClosetItemLocalAnalysisUpdate(currentItem);
+          } else {
+            throw error;
+          }
+        }
+      } else if (availability.canRefreshClassification) {
+        refreshResult = getClosetItemLocalAnalysisUpdate(currentItem);
+      }
+
+      if (requestId !== analysisRefreshRequestRef.current) return;
+      if (!refreshResult) {
+        Alert.alert(
+          "업데이트할 수 없어요",
+          "원본 사진이나 확정 상품 정보가 없어 현재 정보를 자동으로 다시 분석할 수 없어요."
+        );
+        return;
+      }
+
+      if (refreshResult.diffs.length === 0) {
+        await applyAnalysisRefresh(
+          currentItem,
+          refreshResult.changes,
+          requestId,
+          "이미 최신 분석 결과예요."
+        );
+        return;
+      }
+
+      const skippedMessage =
+        refreshResult.skippedUserEditedFields.length > 0
+          ? "\n\n직접 수정한 정보는 그대로 유지돼요."
+          : "";
+      const sourceMessage = usedPhotoAnalysis
+        ? "원본 사진과 확정 상품 정보를 함께 반영했어요."
+        : "확정 상품 정보와 최신 분류 기준을 반영했어요.";
+
+      setIsRefreshingAnalysis(false);
+      Alert.alert(
+        "변경 내용을 확인해주세요",
+        `${sourceMessage}\n\n${getAnalysisDiffMessage(refreshResult.diffs)}${skippedMessage}`,
+        [
+          { text: "취소", style: "cancel" },
+          {
+            text: "적용",
+            onPress: () =>
+              void applyAnalysisRefresh(
+                currentItem,
+                refreshResult?.changes || {},
+                requestId,
+                `${refreshResult?.diffs.length || 0}개 정보를 최신 기준으로 바꿨어요.`
+              ),
+          },
+        ]
+      );
+    } catch (error) {
+      if (requestId !== analysisRefreshRequestRef.current) return;
+      console.error("옷 사진 재분석 실패:", error);
+      Alert.alert(
+        "사진 분석에 실패했어요",
+        "기존 옷 정보는 변경하지 않았어요. 네트워크와 원본 사진을 확인한 뒤 다시 시도해주세요."
+      );
+    } finally {
+      if (requestId === analysisRefreshRequestRef.current) {
+        setIsRefreshingAnalysis(false);
+      }
+    }
+  }
+
+  function handleRefreshAnalysis() {
+    if (!item || isRefreshingAnalysis) return;
+
+    const availability = getClosetItemAnalysisUpdateAvailability(item);
+    if (availability.status === "current") {
+      Alert.alert("최신 분석", "이미 최신 분석 결과예요.");
+      return;
+    }
+    if (availability.status === "unavailable") {
+      Alert.alert(
+        "업데이트할 수 없어요",
+        "원본 사진이나 확정 상품 정보가 없어 현재 정보를 자동으로 다시 분석할 수 없어요."
+      );
+      return;
+    }
+    if (availability.canRefreshPhoto) {
+      Alert.alert(
+        "최신 분석으로 업데이트",
+        "원본 사진을 분석 서버에 다시 보내 최신 기준으로 분석할까요? 직접 수정한 정보와 기존 사진은 유지돼요.",
+        [
+          { text: "취소", style: "cancel" },
+          { text: "분석하기", onPress: () => void runAnalysisRefresh(item) },
+        ]
+      );
+      return;
+    }
+
+    void runAnalysisRefresh(item);
   }
 
   async function handleSave(allowUncertainValues = false) {
@@ -2597,6 +2834,7 @@ export default function ClothesDetailScreen() {
           : {}),
       };
       const classificationNotice = getProductClassificationNotice(classification, item);
+      const classificationUpdatedAt = new Date().toISOString();
       invalidateClothesDetailLoad();
       const updatedCloset = await updateClosetItem(item.id, {
         confirmedProduct: replacementConfirmedProduct,
@@ -2606,6 +2844,9 @@ export default function ClothesDetailScreen() {
         ...(shouldSyncColor ? { color: confirmedColor } : {}),
         ...(shouldSyncMaterial ? { material: confirmedMaterial } : {}),
         ...classificationUpdates,
+        classificationVersion: CURRENT_CLASSIFICATION_VERSION,
+        lastClassificationUpdatedAt: classificationUpdatedAt,
+        updatedAt: classificationUpdatedAt,
       });
       const updatedItem = updatedCloset.find((closetItem) => closetItem.id === item.id);
 
@@ -3078,6 +3319,13 @@ export default function ClothesDetailScreen() {
   const recommendationReviewFields = item
     ? getClosetItemReviewFields(item)
     : [];
+  const analysisStatus = item ? getAnalysisStatusLabel(item) : "";
+  const analysisAvailability = item
+    ? getClosetItemAnalysisUpdateAvailability(item)
+    : null;
+  const lastAnalysisDate = item
+    ? formatAnalysisDate(item.lastAnalyzedAt || item.lastClassificationUpdatedAt)
+    : "";
   const isCurrentReferenceClothing = Boolean(
     item &&
     referenceClothingKey &&
@@ -3243,6 +3491,51 @@ export default function ClothesDetailScreen() {
                 {[getDisplayBrand(item), item.category, item.color].filter(Boolean).join(" · ")}
               </Text>
             </View>
+
+            {!editMode ? (
+              <View style={styles.analysisRefreshCard}>
+                <View style={styles.analysisRefreshHeader}>
+                  <View style={styles.analysisRefreshIcon}>
+                    <Feather name="refresh-cw" size={16} color={colors.point} />
+                  </View>
+                  <View style={styles.analysisRefreshTextWrap}>
+                    <Text style={styles.analysisRefreshTitle}>{analysisStatus}</Text>
+                    <Text style={styles.analysisRefreshDescription}>
+                      마지막 분석: {lastAnalysisDate}
+                      {item.userEditedClassificationFields?.length
+                        ? " · 직접 수정한 정보는 유지돼요."
+                        : ""}
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="최신 분석으로 업데이트"
+                  disabled={
+                    isRefreshingAnalysis ||
+                    analysisAvailability?.status === "current"
+                  }
+                  style={[
+                    styles.analysisRefreshButton,
+                    (isRefreshingAnalysis ||
+                      analysisAvailability?.status === "current") &&
+                      styles.analysisRefreshButtonDisabled,
+                  ]}
+                  onPress={handleRefreshAnalysis}
+                >
+                  <Text
+                    style={[
+                      styles.analysisRefreshButtonText,
+                      (isRefreshingAnalysis ||
+                        analysisAvailability?.status === "current") &&
+                        styles.analysisRefreshButtonTextDisabled,
+                    ]}
+                  >
+                    {isRefreshingAnalysis ? "분석 중" : "최신 분석으로 업데이트"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             {!editMode && recommendationReviewFields.length > 0 ? (
               <View style={styles.recommendationInfoReviewCard}>
@@ -3781,6 +4074,68 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: "800",
     flexShrink: 1,
+  },
+
+  analysisRefreshCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 15,
+    marginBottom: 14,
+    gap: 12,
+  },
+  analysisRefreshHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  analysisRefreshIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.softCard,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  analysisRefreshTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  analysisRefreshTitle: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "800",
+  },
+  analysisRefreshDescription: {
+    color: colors.subText,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
+    marginTop: 3,
+  },
+  analysisRefreshButton: {
+    minHeight: 40,
+    borderRadius: 14,
+    backgroundColor: colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+  },
+  analysisRefreshButtonDisabled: {
+    backgroundColor: colors.softCard,
+  },
+  analysisRefreshButtonText: {
+    color: colors.card,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  analysisRefreshButtonTextDisabled: {
+    color: colors.subText,
   },
 
   infoCard: {

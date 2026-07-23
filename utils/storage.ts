@@ -283,6 +283,11 @@ export type ClosetItem = {
   id: string;
   imageUri: string;
   cleanImageUri?: string;
+  classificationVersion?: number;
+  photoAnalysisVersion?: number;
+  lastAnalyzedAt?: string;
+  lastClassificationUpdatedAt?: string;
+  updatedAt?: string;
   category: string;
   subCategory?: string;
   detailCategory?: string;
@@ -1079,6 +1084,80 @@ export function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
     } catch (error) {
       console.error("옷장 수정 실패:", error);
       return [];
+    }
+  });
+}
+
+export type ClosetItemBatchUpdate = {
+  id: string;
+  changes: Partial<ClosetItem>;
+};
+
+export function updateClosetItemsBatch(
+  updates: ClosetItemBatchUpdate[]
+): Promise<ClosetItem[] | null> {
+  return runClosetMutation(async () => {
+    try {
+      const updatesById = new Map(
+        updates
+          .filter((update) => Boolean(update.id))
+          .map((update) => [update.id, update.changes])
+      );
+      const [closet, currentRevisions] = await Promise.all([
+        getClosetItemsForMutation(),
+        getRecommendationRevisionState(),
+      ]);
+
+      if (updatesById.size === 0) return closet;
+
+      const updatedCloset = closet.map((item) => {
+        const changes = updatesById.get(item.id);
+        return changes ? { ...item, ...changes } : item;
+      });
+      const didChangeCategory = closet.some((item, index) => {
+        const updatedItem = updatedCloset[index];
+        return item.category !== updatedItem.category;
+      });
+      const profileLoad = didChangeCategory
+        ? await getUserProfileLoadResult()
+        : { status: "loaded" as const, profile: null };
+
+      if (profileLoad.status === "failed") {
+        throw new Error("Stored profile data could not be loaded");
+      }
+
+      const profile = profileLoad.profile;
+      const nextReferenceClothing = profile
+        ? pruneReferenceClothing(profile.referenceClothing, updatedCloset)
+        : undefined;
+      const didReferencesChange = Boolean(
+        profile &&
+          JSON.stringify(profile.referenceClothing || {}) !==
+            JSON.stringify(nextReferenceClothing || {})
+      );
+      const revisions = incrementRecommendationRevisions(
+        currentRevisions,
+        didReferencesChange
+          ? ["closetRevision", "profileRevision"]
+          : ["closetRevision"]
+      );
+      const entries = getClosetStorageEntries(updatedCloset, revisions);
+
+      if (profile && didReferencesChange) {
+        entries.push([
+          PROFILE_KEY,
+          JSON.stringify({
+            ...profile,
+            referenceClothing: nextReferenceClothing,
+          }),
+        ]);
+      }
+
+      await persistStorageMutationEntries(entries);
+      return updatedCloset;
+    } catch (error) {
+      console.error("옷장 일괄 수정 실패:", error);
+      return null;
     }
   });
 }

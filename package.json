@@ -22,7 +22,8 @@
     "test:closet": "node scripts/test-closet-search.cjs",
     "test:size": "node scripts/test-size-recommendation.cjs",
     "test:season": "node scripts/test-clothes-season.cjs && node scripts/test-season-inference.cjs",
-    "test:classification": "node scripts/test-product-classification-coverage.cjs"
+    "test:classification": "node scripts/test-product-classification-coverage.cjs",
+    "test:analysis-refresh": "node scripts/test-closet-analysis-refresh.cjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

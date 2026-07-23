@@ -1,5 +1,11 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
+import { AnalysisImageError } from "@/utils/analysisImage";
+import { requestClothesAnalysis } from "@/utils/clothesAnalysis";
+import {
+    getClosetItemAnalysisUpdateAvailability,
+    prepareClosetAnalysisBatch,
+} from "@/utils/closetAnalysisRefresh";
 import { deleteUnusedClosetItemImages } from "@/utils/closetImageFiles";
 import { getClosetItemReviewFields } from "@/utils/closetRegistration";
 import {
@@ -14,6 +20,7 @@ import {
     deleteClosetItems,
     getClosetItemsLoadResult,
     getSavedOutfitsLoadResult,
+    updateClosetItemsBatch,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
@@ -48,6 +55,14 @@ const SCREEN_HORIZONTAL_PADDING = 18;
 const GRID_GAP = 12;
 const GRID_COLUMN_COUNT = 3;
 const CLOSET_PAGE_SIZE = 30;
+
+type AnalysisRefreshProgress = {
+    current: number;
+    total: number;
+    updated: number;
+    unchanged: number;
+    failed: number;
+};
 
 function getItemTitle(item: ClosetItem) {
     return item.detailCategory || item.subCategory || item.category || "아이템";
@@ -94,8 +109,13 @@ export default function ClosetScreen() {
         () => new Set()
     );
     const [isDeletingSelected, setIsDeletingSelected] = useState(false);
+    const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
+    const [analysisRefreshProgress, setAnalysisRefreshProgress] =
+        useState<AnalysisRefreshProgress | null>(null);
+    const [failedAnalysisItemIds, setFailedAnalysisItemIds] = useState<string[]>([]);
 
     const closetLoadRequestRef = useRef(0);
+    const analysisBatchRequestRef = useRef(0);
 
     useFocusEffect(
         useCallback(() => {
@@ -108,6 +128,7 @@ export default function ClosetScreen() {
 
             return () => {
                 closetLoadRequestRef.current += 1;
+                analysisBatchRequestRef.current += 1;
             };
         }, [category])
     );
@@ -210,6 +231,34 @@ export default function ClosetScreen() {
             GRID_COLUMN_COUNT
         )
     );
+    const analysisRefreshSummary = useMemo(() => {
+        const states = items.map((item) => ({
+            item,
+            availability: getClosetItemAnalysisUpdateAvailability(item),
+        }));
+        const updateCandidates = states.filter(
+            ({ availability }) =>
+                availability.status === "photo_and_classification" ||
+                availability.status === "classification_only"
+        );
+
+        return {
+            updateCandidates,
+            availableCount: updateCandidates.length,
+            currentCount: states.filter(
+                ({ availability }) => availability.status === "current"
+            ).length,
+            classificationOnlyCount: states.filter(
+                ({ availability }) => availability.status === "classification_only"
+            ).length,
+            unavailableCount: states.filter(
+                ({ availability }) => availability.status === "unavailable"
+            ).length,
+            photoCount: states.filter(
+                ({ availability }) => availability.canRefreshPhoto
+            ).length,
+        };
+    }, [items]);
 
     function enterSelectionMode(id: string) {
         setIsSelectionMode(true);
@@ -313,6 +362,129 @@ export default function ClosetScreen() {
                 },
             ]
         );
+    }
+
+    async function runClosetAnalysisRefresh(targetItemIds?: string[]) {
+        if (isRefreshingAnalysis) return;
+
+        const requestedIds = targetItemIds ? new Set(targetItemIds) : null;
+        const targets = analysisRefreshSummary.updateCandidates
+            .filter(({ item }) => !requestedIds || requestedIds.has(item.id))
+            .map(({ item }) => item);
+
+        if (targets.length === 0) {
+            Alert.alert("업데이트할 옷이 없어요", "현재 업데이트 가능한 옷은 모두 최신 상태예요.");
+            return;
+        }
+
+        const requestId = analysisBatchRequestRef.current + 1;
+        analysisBatchRequestRef.current = requestId;
+
+        setIsRefreshingAnalysis(true);
+        setFailedAnalysisItemIds([]);
+        setAnalysisRefreshProgress({
+            current: 0,
+            total: targets.length,
+            updated: 0,
+            unchanged: 0,
+            failed: 0,
+        });
+
+        try {
+            const batchResult = await prepareClosetAnalysisBatch(targets, {
+                requestPhotoAnalysis: (imageUri, currentItem) =>
+                    requestClothesAnalysis(imageUri, currentItem.confirmedProduct),
+                shouldFallbackToLocal: (error) => error instanceof AnalysisImageError,
+                isCancelled: () => requestId !== analysisBatchRequestRef.current,
+                onProgress: setAnalysisRefreshProgress,
+                onItemPrepared: (currentItem, result) => {
+                    if (!__DEV__) return;
+                    console.info("[closet-analysis-refresh]", {
+                        itemId: currentItem.id,
+                        previousClassificationVersion:
+                            currentItem.classificationVersion || 0,
+                        nextClassificationVersion:
+                            result.item.classificationVersion || 0,
+                        previousPhotoAnalysisVersion:
+                            currentItem.photoAnalysisVersion || 0,
+                        nextPhotoAnalysisVersion:
+                            result.item.photoAnalysisVersion || 0,
+                        changedFields: result.diffs.map((diff) => diff.field),
+                        skippedUserEditedFields: result.skippedUserEditedFields,
+                        source: result.changes.photoAnalysisVersion
+                            ? "photo_and_classification"
+                            : "classification",
+                    });
+                },
+                onItemError: (currentItem, error) =>
+                    console.error("옷장 개별 분석 최신화 실패:", {
+                        itemId: currentItem.id,
+                        error,
+                    }),
+            });
+            if (batchResult.cancelled || requestId !== analysisBatchRequestRef.current) return;
+            const updatedItems =
+                batchResult.updates.length > 0
+                    ? await updateClosetItemsBatch(batchResult.updates)
+                    : items;
+
+            if (requestId !== analysisBatchRequestRef.current) return;
+            if (!updatedItems) {
+                setFailedAnalysisItemIds(targets.map((item) => item.id));
+                Alert.alert(
+                    "업데이트 저장 실패",
+                    "분석 결과를 저장하지 못해 기존 옷장 정보를 그대로 유지했어요."
+                );
+                return;
+            }
+
+            setItems(updatedItems);
+            setFailedAnalysisItemIds(batchResult.failedItemIds);
+            setAnalysisRefreshProgress({
+                current: targets.length,
+                total: targets.length,
+                updated: batchResult.updated,
+                unchanged: batchResult.unchanged,
+                failed: batchResult.failedItemIds.length,
+            });
+            Alert.alert(
+                "옷장 분석 최신화 완료",
+                `완료 ${batchResult.updated} · 변경 없음 ${batchResult.unchanged} · 실패 ${batchResult.failedItemIds.length}`
+            );
+        } finally {
+            if (requestId === analysisBatchRequestRef.current) {
+                setIsRefreshingAnalysis(false);
+            }
+        }
+    }
+
+    function handleClosetAnalysisRefresh(targetItemIds?: string[]) {
+        if (isRefreshingAnalysis) return;
+
+        const requestedIds = targetItemIds ? new Set(targetItemIds) : null;
+        const targets = analysisRefreshSummary.updateCandidates.filter(
+            ({ item }) => !requestedIds || requestedIds.has(item.id)
+        );
+        if (targets.length === 0) {
+            Alert.alert("업데이트할 옷이 없어요", "현재 업데이트 가능한 옷은 모두 최신 상태예요.");
+            return;
+        }
+
+        const photoCount = targets.filter(
+            ({ availability }) => availability.canRefreshPhoto
+        ).length;
+        const message =
+            photoCount > 0
+                ? `${targets.length}개 중 ${photoCount}개의 원본 사진을 분석 서버에 순서대로 다시 보냅니다. 직접 수정한 정보와 기존 사진은 유지돼요.`
+                : `${targets.length}개의 확정 상품 정보와 최신 분류 기준을 다시 적용합니다. 사진은 전송하지 않아요.`;
+
+        Alert.alert("옷장 분석 최신화", message, [
+            { text: "취소", style: "cancel" },
+            {
+                text: "시작",
+                onPress: () => void runClosetAnalysisRefresh(targetItemIds),
+            },
+        ]);
     }
 
 
@@ -440,6 +612,69 @@ export default function ClosetScreen() {
                     </View>
                 ) : (
                     <View>
+                        <View style={styles.analysisRefreshCard}>
+                            <View style={styles.analysisRefreshHeader}>
+                                <View style={styles.analysisRefreshIcon}>
+                                    <Feather name="refresh-cw" size={16} color={colors.point} />
+                                </View>
+                                <View style={styles.analysisRefreshTextWrap}>
+                                    <Text style={styles.analysisRefreshTitle}>옷장 분석 최신화</Text>
+                                    <Text style={styles.analysisRefreshDescription}>
+                                        업데이트 가능 {analysisRefreshSummary.availableCount} · 최신{" "}
+                                        {analysisRefreshSummary.currentCount} · 분류만 가능{" "}
+                                        {analysisRefreshSummary.classificationOnlyCount} · 자동 분석 불가{" "}
+                                        {analysisRefreshSummary.unavailableCount}
+                                    </Text>
+                                </View>
+                            </View>
+                            {analysisRefreshProgress ? (
+                                <Text style={styles.analysisRefreshProgressText}>
+                                    {isRefreshingAnalysis
+                                        ? `${analysisRefreshProgress.current}/${analysisRefreshProgress.total} 분석 중`
+                                        : `완료 ${analysisRefreshProgress.updated} · 변경 없음 ${analysisRefreshProgress.unchanged} · 실패 ${analysisRefreshProgress.failed}`}
+                                </Text>
+                            ) : null}
+                            <View style={styles.analysisRefreshActions}>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityLabel="옷장 분석 최신화"
+                                    disabled={
+                                        isRefreshingAnalysis ||
+                                        analysisRefreshSummary.availableCount === 0
+                                    }
+                                    style={[
+                                        styles.analysisRefreshButton,
+                                        (isRefreshingAnalysis ||
+                                            analysisRefreshSummary.availableCount === 0) &&
+                                            styles.analysisRefreshButtonDisabled,
+                                    ]}
+                                    onPress={() => handleClosetAnalysisRefresh()}
+                                >
+                                    <Text style={styles.analysisRefreshButtonText}>
+                                        {isRefreshingAnalysis
+                                            ? "분석 중"
+                                            : analysisRefreshSummary.availableCount > 0
+                                                ? `${analysisRefreshSummary.availableCount}개 최신화`
+                                                : "모두 최신 상태"}
+                                    </Text>
+                                </Pressable>
+                                {failedAnalysisItemIds.length > 0 && !isRefreshingAnalysis ? (
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`실패한 옷 ${failedAnalysisItemIds.length}개 다시 시도`}
+                                        style={styles.analysisRefreshRetryButton}
+                                        onPress={() =>
+                                            handleClosetAnalysisRefresh(failedAnalysisItemIds)
+                                        }
+                                    >
+                                        <Text style={styles.analysisRefreshRetryText}>
+                                            실패 {failedAnalysisItemIds.length}개 재시도
+                                        </Text>
+                                    </Pressable>
+                                ) : null}
+                            </View>
+                        </View>
+
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -877,6 +1112,94 @@ const styles = StyleSheet.create({
         color: colors.card,
         fontSize: 12,
         fontWeight: "700",
+    },
+    analysisRefreshCard: {
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 18,
+        padding: 14,
+        marginBottom: 16,
+        gap: 10,
+    },
+    analysisRefreshHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 9,
+    },
+    analysisRefreshIcon: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: colors.softCard,
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+    },
+    analysisRefreshTextWrap: {
+        flex: 1,
+        minWidth: 0,
+    },
+    analysisRefreshTitle: {
+        color: colors.text,
+        fontSize: 13,
+        lineHeight: 18,
+        fontWeight: "800",
+    },
+    analysisRefreshDescription: {
+        color: colors.subText,
+        fontSize: 10,
+        lineHeight: 16,
+        fontWeight: "600",
+        marginTop: 2,
+    },
+    analysisRefreshProgressText: {
+        color: colors.point,
+        fontSize: 11,
+        lineHeight: 16,
+        fontWeight: "700",
+    },
+    analysisRefreshActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    analysisRefreshButton: {
+        minHeight: 38,
+        borderRadius: 13,
+        backgroundColor: colors.text,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 13,
+        flex: 1,
+        minWidth: 0,
+    },
+    analysisRefreshButtonDisabled: {
+        opacity: 0.45,
+    },
+    analysisRefreshButtonText: {
+        color: colors.card,
+        fontSize: 11,
+        lineHeight: 16,
+        fontWeight: "800",
+        textAlign: "center",
+    },
+    analysisRefreshRetryButton: {
+        minHeight: 38,
+        borderRadius: 13,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.softCard,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 12,
+        flexShrink: 0,
+    },
+    analysisRefreshRetryText: {
+        color: colors.point,
+        fontSize: 10,
+        lineHeight: 15,
+        fontWeight: "800",
     },
     filterRow: {
         gap: 10,

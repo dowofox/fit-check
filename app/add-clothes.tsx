@@ -4,10 +4,15 @@ import {
   fetchApiWithTimeout,
   isApiRequestTimeoutError,
 } from "@/utils/api";
+import { isAnalysisImageTooLargeError } from "@/utils/analysisImage";
 import {
-  encodeAnalysisImageUri,
-  isAnalysisImageTooLargeError,
-} from "@/utils/analysisImage";
+  requestClothesAnalysis,
+  type ClothesAnalysis,
+} from "@/utils/clothesAnalysis";
+import {
+  CURRENT_CLASSIFICATION_VERSION,
+  CURRENT_PHOTO_ANALYSIS_VERSION,
+} from "@/utils/clothesAnalysisVersions";
 import { normalizeProductColor } from "@/utils/color";
 import {
   createClosetItemId,
@@ -15,7 +20,6 @@ import {
   getProductRegistrationReviewFields,
   getRegistrationReviewLabels,
   getRegistrationValidationMessage,
-  isUsableClothesAnalysisResponse,
   normalizeClosetRegistrationBasics,
   normalizeClosetSeasons,
   validateClosetRegistration,
@@ -26,12 +30,9 @@ import {
   persistClosetImage,
 } from "@/utils/closetImageFiles";
 import {
-  applyProductAnalysisTarget,
-  getProductAnalysisTarget,
   getProductClassificationNotice,
   inferProductAttributesFromConfirmedProduct,
 } from "@/utils/productClassification";
-import { normalizePhotoClassificationWithTaxonomy } from "@/utils/clothingTaxonomy";
 import { getProductExtractionSummary } from "@/utils/productExtractionSummary";
 import {
   parseExtractedProductResponse,
@@ -55,15 +56,10 @@ import {
 } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
 import type {
-  AnalysisConfidence,
-  AnalysisQuality,
   ClosetItem,
   ConfirmedProduct,
-  GarmentProfile,
-  ProductCandidate,
   ProductClassificationField,
   SeasonSource,
-  StyleProfile,
 } from "@/utils/storage";
 import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
@@ -148,44 +144,6 @@ const BRAND_OR_LOGO_TERMS = [
   "아크테릭스",
 ];
 
-type ClothesAnalysis = {
-  source?: "image" | "productFallback" | "manual";
-  category?: string;
-  subCategory?: string;
-  detailCategory?: string;
-  color?: string;
-  style?: string;
-  styleTags?: string[];
-  season?: string;
-  seasons?: string[];
-  seasonSource?: SeasonSource;
-  seasonNeedsReview?: boolean;
-  fit?: string;
-  size?: string;
-  brand?: string;
-  confirmedBrand?: string | null;
-  inferredBrand?: string;
-  inferredProductName?: string;
-  brandConfidence?: number;
-  confidence?: AnalysisConfidence;
-  logoDetected?: boolean;
-  logoText?: string;
-  graphicDetected?: boolean;
-  graphicType?: string;
-  graphicSize?: string;
-  material?: string;
-  pattern?: string;
-  description?: string;
-  matchTip?: string;
-  avoidTip?: string;
-  productCandidates?: ProductCandidate[];
-  styleProfile?: StyleProfile;
-  garmentProfile?: GarmentProfile;
-  analysisWarnings?: string[];
-  analysisQuality?: AnalysisQuality;
-  cleanImageBase64?: string | null;
-};
-
 type SelectedImage = {
   uri: string;
 };
@@ -193,45 +151,6 @@ type SelectedImage = {
 type AddMode = "photo" | "link" | "manual";
 
 type ExtractedProduct = ExtractedProductResponse;
-
-async function requestClothesAnalysis(uri: string, product?: ExtractedProduct | null) {
-  const encodedImage = await encodeAnalysisImageUri(uri);
-  const productContext = product
-    ? getProductAnalysisTarget({
-        productName: product.productName,
-        productCategory: product.productCategory,
-        brand: product.brand,
-        productColor: product.productColor,
-        materialComposition: product.materialComposition,
-      })
-    : undefined;
-
-  const response = await fetchApiWithTimeout(API_ENDPOINTS.analyzeClothes, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      image: encodedImage.base64,
-      imageMimeType: encodedImage.mimeType,
-      ...(productContext ? { productContext } : {}),
-    }),
-  }, API_TIMEOUTS.analyze);
-
-  if (!response.ok) {
-    throw new Error(`Analyze clothes failed: ${response.status}`);
-  }
-
-  const analysis: unknown = await response.json();
-
-  if (!isUsableClothesAnalysisResponse(analysis)) {
-    throw new Error("Analyze clothes returned an invalid payload");
-  }
-
-  return normalizePhotoClassificationWithTaxonomy(
-    applyProductAnalysisTarget(analysis as ClothesAnalysis, productContext)
-  );
-}
 
 function toggleSeason(currentSeasons: string[], season: string) {
   if (season === "사계절") return ["사계절"];
@@ -459,6 +378,7 @@ async function saveAnalyzedClosetItem(
     seasons,
   });
   const itemId = createClosetItemId();
+  const analyzedAt = new Date().toISOString();
   let persistedImageUri = imageUri;
 
   try {
@@ -467,6 +387,11 @@ async function saveAnalyzedClosetItem(
       id: itemId,
       imageUri: persistedImageUri,
       cleanImageUri,
+      classificationVersion: CURRENT_CLASSIFICATION_VERSION,
+      photoAnalysisVersion: CURRENT_PHOTO_ANALYSIS_VERSION,
+      lastAnalyzedAt: analyzedAt,
+      lastClassificationUpdatedAt: analyzedAt,
+      updatedAt: analyzedAt,
       category: registration.category,
       subCategory: generalizeBrandTerms(analysis.subCategory, "분석 전"),
       detailCategory: generalizeBrandTerms(
@@ -489,7 +414,7 @@ async function saveAnalyzedClosetItem(
       description: generalizeBrandTerms(analysis.description, "옷 특징을 분석하지 못했어요."),
       matchTip: generalizeBrandTerms(analysis.matchTip, "어울리는 조합을 분석하지 못했어요."),
       avoidTip: generalizeBrandTerms(analysis.avoidTip, "피하면 좋은 조합을 분석하지 못했어요."),
-      createdAt: new Date().toISOString(),
+      createdAt: analyzedAt,
     });
 
     if (!wasClosetItemSaved(savedItems, itemId)) {
@@ -1020,6 +945,7 @@ export default function AddClothesScreen() {
     try {
       cleanImageUri = await getOptionalCleanImageUri(analysis);
       const itemId = createClosetItemId();
+      const createdAt = new Date().toISOString();
       persistedImageUri = await persistClosetImage(imageUri, itemId);
       const confirmedProductBrand = confirmedProduct?.brand?.trim() || undefined;
       const confirmedMaterial = confirmedProduct?.materialComposition?.summary?.trim();
@@ -1036,6 +962,15 @@ export default function AddClothesScreen() {
         id: itemId,
         imageUri: persistedImageUri,
         cleanImageUri,
+        classificationVersion: CURRENT_CLASSIFICATION_VERSION,
+        ...(analysis.source === "image"
+          ? {
+              photoAnalysisVersion: CURRENT_PHOTO_ANALYSIS_VERSION,
+              lastAnalyzedAt: createdAt,
+            }
+          : {}),
+        lastClassificationUpdatedAt: createdAt,
+        updatedAt: createdAt,
         category: registration.category,
         subCategory:
           addMode === "manual"
@@ -1075,7 +1010,7 @@ export default function AddClothesScreen() {
           : {}),
         ...(shouldApplyConfirmedMaterial ? { material: confirmedMaterial } : {}),
         userEditedClassificationFields,
-        createdAt: new Date().toISOString(),
+        createdAt,
       };
       const classification = confirmedProduct
         ? inferProductAttributesFromConfirmedProduct({
