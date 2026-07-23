@@ -29,6 +29,7 @@ import {
   type DesignPreviewTokens,
 } from "@/components/design-preview/designPreviewData";
 import { AlternativePreviewApp } from "@/components/design-preview/AlternativeDesignPreviews";
+import { ExperimentalPreviewApp } from "@/components/design-preview/ExperimentalDesignPreviews";
 
 type NavigateToScreen = (screen: DesignPreviewScreenId) => void;
 
@@ -2132,6 +2133,21 @@ function PreviewApp({
   if (theme.code === "F" || theme.code === "G" || theme.code === "H") {
     return (
       <AlternativePreviewApp
+        theme={theme}
+        screen={screen}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (
+    theme.code === "I" ||
+    theme.code === "J" ||
+    theme.code === "K" ||
+    theme.code === "L"
+  ) {
+    return (
+      <ExperimentalPreviewApp
         theme={theme}
         screen={screen}
         onNavigate={onNavigate}

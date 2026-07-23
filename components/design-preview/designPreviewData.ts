@@ -8,7 +8,11 @@ export type DesignPreviewConceptId =
   | "editorial-noir"
   | "guided-flow"
   | "visual-journal"
-  | "quiet-system";
+  | "quiet-system"
+  | "dual-canvas"
+  | "wardrobe-stage"
+  | "daily-brief"
+  | "style-concierge";
 
 export type DesignPreviewScreenId =
   | "home"
@@ -22,7 +26,19 @@ export type DesignPreviewScreenId =
 
 export type DesignPreviewTokens = {
   id: DesignPreviewConceptId;
-  code: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
+  code:
+    | "A"
+    | "B"
+    | "C"
+    | "D"
+    | "E"
+    | "F"
+    | "G"
+    | "H"
+    | "I"
+    | "J"
+    | "K"
+    | "L";
   name: string;
   summary: string;
   background: string;
@@ -209,6 +225,86 @@ export const DESIGN_PREVIEW_CONCEPTS: DesignPreviewTokens[] = [
     cardRadius: 12,
     imageRadius: 6,
     shadowOpacity: 0,
+  },
+  {
+    id: "dual-canvas",
+    code: "I",
+    name: "Dual Canvas",
+    summary: "두 개의 큰 선택지만 남긴 대담한 분할형 홈",
+    background: "#F2EFE7",
+    surface: "#FFFEFA",
+    surfaceAlt: "#E7E0D4",
+    text: "#171713",
+    muted: "#706D65",
+    accent: "#B44732",
+    accentText: "#FFFFFF",
+    warning: "#B44732",
+    success: "#426C59",
+    border: "#D8D1C5",
+    radius: 6,
+    cardRadius: 8,
+    imageRadius: 4,
+    shadowOpacity: 0,
+  },
+  {
+    id: "wardrobe-stage",
+    code: "J",
+    name: "Wardrobe Stage",
+    summary: "메뉴보다 내 옷을 먼저 보여주는 비주얼 옷장 무대",
+    background: "#F6F6F2",
+    surface: "#FFFFFF",
+    surfaceAlt: "#E8EBE5",
+    text: "#16201B",
+    muted: "#6F7973",
+    accent: "#376550",
+    accentText: "#FFFFFF",
+    warning: "#C26048",
+    success: "#376550",
+    border: "#D9DDD7",
+    radius: 14,
+    cardRadius: 18,
+    imageRadius: 12,
+    shadowOpacity: 0.02,
+  },
+  {
+    id: "daily-brief",
+    code: "K",
+    name: "Daily Brief",
+    summary: "홈을 오늘의 룩 한 장과 짧은 브리핑으로 시작하는 구조",
+    background: "#EFEDE8",
+    surface: "#FAFAF7",
+    surfaceAlt: "#DDDCD6",
+    text: "#161719",
+    muted: "#6F706F",
+    accent: "#1C1E22",
+    accentText: "#FFFFFF",
+    warning: "#B4583F",
+    success: "#4C6A56",
+    border: "#D3D1CB",
+    radius: 8,
+    cardRadius: 12,
+    imageRadius: 8,
+    shadowOpacity: 0.025,
+  },
+  {
+    id: "style-concierge",
+    code: "L",
+    name: "Style Concierge",
+    summary: "사용자의 목적을 질문하고 한 단계씩 안내하는 컨시어지형 UI",
+    background: "#F8F4EC",
+    surface: "#FFFDF8",
+    surfaceAlt: "#EEE7DC",
+    text: "#231D18",
+    muted: "#746D66",
+    accent: "#594534",
+    accentText: "#FFFFFF",
+    warning: "#A9533E",
+    success: "#506A58",
+    border: "#DDD3C7",
+    radius: 12,
+    cardRadius: 16,
+    imageRadius: 10,
+    shadowOpacity: 0.02,
   },
 ];
 
