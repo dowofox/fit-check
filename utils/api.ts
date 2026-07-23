@@ -44,7 +44,19 @@ export async function fetchApiWithTimeout(
   fetchImplementation: typeof fetch = fetch
 ) {
   const controller = new AbortController();
+  const externalSignal = init.signal;
   let didTimeout = false;
+  const handleExternalAbort = () => {
+    controller.abort();
+  };
+
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener("abort", handleExternalAbort, {
+      once: true,
+    });
+  }
   const timeoutId = setTimeout(() => {
     didTimeout = true;
     controller.abort();
@@ -60,5 +72,6 @@ export async function fetchApiWithTimeout(
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    externalSignal?.removeEventListener("abort", handleExternalAbort);
   }
 }

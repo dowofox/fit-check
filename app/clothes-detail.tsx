@@ -3,6 +3,7 @@ import {
   API_TIMEOUTS,
   fetchApiWithTimeout,
 } from "@/utils/api";
+import { useClosetAnalysisRefresh } from "@/providers/ClosetAnalysisRefreshProvider";
 import { AnalysisImageError } from "@/utils/analysisImage";
 import { requestClothesAnalysis } from "@/utils/clothesAnalysis";
 import { CURRENT_CLASSIFICATION_VERSION } from "@/utils/clothesAnalysisVersions";
@@ -2206,6 +2207,7 @@ export default function ClothesDetailScreen() {
   const [isUpdatingImage, setIsUpdatingImage] = useState(false);
   const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
   const [isAiAnalysisOpen, setIsAiAnalysisOpen] = useState(false);
+  const { job: closetAnalysisRefreshJob } = useClosetAnalysisRefresh();
   const [measurementDraft, setMeasurementDraft] = useState<ProductMeasurementDraft>(
     EMPTY_PRODUCT_MEASUREMENT_DRAFT
   );
@@ -2225,6 +2227,16 @@ export default function ClothesDetailScreen() {
     },
     [id]
   );
+
+  useEffect(() => {
+    if (
+      !editMode &&
+      closetAnalysisRefreshJob?.completedAt &&
+      closetAnalysisRefreshJob.targetItemIds.includes(String(id))
+    ) {
+      setClosetLoadRevision((current) => current + 1);
+    }
+  }, [closetAnalysisRefreshJob, editMode, id]);
 
   useFocusEffect(
     useCallback(() => {

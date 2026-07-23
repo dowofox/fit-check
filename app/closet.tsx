@@ -1,11 +1,7 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
-import { AnalysisImageError } from "@/utils/analysisImage";
-import { requestClothesAnalysis } from "@/utils/clothesAnalysis";
-import {
-    getClosetItemAnalysisUpdateAvailability,
-    prepareClosetAnalysisBatch,
-} from "@/utils/closetAnalysisRefresh";
+import { useClosetAnalysisRefresh } from "@/providers/ClosetAnalysisRefreshProvider";
+import { getClosetItemAnalysisUpdateAvailability } from "@/utils/closetAnalysisRefresh";
 import { deleteUnusedClosetItemImages } from "@/utils/closetImageFiles";
 import { getClosetItemReviewFields } from "@/utils/closetRegistration";
 import {
@@ -20,7 +16,6 @@ import {
     deleteClosetItems,
     getClosetItemsLoadResult,
     getSavedOutfitsLoadResult,
-    updateClosetItemsBatch,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
@@ -55,14 +50,6 @@ const SCREEN_HORIZONTAL_PADDING = 18;
 const GRID_GAP = 12;
 const GRID_COLUMN_COUNT = 3;
 const CLOSET_PAGE_SIZE = 30;
-
-type AnalysisRefreshProgress = {
-    current: number;
-    total: number;
-    updated: number;
-    unchanged: number;
-    failed: number;
-};
 
 function getItemTitle(item: ClosetItem) {
     return item.detailCategory || item.subCategory || item.category || "아이템";
@@ -109,31 +96,18 @@ export default function ClosetScreen() {
         () => new Set()
     );
     const [isDeletingSelected, setIsDeletingSelected] = useState(false);
-    const [isRefreshingAnalysis, setIsRefreshingAnalysis] = useState(false);
-    const [analysisRefreshProgress, setAnalysisRefreshProgress] =
-        useState<AnalysisRefreshProgress | null>(null);
-    const [failedAnalysisItemIds, setFailedAnalysisItemIds] = useState<string[]>([]);
+    const {
+        job: analysisRefreshJob,
+        isRunning: isRefreshingAnalysis,
+        start: startAnalysisRefresh,
+        cancel: cancelAnalysisRefresh,
+        resume: resumeAnalysisRefresh,
+        retryFailed: retryFailedAnalysisRefresh,
+    } = useClosetAnalysisRefresh();
 
     const closetLoadRequestRef = useRef(0);
-    const analysisBatchRequestRef = useRef(0);
 
-    useFocusEffect(
-        useCallback(() => {
-            void loadCloset();
-
-            if (typeof category === "string") {
-                setSelectedCategory(category);
-                setSelectedDetailCategory("전체");
-            }
-
-            return () => {
-                closetLoadRequestRef.current += 1;
-                analysisBatchRequestRef.current += 1;
-            };
-        }, [category])
-    );
-
-    async function loadCloset() {
+    const loadCloset = useCallback(async () => {
         const requestId = closetLoadRequestRef.current + 1;
         closetLoadRequestRef.current = requestId;
         const timer = startPerformanceTimer("screen.closet.load");
@@ -159,7 +133,29 @@ export default function ClosetScreen() {
             itemCount: result.items.length,
             status: result.status,
         });
-    }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            void loadCloset();
+
+            if (typeof category === "string") {
+                setSelectedCategory(category);
+                setSelectedDetailCategory("전체");
+            }
+
+            return () => {
+                closetLoadRequestRef.current += 1;
+            };
+        }, [category, loadCloset])
+    );
+
+    useEffect(() => {
+        if (analysisRefreshJob?.completedAt) {
+            void loadCloset();
+        }
+    }, [analysisRefreshJob?.completedAt, loadCloset]);
+
 
     const categoryItems = useMemo(
         () => selectedCategory === "전체"
@@ -364,100 +360,6 @@ export default function ClosetScreen() {
         );
     }
 
-    async function runClosetAnalysisRefresh(targetItemIds?: string[]) {
-        if (isRefreshingAnalysis) return;
-
-        const requestedIds = targetItemIds ? new Set(targetItemIds) : null;
-        const targets = analysisRefreshSummary.updateCandidates
-            .filter(({ item }) => !requestedIds || requestedIds.has(item.id))
-            .map(({ item }) => item);
-
-        if (targets.length === 0) {
-            Alert.alert("업데이트할 옷이 없어요", "현재 업데이트 가능한 옷은 모두 최신 상태예요.");
-            return;
-        }
-
-        const requestId = analysisBatchRequestRef.current + 1;
-        analysisBatchRequestRef.current = requestId;
-
-        setIsRefreshingAnalysis(true);
-        setFailedAnalysisItemIds([]);
-        setAnalysisRefreshProgress({
-            current: 0,
-            total: targets.length,
-            updated: 0,
-            unchanged: 0,
-            failed: 0,
-        });
-
-        try {
-            const batchResult = await prepareClosetAnalysisBatch(targets, {
-                requestPhotoAnalysis: (imageUri, currentItem) =>
-                    requestClothesAnalysis(imageUri, currentItem.confirmedProduct),
-                shouldFallbackToLocal: (error) => error instanceof AnalysisImageError,
-                isCancelled: () => requestId !== analysisBatchRequestRef.current,
-                onProgress: setAnalysisRefreshProgress,
-                onItemPrepared: (currentItem, result) => {
-                    if (!__DEV__) return;
-                    console.info("[closet-analysis-refresh]", {
-                        itemId: currentItem.id,
-                        previousClassificationVersion:
-                            currentItem.classificationVersion || 0,
-                        nextClassificationVersion:
-                            result.item.classificationVersion || 0,
-                        previousPhotoAnalysisVersion:
-                            currentItem.photoAnalysisVersion || 0,
-                        nextPhotoAnalysisVersion:
-                            result.item.photoAnalysisVersion || 0,
-                        changedFields: result.diffs.map((diff) => diff.field),
-                        skippedUserEditedFields: result.skippedUserEditedFields,
-                        source: result.changes.photoAnalysisVersion
-                            ? "photo_and_classification"
-                            : "classification",
-                    });
-                },
-                onItemError: (currentItem, error) =>
-                    console.error("옷장 개별 분석 최신화 실패:", {
-                        itemId: currentItem.id,
-                        error,
-                    }),
-            });
-            if (batchResult.cancelled || requestId !== analysisBatchRequestRef.current) return;
-            const updatedItems =
-                batchResult.updates.length > 0
-                    ? await updateClosetItemsBatch(batchResult.updates)
-                    : items;
-
-            if (requestId !== analysisBatchRequestRef.current) return;
-            if (!updatedItems) {
-                setFailedAnalysisItemIds(targets.map((item) => item.id));
-                Alert.alert(
-                    "업데이트 저장 실패",
-                    "분석 결과를 저장하지 못해 기존 옷장 정보를 그대로 유지했어요."
-                );
-                return;
-            }
-
-            setItems(updatedItems);
-            setFailedAnalysisItemIds(batchResult.failedItemIds);
-            setAnalysisRefreshProgress({
-                current: targets.length,
-                total: targets.length,
-                updated: batchResult.updated,
-                unchanged: batchResult.unchanged,
-                failed: batchResult.failedItemIds.length,
-            });
-            Alert.alert(
-                "옷장 분석 최신화 완료",
-                `완료 ${batchResult.updated} · 변경 없음 ${batchResult.unchanged} · 실패 ${batchResult.failedItemIds.length}`
-            );
-        } finally {
-            if (requestId === analysisBatchRequestRef.current) {
-                setIsRefreshingAnalysis(false);
-            }
-        }
-    }
-
     function handleClosetAnalysisRefresh(targetItemIds?: string[]) {
         if (isRefreshingAnalysis) return;
 
@@ -482,9 +384,29 @@ export default function ClosetScreen() {
             { text: "취소", style: "cancel" },
             {
                 text: "시작",
-                onPress: () => void runClosetAnalysisRefresh(targetItemIds),
+                onPress: () =>
+                    void startAnalysisRefresh(
+                        targets.map(({ item }) => item.id)
+                    ),
             },
         ]);
+    }
+
+    function handleCancelAnalysisRefresh() {
+        if (!isRefreshingAnalysis) return;
+
+        Alert.alert(
+            "업데이트를 중단할까요?",
+            "이미 완료해 저장한 옷은 유지되고, 남은 옷은 나중에 이어서 진행할 수 있어요.",
+            [
+                { text: "계속 진행", style: "cancel" },
+                {
+                    text: "업데이트 중단",
+                    style: "destructive",
+                    onPress: () => void cancelAnalysisRefresh(),
+                },
+            ]
+        );
     }
 
 
@@ -627,11 +549,15 @@ export default function ClosetScreen() {
                                     </Text>
                                 </View>
                             </View>
-                            {analysisRefreshProgress ? (
+                            {analysisRefreshJob ? (
                                 <Text style={styles.analysisRefreshProgressText}>
                                     {isRefreshingAnalysis
-                                        ? `${analysisRefreshProgress.current}/${analysisRefreshProgress.total} 분석 중`
-                                        : `완료 ${analysisRefreshProgress.updated} · 변경 없음 ${analysisRefreshProgress.unchanged} · 실패 ${analysisRefreshProgress.failed}`}
+                                        ? `${Math.min(analysisRefreshJob.processed + 1, analysisRefreshJob.total)}/${analysisRefreshJob.total} 분석 중`
+                                        : analysisRefreshJob.status === "cancelled"
+                                            ? `중단됨 · 남은 옷 ${analysisRefreshJob.pendingItemIds.length}개`
+                                            : analysisRefreshJob.status === "paused"
+                                                ? `재개 준비 · 남은 옷 ${analysisRefreshJob.pendingItemIds.length}개`
+                                                : `완료 ${analysisRefreshJob.updated} · 변경 없음 ${analysisRefreshJob.unchanged} · 실패 ${analysisRefreshJob.failed} · 건너뜀 ${analysisRefreshJob.skipped}`}
                                 </Text>
                             ) : null}
                             <View style={styles.analysisRefreshActions}>
@@ -658,17 +584,41 @@ export default function ClosetScreen() {
                                                 : "모두 최신 상태"}
                                     </Text>
                                 </Pressable>
-                                {failedAnalysisItemIds.length > 0 && !isRefreshingAnalysis ? (
+                                {isRefreshingAnalysis ? (
                                     <Pressable
                                         accessibilityRole="button"
-                                        accessibilityLabel={`실패한 옷 ${failedAnalysisItemIds.length}개 다시 시도`}
+                                        accessibilityLabel="옷장 분석 최신화 중단"
                                         style={styles.analysisRefreshRetryButton}
-                                        onPress={() =>
-                                            handleClosetAnalysisRefresh(failedAnalysisItemIds)
-                                        }
+                                        onPress={handleCancelAnalysisRefresh}
                                     >
                                         <Text style={styles.analysisRefreshRetryText}>
-                                            실패 {failedAnalysisItemIds.length}개 재시도
+                                            중단
+                                        </Text>
+                                    </Pressable>
+                                ) : null}
+                                {analysisRefreshJob?.status === "cancelled" &&
+                                analysisRefreshJob.pendingItemIds.length > 0 ? (
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        accessibilityLabel="남은 옷 분석 이어서 진행"
+                                        style={styles.analysisRefreshRetryButton}
+                                        onPress={() => void resumeAnalysisRefresh()}
+                                    >
+                                        <Text style={styles.analysisRefreshRetryText}>
+                                            이어서
+                                        </Text>
+                                    </Pressable>
+                                ) : null}
+                                {(analysisRefreshJob?.failedItemIds.length || 0) > 0 &&
+                                !isRefreshingAnalysis ? (
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`실패한 옷 ${analysisRefreshJob?.failedItemIds.length || 0}개 다시 시도`}
+                                        style={styles.analysisRefreshRetryButton}
+                                        onPress={() => void retryFailedAnalysisRefresh()}
+                                    >
+                                        <Text style={styles.analysisRefreshRetryText}>
+                                            실패 {analysisRefreshJob?.failedItemIds.length || 0}개 재시도
                                         </Text>
                                     </Pressable>
                                 ) : null}

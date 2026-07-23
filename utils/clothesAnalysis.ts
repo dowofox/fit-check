@@ -104,9 +104,15 @@ export function normalizeClothesAnalysisResult(
 
 export async function requestClothesAnalysis(
   uri: string,
-  product?: ClothesAnalysisProductContextInput | ConfirmedProduct | null
+  product?: ClothesAnalysisProductContextInput | ConfirmedProduct | null,
+  options: { signal?: AbortSignal } = {}
 ) {
   const encodedImage = await encodeAnalysisImageUri(uri);
+  if (options.signal?.aborted) {
+    const error = new Error("The operation was aborted.");
+    error.name = "AbortError";
+    throw error;
+  }
   const productContext = buildProductAnalysisContext(product);
   const response = await fetchApiWithTimeout(
     API_ENDPOINTS.analyzeClothes,
@@ -120,6 +126,7 @@ export async function requestClothesAnalysis(
         imageMimeType: encodedImage.mimeType,
         ...(productContext ? { productContext } : {}),
       }),
+      signal: options.signal,
     },
     API_TIMEOUTS.analyze
   );

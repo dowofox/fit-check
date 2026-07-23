@@ -72,6 +72,32 @@ test("API 요청은 제한 시간을 넘기면 중단한다", async () => {
   );
 });
 
+test("외부 취소 신호는 타임아웃과 구분해 API 요청을 중단한다", async () => {
+  const controller = new AbortController();
+  const hangingFetch = (_input, init) =>
+    new Promise((_resolve, reject) => {
+      init.signal.addEventListener("abort", () => {
+        const error = new Error("cancelled by user");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+  const request = fetchApiWithTimeout(
+    "https://api.naes.example.com",
+    { signal: controller.signal },
+    1_000,
+    hangingFetch
+  );
+
+  controller.abort();
+
+  await assert.rejects(request, (error) => {
+    assert.equal(error.name, "AbortError");
+    assert.equal(isApiRequestTimeoutError(error), false);
+    return true;
+  });
+});
+
 test("상품 도메인만 붙여넣어도 HTTPS 주소로 정규화한다", () => {
   assert.deepEqual(validateProductUrlInput("musinsa.com/products/123"), {
     ok: true,

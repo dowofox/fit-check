@@ -82,12 +82,20 @@ const {
   prepareClosetAnalysisBatch,
 } = require("../utils/closetAnalysisRefresh.ts");
 const {
+  CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+  createClosetAnalysisRefreshManager,
+} = require("../utils/closetAnalysisRefreshManager.ts");
+const {
+  deleteClosetItem,
   getClosetItems,
+  getClosetItemsLoadResult,
   getClosetRecommendationIndex,
   getRecommendationRevisionState,
   getSavedOutfits,
   saveClosetItem,
   saveOutfit,
+  updateClosetItem,
+  updateClosetItemFromLatest,
   updateClosetItemsBatch,
 } = require("../utils/storage.ts");
 const {
@@ -114,6 +122,58 @@ function makeItem(overrides = {}) {
     season: "사계절",
     size: "L",
     createdAt,
+    ...overrides,
+  };
+}
+
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+async function waitFor(predicate, message = "condition was not met") {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  assert.fail(message);
+}
+
+function makeManager(requestPhotoAnalysis, overrides = {}) {
+  return createClosetAnalysisRefreshManager({
+    jobStorage: asyncStorage,
+    loadClosetItems: getClosetItemsLoadResult,
+    updateItemFromLatest: updateClosetItemFromLatest,
+    requestPhotoAnalysis,
+    isRecoverableImageError: () => false,
+    createJobId: () => overrides.jobId || "analysis-job",
+    now: overrides.now || (() => new Date().toISOString()),
+  });
+}
+
+function makePersistedJob(overrides = {}) {
+  return {
+    jobId: "persisted-job",
+    status: "running",
+    targetItemIds: ["item-1"],
+    pendingItemIds: ["item-1"],
+    completedItemIds: [],
+    failedItemIds: [],
+    skippedItemIds: [],
+    currentItemId: "item-1",
+    total: 1,
+    processed: 0,
+    updated: 0,
+    unchanged: 0,
+    failed: 0,
+    skipped: 0,
+    startedAt: createdAt,
+    updatedAt: createdAt,
     ...overrides,
   };
 }
@@ -500,4 +560,554 @@ test("a partial batch storage failure rolls back every closet entry", async () =
   assert.equal(result, null);
   assert.equal((await getClosetItems())[0].detailCategory, "팬츠");
   assert.deepEqual(await getRecommendationRevisionState(), revisionBefore);
+});
+
+test("21. closet blur subscription cleanup does not cancel the global job", async () => {
+  await saveClosetItem(makeItem({ id: "item-1" }));
+  await saveClosetItem(makeItem({ id: "item-2" }));
+  const firstRequest = createDeferred();
+  let requestCount = 0;
+  const manager = makeManager(async () => {
+    requestCount += 1;
+    if (requestCount === 1) return firstRequest.promise;
+    return { detailCategory: "벌룬 팬츠" };
+  });
+  const unsubscribe = manager.subscribe(() => undefined);
+  const run = manager.start(["item-1", "item-2"]);
+
+  await waitFor(() => requestCount === 1);
+  unsubscribe();
+  firstRequest.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+
+  assert.equal(manager.getSnapshot().job.status, "completed");
+  assert.equal(manager.getSnapshot().job.processed, 2);
+});
+
+test("22. manager finishes remaining items without a mounted closet screen", async () => {
+  await saveClosetItem(makeItem({ id: "item-1" }));
+  await saveClosetItem(makeItem({ id: "item-2" }));
+  let requestCount = 0;
+  const manager = makeManager(async () => {
+    requestCount += 1;
+    return { detailCategory: "벌룬 팬츠" };
+  });
+
+  await manager.start(["item-1", "item-2"]);
+
+  assert.equal(requestCount, 2);
+  assert.deepEqual(
+    manager.getSnapshot().job.completedItemIds.sort(),
+    ["item-1", "item-2"]
+  );
+});
+
+test("23. navigation to another route does not affect the module queue", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  const manager = makeManager(() => deferred.promise);
+  const run = manager.start(["item-1"]);
+
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+  const routeState = { pathname: "/" };
+  routeState.pathname = "/outfit";
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+
+  assert.equal(routeState.pathname, "/outfit");
+  assert.equal(manager.getSnapshot().job.status, "completed");
+});
+
+test("24. a new subscriber reads the same in-progress job snapshot", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  const manager = makeManager(() => deferred.promise);
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+
+  let observedJobId;
+  const unsubscribe = manager.subscribe(() => {
+    observedJobId = manager.getSnapshot().job?.jobId;
+  });
+  observedJobId = manager.getSnapshot().job?.jobId;
+  unsubscribe();
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+
+  assert.equal(observedJobId, "analysis-job");
+});
+
+test("25. closet source no longer ties batch cancellation to focus cleanup", () => {
+  const source = fs.readFileSync(
+    path.join(projectRoot, "app", "closet.tsx"),
+    "utf8"
+  );
+
+  assert.doesNotMatch(source, /analysisBatchRequestRef/);
+  assert.doesNotMatch(source, /prepareClosetAnalysisBatch/);
+  assert.match(source, /useClosetAnalysisRefresh/);
+});
+
+test("26. explicit cancel aborts the request and keeps pending work", async () => {
+  await saveClosetItem(makeItem());
+  const manager = makeManager(
+    (_uri, _item, signal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => {
+            const error = new Error("cancelled");
+            error.name = "AbortError";
+            reject(error);
+          },
+          { once: true }
+        );
+      })
+  );
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+
+  await manager.cancel();
+  await run;
+
+  const job = manager.getSnapshot().job;
+  assert.equal(job.status, "cancelled");
+  assert.deepEqual(job.pendingItemIds, ["item-1"]);
+  assert.equal(job.failed, 0);
+});
+
+test("27. repeated start calls share one queue and one API request", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  let requestCount = 0;
+  const manager = makeManager(() => {
+    requestCount += 1;
+    return deferred.promise;
+  });
+
+  const first = manager.start(["item-1"]);
+  const second = manager.start(["item-1"]);
+  await waitFor(() => requestCount === 1);
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await Promise.all([first, second]);
+
+  assert.equal(requestCount, 1);
+});
+
+test("28. provider-style unsubscribe and resubscribe preserve active promise", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  let requestCount = 0;
+  const manager = makeManager(() => {
+    requestCount += 1;
+    return deferred.promise;
+  });
+  const firstUnsubscribe = manager.subscribe(() => undefined);
+  const run = manager.start(["item-1"]);
+  await waitFor(() => requestCount === 1);
+  firstUnsubscribe();
+  const secondUnsubscribe = manager.subscribe(() => undefined);
+  const duplicateRun = manager.start(["item-1"]);
+  secondUnsubscribe();
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await Promise.all([run, duplicateRun]);
+
+  assert.equal(requestCount, 1);
+});
+
+test("29. repeated hydrate and resume calls do not duplicate a restored job", async () => {
+  await saveClosetItem(makeItem());
+  storageMemory.set(
+    CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+    JSON.stringify(makePersistedJob())
+  );
+  let requestCount = 0;
+  const manager = makeManager(async () => {
+    requestCount += 1;
+    return { detailCategory: "벌룬 팬츠" };
+  });
+
+  await Promise.all([manager.hydrate(), manager.hydrate()]);
+  await Promise.all([
+    manager.resumeInterrupted(),
+    manager.resumeInterrupted(),
+    manager.resume(),
+  ]);
+
+  assert.equal(requestCount, 1);
+  assert.equal(manager.getSnapshot().job.status, "completed");
+});
+
+test("30. a detail category edited during analysis remains protected", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  const manager = makeManager(() => deferred.promise);
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+  await updateClosetItem("item-1", {
+    detailCategory: "카펜터 팬츠",
+    userEditedClassificationFields: ["detailCategory"],
+    updatedAt: "2026-07-23T10:00:00.000Z",
+  });
+
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+
+  assert.equal((await getClosetItems())[0].detailCategory, "카펜터 팬츠");
+});
+
+test("31. a season edited during analysis remains protected", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  const manager = makeManager(() => deferred.promise);
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+  await updateClosetItem("item-1", {
+    season: "겨울",
+    seasons: ["겨울"],
+    userEditedClassificationFields: ["season"],
+    updatedAt: "2026-07-23T10:00:00.000Z",
+  });
+
+  deferred.resolve({ season: "여름", seasons: ["여름"] });
+  await run;
+
+  assert.deepEqual((await getClosetItems())[0].seasons, ["겨울"]);
+});
+
+test("32. an item deleted during analysis is skipped and never recreated", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  const manager = makeManager(() => deferred.promise);
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+  await deleteClosetItem("item-1");
+
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+
+  assert.equal((await getClosetItems()).length, 0);
+  assert.deepEqual(manager.getSnapshot().job.skippedItemIds, ["item-1"]);
+});
+
+test("33. save-time merge uses the latest item after updatedAt changes", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  const manager = makeManager(() => deferred.promise);
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+  await updateClosetItem("item-1", {
+    size: "XL",
+    updatedAt: "2026-07-23T11:00:00.000Z",
+  });
+
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+
+  const [updated] = await getClosetItems();
+  assert.equal(updated.size, "XL");
+  assert.equal(updated.detailCategory, "벌룬 팬츠");
+});
+
+test("34. one failed item does not stop later queue items", async () => {
+  await saveClosetItem(makeItem({ id: "ok-1" }));
+  await saveClosetItem(makeItem({ id: "fail" }));
+  await saveClosetItem(makeItem({ id: "ok-2" }));
+  const manager = makeManager(async (_uri, item) => {
+    if (item.id === "fail") throw new Error("network");
+    return { detailCategory: "벌룬 팬츠" };
+  });
+
+  await manager.start(["ok-1", "fail", "ok-2"]);
+
+  const job = manager.getSnapshot().job;
+  assert.equal(job.status, "completed_with_errors");
+  assert.deepEqual(job.failedItemIds, ["fail"]);
+  assert.equal(job.completedItemIds.length, 2);
+});
+
+test("35. each completed item is persisted before the next request finishes", async () => {
+  await saveClosetItem(makeItem({ id: "item-1" }));
+  await saveClosetItem(makeItem({ id: "item-2" }));
+  const secondRequest = createDeferred();
+  let requestCount = 0;
+  const manager = makeManager(async () => {
+    requestCount += 1;
+    if (requestCount === 2) return secondRequest.promise;
+    return { detailCategory: "벌룬 팬츠" };
+  });
+  const run = manager.start(["item-1", "item-2"]);
+  await waitFor(() => requestCount === 2);
+
+  const firstItem = (await getClosetItems()).find(
+    (item) => item.id === "item-1"
+  );
+  assert.equal(firstItem.detailCategory, "벌룬 팬츠");
+  secondRequest.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+});
+
+test("36. a restarted manager resumes persisted pending IDs", async () => {
+  await saveClosetItem(makeItem());
+  storageMemory.set(
+    CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+    JSON.stringify(makePersistedJob())
+  );
+  const manager = makeManager(async () => ({
+    detailCategory: "벌룬 팬츠",
+  }));
+
+  await manager.hydrate();
+  assert.equal(manager.getSnapshot().job.status, "paused");
+  await manager.resumeInterrupted();
+
+  assert.equal(manager.getSnapshot().job.status, "completed");
+  assert.equal((await getClosetItems())[0].detailCategory, "벌룬 팬츠");
+});
+
+test("37. an already persisted current item is not analyzed again after restart", async () => {
+  await saveClosetItem(
+    makeItem({
+      classificationVersion: CURRENT_CLASSIFICATION_VERSION,
+      photoAnalysisVersion: CURRENT_PHOTO_ANALYSIS_VERSION,
+    })
+  );
+  storageMemory.set(
+    CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+    JSON.stringify(makePersistedJob())
+  );
+  let requestCount = 0;
+  const manager = makeManager(async () => {
+    requestCount += 1;
+    return {};
+  });
+
+  await manager.hydrate();
+  await manager.resumeInterrupted();
+
+  assert.equal(requestCount, 0);
+  assert.deepEqual(manager.getSnapshot().job.completedItemIds, ["item-1"]);
+});
+
+test("38. an unsaved current item remains pending and is safely retried", async () => {
+  await saveClosetItem(makeItem());
+  storageMemory.set(
+    CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+    JSON.stringify(makePersistedJob({ pendingItemIds: [] }))
+  );
+  let requestCount = 0;
+  const manager = makeManager(async () => {
+    requestCount += 1;
+    return { detailCategory: "벌룬 팬츠" };
+  });
+
+  await manager.hydrate();
+  assert.deepEqual(manager.getSnapshot().job.pendingItemIds, ["item-1"]);
+  await manager.resumeInterrupted();
+
+  assert.equal(requestCount, 1);
+  assert.equal((await getClosetItems())[0].detailCategory, "벌룬 팬츠");
+});
+
+test("39. corrupted job storage is cleared without blocking closet loading", async () => {
+  await saveClosetItem(makeItem());
+  storageMemory.set(
+    CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+    "{broken-json"
+  );
+  const manager = makeManager(async () => ({}));
+
+  await manager.hydrate();
+
+  assert.equal(manager.getSnapshot().job, null);
+  assert.equal(
+    storageMemory.has(CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY),
+    false
+  );
+  assert.equal((await getClosetItems()).length, 1);
+});
+
+test("40. completed global updates rebuild recommendation data and revision", async () => {
+  await saveClosetItem(makeItem());
+  const before = await getRecommendationRevisionState();
+  const manager = makeManager(async () => ({
+    detailCategory: "벌룬 팬츠",
+  }));
+
+  await manager.start(["item-1"]);
+  const after = await getRecommendationRevisionState();
+  const index = await getClosetRecommendationIndex();
+
+  assert.equal(after.closetRevision, before.closetRevision + 1);
+  assert.equal(
+    index.index.recommendationItems[0].detailCategory,
+    "벌룬 팬츠"
+  );
+});
+
+test("41. unsubscribed screens receive no late state callbacks", async () => {
+  await saveClosetItem(makeItem());
+  const deferred = createDeferred();
+  const manager = makeManager(() => deferred.promise);
+  let callbackCount = 0;
+  const unsubscribe = manager.subscribe(() => {
+    callbackCount += 1;
+  });
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+  unsubscribe();
+  const countAtUnmount = callbackCount;
+
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await run;
+
+  assert.equal(callbackCount, countAtUnmount);
+});
+
+test("42. manager completion has no screen Alert dependency", () => {
+  const source = fs.readFileSync(
+    path.join(projectRoot, "utils", "closetAnalysisRefreshManager.ts"),
+    "utf8"
+  );
+
+  assert.doesNotMatch(source, /\bAlert\b/);
+  assert.doesNotMatch(source, /\bsetState\b/);
+});
+
+test("43. AbortError from explicit cancellation is not counted as failure", async () => {
+  await saveClosetItem(makeItem());
+  const manager = makeManager(
+    (_uri, _item, signal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+        });
+      })
+  );
+  const run = manager.start(["item-1"]);
+  await waitFor(() => manager.getSnapshot().job?.currentItemId === "item-1");
+
+  await manager.cancel();
+  await run;
+
+  assert.equal(manager.getSnapshot().job.failed, 0);
+  assert.deepEqual(manager.getSnapshot().job.failedItemIds, []);
+});
+
+test("44. active restore and manual resume race still runs one request", async () => {
+  await saveClosetItem(makeItem());
+  storageMemory.set(
+    CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+    JSON.stringify(makePersistedJob())
+  );
+  const deferred = createDeferred();
+  let requestCount = 0;
+  const manager = makeManager(() => {
+    requestCount += 1;
+    return deferred.promise;
+  });
+  await manager.hydrate();
+
+  const activeResume = manager.resumeInterrupted();
+  const manualResume = manager.resume();
+  await waitFor(() => requestCount === 1);
+  deferred.resolve({ detailCategory: "벌룬 팬츠" });
+  await Promise.all([activeResume, manualResume]);
+
+  assert.equal(requestCount, 1);
+});
+
+test("45. an explicitly cancelled job resumes from its pending item", async () => {
+  await saveClosetItem(makeItem());
+  let requestCount = 0;
+  const manager = makeManager((_uri, _item, signal) => {
+    requestCount += 1;
+    if (requestCount > 1) {
+      return Promise.resolve({ detailCategory: "벌룬 팬츠" });
+    }
+    return new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+  });
+  const firstRun = manager.start(["item-1"]);
+  await waitFor(() => requestCount === 1);
+  await manager.cancel();
+  await firstRun;
+
+  await manager.resume();
+
+  assert.equal(requestCount, 2);
+  assert.equal(manager.getSnapshot().job.status, "completed");
+  assert.equal((await getClosetItems())[0].detailCategory, "벌룬 팬츠");
+});
+
+test("a paused job can be explicitly cancelled before replacing app data", async () => {
+  storageMemory.set(
+    CLOSET_ANALYSIS_REFRESH_JOB_STORAGE_KEY,
+    JSON.stringify(
+      makePersistedJob({
+        status: "paused",
+        currentItemId: undefined,
+      })
+    )
+  );
+  const manager = makeManager(async () => {
+    assert.fail("a paused job should not start while it is being cancelled");
+  });
+
+  await manager.hydrate();
+  await manager.cancel();
+
+  assert.equal(manager.getSnapshot().job.status, "cancelled");
+  assert.deepEqual(manager.getSnapshot().job.pendingItemIds, ["item-1"]);
+});
+
+test("46. failed IDs can be retried without reprocessing completed items", async () => {
+  await saveClosetItem(makeItem({ id: "ok" }));
+  await saveClosetItem(makeItem({ id: "retry" }));
+  let shouldFail = true;
+  const requestCounts = new Map();
+  const manager = makeManager(async (_uri, item) => {
+    requestCounts.set(item.id, (requestCounts.get(item.id) || 0) + 1);
+    if (item.id === "retry" && shouldFail) throw new Error("temporary");
+    return { detailCategory: "벌룬 팬츠" };
+  });
+  await manager.start(["ok", "retry"]);
+  assert.deepEqual(manager.getSnapshot().job.failedItemIds, ["retry"]);
+
+  shouldFail = false;
+  await manager.retryFailed();
+
+  assert.equal(requestCounts.get("ok"), 1);
+  assert.equal(requestCounts.get("retry"), 2);
+  assert.equal(manager.getSnapshot().job.status, "completed");
+});
+
+test("47. an item storage failure rolls back that item and continues the queue", async () => {
+  await saveClosetItem(makeItem({ id: "item-1" }));
+  await saveClosetItem(makeItem({ id: "item-2" }));
+  const manager = makeManager(async () => ({
+    detailCategory: "벌룬 팬츠",
+  }));
+  failNextMultiSetAfterFirstEntry = true;
+
+  await manager.start(["item-1", "item-2"]);
+
+  const closet = await getClosetItems();
+  assert.equal(
+    closet.find((item) => item.id === "item-1").detailCategory,
+    "팬츠"
+  );
+  assert.equal(
+    closet.find((item) => item.id === "item-2").detailCategory,
+    "벌룬 팬츠"
+  );
+  assert.deepEqual(manager.getSnapshot().job.failedItemIds, ["item-1"]);
+  assert.equal(manager.getSnapshot().job.status, "completed_with_errors");
 });

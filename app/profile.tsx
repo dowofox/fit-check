@@ -1,4 +1,5 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import { useClosetAnalysisRefresh } from "@/providers/ClosetAnalysisRefreshProvider";
 import { getNaesBackupSummary, type NaesBackupPayload } from "@/utils/dataBackup";
 import {
   createAndShareNaesBackup,
@@ -86,6 +87,10 @@ function MeasurementInput({
 }
 
 export default function ProfileScreen() {
+  const {
+    cancel: cancelClosetAnalysisRefresh,
+    clearResult: clearClosetAnalysisRefreshResult,
+  } = useClosetAnalysisRefresh();
   const [gender, setGender] = useState("남성");
   const [age, setAge] = useState("");
   const [height, setHeight] = useState("");
@@ -246,6 +251,8 @@ export default function ProfileScreen() {
     profileLoadRequestRef.current += 1;
     setIsRestoringBackup(true);
     try {
+      await cancelClosetAnalysisRefresh();
+      await clearClosetAnalysisRefreshResult();
       await restoreNaesBackup(payload);
       await loadProfile();
       Alert.alert("복원 완료", "옷장과 프로필, 코디 기록을 복원했어요.");

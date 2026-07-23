@@ -6,7 +6,9 @@ import { useEffect } from "react";
 import { Platform } from "react-native";
 import "react-native-reanimated";
 
+import ClosetAnalysisRefreshGlobalStatus from "@/components/ClosetAnalysisRefreshGlobalStatus";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { ClosetAnalysisRefreshProvider } from "@/providers/ClosetAnalysisRefreshProvider";
 import { endPerformanceTimer, startPerformanceTimer } from "@/utils/performance";
 
 let appStartTimer = startPerformanceTimer("app.start-to-root-mounted");
@@ -29,19 +31,22 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="analyzing" options={{ headerShown: false }} />
-        <Stack.Screen name="result" options={{ headerShown: false }} />
-        <Stack.Screen name="history" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
-        <Stack.Screen name="closet" options={{ headerShown: false }} />
-        <Stack.Screen name="clothes-detail" options={{ headerShown: false }} />
-        <Stack.Screen name="add-clothes" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
-      </Stack>
+      <ClosetAnalysisRefreshProvider>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="analyzing" options={{ headerShown: false }} />
+          <Stack.Screen name="result" options={{ headerShown: false }} />
+          <Stack.Screen name="history" options={{ headerShown: false }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="closet" options={{ headerShown: false }} />
+          <Stack.Screen name="clothes-detail" options={{ headerShown: false }} />
+          <Stack.Screen name="add-clothes" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
+        </Stack>
 
-      <StatusBar style="auto" />
+        <ClosetAnalysisRefreshGlobalStatus />
+        <StatusBar style="auto" />
+      </ClosetAnalysisRefreshProvider>
     </ThemeProvider>
   );
 }
