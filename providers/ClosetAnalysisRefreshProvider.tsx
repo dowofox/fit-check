@@ -6,6 +6,7 @@ import {
   useMemo,
   useSyncExternalStore,
 } from "react";
+import { usePathname } from "expo-router";
 import { AppState } from "react-native";
 
 import type { ClosetAnalysisRefreshManager } from "@/utils/closetAnalysisRefreshManager";
@@ -17,7 +18,12 @@ const ClosetAnalysisRefreshContext =
 export function ClosetAnalysisRefreshProvider({
   children,
 }: PropsWithChildren) {
+  const pathname = usePathname();
+  const isDesignPreview = pathname.startsWith("/design-preview");
+
   useEffect(() => {
+    if (isDesignPreview) return;
+
     let isMounted = true;
 
     void closetAnalysisRefreshManager.hydrate().then(() => {
@@ -36,7 +42,7 @@ export function ClosetAnalysisRefreshProvider({
       isMounted = false;
       subscription.remove();
     };
-  }, []);
+  }, [isDesignPreview]);
 
   return (
     <ClosetAnalysisRefreshContext.Provider

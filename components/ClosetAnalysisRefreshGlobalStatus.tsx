@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -36,8 +36,10 @@ function getStatusText(
 
 export default function ClosetAnalysisRefreshGlobalStatus() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const { job, clearResult } = useClosetAnalysisRefresh();
 
+  if (pathname.startsWith("/design-preview")) return null;
   if (!job || job.status === "idle") return null;
 
   const isActive = job.status === "running" || job.status === "paused";
