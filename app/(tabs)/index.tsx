@@ -13,6 +13,7 @@ import type {
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
+import { getOutfitRecommendationReadiness } from "@/utils/outfitRecommendationReadiness";
 import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
 import { canReuseHomeDashboardData } from "@/utils/homeDashboardRefresh";
 import {
@@ -59,8 +60,8 @@ import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useCallback, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 const CLOSET_CATEGORIES = [
   { label: "상의", Icon: ShirtIcon },
@@ -133,54 +134,45 @@ function RecommendationLookbookCard({
         })
       }
     >
-      <View style={styles.lookbookImage}>
-        <View style={styles.lookbookModelWrap}>
-          <View style={styles.lookbookHead} />
-          <View style={styles.lookbookBody} />
-          <View style={styles.lookbookLegs} />
-        </View>
-
-        <View style={styles.itemPreviewRow}>
-          {coreItems.map((item) => (
-            <ClosetItemImage
-              key={item.id}
-              item={item}
-              style={styles.itemPreviewImage}
-              contentFit="contain"
-            />
-          ))}
-        </View>
-
-        <View style={styles.aiBadge}>
-          <Feather name="star" size={10} color={colors.point} />
-          <Text style={styles.aiBadgeText}>AI 룩북</Text>
-        </View>
-      </View>
-
-      <Text style={styles.recommendTitle} numberOfLines={1}>
-        {recommendation.title}
-      </Text>
-
-      <Text style={styles.recommendItems} numberOfLines={1}>
-        {[top, bottom, shoes]
-          .filter((item): item is ClosetItem => Boolean(item))
-          .map(getItemShortLabel)
-          .join(" + ")}
-      </Text>
-
-      {reasonSummary ? (
-        <Text style={styles.recommendReason} numberOfLines={3}>
-          {reasonSummary}
-        </Text>
-      ) : null}
-
-      <View style={styles.recommendTagRow}>
-        {recommendation.tags.slice(0, 2).map((tag) => (
-          <Text key={tag} style={styles.recommendTag}>
-            #{tag}
-          </Text>
+      <View style={styles.recommendVisual}>
+        {coreItems.map((item) => (
+          <ClosetItemImage
+            key={item.id}
+            item={item}
+            style={styles.recommendVisualItem}
+            contentFit="contain"
+          />
         ))}
       </View>
+
+      <View style={styles.recommendCopy}>
+        <Text style={styles.recommendEyebrow}>오늘의 미리보기</Text>
+        <Text style={styles.recommendTitle} numberOfLines={2}>
+          {recommendation.title}
+        </Text>
+
+        <Text style={styles.recommendItems} numberOfLines={2}>
+          {[top, bottom, shoes]
+            .filter((item): item is ClosetItem => Boolean(item))
+            .map(getItemShortLabel)
+            .join(" + ")}
+        </Text>
+
+        {reasonSummary ? (
+          <Text style={styles.recommendReason} numberOfLines={2}>
+            {reasonSummary}
+          </Text>
+        ) : null}
+
+        <View style={styles.recommendTagRow}>
+          {recommendation.tags.slice(0, 2).map((tag) => (
+            <Text key={tag} style={styles.recommendTag}>
+              #{tag}
+            </Text>
+          ))}
+        </View>
+      </View>
+      <Feather name="chevron-right" size={18} color={colors.subText} />
     </Pressable>
   );
 }
@@ -923,21 +915,46 @@ export default function HomeScreen() {
     recommendationEmptyState,
     closetItems
   );
+  const recommendationReadiness = useMemo(
+    () => getOutfitRecommendationReadiness(closetItems),
+    [closetItems]
+  );
+  const homeSteps = [
+    {
+      label: "옷 등록",
+      complete: closetItems.length > 0,
+    },
+    {
+      label: "준비 확인",
+      complete: recommendationReadiness.ready,
+    },
+    {
+      label: "코디 받기",
+      complete: todayRecommendations.length > 0,
+    },
+  ];
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.headerSide} />
-          <Text style={styles.logoText}>NAES</Text>
-          <Pressable style={styles.bellButton}>
-            <Feather name="bell" size={18} color={colors.text} />
+          <View style={styles.brandRow}>
+            <View style={styles.brandMark}>
+              <Text style={styles.brandMarkText}>N</Text>
+            </View>
+            <Text style={styles.logoText}>NAES</Text>
+          </View>
+          <Pressable style={styles.profileButton} onPress={() => router.push("/profile")}>
+            <Feather name="user" size={16} color={colors.point} />
           </Pressable>
         </View>
 
         <View style={styles.greetingArea}>
-          <Text style={styles.greeting}>안녕하세요, 도현님</Text>
-          <Text style={styles.greetingSub}>오늘도 멋진 하루 되세요!</Text>
+          <Text style={styles.greetingEyebrow}>TODAY · MY WARDROBE</Text>
+          <Text style={styles.greeting}>오늘 무엇을{"\n"}도와드릴까요?</Text>
+          <Text style={styles.greetingSub}>
+            복잡한 메뉴 대신 하고 싶은 일부터 골라보세요.
+          </Text>
         </View>
 
         {hasDashboardLoadError ? (
@@ -960,63 +977,87 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <View style={styles.heroCard}>
-          <Image
-            source={require("@/assets/images/hero-fashion-wide.png")}
-            style={styles.heroBackground}
-            resizeMode="cover"
-          />
+        <Pressable style={styles.primaryAction} onPress={() => router.push("/outfit")}>
+          <View style={styles.primaryActionIcon}>
+            <Feather name="sun" size={20} color={colors.card} />
+          </View>
+          <View style={styles.actionTextArea}>
+            <Text style={styles.primaryActionEyebrow}>오늘 바로 입기</Text>
+            <Text style={styles.primaryActionTitle}>내 옷으로 코디 찾기</Text>
+            <Text style={styles.primaryActionText}>
+              날씨와 옷장을 보고 가장 자연스러운 조합을 골라요.
+            </Text>
+          </View>
+          <Feather name="arrow-right" size={20} color={colors.card} />
+        </Pressable>
 
-          <View style={styles.heroOverlay}>
-            <Text style={styles.heroTitle}>나만의 AI 스타일리스트</Text>
-            <Text style={styles.heroText}>오늘의 코디를 분석하고{"\n"}새로운 스타일을 제안받아보세요.</Text>
+        <Pressable style={styles.secondaryAction} onPress={() => router.push("/add-clothes")}>
+          <View style={styles.secondaryActionIcon}>
+            <Feather name="shopping-bag" size={18} color={colors.point} />
+          </View>
+          <View style={styles.actionTextArea}>
+            <Text style={styles.secondaryActionTitle}>새 옷이 나에게 맞을지 보기</Text>
+            <Text style={styles.secondaryActionText}>
+              상품 링크 하나로 실측 기반 핏을 확인해요.
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.subText} />
+        </Pressable>
 
-            <Pressable style={styles.heroButton} onPress={startAnalysis}>
-              <Text style={styles.heroButtonText}>코디 분석하기</Text>
-              <Feather name="arrow-right" size={13} color={colors.card} />
+        <View style={styles.stepSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>추천까지 3단계</Text>
+            <Pressable style={styles.moreWrap} onPress={() => router.push("/closet")}>
+              <Text style={styles.moreText}>옷장 보기</Text>
+              <Feather name="chevron-right" size={14} color={colors.point} />
             </Pressable>
+          </View>
+          <View style={styles.stepRow}>
+            {homeSteps.map((step, index) => (
+              <View key={step.label} style={styles.stepItem}>
+                <View style={[styles.stepDot, step.complete && styles.stepDotComplete]}>
+                  {step.complete ? (
+                    <Feather name="check" size={14} color={colors.card} />
+                  ) : (
+                    <Text style={styles.stepNumber}>{index + 1}</Text>
+                  )}
+                </View>
+                <Text style={styles.stepLabel}>{step.label}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>내 옷장 현황</Text>
-
-            <Pressable onPress={() => router.push("/closet")}>
-              <View style={styles.moreWrap}>
-                <Text style={styles.moreText}>전체 보기</Text>
-                <Feather name="chevron-right" size={14} color={colors.point} />
-              </View>
-            </Pressable>
-          </View>
-
-          <View style={styles.closetGrid}>
-            {CLOSET_CATEGORIES.map((category) => {
-              const Icon = category.Icon;
-
-              return (
-                <Pressable
-                  key={category.label}
-                  style={styles.countTile}
-                  onPress={() => router.push({ pathname: "/closet", params: { category: category.label } })}
-                >
-                  <Icon width={24} height={24} color={colors.point} />
-                  <Text style={styles.countLabel}>{category.label}</Text>
-                  <Text style={styles.countValue}>
-                    {hasDashboardLoadError && !hasDashboardData
-                      ? "-"
-                      : getCategoryCount(categoryCounts, category.label)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+        <View style={styles.closetSummary}>
+          {CLOSET_CATEGORIES.slice(0, 4).map((category) => {
+            const Icon = category.Icon;
+            return (
+              <Pressable
+                key={category.label}
+                style={styles.closetSummaryItem}
+                onPress={() =>
+                  router.push({
+                    pathname: "/closet",
+                    params: { category: category.label },
+                  })
+                }
+              >
+                <Icon width={18} height={18} color={colors.point} />
+                <Text style={styles.closetSummaryValue}>
+                  {hasDashboardLoadError && !hasDashboardData
+                    ? "-"
+                    : getCategoryCount(categoryCounts, category.label)}
+                </Text>
+                <Text style={styles.closetSummaryLabel}>{category.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>오늘의 추천 코디</Text>
+              <Text style={styles.sectionTitle}>오늘의 미리보기</Text>
               {weatherLabel ? <Text style={styles.weatherBasisText}>{weatherLabel}</Text> : null}
             </View>
             {todayRecommendations.length > 0 ? (
@@ -1123,6 +1164,19 @@ export default function HomeScreen() {
             </View>
           </Pressable>
         </View>
+
+        <Pressable style={styles.analysisShortcut} onPress={startAnalysis}>
+          <View style={styles.analysisShortcutIcon}>
+            <Feather name="camera" size={17} color={colors.point} />
+          </View>
+          <View style={styles.actionTextArea}>
+            <Text style={styles.analysisShortcutTitle}>사진으로 코디 분석</Text>
+            <Text style={styles.analysisShortcutText}>
+              지금 입은 코디가 어떤지 빠르게 확인해보세요.
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={17} color={colors.subText} />
+        </Pressable>
       </ScrollView>
 
       <BottomNav activeTab="home" />
@@ -1137,45 +1191,68 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 28,
-    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingHorizontal: 18,
     paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  headerSide: {
-    width: 32,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  brandMark: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: colors.point,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandMarkText: {
+    color: colors.card,
+    fontSize: 13,
+    fontWeight: "900",
   },
   logoText: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: "900",
-    letterSpacing: 0.5,
   },
-  bellButton: {
-    width: 32,
-    height: 32,
+  profileButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
   },
   greetingArea: {
-    marginBottom: 14,
+    marginBottom: 18,
+  },
+  greetingEyebrow: {
+    color: colors.point,
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 6,
   },
   greeting: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "800",
+    fontSize: 30,
+    lineHeight: 37,
+    fontWeight: "900",
   },
   greetingSub: {
     color: colors.subText,
-    fontSize: 11,
-    fontWeight: "500",
-    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 7,
   },
   loadErrorCard: {
     flexDirection: "row",
@@ -1216,6 +1293,141 @@ const styles = StyleSheet.create({
   loadErrorActionText: {
     color: colors.point,
     fontSize: 11,
+    fontWeight: "700",
+  },
+  primaryAction: {
+    minHeight: 120,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: colors.point,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+    marginBottom: 10,
+  },
+  primaryActionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  actionTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  primaryActionEyebrow: {
+    color: "#B9D3C8",
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  primaryActionTitle: {
+    color: colors.card,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "900",
+  },
+  primaryActionText: {
+    color: "#D8E8E1",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  secondaryAction: {
+    minHeight: 88,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  secondaryActionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: colors.softCard,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  secondaryActionTitle: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "800",
+  },
+  secondaryActionText: {
+    color: colors.subText,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "600",
+    marginTop: 3,
+  },
+  stepSection: {
+    marginBottom: 18,
+  },
+  stepRow: {
+    flexDirection: "row",
+    paddingHorizontal: 8,
+  },
+  stepItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
+  },
+  stepDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.softCard,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepDotComplete: {
+    backgroundColor: colors.point,
+  },
+  stepNumber: {
+    color: colors.subText,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  stepLabel: {
+    color: colors.subText,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  closetSummary: {
+    minHeight: 76,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    flexDirection: "row",
+    marginBottom: 20,
+  },
+  closetSummaryItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  closetSummaryValue: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  closetSummaryLabel: {
+    color: colors.subText,
+    fontSize: 9,
     fontWeight: "700",
   },
   heroCard: {
@@ -1373,105 +1585,67 @@ const styles = StyleSheet.create({
   },
   recommendCarousel: {
     gap: 12,
-    paddingRight: 20,
+    paddingRight: 18,
   },
   recommendCard: {
-    width: 132,
-  },
-  lookbookImage: {
-    width: 132,
-    height: 158,
-    borderRadius: 18,
+    width: 310,
+    minHeight: 132,
+    padding: 10,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: "hidden",
-    marginBottom: 8,
+    borderRadius: 18,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
+    gap: 11,
   },
-  lookbookModelWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 18,
-  },
-  lookbookHead: {
-    width: 22,
-    height: 22,
-    borderRadius: 999,
-    backgroundColor: colors.inactiveTab,
-    marginBottom: 5,
-  },
-  lookbookBody: {
-    width: 44,
-    height: 50,
+  recommendVisual: {
+    width: 104,
+    height: 110,
+    padding: 5,
     borderRadius: 14,
-    backgroundColor: colors.point,
-    opacity: 0.22,
-  },
-  lookbookLegs: {
-    width: 34,
-    height: 38,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    backgroundColor: colors.text,
-    opacity: 0.12,
-    marginTop: 3,
-  },
-  itemPreviewRow: {
-    position: "absolute",
-    left: 8,
-    right: 8,
-    bottom: 8,
+    backgroundColor: colors.inactiveTab,
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 5,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignContent: "space-between",
   },
-  itemPreviewImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: colors.softCard,
-    borderWidth: 1,
-    borderColor: colors.border,
+  recommendVisualItem: {
+    width: "48%",
+    height: "48%",
+    borderRadius: 8,
+    backgroundColor: colors.card,
   },
-  aiBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: colors.softCard,
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+  recommendCopy: {
+    flex: 1,
+    minWidth: 0,
   },
-  aiBadgeText: {
+  recommendEyebrow: {
     color: colors.point,
     fontSize: 9,
-    fontWeight: "800",
+    fontWeight: "900",
+    marginBottom: 4,
   },
   recommendTitle: {
     color: colors.text,
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 19,
     fontWeight: "800",
     marginBottom: 4,
   },
   recommendItems: {
     color: colors.subText,
-    fontSize: 10,
+    fontSize: 9,
+    lineHeight: 13,
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   recommendReason: {
-    minHeight: 42,
     color: colors.subText,
     fontSize: 9,
     lineHeight: 14,
     fontWeight: "600",
-    marginBottom: 7,
+    marginBottom: 6,
   },
   recommendTagRow: {
     flexDirection: "row",
@@ -1540,5 +1714,37 @@ const styles = StyleSheet.create({
     color: colors.point,
     fontSize: 12,
     fontWeight: "700",
+  },
+  analysisShortcut: {
+    minHeight: 68,
+    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    marginBottom: 18,
+  },
+  analysisShortcutIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.softCard,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  analysisShortcutTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  analysisShortcutText: {
+    color: colors.subText,
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: "600",
+    marginTop: 2,
   },
 });

@@ -55,8 +55,6 @@ const styles = StyleSheet.create({
   bottomNavWrap: {
     flexShrink: 0,
     backgroundColor: colors.card,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
     borderTopWidth: 1,
     borderColor: colors.border,
     ...shadow.subtle,
@@ -88,19 +86,19 @@ const styles = StyleSheet.create({
     marginTop: -8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 9,
     elevation: 3,
   },
   iconWrap: {
-    width: 24,
-    height: 22,
+    width: 36,
+    height: 30,
     borderRadius: radius.round,
     alignItems: "center",
     justifyContent: "center",
   },
   activeIconWrap: {
-    backgroundColor: "transparent",
+    backgroundColor: colors.softCard,
   },
   navTextActive: {
     color: ACTIVE_COLOR,
