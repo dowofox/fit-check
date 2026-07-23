@@ -28,6 +28,7 @@ import {
   type DesignPreviewScreenId,
   type DesignPreviewTokens,
 } from "@/components/design-preview/designPreviewData";
+import { AlternativePreviewApp } from "@/components/design-preview/AlternativeDesignPreviews";
 
 type NavigateToScreen = (screen: DesignPreviewScreenId) => void;
 
@@ -2128,6 +2129,16 @@ function PreviewApp({
   screen: DesignPreviewScreenId;
   onNavigate: NavigateToScreen;
 }) {
+  if (theme.code === "F" || theme.code === "G" || theme.code === "H") {
+    return (
+      <AlternativePreviewApp
+        theme={theme}
+        screen={screen}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   switch (screen) {
     case "closet":
       return <ClosetScreen theme={theme} onNavigate={onNavigate} />;

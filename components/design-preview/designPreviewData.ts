@@ -5,7 +5,10 @@ export type DesignPreviewConceptId =
   | "clean-minimal"
   | "soft-utility"
   | "dark-fashion"
-  | "editorial-noir";
+  | "editorial-noir"
+  | "guided-flow"
+  | "visual-journal"
+  | "quiet-system";
 
 export type DesignPreviewScreenId =
   | "home"
@@ -19,7 +22,7 @@ export type DesignPreviewScreenId =
 
 export type DesignPreviewTokens = {
   id: DesignPreviewConceptId;
-  code: "A" | "B" | "C" | "D" | "E";
+  code: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
   name: string;
   summary: string;
   background: string;
@@ -146,6 +149,66 @@ export const DESIGN_PREVIEW_CONCEPTS: DesignPreviewTokens[] = [
     cardRadius: 20,
     imageRadius: 12,
     shadowOpacity: 0.035,
+  },
+  {
+    id: "guided-flow",
+    code: "F",
+    name: "Guided Flow",
+    summary: "처음 쓰는 사람도 다음 행동을 놓치지 않는 단계형 스타일 가이드",
+    background: "#F4F1EA",
+    surface: "#FFFFFF",
+    surfaceAlt: "#E9EEE9",
+    text: "#17221E",
+    muted: "#6C756F",
+    accent: "#194C3D",
+    accentText: "#FFFFFF",
+    warning: "#D05D45",
+    success: "#2F785D",
+    border: "#D7DDD7",
+    radius: 12,
+    cardRadius: 18,
+    imageRadius: 14,
+    shadowOpacity: 0.025,
+  },
+  {
+    id: "visual-journal",
+    code: "G",
+    name: "Visual Journal",
+    summary: "룩 이미지와 짧은 문장으로 선택을 이끄는 패션 저널",
+    background: "#F1EDE4",
+    surface: "#FFFCF6",
+    surfaceAlt: "#E2DACD",
+    text: "#211D1A",
+    muted: "#766D65",
+    accent: "#6B2737",
+    accentText: "#FFF9F0",
+    warning: "#A84C36",
+    success: "#4C6B57",
+    border: "#D3C9BA",
+    radius: 6,
+    cardRadius: 16,
+    imageRadius: 8,
+    shadowOpacity: 0.02,
+  },
+  {
+    id: "quiet-system",
+    code: "H",
+    name: "Quiet System",
+    summary: "두 가지 핵심 행동과 선명한 목록으로 정리한 조용한 시스템 UI",
+    background: "#F2F4F3",
+    surface: "#FFFFFF",
+    surfaceAlt: "#E5E9E7",
+    text: "#111715",
+    muted: "#65706B",
+    accent: "#0F6873",
+    accentText: "#FFFFFF",
+    warning: "#B4503C",
+    success: "#33745D",
+    border: "#D4DAD7",
+    radius: 8,
+    cardRadius: 12,
+    imageRadius: 6,
+    shadowOpacity: 0,
   },
 ];
 
