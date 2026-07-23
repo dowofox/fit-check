@@ -284,6 +284,27 @@ function ScreenHeader({
     );
   }
 
+  if (theme.code === "E") {
+    return (
+      <View style={styles.hybridHeader}>
+        <View style={styles.hybridHeaderTop}>
+          <View style={[styles.hybridEdition, { backgroundColor: theme.accent }]}>
+            <Text style={[styles.hybridEditionText, { color: theme.accentText }]}>
+              NAES / EDITION 05
+            </Text>
+          </View>
+          <Feather name="menu" size={19} color={theme.text} />
+        </View>
+        <Text style={[styles.hybridTitle, { color: theme.text }]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.darkHeader}>
       <Text style={[styles.darkLogo, { color: theme.accent }]}>NAES / 06</Text>
@@ -811,6 +832,94 @@ function HomeScreen({
     );
   }
 
+  if (theme.code === "E") {
+    return (
+      <ScreenFrame theme={theme} active="home" onNavigate={onNavigate}>
+        <ScreenHeader
+          theme={theme}
+          title="오늘을 입는 방식"
+          subtitle="서울 24° · 가볍고 단정한 레이어가 좋아요"
+        />
+        <View style={styles.hybridHero}>
+          <Image
+            source={require("@/assets/images/hero-fashion-wide.png")}
+            resizeMode="cover"
+            style={styles.hybridHeroImage}
+          />
+          <View style={styles.hybridHeroShade} />
+          <View style={styles.hybridHeroCopy}>
+            <Text style={styles.hybridHeroKicker}>TODAY&apos;S WARDROBE</Text>
+            <Text style={styles.hybridHeroTitle}>
+              DRESS WITH{"\n"}INTENTION.
+            </Text>
+            <Text style={styles.hybridHeroText}>
+              내 옷장 안에서 오늘 가장 선명한 조합을 골랐어요.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.hybridActionRow}>
+          <PreviewButton
+            theme={theme}
+            label="오늘의 룩 보기"
+            icon="arrow-up-right"
+            inline
+            onPress={() => onNavigate("result")}
+          />
+          <PreviewButton
+            theme={theme}
+            label="옷 추가"
+            icon="plus"
+            secondary
+            inline
+            onPress={() => onNavigate("add")}
+          />
+        </View>
+        <AnalysisStatus theme={theme} compact />
+        <View style={styles.hybridReadiness}>
+          <View style={styles.flexOne}>
+            <Text style={[styles.smallEyebrow, { color: "#9A7040" }]}>
+              WARDROBE READY
+            </Text>
+            <Text style={[styles.outfitTitle, { color: theme.text }]}>
+              서로 다른 오늘을 만들 준비 완료
+            </Text>
+          </View>
+          <Text style={[styles.hybridReadinessNumber, { color: theme.text }]}>
+            12
+          </Text>
+          <Text style={[styles.readinessScoreUnit, { color: theme.muted }]}>
+            조합
+          </Text>
+        </View>
+        <SectionHeading theme={theme} title="오늘의 에디트" action="전체 보기" />
+        <View
+          style={[
+            styles.hybridOutfitCard,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <View style={styles.hybridOutfitVisual}>
+            <OutfitMosaic theme={theme} compact />
+          </View>
+          <View style={styles.flexOne}>
+            <Text style={[styles.smallEyebrow, { color: "#9A7040" }]}>
+              LOOK 01
+            </Text>
+            <Text style={[styles.outfitTitle, { color: theme.text }]}>
+              아이보리와 차콜의 선
+            </Text>
+            <Text
+              style={[styles.outfitReason, { color: theme.muted }]}
+              numberOfLines={3}
+            >
+              부드러운 니트와 긴 슬랙스가 차분한 대비를 만들어요.
+            </Text>
+          </View>
+        </View>
+      </ScreenFrame>
+    );
+  }
+
   return (
     <ScreenFrame
       theme={theme}
@@ -942,7 +1051,7 @@ function ClosetScreen({
       </View>
       {theme.code === "C" ? (
         <AnalysisStatus theme={theme} compact />
-      ) : theme.code === "A" ? (
+      ) : theme.code === "A" || theme.code === "E" ? (
         <View
           style={[
             styles.editorialAnalysisLine,
@@ -1208,6 +1317,52 @@ function ReadinessScreen({
     );
   }
 
+  if (theme.code === "E") {
+    return (
+      <ScreenFrame theme={theme} active="outfit" onNavigate={onNavigate}>
+        <ScreenHeader
+          theme={theme}
+          title={ready ? "오늘의 룩을 고를 시간" : "조금 더 모은 뒤, 제대로 추천할게요"}
+          subtitle={
+            ready
+              ? "현재 계절에 맞는 서로 다른 핵심 조합이 충분해요."
+              : "비슷한 옷차림을 반복해서 보여주지 않기 위한 기준이에요."
+          }
+        />
+        <View style={styles.hybridReadinessHero}>
+          <Text style={styles.hybridReadinessKicker}>
+            {ready ? "READY TO DRESS" : "WARDROBE IN PROGRESS"}
+          </Text>
+          <View style={styles.hybridReadinessValueRow}>
+            <Text style={styles.hybridReadinessValue}>
+              {data.coreCombinations}
+            </Text>
+            <Text style={styles.hybridReadinessGoal}>/ 06</Text>
+          </View>
+          <Text style={styles.hybridReadinessCopy}>
+            {ready
+              ? "서로 다른 분위기의 룩을 자신 있게 추천할 수 있어요."
+              : "상의 2벌과 하의 1벌이 더 있으면 선택지가 선명해져요."}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.hybridMetricsCard,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          {content}
+        </View>
+        <PreviewButton
+          theme={theme}
+          label={ready ? "오늘의 룩 시작" : "추천에 필요한 옷 추가"}
+          icon={ready ? "arrow-up-right" : "plus"}
+          onPress={() => onNavigate(ready ? "result" : "add")}
+        />
+      </ScreenFrame>
+    );
+  }
+
   return (
     <ScreenFrame theme={theme} active="outfit" onNavigate={onNavigate}>
       <ScreenHeader
@@ -1366,6 +1521,42 @@ function ResultScreen({
     );
   }
 
+  if (theme.code === "E") {
+    return (
+      <ScreenFrame
+        theme={theme}
+        active="outfit"
+        onNavigate={onNavigate}
+        noPadding
+      >
+        <View style={styles.hybridResultHero}>
+          <OutfitMosaic theme={theme} />
+          <View style={styles.hybridResultHeroTop}>
+            <Text style={styles.hybridResultKicker}>LOOK 01 / TODAY</Text>
+            <View style={styles.hybridGoldBadge}>
+              <Text style={styles.hybridGoldBadgeText}>좋은 조합</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.hybridResultBody}>
+          <ScreenHeader
+            theme={theme}
+            title="부드러운 니트, 선명한 차콜"
+            subtitle="서울 24° · 맑음 · 깔끔한"
+          />
+          <View style={styles.tagRow}>
+            {["#미니멀", "#출근", "#가벼움"].map((tag) => (
+              <PreviewTag key={tag} theme={theme}>
+                {tag}
+              </PreviewTag>
+            ))}
+          </View>
+          {detailContent}
+        </View>
+      </ScreenFrame>
+    );
+  }
+
   return (
     <ScreenFrame theme={theme} active="outfit" onNavigate={onNavigate}>
       <ScreenHeader
@@ -1491,11 +1682,11 @@ function AddScreen({
               styles.addMethodCard,
               {
                 backgroundColor:
-                  theme.code === "A" && index === 0
+                  (theme.code === "A" || theme.code === "E") && index === 0
                     ? theme.accent
                     : theme.surface,
                 borderColor:
-                  theme.code === "A" && index === 0
+                  (theme.code === "A" || theme.code === "E") && index === 0
                     ? theme.accent
                     : theme.border,
                 borderRadius: theme.cardRadius,
@@ -1509,7 +1700,7 @@ function AddScreen({
                 styles.addMethodIcon,
                 {
                   backgroundColor:
-                    theme.code === "A" && index === 0
+                    (theme.code === "A" || theme.code === "E") && index === 0
                       ? "rgba(255,255,255,0.16)"
                       : theme.surfaceAlt,
                 },
@@ -1519,7 +1710,7 @@ function AddScreen({
                 name={method.icon}
                 size={20}
                 color={
-                  theme.code === "A" && index === 0
+                  (theme.code === "A" || theme.code === "E") && index === 0
                     ? theme.accentText
                     : theme.accent
                 }
@@ -1531,7 +1722,7 @@ function AddScreen({
                   styles.addMethodTitle,
                   {
                     color:
-                      theme.code === "A" && index === 0
+                      (theme.code === "A" || theme.code === "E") && index === 0
                         ? theme.accentText
                         : theme.text,
                   },
@@ -1544,7 +1735,7 @@ function AddScreen({
                   styles.addMethodText,
                   {
                     color:
-                      theme.code === "A" && index === 0
+                      (theme.code === "A" || theme.code === "E") && index === 0
                         ? "#EEE3D9"
                         : theme.muted,
                   },
@@ -1559,7 +1750,7 @@ function AddScreen({
                   styles.addMethodMetaText,
                   {
                     color:
-                      theme.code === "A" && index === 0
+                      (theme.code === "A" || theme.code === "E") && index === 0
                         ? theme.accentText
                         : theme.accent,
                   },
@@ -1571,7 +1762,7 @@ function AddScreen({
                 name="chevron-right"
                 size={18}
                 color={
-                  theme.code === "A" && index === 0
+                  (theme.code === "A" || theme.code === "E") && index === 0
                     ? theme.accentText
                     : theme.muted
                 }
@@ -3103,5 +3294,183 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
+  },
+  hybridHeader: {
+    gap: 7,
+  },
+  hybridHeaderTop: {
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  hybridEdition: {
+    minHeight: 25,
+    paddingHorizontal: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hybridEditionText: {
+    fontSize: 9,
+    fontWeight: "900",
+  },
+  hybridTitle: {
+    fontSize: 29,
+    lineHeight: 34,
+    fontWeight: "900",
+  },
+  hybridHero: {
+    height: 258,
+    borderRadius: 14,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#17181A",
+  },
+  hybridHeroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  hybridHeroShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(17,16,15,0.43)",
+  },
+  hybridHeroCopy: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 18,
+  },
+  hybridHeroKicker: {
+    color: "#D5A55F",
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 7,
+  },
+  hybridHeroTitle: {
+    color: "#FFFDF8",
+    fontSize: 31,
+    lineHeight: 34,
+    fontWeight: "900",
+  },
+  hybridHeroText: {
+    color: "#E8E0D7",
+    maxWidth: 255,
+    marginTop: 8,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  hybridActionRow: {
+    flexDirection: "row",
+    gap: 9,
+  },
+  hybridReadiness: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 5,
+    paddingVertical: 4,
+  },
+  hybridReadinessNumber: {
+    fontSize: 37,
+    lineHeight: 40,
+    fontWeight: "900",
+  },
+  hybridOutfitCard: {
+    minHeight: 174,
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+  },
+  hybridOutfitVisual: {
+    width: "48%",
+    flexShrink: 0,
+  },
+  hybridReadinessHero: {
+    minHeight: 210,
+    padding: 20,
+    borderRadius: 14,
+    backgroundColor: "#17181A",
+    justifyContent: "center",
+  },
+  hybridReadinessKicker: {
+    color: "#D5A55F",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  hybridReadinessValueRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginTop: 11,
+  },
+  hybridReadinessValue: {
+    color: "#FFFDF8",
+    fontSize: 72,
+    lineHeight: 76,
+    fontWeight: "900",
+  },
+  hybridReadinessGoal: {
+    color: "#D5A55F",
+    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  hybridReadinessCopy: {
+    color: "#D9D2CA",
+    maxWidth: 285,
+    marginTop: 8,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  hybridMetricsCard: {
+    padding: 16,
+    borderWidth: 1,
+    borderRadius: 18,
+    gap: 14,
+  },
+  hybridResultHero: {
+    height: 258,
+    paddingTop: 10,
+    paddingHorizontal: 12,
+    position: "relative",
+    backgroundColor: "#17181A",
+  },
+  hybridResultHeroTop: {
+    position: "absolute",
+    left: 24,
+    right: 24,
+    top: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  hybridResultKicker: {
+    color: "#B98545",
+    fontSize: 9,
+    fontWeight: "900",
+  },
+  hybridGoldBadge: {
+    minHeight: 32,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#D5A55F",
+  },
+  hybridGoldBadgeText: {
+    color: "#17181A",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  hybridResultBody: {
+    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 28,
+    gap: 16,
+    backgroundColor: "#F2EBE2",
   },
 });

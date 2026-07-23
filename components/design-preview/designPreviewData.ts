@@ -4,7 +4,8 @@ export type DesignPreviewConceptId =
   | "warm-editorial"
   | "clean-minimal"
   | "soft-utility"
-  | "dark-fashion";
+  | "dark-fashion"
+  | "editorial-noir";
 
 export type DesignPreviewScreenId =
   | "home"
@@ -18,7 +19,7 @@ export type DesignPreviewScreenId =
 
 export type DesignPreviewTokens = {
   id: DesignPreviewConceptId;
-  code: "A" | "B" | "C" | "D";
+  code: "A" | "B" | "C" | "D" | "E";
   name: string;
   summary: string;
   background: string;
@@ -125,6 +126,26 @@ export const DESIGN_PREVIEW_CONCEPTS: DesignPreviewTokens[] = [
     cardRadius: 14,
     imageRadius: 8,
     shadowOpacity: 0,
+  },
+  {
+    id: "editorial-noir",
+    code: "E",
+    name: "Editorial Noir",
+    summary: "Warm Editorial의 여백에 Dark Fashion의 룩북 대비를 더한 조합",
+    background: "#F2EBE2",
+    surface: "#FFFDF8",
+    surfaceAlt: "#E5D9CB",
+    text: "#211B17",
+    muted: "#756A61",
+    accent: "#17181A",
+    accentText: "#F8F1E8",
+    warning: "#A6533B",
+    success: "#54705A",
+    border: "#D6C7B8",
+    radius: 10,
+    cardRadius: 20,
+    imageRadius: 12,
+    shadowOpacity: 0.035,
   },
 ];
 
