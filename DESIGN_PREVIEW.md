@@ -1,6 +1,6 @@
 # NAES UI/UX Design Preview
 
-이 문서는 운영 화면을 바꾸기 전에 네 가지 디자인 방향과 선택형 하이브리드를 같은 데이터로
+이 문서는 운영 화면을 바꾸기 전에 여러 디자인 방향을 같은 데이터로
 비교하기 위한 시안 설명서다. 프리뷰는 고정 mock data만 사용하며
 `AsyncStorage`, 저장 코디, 프로필, 실제 추천 결과를 읽거나 쓰지 않는다.
 
@@ -40,6 +40,7 @@
 - `/design-preview/guided-flow`
 - `/design-preview/visual-journal`
 - `/design-preview/quiet-system`
+- `/design-preview/lab`: 서로 다른 진입 구조 50개를 한 화면에서 비교
 
 쿼리:
 
@@ -48,6 +49,21 @@
 
 각 시안의 화면 안 버튼은 프리뷰 화면 사이만 이동한다. 실제 라우트, API,
 저장소에는 연결되지 않는다.
+
+## 50 Concept Lab
+
+기존 A-L 시안의 색과 카드 배치만 반복하지 않고, 첫 화면에서 사용자가
+서비스를 이해하고 행동을 시작하는 방식을 50개로 넓혀 비교한다.
+
+- 01-10 Direct Entry: 두 선택지, 질문, 검색, 음성 등 행동을 바로 시작
+- 11-20 Visual Fashion: 룩북, 옷장 무대, 콜라주 등 옷 이미지가 먼저 보임
+- 21-30 Daily Context: 날씨, 일정, 상황, 재착용 등 오늘의 맥락에서 시작
+- 31-40 Utility System: 체크리스트, 지도, 필터, 큐 등 관리 효율을 우선
+- 41-50 Experimental: 바텀시트, 카드 덱, 터미널, 제로 UI 등 새로운 조작 모델
+
+`/design-preview/lab?id=01`처럼 번호를 바꿔 선택할 수 있고,
+`standalone=1`을 추가하면 비교 벽 없이 해당 휴대폰 화면만 확인한다.
+50안은 모두 mock data 전용이며 운영 홈과 저장소를 변경하지 않는다.
 
 ## A. Warm Editorial
 

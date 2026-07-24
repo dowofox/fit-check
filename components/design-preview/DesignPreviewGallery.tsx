@@ -2263,6 +2263,17 @@ export default function DesignPreviewGallery() {
             </Pressable>
           </View>
           <Text style={styles.galleryDescription}>{theme.summary}</Text>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.conceptLabButton}
+            onPress={() => router.push("/design-preview/lab")}
+          >
+            <View style={styles.flexOne}>
+              <Text style={styles.conceptLabEyebrow}>50 CONCEPT LAB</Text>
+              <Text style={styles.conceptLabTitle}>완전히 다른 50개 시안 보기</Text>
+            </View>
+            <Feather name="arrow-right" size={18} color="#FFFFFF" />
+          </Pressable>
           <View style={styles.conceptGrid}>
             {DESIGN_PREVIEW_CONCEPTS.map((concept) => {
               const active = concept.id === theme.id;
@@ -2415,6 +2426,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: 8,
+  },
+  conceptLabButton: {
+    minHeight: 66,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#171717",
+  },
+  conceptLabEyebrow: {
+    color: "#AAA39A",
+    fontSize: 8,
+    fontWeight: "800",
+  },
+  conceptLabTitle: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
+    marginTop: 2,
   },
   fullscreenButton: {
     width: 44,
