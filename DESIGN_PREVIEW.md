@@ -65,6 +65,14 @@
 `standalone=1`을 추가하면 비교 벽 없이 해당 휴대폰 화면만 확인한다.
 50안은 모두 mock data 전용이며 운영 홈과 저장소를 변경하지 않는다.
 
+### Recommended Hybrid: Today Pick
+
+`/design-preview/today-pick`은 23번 Calendar Outfit의 날짜·일정 구조와
+46번 Gesture Cards의 한 장 선택 방식을 결합한 추천안이다. 사용 흐름은
+`날짜 선택 → 코디 한 장 비교 → 오늘 코디 확정` 세 단계로 제한한다.
+스와이프를 몰라도 사용할 수 있도록 `다른 코디`, `이 코디 선택` 버튼을
+함께 제공하며, 선택 결과는 같은 화면에서 즉시 확인한다.
+
 ## A. Warm Editorial
 
 패션 매거진과 편집숍의 여백, 큰 상품 이미지, 크림과 브라운을 사용한다.

@@ -2239,6 +2239,22 @@ export default function FiftyConceptLab() {
             다르게 만들었습니다. 번호를 누르면 실제 휴대폰 비율로 확인할 수
             있습니다.
           </Text>
+          <Pressable
+            style={styles.hybridBanner}
+            onPress={() => router.push("/design-preview/today-pick")}
+          >
+            <View style={styles.hybridBadge}>
+              <Text style={styles.hybridBadgeText}>23 + 46</Text>
+            </View>
+            <View style={styles.hybridCopy}>
+              <Text style={styles.hybridEyebrow}>RECOMMENDED HYBRID</Text>
+              <Text style={styles.hybridTitle}>오늘 한 장 · 추천 조합 보기</Text>
+              <Text style={styles.hybridDescription}>
+                일정으로 날짜를 고르고, 코디를 한 장씩 비교하는 흐름
+              </Text>
+            </View>
+            <Feather name="arrow-right" size={18} color="#FFFFFF" />
+          </Pressable>
         </View>
 
         <View
@@ -2357,6 +2373,55 @@ const styles = StyleSheet.create({
   labHeader: {
     maxWidth: 720,
     marginBottom: 30,
+  },
+  hybridBanner: {
+    width: "100%",
+    minHeight: 82,
+    marginTop: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 8,
+    backgroundColor: "#171717",
+  },
+  hybridBadge: {
+    minWidth: 62,
+    height: 32,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: "#8C6F47",
+  },
+  hybridBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  hybridCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  hybridEyebrow: {
+    color: "#AFA9A1",
+    fontSize: 8,
+    fontWeight: "800",
+  },
+  hybridTitle: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  hybridDescription: {
+    color: "#BDB7AF",
+    fontSize: 9,
+    lineHeight: 14,
+    fontWeight: "600",
+    marginTop: 2,
   },
   labHeaderTop: {
     flexDirection: "row",
