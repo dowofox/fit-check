@@ -29,26 +29,12 @@
 7. 화면마다 같은 행동이 카드, pill, 큰 버튼 등으로 다르게 표현되는 구간이
    있어 버튼 계층을 공통 규칙으로 정리할 필요가 있다.
 
-## Preview Routes
+## Preview Archive
 
-- `/design-preview`
-- `/design-preview/warm-editorial`
-- `/design-preview/clean-minimal`
-- `/design-preview/soft-utility`
-- `/design-preview/dark-fashion`
-- `/design-preview/editorial-noir`
-- `/design-preview/guided-flow`
-- `/design-preview/visual-journal`
-- `/design-preview/quiet-system`
-- `/design-preview/lab`: 서로 다른 진입 구조 50개를 한 화면에서 비교
-
-쿼리:
-
-- `screen=home|closet|readiness|ready|result|add|detail|profile`
-- `standalone=1`: 비교 패널 없이 모바일 화면만 표시
-
-각 시안의 화면 안 버튼은 프리뷰 화면 사이만 이동한다. 실제 라우트, API,
-저장소에는 연결되지 않는다.
+Today Pick을 운영 홈에 적용한 뒤 프리뷰 라우트는 프로덕션 번들에서
+제외했다. 시안 컴포넌트와 이미지는 `components/design-preview`,
+`assets/design-preview`에 보관하므로 이후 디자인 검토에서 다시 활용할 수
+있다. 프리뷰는 mock data 전용이며 실제 API와 저장소에는 연결하지 않는다.
 
 ## 50 Concept Lab
 
@@ -61,13 +47,12 @@
 - 31-40 Utility System: 체크리스트, 지도, 필터, 큐 등 관리 효율을 우선
 - 41-50 Experimental: 바텀시트, 카드 덱, 터미널, 제로 UI 등 새로운 조작 모델
 
-`/design-preview/lab?id=01`처럼 번호를 바꿔 선택할 수 있고,
-`standalone=1`을 추가하면 비교 벽 없이 해당 휴대폰 화면만 확인한다.
-50안은 모두 mock data 전용이며 운영 홈과 저장소를 변경하지 않는다.
+50안은 모두 mock data 전용으로 제작했으며 운영 홈과 저장소를 변경하지
+않았다. 현재는 위 아카이브 소스에서 비교안을 확인할 수 있다.
 
 ### Recommended Hybrid: Today Pick
 
-`/design-preview/today-pick`은 23번 Calendar Outfit의 날짜·일정 구조와
+Today Pick은 23번 Calendar Outfit의 날짜·일정 구조와
 46번 Gesture Cards의 한 장 선택 방식을 결합한 추천안이다. 사용 흐름은
 `날짜 선택 → 코디 한 장 비교 → 오늘 코디 확정` 세 단계로 제한한다.
 스와이프를 몰라도 사용할 수 있도록 `다른 코디`, `이 코디 선택` 버튼을
