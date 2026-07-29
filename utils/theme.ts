@@ -1,13 +1,13 @@
 export const colors = {
-  background: "#F4F1EA",
+  background: "#F7F2EB",
   card: "#FFFFFF",
-  text: "#17221E",
-  subText: "#6C756F",
-  point: "#194C3D",
-  warning: "#D05D45",
-  softCard: "#E9EEE9",
-  inactiveTab: "#EDF1EE",
-  border: "#D7DDD7",
+  text: "#111111",
+  subText: "#777064",
+  point: "#8C6F47",
+  warning: "#B45309",
+  softCard: "#F4EEE7",
+  inactiveTab: "#EFE8DE",
+  border: "#E8DED2",
 };
 
 export const radius = {

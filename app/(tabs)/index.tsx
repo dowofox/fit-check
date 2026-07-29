@@ -1,8 +1,3 @@
-import BagIcon from "@/assets/icons/bag.svg";
-import JacketIcon from "@/assets/icons/jacket.svg";
-import PantsIcon from "@/assets/icons/pants.svg";
-import ShirtIcon from "@/assets/icons/shirt.svg";
-import ShoeIcon from "@/assets/icons/sneakers.svg";
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
 import {
@@ -13,7 +8,6 @@ import type {
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
-import { getOutfitRecommendationReadiness } from "@/utils/outfitRecommendationReadiness";
 import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
 import { canReuseHomeDashboardData } from "@/utils/homeDashboardRefresh";
 import {
@@ -63,12 +57,20 @@ import { router } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const CLOSET_CATEGORIES = [
-  { label: "상의", Icon: ShirtIcon },
-  { label: "하의", Icon: PantsIcon },
-  { label: "신발", Icon: ShoeIcon },
-  { label: "아우터", Icon: JacketIcon },
-  { label: "액세서리", Icon: BagIcon },
+const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+const MONTH_LABELS = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
 ];
 
 function getWeatherKey(weather: OutfitRecommendationWeather) {
@@ -79,21 +81,50 @@ function getWeatherKey(weather: OutfitRecommendationWeather) {
   ].join("|");
 }
 
-function getCategoryCount(categoryCounts: Record<string, number>, category: string) {
-  return categoryCounts[category] || 0;
+function getCurrentWeek(today: Date) {
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - mondayOffset);
+
+  return WEEKDAY_LABELS.map((label, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+
+    return {
+      label,
+      date: date.getDate(),
+      selected:
+        date.getFullYear() === today.getFullYear() &&
+        date.getMonth() === today.getMonth() &&
+        date.getDate() === today.getDate(),
+    };
+  });
 }
 
 function getCoreItems(recommendation: HomeRecommendationCardData) {
-  const priority = ["아우터", "상의", "하의", "신발"];
+  const outer = recommendation.items.find((item) => item.category === "아우터");
+  const top = recommendation.items.find((item) => item.category === "상의");
+  const bottom = recommendation.items.find((item) => item.category === "하의");
+  const shoes = recommendation.items.find((item) => item.category === "신발");
 
-  return priority
-    .map((category) => recommendation.items.find((item) => item.category === category))
-    .filter((item): item is ClosetItem => Boolean(item))
-    .slice(0, 3);
+  return [top, bottom, shoes, outer].filter(
+    (item): item is ClosetItem => Boolean(item)
+  );
 }
 
 function getItemShortLabel(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
+}
+
+function getWeatherIconName(
+  weather: OutfitRecommendationWeather | null
+): keyof typeof Feather.glyphMap {
+  const condition = weather?.condition?.toLowerCase() || "";
+
+  if (/비|소나기|rain|drizzle/.test(condition)) return "cloud-rain";
+  if (/눈|snow/.test(condition)) return "cloud-snow";
+  if (/흐림|구름|cloud|fog|mist/.test(condition)) return "cloud";
+  return "sun";
 }
 
 function getRecommendationRouteParams(
@@ -111,75 +142,63 @@ function getRecommendationRouteParams(
   };
 }
 
-function RecommendationLookbookCard({
+function TodayRecommendationCard({
   recommendation,
-  weather,
+  current,
+  total,
 }: {
   recommendation: HomeRecommendationCardData;
-  weather: OutfitRecommendationWeather | null;
+  current: number;
+  total: number;
 }) {
   const coreItems = getCoreItems(recommendation);
-  const top = recommendation.items.find((item) => item.category === "상의");
-  const bottom = recommendation.items.find((item) => item.category === "하의");
-  const shoes = recommendation.items.find((item) => item.category === "신발");
   const reasonSummary = getOutfitDisplayReasons(recommendation.reasons, 2).join(" ");
 
   return (
-    <Pressable
-      style={styles.recommendCard}
-      onPress={() =>
-        router.push({
-          pathname: "/outfit-recommend",
-          params: getRecommendationRouteParams(recommendation, weather),
-        })
-      }
-    >
-      <View style={styles.recommendVisual}>
+    <View style={styles.outfitCard}>
+      <View style={styles.outfitImageStage}>
         {coreItems.map((item) => (
-          <ClosetItemImage
-            key={item.id}
-            item={item}
-            style={styles.recommendVisualItem}
-            contentFit="contain"
-          />
+          <View key={item.id} style={styles.outfitImageSlot}>
+            <ClosetItemImage
+              item={item}
+              style={styles.outfitImage}
+              contentFit="contain"
+            />
+          </View>
         ))}
+        <View style={styles.cardCount}>
+          <Text style={styles.cardCountText}>
+            {current} / {total}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.recommendCopy}>
-        <Text style={styles.recommendEyebrow}>오늘의 미리보기</Text>
-        <Text style={styles.recommendTitle} numberOfLines={2}>
+      <View style={styles.outfitCopy}>
+        <View style={styles.outfitTagRow}>
+          {recommendation.tags.slice(0, 2).map((tag) => (
+            <View key={tag} style={styles.outfitTag}>
+              <Text style={styles.outfitTagText}>#{tag}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.outfitTitle} numberOfLines={2}>
           {recommendation.title}
         </Text>
-
-        <Text style={styles.recommendItems} numberOfLines={2}>
-          {[top, bottom, shoes]
-            .filter((item): item is ClosetItem => Boolean(item))
-            .map(getItemShortLabel)
-            .join(" + ")}
+        <Text style={styles.outfitItems} numberOfLines={1}>
+          {recommendation.items.map(getItemShortLabel).join(" · ")}
         </Text>
-
         {reasonSummary ? (
-          <Text style={styles.recommendReason} numberOfLines={2}>
+          <Text style={styles.outfitReason} numberOfLines={2}>
             {reasonSummary}
           </Text>
         ) : null}
-
-        <View style={styles.recommendTagRow}>
-          {recommendation.tags.slice(0, 2).map((tag) => (
-            <Text key={tag} style={styles.recommendTag}>
-              #{tag}
-            </Text>
-          ))}
-        </View>
       </View>
-      <Feather name="chevron-right" size={18} color={colors.subText} />
-    </Pressable>
+    </View>
   );
 }
 
 export default function HomeScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [todayRecommendations, setTodayRecommendations] = useState<
     HomeRecommendationCardData[]
@@ -193,6 +212,7 @@ export default function HomeScreen() {
   const [hasDashboardData, setHasDashboardData] = useState(false);
   const [hasDashboardLoadError, setHasDashboardLoadError] = useState(false);
   const [dashboardReloadKey, setDashboardReloadKey] = useState(0);
+  const [recommendationCursor, setRecommendationCursor] = useState(0);
   const initialRecommendationCacheRef =
     useRef<HydratedHomeRecommendationCacheEntry | null>(null);
   const weatherRecommendationCacheRef =
@@ -803,7 +823,6 @@ export default function HomeScreen() {
           });
 
           setClosetItems(recommendationItems);
-          setCategoryCounts(indexLoad.index.categoryCounts);
           setSavedOutfits(nextSavedOutfits);
           setHasDashboardData(true);
           setHasDashboardLoadError(false);
@@ -915,46 +934,97 @@ export default function HomeScreen() {
     recommendationEmptyState,
     closetItems
   );
-  const recommendationReadiness = useMemo(
-    () => getOutfitRecommendationReadiness(closetItems),
-    [closetItems]
-  );
-  const homeSteps = [
-    {
-      label: "옷 등록",
-      complete: closetItems.length > 0,
-    },
-    {
-      label: "준비 확인",
-      complete: recommendationReadiness.ready,
-    },
-    {
-      label: "코디 받기",
-      complete: todayRecommendations.length > 0,
-    },
-  ];
+  const today = useMemo(() => new Date(), []);
+  const weekDays = useMemo(() => getCurrentWeek(today), [today]);
+  const activeRecommendationIndex =
+    todayRecommendations.length > 0
+      ? recommendationCursor % todayRecommendations.length
+      : 0;
+  const activeRecommendation = todayRecommendations[activeRecommendationIndex];
+  const weatherIconName = getWeatherIconName(currentRecommendationWeather);
+  const contextLabel =
+    weatherLabel ||
+    (isRecommendationPreparing
+      ? "오늘 조건을 확인하고 있어요"
+      : "오늘 옷장 기준 추천");
+
+  function showNextRecommendation() {
+    if (todayRecommendations.length < 2) return;
+    setRecommendationCursor((current) => current + 1);
+  }
+
+  function openActiveRecommendation() {
+    if (!activeRecommendation) return;
+
+    router.push({
+      pathname: "/outfit-recommend",
+      params: getRecommendationRouteParams(
+        activeRecommendation,
+        currentRecommendationWeather
+      ),
+    });
+  }
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>N</Text>
-            </View>
-            <Text style={styles.logoText}>NAES</Text>
-          </View>
+          <Text style={styles.logoText}>NAES</Text>
           <Pressable style={styles.profileButton} onPress={() => router.push("/profile")}>
-            <Feather name="user" size={16} color={colors.point} />
+            <Feather name="user" size={17} color={colors.text} />
           </Pressable>
         </View>
 
-        <View style={styles.greetingArea}>
-          <Text style={styles.greetingEyebrow}>TODAY · MY WARDROBE</Text>
-          <Text style={styles.greeting}>오늘 무엇을{"\n"}도와드릴까요?</Text>
-          <Text style={styles.greetingSub}>
-            복잡한 메뉴 대신 하고 싶은 일부터 골라보세요.
+        <View style={styles.todayHeading}>
+          <View style={styles.todayHeadingCopy}>
+            <Text style={styles.todayEyebrow}>
+              TODAY · {MONTH_LABELS[today.getMonth()]} {today.getDate()}
+            </Text>
+            <Text style={styles.todayTitle}>오늘 입을 한 벌</Text>
+          </View>
+          {todayRecommendations.length > 0 ? (
+            <View style={styles.stepIndicator}>
+              <Text style={styles.stepCurrent}>{activeRecommendationIndex + 1}</Text>
+              <Text style={styles.stepTotal}> / {todayRecommendations.length}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.week}>
+          {weekDays.map((day) => (
+            <View
+              key={`${day.label}-${day.date}`}
+              style={[styles.day, day.selected && styles.daySelected]}
+            >
+              <Text style={[styles.dayLabel, day.selected && styles.dayTextSelected]}>
+                {day.label}
+              </Text>
+              <Text style={[styles.dayDate, day.selected && styles.dayTextSelected]}>
+                {day.date}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.contextRow}>
+          <View style={styles.contextIcon}>
+            <Feather name={weatherIconName} size={14} color={colors.point} />
+          </View>
+          <Text style={styles.contextText} numberOfLines={1}>
+            {contextLabel}
           </Text>
+          <Pressable
+            style={styles.savedContextAction}
+            onPress={() => router.push("/saved-outfits")}
+          >
+            <Feather name="bookmark" size={13} color={colors.point} />
+            <Text style={styles.savedContextText}>
+              저장 {hasDashboardLoadError && !hasDashboardData ? "-" : savedOutfits.length}
+            </Text>
+          </Pressable>
         </View>
 
         {hasDashboardLoadError ? (
@@ -964,7 +1034,7 @@ export default function HomeScreen() {
               <Text style={styles.loadErrorTitle}>홈 정보를 불러오지 못했어요</Text>
               <Text style={styles.loadErrorText}>
                 {hasDashboardData
-                  ? "마지막으로 확인한 내용을 유지하고 있어요."
+                  ? "마지막으로 확인한 추천을 유지하고 있어요."
                   : "저장된 옷과 코디는 그대로예요. 다시 불러와주세요."}
               </Text>
             </View>
@@ -977,206 +1047,97 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <Pressable style={styles.primaryAction} onPress={() => router.push("/outfit")}>
-          <View style={styles.primaryActionIcon}>
-            <Feather name="sun" size={20} color={colors.card} />
-          </View>
-          <View style={styles.actionTextArea}>
-            <Text style={styles.primaryActionEyebrow}>오늘 바로 입기</Text>
-            <Text style={styles.primaryActionTitle}>내 옷으로 코디 찾기</Text>
-            <Text style={styles.primaryActionText}>
-              날씨와 옷장을 보고 가장 자연스러운 조합을 골라요.
-            </Text>
-          </View>
-          <Feather name="arrow-right" size={20} color={colors.card} />
-        </Pressable>
-
-        <Pressable style={styles.secondaryAction} onPress={() => router.push("/add-clothes")}>
-          <View style={styles.secondaryActionIcon}>
-            <Feather name="shopping-bag" size={18} color={colors.point} />
-          </View>
-          <View style={styles.actionTextArea}>
-            <Text style={styles.secondaryActionTitle}>새 옷이 나에게 맞을지 보기</Text>
-            <Text style={styles.secondaryActionText}>
-              상품 링크 하나로 실측 기반 핏을 확인해요.
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.subText} />
-        </Pressable>
-
-        <View style={styles.stepSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>추천까지 3단계</Text>
-            <Pressable style={styles.moreWrap} onPress={() => router.push("/closet")}>
-              <Text style={styles.moreText}>옷장 보기</Text>
-              <Feather name="chevron-right" size={14} color={colors.point} />
-            </Pressable>
-          </View>
-          <View style={styles.stepRow}>
-            {homeSteps.map((step, index) => (
-              <View key={step.label} style={styles.stepItem}>
-                <View style={[styles.stepDot, step.complete && styles.stepDotComplete]}>
-                  {step.complete ? (
-                    <Feather name="check" size={14} color={colors.card} />
-                  ) : (
-                    <Text style={styles.stepNumber}>{index + 1}</Text>
-                  )}
-                </View>
-                <Text style={styles.stepLabel}>{step.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.closetSummary}>
-          {CLOSET_CATEGORIES.slice(0, 4).map((category) => {
-            const Icon = category.Icon;
-            return (
-              <Pressable
-                key={category.label}
-                style={styles.closetSummaryItem}
-                onPress={() =>
-                  router.push({
-                    pathname: "/closet",
-                    params: { category: category.label },
-                  })
-                }
-              >
-                <Icon width={18} height={18} color={colors.point} />
-                <Text style={styles.closetSummaryValue}>
-                  {hasDashboardLoadError && !hasDashboardData
-                    ? "-"
-                    : getCategoryCount(categoryCounts, category.label)}
-                </Text>
-                <Text style={styles.closetSummaryLabel}>{category.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>오늘의 미리보기</Text>
-              {weatherLabel ? <Text style={styles.weatherBasisText}>{weatherLabel}</Text> : null}
-            </View>
-            {todayRecommendations.length > 0 ? (
-              <Pressable
-                style={styles.moreWrap}
-                onPress={() =>
-                  router.push({
-                    pathname: "/outfit-recommend",
-                    params: getRecommendationRouteParams(
-                      todayRecommendations[0],
-                      currentRecommendationWeather
-                    ),
-                  })
-                }
-              >
-                <Text style={styles.moreText}>추천 더보기</Text>
-                <Feather name="chevron-right" size={14} color={colors.point} />
-              </Pressable>
-            ) : null}
-          </View>
-
-          {todayRecommendations.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.recommendCarousel}
-            >
-              {todayRecommendations.map((recommendation) => (
-                <RecommendationLookbookCard
-                  key={recommendation.id}
-                  recommendation={recommendation}
-                  weather={currentRecommendationWeather}
-                />
-              ))}
-            </ScrollView>
-          ) : hasDashboardLoadError && !hasDashboardData ? (
-            <View style={styles.recommendationEmptyCard}>
-              <View style={styles.recommendationEmptyIcon}>
-                <Feather name="refresh-cw" size={16} color={colors.point} />
-              </View>
-              <View style={styles.recommendationEmptyTextArea}>
-                <Text style={styles.recommendationEmptyTitle}>
-                  추천 정보를 다시 불러와주세요
-                </Text>
-                <Text style={styles.emptyText}>
-                  옷장 상태를 확인한 뒤 오늘의 코디를 준비할게요.
-                </Text>
-              </View>
-            </View>
-          ) : isRecommendationPreparing ? (
-            <View style={styles.recommendationEmptyCard}>
-              <View style={styles.recommendationEmptyIcon}>
-                <Feather name="clock" size={16} color={colors.point} />
-              </View>
-              <View style={styles.recommendationEmptyTextArea}>
-                <Text style={styles.recommendationEmptyTitle}>
-                  오늘의 코디를 준비하고 있어요
-                </Text>
-                <Text style={styles.emptyText}>
-                  옷장 현황을 먼저 확인하면서 추천을 만들고 있어요.
-                </Text>
-              </View>
-            </View>
+        <View style={styles.cardStage}>
+          <View style={styles.cardBehind} />
+          {activeRecommendation ? (
+            <TodayRecommendationCard
+              recommendation={activeRecommendation}
+              current={activeRecommendationIndex + 1}
+              total={todayRecommendations.length}
+            />
           ) : (
-            <View style={styles.recommendationEmptyCard}>
-              <View style={styles.recommendationEmptyIcon}>
-                <Feather name="plus" size={16} color={colors.point} />
+            <View style={styles.recommendationStateCard}>
+              <View style={styles.recommendationStateIcon}>
+                <Feather
+                  name={
+                    hasDashboardLoadError && !hasDashboardData
+                      ? "refresh-cw"
+                      : isRecommendationPreparing
+                        ? "clock"
+                        : "plus"
+                  }
+                  size={20}
+                  color={colors.point}
+                />
               </View>
-              <View style={styles.recommendationEmptyTextArea}>
-                <Text style={styles.recommendationEmptyTitle}>
-                  {recommendationEmptyContent.title}
-                </Text>
-                <Text style={styles.emptyText}>{recommendationEmptyContent.text}</Text>
-              </View>
-              <Pressable
-                style={styles.recommendationEmptyButton}
-                onPress={() => router.push("/add-clothes")}
-              >
-                <Text style={styles.recommendationEmptyButtonText}>옷 추가하기</Text>
-                <Feather name="chevron-right" size={14} color={colors.card} />
-              </Pressable>
+              <Text style={styles.recommendationStateTitle}>
+                {hasDashboardLoadError && !hasDashboardData
+                  ? "추천 정보를 다시 불러와주세요"
+                  : isRecommendationPreparing
+                    ? "오늘의 코디를 준비하고 있어요"
+                    : recommendationEmptyContent.title}
+              </Text>
+              <Text style={styles.recommendationStateText}>
+                {hasDashboardLoadError && !hasDashboardData
+                  ? "옷장 상태를 확인한 뒤 오늘의 코디를 준비할게요."
+                  : isRecommendationPreparing
+                    ? "옷장과 오늘 조건을 확인하고 있어요."
+                    : recommendationEmptyContent.text}
+              </Text>
+              {!isRecommendationPreparing ? (
+                <Pressable
+                  style={styles.recommendationStateButton}
+                  onPress={
+                    hasDashboardLoadError && !hasDashboardData
+                      ? () => setDashboardReloadKey((value) => value + 1)
+                      : () => router.push("/add-clothes")
+                  }
+                >
+                  <Text style={styles.recommendationStateButtonText}>
+                    {hasDashboardLoadError && !hasDashboardData
+                      ? "다시 불러오기"
+                      : "옷 추가하기"}
+                  </Text>
+                  <Feather name="arrow-right" size={15} color={colors.card} />
+                </Pressable>
+              ) : null}
             </View>
           )}
         </View>
 
-        <View style={styles.savedCard}>
-          <View style={styles.savedTextArea}>
-            <Text style={styles.savedTitle}>
-              {hasDashboardLoadError && !hasDashboardData
-                ? "저장한 코디를 확인하지 못했어요"
-                : `저장한 코디가 ${savedOutfits.length}개 있어요`}
-            </Text>
-            <Text style={styles.savedDescription}>나의 다양한 스타일을 확인해보세요.</Text>
+        {activeRecommendation ? (
+          <View style={styles.actions}>
+            <Pressable
+              style={[
+                styles.nextButton,
+                todayRecommendations.length < 2 && styles.nextButtonDisabled,
+              ]}
+              disabled={todayRecommendations.length < 2}
+              onPress={showNextRecommendation}
+            >
+              <Feather name="refresh-cw" size={18} color={colors.subText} />
+              <Text style={styles.nextButtonText}>다른 코디</Text>
+            </Pressable>
+            <Pressable style={styles.selectButton} onPress={openActiveRecommendation}>
+              <Feather name="check" size={18} color={colors.card} />
+              <Text style={styles.selectButtonText}>이 코디 선택</Text>
+            </Pressable>
           </View>
+        ) : null}
 
-          <Pressable style={styles.savedActionArea} onPress={() => router.push("/saved-outfits")}>
-            <View style={styles.savedIconBox}>
-              <Feather name="bookmark" size={17} color={colors.point} />
-            </View>
-
-            <View style={styles.savedLink}>
-              <Text style={styles.savedLinkText}>바로가기</Text>
-              <Feather name="chevron-right" size={14} color={colors.point} />
-            </View>
+        <View style={styles.quickLinks}>
+          <Pressable style={styles.quickLink} onPress={startAnalysis}>
+            <Feather name="camera" size={15} color={colors.point} />
+            <Text style={styles.quickLinkText}>사진 코디 분석</Text>
+          </Pressable>
+          <View style={styles.quickLinkDivider} />
+          <Pressable style={styles.quickLink} onPress={() => router.push("/closet")}>
+            <Feather name="grid" size={15} color={colors.point} />
+            <Text style={styles.quickLinkText}>
+              옷장 {hasDashboardLoadError && !hasDashboardData ? "-" : closetItems.length}벌
+            </Text>
           </Pressable>
         </View>
-
-        <Pressable style={styles.analysisShortcut} onPress={startAnalysis}>
-          <View style={styles.analysisShortcutIcon}>
-            <Feather name="camera" size={17} color={colors.point} />
-          </View>
-          <View style={styles.actionTextArea}>
-            <Text style={styles.analysisShortcutTitle}>사진으로 코디 분석</Text>
-            <Text style={styles.analysisShortcutText}>
-              지금 입은 코디가 어떤지 빠르게 확인해보세요.
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={17} color={colors.subText} />
-        </Pressable>
       </ScrollView>
 
       <BottomNav activeTab="home" />
@@ -1191,44 +1152,26 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 24,
-    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingHorizontal: 17,
     paddingBottom: BOTTOM_NAV_CONTENT_PADDING,
   },
   header: {
+    minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  brandMark: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: colors.point,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  brandMarkText: {
-    color: colors.card,
-    fontSize: 13,
-    fontWeight: "900",
   },
   logoText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "900",
   },
   profileButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.softCard,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1746,5 +1689,325 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: "600",
     marginTop: 2,
+  },
+  todayHeading: {
+    marginTop: 9,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  todayHeadingCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  todayEyebrow: {
+    color: colors.point,
+    fontSize: 9,
+    fontWeight: "900",
+  },
+  todayTitle: {
+    color: colors.text,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  stepIndicator: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    paddingBottom: 3,
+  },
+  stepCurrent: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  stepTotal: {
+    color: colors.subText,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  week: {
+    minHeight: 58,
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  day: {
+    flex: 1,
+    maxWidth: 43,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  daySelected: {
+    backgroundColor: colors.text,
+  },
+  dayLabel: {
+    color: colors.subText,
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  dayDate: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  dayTextSelected: {
+    color: colors.card,
+  },
+  contextRow: {
+    minHeight: 42,
+    marginTop: 9,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: colors.softCard,
+  },
+  contextIcon: {
+    width: 26,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: colors.card,
+  },
+  contextText: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: "800",
+    marginLeft: 8,
+  },
+  savedContextAction: {
+    minHeight: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingLeft: 8,
+  },
+  savedContextText: {
+    color: colors.point,
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  cardStage: {
+    minHeight: 350,
+    marginTop: 13,
+    position: "relative",
+  },
+  cardBehind: {
+    position: "absolute",
+    left: 10,
+    right: 10,
+    top: 8,
+    bottom: -5,
+    borderRadius: 18,
+    backgroundColor: colors.border,
+    transform: [{ rotate: "-1deg" }],
+  },
+  outfitCard: {
+    minHeight: 350,
+    overflow: "hidden",
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  outfitImageStage: {
+    height: 228,
+    position: "relative",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.inactiveTab,
+  },
+  outfitImageSlot: {
+    flex: 1,
+    minWidth: 0,
+    height: "100%",
+    paddingHorizontal: 2,
+  },
+  outfitImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "transparent",
+  },
+  cardCount: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    minWidth: 42,
+    height: 24,
+    paddingHorizontal: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.94)",
+  },
+  cardCountText: {
+    color: colors.text,
+    fontSize: 9,
+    fontWeight: "900",
+  },
+  outfitCopy: {
+    minHeight: 120,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  outfitTagRow: {
+    minHeight: 21,
+    flexDirection: "row",
+    gap: 5,
+  },
+  outfitTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: colors.softCard,
+  },
+  outfitTagText: {
+    color: colors.point,
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  outfitTitle: {
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "900",
+    marginTop: 7,
+  },
+  outfitItems: {
+    color: colors.point,
+    fontSize: 9,
+    lineHeight: 14,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  outfitReason: {
+    color: colors.subText,
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  recommendationStateCard: {
+    minHeight: 350,
+    paddingHorizontal: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  recommendationStateIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.softCard,
+  },
+  recommendationStateTitle: {
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: 14,
+  },
+  recommendationStateText: {
+    color: colors.subText,
+    fontSize: 12,
+    lineHeight: 19,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 6,
+  },
+  recommendationStateButton: {
+    minHeight: 42,
+    marginTop: 18,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    backgroundColor: colors.text,
+  },
+  recommendationStateButtonText: {
+    color: colors.card,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  actions: {
+    minHeight: 58,
+    marginTop: 11,
+    flexDirection: "row",
+    gap: 8,
+  },
+  nextButton: {
+    width: 112,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  nextButtonDisabled: {
+    opacity: 0.42,
+  },
+  nextButtonText: {
+    color: colors.subText,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  selectButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 17,
+    backgroundColor: colors.text,
+  },
+  selectButtonText: {
+    color: colors.card,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  quickLinks: {
+    minHeight: 42,
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickLink: {
+    flex: 1,
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  quickLinkDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: colors.border,
+  },
+  quickLinkText: {
+    color: colors.subText,
+    fontSize: 10,
+    fontWeight: "700",
   },
 });
