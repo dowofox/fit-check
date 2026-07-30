@@ -210,7 +210,10 @@ function matchesMaterialSeasonRule(item: ClosetItem, rule: MaterialSeasonRule) {
   if (includesAny(`${descriptorText} ${materialText}`, constructionKeywords)) {
     return true;
   }
-  if (!includesAny(`${descriptorText} ${materialText}`, percentageKeywords)) {
+  if (!includesAnyToken(
+    `${descriptorText} ${materialText}`,
+    percentageKeywords
+  )) {
     return false;
   }
 

@@ -54,6 +54,10 @@ const {
 } = require("../utils/outfitSituation.ts");
 const { getResolvedItemMaterial } = require("../utils/productClassification.ts");
 const {
+  assessItemTemperatureSuitability,
+  assessOutfitTemperatureSuitability,
+} = require("../utils/outfitTemperatureSuitability.ts");
+const {
   getDetailMaterialAdjustment,
 } = require("../utils/outfitDetailMaterial.ts");
 const {
@@ -658,6 +662,200 @@ const summerWeather = {
   condition: "맑음",
   rainChance: 10,
 };
+
+test("사용자 지정 여름 반팔은 stale 적정 기온 범위를 soft signal로만 사용한다", () => {
+  const top = createItem("user-summer-range-top", "상의", {
+    detailCategory: "반팔 티셔츠",
+    seasons: ["봄", "여름"],
+    season: "봄, 여름",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+    styleProfile: { temperatureRange: { min: 12, max: 23 } },
+  });
+  const bottom = createItem("user-summer-range-bottom", "하의");
+  const weather = { temperature: 28, condition: "맑음", rainChance: 0 };
+  const itemAssessment = assessItemTemperatureSuitability(top, weather);
+  const outfitAssessment = assessOutfitTemperatureSuitability(
+    [top, bottom],
+    weather
+  );
+
+  assert.equal(itemAssessment.hardBlocked, false);
+  assert.equal(
+    itemAssessment.itemAssessments[0].temperatureRangeSoftened,
+    true
+  );
+  assert.ok(outfitAssessment.score >= 19);
+});
+
+test("AI 적정 기온을 조금 벗어난 여름 반팔은 후보에서 제거하지 않는다", () => {
+  const top = createItem("ai-summer-range-top", "상의", {
+    detailCategory: "반팔 티셔츠",
+    seasonSource: "photo_ai",
+    styleProfile: { temperatureRange: { min: 12, max: 23 } },
+  });
+  const assessment = assessOutfitTemperatureSuitability(
+    [top, createItem("ai-summer-range-bottom", "하의")],
+    { temperature: 27 }
+  );
+
+  assert.equal(assessment.hardBlocked, false);
+  assert.ok(assessment.score >= 19);
+});
+
+test("사용자 계절과 선호 피드백도 30도 패딩 hard block을 우회하지 못한다", () => {
+  const padding = createItem("liked-padding", "상의", {
+    detailCategory: "다운 패딩",
+    seasons: ["봄", "여름"],
+    season: "봄, 여름",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+  });
+  const bottom = createItem("liked-padding-bottom", "하의");
+  const result = getOutfitRecommendationResult(
+    [padding, bottom],
+    null,
+    "여름",
+    [],
+    {
+      weather: { temperature: 30, condition: "맑음", rainChance: 0 },
+      feedbacks: [{
+        itemIds: [padding.id, bottom.id],
+        value: "like",
+        updatedAt: createdAt,
+      }],
+    }
+  );
+
+  assert.equal(
+    assessOutfitTemperatureSuitability(
+      [padding, bottom],
+      { temperature: 30 }
+    ).hardBlocked,
+    true
+  );
+  assert.equal(result.recommendations.length, 0);
+});
+
+test("추운 날 반팔은 단독이면 차단하지만 충분한 겨울 레이어가 있으면 허용한다", () => {
+  const top = createItem("cold-short-top", "상의", {
+    detailCategory: "반팔 티셔츠",
+  });
+  const bottom = createItem("cold-bottom", "하의", {
+    detailCategory: "데님 팬츠",
+  });
+  const padding = createItem("cold-padding", "아우터", {
+    detailCategory: "다운 패딩",
+  });
+  const weather = { temperature: 5, condition: "맑음", rainChance: 0 };
+
+  assert.equal(
+    assessOutfitTemperatureSuitability([top, bottom], weather).hardBlocked,
+    true
+  );
+  const layered = assessOutfitTemperatureSuitability(
+    [top, bottom, padding],
+    weather
+  );
+  assert.equal(layered.hardBlocked, false);
+  assert.ok(layered.score >= 19);
+});
+
+test("0도 민소매도 충분한 겨울 레이어가 있으면 전체 착장으로 판단한다", () => {
+  const sleeveless = createItem("cold-sleeveless", "상의", {
+    detailCategory: "민소매",
+  });
+  const bottom = createItem("cold-layer-bottom", "하의");
+  const padding = createItem("cold-layer-padding", "아우터", {
+    detailCategory: "다운 패딩",
+  });
+  const assessment = assessOutfitTemperatureSuitability(
+    [sleeveless, bottom, padding],
+    { temperature: 0, condition: "맑음", rainChance: 0 }
+  );
+
+  assert.equal(assessment.hardBlocked, false);
+  assert.ok(assessment.score >= 12);
+});
+
+test("체감온도가 있으면 실제 기온보다 우선해 보온도를 평가한다", () => {
+  const items = [
+    createItem("apparent-short-top", "상의"),
+    createItem("apparent-bottom", "하의"),
+  ];
+  const assessment = assessOutfitTemperatureSuitability(items, {
+    temperature: 10,
+    apparentTemperature: 5,
+  });
+
+  assert.equal(assessment.effectiveTemperature, 5);
+  assert.equal(assessment.hardBlocked, true);
+});
+
+test("체감온도가 없으면 추운 날 강풍을 보수적으로 반영한다", () => {
+  const assessment = assessOutfitTemperatureSuitability(
+    [
+      createItem("wind-short-top", "상의"),
+      createItem("wind-bottom", "하의"),
+    ],
+    { temperature: 7, windSpeed: 25 }
+  );
+
+  assert.equal(assessment.effectiveTemperature, 5);
+  assert.equal(assessment.hardBlocked, true);
+});
+
+test("추운 비에 보온 아우터가 없는 조합은 맑은 날보다 엄격하게 차단한다", () => {
+  const items = [
+    createItem("cold-rain-knit", "상의", { detailCategory: "니트" }),
+    createItem("cold-rain-bottom", "하의", { detailCategory: "데님 팬츠" }),
+  ];
+  const dryAssessment = assessOutfitTemperatureSuitability(items, {
+    temperature: 5,
+    condition: "맑음",
+    rainChance: 0,
+  });
+  const rainyAssessment = assessOutfitTemperatureSuitability(items, {
+    temperature: 5,
+    condition: "비",
+    rainChance: 80,
+  });
+
+  assert.equal(dryAssessment.hardBlocked, false);
+  assert.equal(rainyAssessment.hardBlocked, true);
+});
+
+test("hard block 직전의 온도 부적합 조합도 점수 상한으로 노출하지 않는다", () => {
+  const top = createItem("borderline-hot-top", "상의");
+  const bottom = createItem("borderline-hot-bottom", "하의");
+  const padding = createItem("borderline-hot-padding", "아우터", {
+    detailCategory: "다운 패딩",
+    seasons: ["여름"],
+    season: "여름",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+  });
+  const weather = { temperature: 27, condition: "맑음", rainChance: 0 };
+  const assessment = assessOutfitTemperatureSuitability(
+    [top, bottom, padding],
+    weather
+  );
+  const result = getOutfitRecommendationResult(
+    [top, bottom, padding],
+    null,
+    "여름",
+    [],
+    { weather }
+  );
+
+  assert.equal(assessment.hardBlocked, false);
+  assert.ok(assessment.score < 10);
+  assert.ok(
+    result.recommendations.every((recommendation) =>
+      recommendation.items.every((item) => item.id !== padding.id)
+    )
+  );
+});
 
 test("날씨로 추가된 경고는 최종 점수와 penalty에 함께 반영한다", () => {
   const wardrobe = [

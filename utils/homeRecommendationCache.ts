@@ -12,7 +12,7 @@ import type {
 import type { ClosetItem } from "@/utils/storage";
 
 export { HOME_RECOMMENDATION_CACHE_STORAGE_KEY };
-export const HOME_RECOMMENDATION_CACHE_VERSION = 3;
+export const HOME_RECOMMENDATION_CACHE_VERSION = 4;
 export const HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 2;
 
 export type HomeRecommendationEmptyState = {
@@ -137,8 +137,12 @@ function isValidWeather(value: unknown): value is OutfitRecommendationWeather | 
 
   return (
     (weather.temperature === undefined || typeof weather.temperature === "number") &&
+    (weather.apparentTemperature === undefined ||
+      typeof weather.apparentTemperature === "number") &&
     (weather.condition === undefined || typeof weather.condition === "string") &&
-    (weather.rainChance === undefined || typeof weather.rainChance === "number")
+    (weather.rainChance === undefined || typeof weather.rainChance === "number") &&
+    (weather.windSpeed === undefined || typeof weather.windSpeed === "number") &&
+    (weather.humidity === undefined || typeof weather.humidity === "number")
   );
 }
 
@@ -379,7 +383,13 @@ export function areRecommendationWeathersEquivalent(
 
   return (
     areOptionalNumbersClose(first.temperature, second.temperature, 2) &&
+    areOptionalNumbersClose(
+      first.apparentTemperature,
+      second.apparentTemperature,
+      2
+    ) &&
     areOptionalNumbersClose(first.rainChance, second.rainChance, 20) &&
+    areOptionalNumbersClose(first.windSpeed, second.windSpeed, 5) &&
     getConditionGroup(first.condition) === getConditionGroup(second.condition)
   );
 }

@@ -84,8 +84,11 @@ const MONTH_LABELS = [
 function getWeatherKey(weather: OutfitRecommendationWeather) {
   return [
     weather.temperature ?? "",
+    weather.apparentTemperature ?? "",
     weather.condition || "",
     weather.rainChance ?? "",
+    weather.windSpeed ?? "",
+    weather.humidity ?? "",
   ].join("|");
 }
 

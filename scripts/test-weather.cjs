@@ -135,7 +135,13 @@ test.beforeEach(() => {
   global.fetch = async () =>
     createFetchResponse({
       data: {
-        current: { temperature_2m: 27, weather_code: 0 },
+        current: {
+          temperature_2m: 27,
+          apparent_temperature: 29,
+          relative_humidity_2m: 72,
+          wind_speed_10m: 12,
+          weather_code: 0,
+        },
         hourly: {
           time: [new Date().toISOString()],
           precipitation_probability: [10],
@@ -279,6 +285,9 @@ test("successful live weather is cached and restored without coordinates", async
   assert.equal(liveResult.failed, false);
   assert.equal(liveResult.weatherFound, true);
   assert.equal(liveResult.weather?.temperature, 27);
+  assert.equal(liveResult.weather?.apparentTemperature, 29);
+  assert.equal(liveResult.weather?.humidity, 72);
+  assert.equal(liveResult.weather?.windSpeed, 12);
   assert.equal(cachedResult.cacheHit, true);
   assert.deepEqual(cachedResult.weather, liveResult.weather);
   assert.equal(

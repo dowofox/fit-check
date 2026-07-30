@@ -10,6 +10,9 @@ import {
 type OpenMeteoResponse = {
   current?: {
     temperature_2m?: number;
+    apparent_temperature?: number;
+    relative_humidity_2m?: number;
+    wind_speed_10m?: number;
     weather_code?: number;
     precipitation?: number;
     rain?: number;
@@ -159,7 +162,11 @@ export function formatWeatherRecommendationLabel(
 ) {
   if (!weather || typeof weather.temperature !== "number") return null;
 
-  return `오늘 ${Math.round(weather.temperature)}도 · ${
+  const displayedTemperature =
+    weather.apparentTemperature ?? weather.temperature;
+  const temperatureLabel =
+    typeof weather.apparentTemperature === "number" ? "체감 " : "";
+  return `오늘 ${temperatureLabel}${Math.round(displayedTemperature)}도 · ${
     weather.condition || "날씨"
   } 기준 추천`;
 }
@@ -481,7 +488,7 @@ async function loadCurrentWeatherRecommendationResult(
       "https://api.open-meteo.com/v1/forecast" +
       `?latitude=${latitude}` +
       `&longitude=${longitude}` +
-      "&current=temperature_2m,weather_code,precipitation,rain,snowfall" +
+      "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,precipitation,rain,snowfall" +
       "&hourly=precipitation_probability" +
       "&forecast_days=1" +
       "&timezone=auto";
@@ -558,6 +565,10 @@ async function loadCurrentWeatherRecommendationResult(
 
     const weather: OutfitRecommendationWeather = {
       temperature,
+      apparentTemperature:
+        parseResult.value.current?.apparent_temperature,
+      humidity: parseResult.value.current?.relative_humidity_2m,
+      windSpeed: parseResult.value.current?.wind_speed_10m,
       condition: getWeatherConditionFromCode(
         parseResult.value.current?.weather_code
       ),

@@ -23,6 +23,11 @@ import {
 import { getRecommendationMaterialText } from "@/utils/productClassification";
 import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 import {
+  assessItemTemperatureSuitability,
+  assessOutfitTemperatureSuitability,
+  NEUTRAL_TEMPERATURE_COMFORT_SCORE,
+} from "@/utils/outfitTemperatureSuitability";
+import {
   ClosetItem,
   GarmentProfile,
   UserProfile,
@@ -127,8 +132,11 @@ export type OutfitRecommendationEmptyReason =
 
 export type OutfitRecommendationWeather = {
   temperature?: number;
+  apparentTemperature?: number;
   condition?: string;
   rainChance?: number;
+  windSpeed?: number;
+  humidity?: number;
 };
 
 export type OutfitRecommendationOptions = {
@@ -193,55 +201,11 @@ const WIDE_FITS = ["와이드", "와이드핏", "스트레이트", "레귤러", 
 const SLIM_FITS = ["슬림", "슬림핏", "타이트"];
 const OVERSIZED_FITS = ["오버핏", "루즈", "루즈핏"];
 const UNIVERSAL_SEASONS = ["사계절", "전체"];
-const STRONG_COLD_WEATHER_KEYWORDS = [
-  "패딩",
-  "puffer",
-  "구스 다운",
-  "구스다운",
-  "덕 다운",
-  "덕다운",
-  "다운 패딩",
-  "다운패딩",
-  "다운 자켓",
-  "다운 재킷",
-  "다운 점퍼",
-  "다운 베스트",
-  "down jacket",
-  "down parka",
-  "down vest",
-  "플리스",
-  "후리스",
-  "fleece",
-  "기모",
-  "보아",
-  "무스탕",
-  "shearling",
-  "방한",
-  "발열",
-  "충전재",
-  "헤비 니트",
-  "헤비니트",
-  "heavy knit",
-  "헤비 코듀로이",
-  "헤비코듀로이",
-  "heavy corduroy",
-  "두꺼운 울",
-  "두꺼운울",
-  "퍼 안감",
-  "퍼안감",
-  "퍼 부츠",
-  "퍼부츠",
-  "faux fur",
-  "fur lining",
-  "fur boots",
-];
-const COLD_WEATHER_OUTER_KEYWORDS = ["코트", "coat"];
 const styleGroupCache = new Map<string, string[] | undefined>();
 const basicColorCache = new Map<string, boolean>();
 const itemSeasonsCache = new WeakMap<ClosetItem, string[]>();
 const itemStylesCache = new WeakMap<ClosetItem, string[]>();
 const itemSearchTextCache = new WeakMap<ClosetItem, string>();
-const temperatureSafetySearchTextCache = new WeakMap<ClosetItem, string>();
 
 function getItemSeasons(item: ClosetItem) {
   const cachedSeasons = itemSeasonsCache.get(item);
@@ -727,68 +691,8 @@ function getItemSearchText(item: ClosetItem) {
   return text;
 }
 
-function getTemperatureSafetySearchText(item: ClosetItem) {
-  const cachedText = temperatureSafetySearchTextCache.get(item);
-  if (cachedText !== undefined) return cachedText;
-
-  const text = [
-    item.confirmedProduct?.productName,
-    item.category,
-    item.subCategory,
-    item.detailCategory,
-    item.description,
-    getRecommendationMaterialText(item),
-    item.pattern,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-    .replace(/다운타운/g, "")
-    .replace(/기모노/g, "")
-    .replace(/퍼플/g, "");
-  temperatureSafetySearchTextCache.set(item, text);
-  return text;
-}
-
-function hasStrongColdWeatherTrait(item: ClosetItem) {
-  const itemText = getTemperatureSafetySearchText(item);
-  const isColdWeatherOuter =
-    item.category === "아우터" &&
-    COLD_WEATHER_OUTER_KEYWORDS.some((keyword) => itemText.includes(keyword));
-
-  return (
-    isColdWeatherOuter ||
-    STRONG_COLD_WEATHER_KEYWORDS.some((keyword) => itemText.includes(keyword))
-  );
-}
-
-function isSummerLightItem(item: ClosetItem) {
-  const lightKeywords = ["반팔", "민소매", "린넨", "얇은", "쿨", "쇼츠", "반바지"];
-  const itemText = getItemSearchText(item);
-
-  return lightKeywords.some((keyword) => itemText.includes(keyword));
-}
-
 function isWeatherCandidate(item: ClosetItem, weather?: OutfitRecommendationWeather | null) {
-  if (!weather || typeof weather.temperature !== "number") return true;
-
-  if (hasUserConfirmedSeason(item)) return true;
-
-  const temperature = weather.temperature;
-
-  if (temperature >= 24) {
-    return !hasSpecificSeason(item, "겨울") && !hasStrongColdWeatherTrait(item);
-  }
-
-  if (temperature >= 18) {
-    return !hasStrongColdWeatherTrait(item);
-  }
-
-  if (temperature <= 10) {
-    return !hasSpecificSeason(item, "여름") && !isSummerLightItem(item);
-  }
-
-  return true;
+  return !assessItemTemperatureSuitability(item, weather).hardBlocked;
 }
 
 function getSeasonMatchedItems(
@@ -1423,12 +1327,13 @@ function getSilhouetteScore(
     score += impressionSupportsBalance ? 1 : 0;
   }
 
-  return blendScoreBySource(
+  const rawScore = blendScoreBySource(
     score,
     25,
     35,
     [topProfile.source, bottomProfile.source]
   );
+  return Math.round((rawScore / 35) * 25);
 }
 
 function getWearFitBalanceScore(
@@ -1487,7 +1392,7 @@ function getWearFitBalanceScore(
   const measurementWeight = 0.25 + measurementCount * 0.375;
   const weightedScore = 18 + (score - 18) * measurementWeight;
 
-  return Math.max(0, Math.min(25, Math.round(weightedScore)));
+  return Math.max(0, Math.min(20, Math.round((weightedScore / 25) * 20)));
 }
 
 function getPointBalanceScore(
@@ -1509,39 +1414,39 @@ function getPointBalanceScore(
 
   if (strongPointItems.length === 0 && totalPointLevel <= items.length * 4) {
     reasons.push("포인트 강도가 낮아 다른 요소와 충돌하지 않는 안정적인 조합이에요.");
-    return blendScoreBySource(
+    return Math.round((blendScoreBySource(
       13,
       10,
       15,
       profiles.map((profile) => profile.source)
-    );
+    ) / 15) * 10);
   }
   if (strongPointItems.length === 1) {
     reasons.push("포인트 아이템은 하나만 두고 나머지를 차분하게 받쳐 시선이 정돈돼요.");
-    return blendScoreBySource(
+    return Math.round((blendScoreBySource(
       15,
       10,
       15,
       profiles.map((profile) => profile.source)
-    );
+    ) / 15) * 10);
   }
   if (strongPointItems.length === 2) {
     warnings.push("포인트가 강한 아이템이 두 개라 실제 착용 시 조금 복잡해 보일 수 있어요.");
-    return blendScoreBySource(
+    return Math.round((blendScoreBySource(
       8,
       10,
       15,
       profiles.map((profile) => profile.source)
-    );
+    ) / 15) * 10);
   }
 
   warnings.push("포인트가 강한 아이템이 많아 코디의 중심이 분산될 수 있어요.");
-  return blendScoreBySource(
+  return Math.round((blendScoreBySource(
     3,
     10,
     15,
     profiles.map((profile) => profile.source)
-  );
+  ) / 15) * 10);
 }
 
 function getColorSupportScore(
@@ -1570,10 +1475,6 @@ function getStyleSupportScore(
   reasons.push(...styleReasons.slice(0, 1));
   warnings.push(...styleWarnings);
   return Math.max(0, Math.min(5, Math.round(rawStyleScore / 5)));
-}
-
-function getSeasonWeatherBaseScore(isSeasonMatched: boolean) {
-  return isSeasonMatched ? 5 : 0;
 }
 
 function getRotationBreakdownScore(items: ClosetItem[], reasons: string[]) {
@@ -1650,9 +1551,11 @@ function applyScoreCaps(
   if (warnings.length >= 2) maximumScore = Math.min(maximumScore, 82);
   if (warnings.some(isImportantWarning)) maximumScore = Math.min(maximumScore, 78);
   if (reasons.length < 3) maximumScore = Math.min(maximumScore, 78);
-  if (breakdown.silhouette < 22) maximumScore = Math.min(maximumScore, 75);
-  if (breakdown.wearFit < 16) maximumScore = Math.min(maximumScore, 78);
-  if (breakdown.pointBalance < 9) maximumScore = Math.min(maximumScore, 82);
+  if (breakdown.silhouette < 16) maximumScore = Math.min(maximumScore, 75);
+  if (breakdown.wearFit < 13) maximumScore = Math.min(maximumScore, 78);
+  if (breakdown.pointBalance < 6) maximumScore = Math.min(maximumScore, 82);
+  if (breakdown.weather < 10) maximumScore = Math.min(maximumScore, 69);
+  if (breakdown.weather < 15) maximumScore = Math.min(maximumScore, 79);
   if (measurementSourceCount === 0) maximumScore = Math.min(maximumScore, 82);
   if (measurementSourceCount === 1) maximumScore = Math.min(maximumScore, 88);
 
@@ -1660,12 +1563,12 @@ function applyScoreCaps(
     measurementSourceCount === 2 &&
     warnings.length === 0 &&
     reasons.length >= 4 &&
-    breakdown.silhouette >= 32 &&
-    breakdown.wearFit >= 22 &&
-    breakdown.pointBalance >= 13 &&
+    breakdown.silhouette >= 23 &&
+    breakdown.wearFit >= 18 &&
+    breakdown.pointBalance >= 9 &&
     breakdown.colorSupport >= 8 &&
     breakdown.styleSupport >= 4 &&
-    breakdown.weather >= 4;
+    breakdown.weather >= 20;
 
   if (!isExceptionalCombination) maximumScore = Math.min(maximumScore, 89);
 
@@ -1769,161 +1672,12 @@ function getRotationScore(items: ClosetItem[], reasons: string[]) {
   return normalizedScore;
 }
 
-function hasSpecificSeason(item: ClosetItem, season: string) {
-  return getItemSeasons(item).some((itemSeason) =>
-    !UNIVERSAL_SEASONS.includes(itemSeason) && itemSeason.includes(season)
-  );
-}
-
-function hasOuterLikeItem(items: ClosetItem[]) {
-  return items.some((item) => item.category === "아우터");
-}
-
-function hasThickOuter(items: ClosetItem[]) {
-  const thickKeywords = ["패딩", "코트", "울", "플리스", "무스탕", "두꺼운"];
-
-  return items.some((item) =>
-    item.category === "아우터" &&
-    thickKeywords.some((keyword) => `${getItemLabel(item)} ${item.description || ""}`.includes(keyword))
-  );
-}
-
-function hasLightClothes(items: ClosetItem[]) {
-  const lightKeywords = ["반팔", "민소매", "린넨", "얇은", "티셔츠"];
-
-  return items.some((item) =>
-    lightKeywords.some((keyword) => `${getItemLabel(item)} ${item.description || ""}`.includes(keyword))
-  );
-}
-
-function getShoeItems(items: ClosetItem[]) {
-  return items.filter((item) => item.category === "신발");
-}
-
-function isBrightShoe(item: ClosetItem) {
-  const color = item.color || "";
-
-  return ["화이트", "아이보리", "크림", "베이지"].some((keyword) => color.includes(keyword));
-}
-
-function hasRainOrSnow(weather: OutfitRecommendationWeather) {
-  const condition = weather.condition || "";
-
-  return ["비", "소나기", "눈", "우천", "rain", "snow"].some((keyword) =>
-    condition.toLowerCase().includes(keyword.toLowerCase())
-  );
-}
-
-function applyWeatherAdjustment(
-  recommendation: OutfitRecommendation,
-  weather: OutfitRecommendationWeather | null | undefined
-): OutfitRecommendation {
-  if (!weather || typeof weather.temperature !== "number") return recommendation;
-
-  const reasons = [...recommendation.reasons];
-  const warnings = [...recommendation.warnings];
-  const temperature = weather.temperature;
-  const rainChance = weather.rainChance ?? 0;
-  const hasOuter = hasOuterLikeItem(recommendation.items);
-  const hasSummerItem = recommendation.items.some((item) => hasSpecificSeason(item, "여름"));
-  const hasSpringFallItem = recommendation.items.some((item) =>
-    hasSpecificSeason(item, "봄") || hasSpecificSeason(item, "가을")
-  );
-  const hasWinterItem = recommendation.items.some((item) => hasSpecificSeason(item, "겨울"));
-  const shoes = getShoeItems(recommendation.items);
-  const weatherIsWet = hasRainOrSnow(weather) || rainChance >= 60;
-  let weatherScore = 0;
-
-  if (temperature <= 5) {
-    if (hasOuter || hasWinterItem) {
-      weatherScore += 8;
-      reasons.push("오늘은 기온이 낮아 아우터나 겨울 아이템이 포함된 조합을 우선 추천했어요.");
-    }
-
-    if (hasSummerItem || hasLightClothes(recommendation.items)) {
-      weatherScore -= 12;
-      warnings.push("오늘 기온이 낮아 여름 옷이나 얇은 아이템은 춥게 느껴질 수 있어요.");
-    }
-  } else if (temperature <= 15) {
-    if (hasOuter || hasSpringFallItem) {
-      weatherScore += 6;
-      reasons.push("오늘은 선선해서 봄/가을 아이템이나 아우터가 있는 조합에 점수를 더 줬어요.");
-    }
-  } else if (temperature <= 23) {
-    if (hasSpringFallItem || hasLightClothes(recommendation.items)) {
-      weatherScore += 4;
-      reasons.push("오늘 기온에는 봄/가을 느낌의 가벼운 조합이 부담 없이 잘 맞아요.");
-    }
-  } else {
-    if (hasSummerItem || hasLightClothes(recommendation.items)) {
-      weatherScore += 7;
-      reasons.push("오늘은 더운 편이라 여름 옷이나 가벼운 아이템이 포함된 조합을 높게 봤어요.");
-    }
-
-    if (hasThickOuter(recommendation.items)) {
-      weatherScore -= 10;
-      warnings.push("오늘 기온에는 두꺼운 아우터가 답답하게 느껴질 수 있어요.");
-    }
-  }
-
-  if (weatherIsWet) {
-    if (shoes.length > 0) {
-      weatherScore += 2;
-      reasons.push("비나 눈 예보가 있어 신발까지 포함된 조합을 조금 더 안정적으로 봤어요.");
-    } else {
-      weatherScore -= 6;
-      warnings.push("비나 눈 예보가 있어 신발 선택이 빠진 조합은 완성도가 낮아 보여요.");
-    }
-
-    if (shoes.some(isBrightShoe)) {
-      weatherScore -= 6;
-      warnings.push("비 예보가 있어 밝은 흰 신발 조합은 오염이 신경 쓰일 수 있어 점수를 낮췄어요.");
-    }
-
-    if (!hasOuter && temperature <= 18) {
-      weatherScore -= 4;
-      warnings.push("비 예보와 낮은 기온을 고려하면 가벼운 아우터가 없는 점이 아쉬워요.");
-    }
-  }
-
-  const weatherBreakdownScore = Math.max(
-    0,
-    Math.min(5, recommendation.breakdown.weather + Math.round(weatherScore / 4))
-  );
-  const breakdown = {
-    ...recommendation.breakdown,
-    weather: weatherBreakdownScore,
-  };
-  const previousWarningPenalty = getWarningPenalty(recommendation.warnings);
-  const warningPenalty = getWarningPenalty(warnings);
-  const addedWarningPenalty = Math.max(0, warningPenalty - previousWarningPenalty);
-  const score = applyScoreCaps(
-    recommendation.score +
-      weatherBreakdownScore -
-      recommendation.breakdown.weather -
-      addedWarningPenalty,
-    warnings,
-    reasons,
-    breakdown,
-    getCoreMeasurementSourceCount(recommendation.items)
-  );
-
-  return {
-    ...recommendation,
-    score,
-    grade: getGrade(score),
-    reasons,
-    warnings,
-    breakdown,
-    penalty: warningPenalty,
-  };
-}
-
 function buildRecommendation(
   items: ClosetItem[],
   currentSeason: string,
   profile?: UserProfile | null,
-  fitSuitabilityCache?: Map<string, ReturnType<typeof getFitSuitability>>
+  fitSuitabilityCache?: Map<string, ReturnType<typeof getFitSuitability>>,
+  weather?: OutfitRecommendationWeather | null
 ): OutfitRecommendation | null {
   const top = items.find((item) => item.category === "상의");
   const bottom = items.find((item) => item.category === "하의");
@@ -1931,8 +1685,17 @@ function buildRecommendation(
 
   if (!top || !bottom) return null;
 
-  const reasons: string[] = [];
-  const warnings = getSizeWarnings(items, profile, fitSuitabilityCache);
+  const temperatureAssessment = assessOutfitTemperatureSuitability(
+    items,
+    weather
+  );
+  if (temperatureAssessment.hardBlocked) return null;
+
+  const reasons: string[] = [...temperatureAssessment.reasons];
+  const warnings = [
+    ...getSizeWarnings(items, profile, fitSuitabilityCache),
+    ...temperatureAssessment.warnings,
+  ];
   const topProfileSource = getResolvedGarmentProfile(top).source;
   const bottomProfileSource = getResolvedGarmentProfile(bottom).source;
   const measurementSourceCount = [topProfileSource, bottomProfileSource].filter(
@@ -1967,7 +1730,11 @@ function buildRecommendation(
   const pointBalance = getPointBalanceScore(items, reasons, warnings);
   const colorSupport = getColorSupportScore(items, reasons, warnings);
   const styleSupport = getStyleSupportScore(items, reasons, warnings);
-  const weather = getSeasonWeatherBaseScore(isSeasonMatched);
+  const weatherScore = weather
+    ? temperatureAssessment.score
+    : isSeasonMatched
+      ? NEUTRAL_TEMPERATURE_COMFORT_SCORE
+      : 0;
   const rotation = getRotationBreakdownScore(items, reasons);
   const detailMaterialAdjustment = getDetailMaterialAdjustment(items, currentSeason);
 
@@ -1991,7 +1758,7 @@ function buildRecommendation(
     pointBalance,
     colorSupport,
     styleSupport,
-    weather,
+    weather: weatherScore,
     rotation,
   };
   const rawScore =
@@ -2000,7 +1767,7 @@ function buildRecommendation(
     pointBalance +
     colorSupport +
     styleSupport +
-    weather +
+    weatherScore +
     rotation +
     detailMaterialAdjustment.score;
   const score = applyScoreCaps(
@@ -2017,7 +1784,6 @@ function buildRecommendation(
   if (score < 70 && reasons.length > 0) {
     reasons.push("전체적으로 무난할 수는 있지만 강한 추천 조합은 아니에요.");
   }
-
   return {
     id: items.map((item) => item.id).join("-"),
     items,
@@ -2112,9 +1878,7 @@ function applyRecommendationOptions(
   const feedbackTrendByItemId = getFeedbackTrendByItemId(options.feedbacks || []);
 
   return attachBestAccessoryCandidates(
-    recommendations.map((recommendation) =>
-      applyWeatherAdjustment(recommendation, options.weather)
-    ),
+    recommendations,
     accessories,
     currentSeason,
     options.situation
@@ -2735,7 +2499,8 @@ function buildRecommendationCandidates(
             outfitItems,
             currentSeason,
             profile,
-            fitSuitabilityCache
+            fitSuitabilityCache,
+            options.weather
           );
           scoredCombinationCount += 1;
 

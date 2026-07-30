@@ -1684,6 +1684,20 @@ test("의미가 같은 날씨는 홈 추천을 다시 계산하지 않아도 된
     }),
     false
   );
+  assert.equal(
+    areRecommendationWeathersEquivalent(
+      { ...cachedWeather, apparentTemperature: 25, windSpeed: 5 },
+      { ...cachedWeather, apparentTemperature: 26.5, windSpeed: 9 }
+    ),
+    true
+  );
+  assert.equal(
+    areRecommendationWeathersEquivalent(
+      { ...cachedWeather, apparentTemperature: 25 },
+      { ...cachedWeather, apparentTemperature: 28 }
+    ),
+    false
+  );
 });
 
 test("계절이나 준비 정책이 달라진 홈 추천 캐시는 복원하지 않는다", () => {

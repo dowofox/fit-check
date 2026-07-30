@@ -67,6 +67,9 @@ const {
   getOutfitRecommendationContextCacheKey,
   OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION,
 } = require("../utils/outfitRecommendationContext.ts");
+const {
+  OUTFIT_TEMPERATURE_POLICY_VERSION,
+} = require("../utils/outfitTemperatureSuitability.ts");
 
 function makeItem(id, category, overrides = {}) {
   return {
@@ -176,8 +179,8 @@ test("명확한 고온 부적합 옷은 현재 조건 후보에서 제외한다"
     condition: "맑음",
   });
 
-  assert.equal(result.ready, false);
-  assert.equal(result.reason, "not_enough_weather_items");
+  assert.equal(result.ready, true);
+  assert.equal(result.reason, "ready");
   assert.equal(result.seasonCounts.tops, 3);
   assert.equal(result.currentConditionCounts.tops, 2);
   assert.equal(result.currentConditionCounts.coreCombinations, 6);
@@ -199,11 +202,20 @@ test("사용자가 수정한 legacy 계절 문자열은 stale 배열 때문에 �
 
 test("계절 후보가 충분하고 날씨 후보만 부족하면 날씨 부족으로 구분한다", () => {
   const closet = makeReadyCloset();
-  closet[0] = makeItem("top-1", "상의", {
-    detailCategory: "패딩 셔츠",
-    seasons: ["여름"],
-    season: "여름",
-  });
+  closet.splice(
+    0,
+    2,
+    makeItem("top-1", "상의", {
+      detailCategory: "패딩 셔츠",
+      seasons: ["여름"],
+      season: "여름",
+    }),
+    makeItem("top-2", "상의", {
+      detailCategory: "다운 패딩",
+      seasons: ["여름"],
+      season: "여름",
+    })
+  );
   const result = getOutfitRecommendationReadiness(closet, "여름", {
     temperature: 28,
     condition: "맑음",
@@ -211,7 +223,7 @@ test("계절 후보가 충분하고 날씨 후보만 부족하면 날씨 부족�
 
   assert.equal(result.reason, "not_enough_weather_items");
   assert.equal(result.seasonCounts.tops, 3);
-  assert.equal(result.currentConditionCounts.tops, 2);
+  assert.equal(result.currentConditionCounts.tops, 1);
 });
 
 test("계절과 날씨 후보가 모두 기준 이상이면 준비 완료다", () => {
@@ -230,6 +242,126 @@ test("계절과 날씨 후보가 모두 기준 이상이면 준비 완료다", (
   assert.equal(result.seasonCounts.bottoms, 3);
   assert.equal(result.currentConditionCounts.tops, 3);
   assert.equal(result.currentConditionCounts.bottoms, 3);
+});
+
+test("사용자 지정 계절은 오래된 적정 기온 범위만으로 제외하지 않는다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("user-summer-top", "상의", {
+    detailCategory: "반팔 티셔츠",
+    seasons: ["봄", "여름"],
+    season: "봄, 여름",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+    styleProfile: { temperatureRange: { min: 12, max: 23 } },
+  });
+
+  const result = getOutfitRecommendationReadiness(closet, "여름", {
+    temperature: 28,
+  });
+
+  assert.equal(result.ready, true);
+  assert.equal(result.seasonCounts.tops, 3);
+  assert.equal(result.currentConditionCounts.tops, 3);
+  assert.equal(result.diagnostics.excluded.temperatureRange, 0);
+  assert.equal(result.diagnostics.temperatureRangeSoftened, 1);
+});
+
+test("AI 적정 기온은 5도 오차 범위 안에서 hard block하지 않는다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("ai-summer-top", "상의", {
+    detailCategory: "반팔 티셔츠",
+    seasons: ["봄", "여름"],
+    season: "봄, 여름",
+    seasonSource: "photo_ai",
+    styleProfile: { temperatureRange: { min: 12, max: 23 } },
+  });
+
+  const result = getOutfitRecommendationReadiness(closet, "여름", {
+    temperature: 28,
+  });
+
+  assert.equal(result.ready, true);
+  assert.equal(result.currentConditionCounts.tops, 3);
+  assert.equal(result.diagnostics.temperatureRangeSoftened, 1);
+});
+
+test("사용자 지정 계절이어도 패딩의 명백한 고온 충돌은 제외한다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("user-padding", "상의", {
+    detailCategory: "패딩 자켓",
+    seasons: ["봄", "여름"],
+    season: "봄, 여름",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+  });
+
+  const result = getOutfitRecommendationReadiness(closet, "여름", {
+    temperature: 30,
+  });
+
+  assert.equal(result.reason, "ready");
+  assert.equal(result.currentConditionCounts.tops, 2);
+  assert.equal(result.diagnostics.excluded.strongWeatherKeyword, 1);
+});
+
+test("울 혼방 반팔 니트와 여름용 가디건은 단어만으로 고온 제외하지 않는다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("short-knit", "상의", {
+    detailCategory: "반팔 니트",
+    material: "울 혼방",
+    seasons: ["봄", "여름"],
+    season: "봄, 여름",
+    seasonSource: "user",
+  });
+  closet[1] = makeItem("summer-cardigan", "상의", {
+    detailCategory: "여름용 가디건",
+    seasons: ["봄", "여름"],
+    season: "봄, 여름",
+    seasonSource: "user",
+  });
+
+  const result = getOutfitRecommendationReadiness(closet, "여름", {
+    temperature: 27,
+  });
+
+  assert.equal(result.ready, true);
+  assert.equal(result.currentConditionCounts.tops, 3);
+  assert.equal(result.diagnostics.excluded.strongWeatherKeyword, 0);
+});
+
+test("날씨 후보가 카테고리별 2벌 이상이고 핵심 조합이 6개면 추천한다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("hot-padding", "상의", {
+    detailCategory: "패딩 자켓",
+    seasons: ["여름"],
+    season: "여름",
+  });
+
+  const result = getOutfitRecommendationReadiness(closet, "여름", {
+    temperature: 30,
+  });
+
+  assert.equal(result.currentConditionCounts.tops, 2);
+  assert.equal(result.currentConditionCounts.bottoms, 3);
+  assert.equal(result.currentConditionCounts.coreCombinations, 6);
+  assert.equal(result.reason, "ready");
+});
+
+test("추운 날씨에는 개별 민소매보다 실제 레이어 조합 안전성을 판단한다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("cold-sleeveless", "상의", {
+    detailCategory: "민소매",
+    seasons: ["사계절"],
+    season: "사계절",
+  });
+
+  const result = getOutfitRecommendationReadiness(closet, "겨울", {
+    temperature: 0,
+  });
+
+  assert.equal(result.currentConditionCounts.tops, 0);
+  assert.equal(result.currentConditionCounts.coreCombinations, 0);
+  assert.equal(result.diagnostics.excluded.strongWeatherKeyword, 0);
 });
 
 test("추천 준비 문구는 부족 원인에 맞는 다음 행동을 안내한다", () => {
@@ -258,11 +390,20 @@ test("추천 준비 문구는 부족 원인에 맞는 다음 행동을 안내한
   assert.equal(seasonalContent.primaryActionLabel, "계절 옷 추가하기");
 
   const weatherCloset = makeReadyCloset();
-  weatherCloset[0] = makeItem("top-1", "상의", {
-    detailCategory: "패딩 셔츠",
-    seasons: ["여름"],
-    season: "여름",
-  });
+  weatherCloset.splice(
+    0,
+    2,
+    makeItem("top-1", "상의", {
+      detailCategory: "패딩 셔츠",
+      seasons: ["여름"],
+      season: "여름",
+    }),
+    makeItem("top-2", "상의", {
+      detailCategory: "다운 패딩",
+      seasons: ["여름"],
+      season: "여름",
+    })
+  );
   const weatherContent = getOutfitRecommendationReadinessContent(
     getOutfitRecommendationReadiness(weatherCloset, "여름", {
       temperature: 28,
@@ -282,9 +423,16 @@ test("추천 준비의 기본 계절 계산은 월 경계를 따른다", () => {
 
 test("같은 옷장과 날씨는 모든 진입점에서 동일한 준비 상태를 만든다", () => {
   const closet = makeReadyCloset();
-  closet[0] = makeItem("top-1", "상의", {
-    detailCategory: "패딩 셔츠",
-  });
+  closet.splice(
+    0,
+    2,
+    makeItem("top-1", "상의", {
+      detailCategory: "패딩 셔츠",
+    }),
+    makeItem("top-2", "상의", {
+      detailCategory: "다운 패딩",
+    })
+  );
   const weather = {
     temperature: 28,
     condition: "맑음",
@@ -348,6 +496,10 @@ test("추천 캐시 키는 계절과 준비 정책 변경을 구분한다", () =
   assert.match(
     summerKey,
     new RegExp(`readiness${OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION}`)
+  );
+  assert.match(
+    summerKey,
+    new RegExp(`temperature${OUTFIT_TEMPERATURE_POLICY_VERSION}`)
   );
   assert.match(summerKey, /season:여름/);
 });

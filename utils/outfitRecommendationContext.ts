@@ -7,6 +7,7 @@ import {
   type OutfitRecommendationReadiness,
 } from "@/utils/outfitRecommendationReadiness";
 import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
+import { OUTFIT_TEMPERATURE_POLICY_VERSION } from "@/utils/outfitTemperatureSuitability";
 import {
   getSavedOutfitItemIds,
   toRecommendationInputItems,
@@ -17,7 +18,7 @@ import type {
   UserProfile,
 } from "@/utils/storage";
 
-export const OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION = 2;
+export const OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION = 4;
 
 export type OutfitRecommendationContext = {
   items: ClosetItem[];
@@ -50,6 +51,7 @@ export function getOutfitRecommendationContextCacheKey(
   return [
     revisionKey,
     `readiness${OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION}`,
+    `temperature${OUTFIT_TEMPERATURE_POLICY_VERSION}`,
     `season:${currentSeason}`,
   ].join("|");
 }
