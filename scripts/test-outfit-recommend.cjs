@@ -2366,3 +2366,444 @@ test("보관 중인 옷은 부족한 아이템 추천의 보유 수에서도 제
     )
   );
 });
+
+const AUDIT_TOP_PROFILE = {
+  silhouette: "cropped",
+  volume: 4,
+  visualWeight: 3,
+  lengthBalance: "short",
+  fitIntent: "trueToSize",
+  pointLevel: 2,
+  structure: "soft",
+  drape: "medium",
+};
+const AUDIT_BOTTOM_PROFILE = {
+  silhouette: "wide",
+  volume: 8,
+  visualWeight: 4,
+  lengthBalance: "long",
+  fitIntent: "relaxed",
+  pointLevel: 2,
+  structure: "normal",
+  drape: "medium",
+};
+
+function createAuditOutfit({
+  id,
+  top = {},
+  bottom = {},
+  shoes = {},
+} = {}) {
+  const prefix = id || "audit";
+
+  return [
+    createItem(`${prefix}-top`, "상의", {
+      garmentProfile: AUDIT_TOP_PROFILE,
+      ...top,
+    }),
+    createItem(`${prefix}-bottom`, "하의", {
+      color: "베이지",
+      detailCategory: "와이드 팬츠",
+      garmentProfile: AUDIT_BOTTOM_PROFILE,
+      ...bottom,
+    }),
+    createItem(`${prefix}-shoes`, "신발", shoes),
+  ];
+}
+
+function getAuditRecommendation(items, profile = {}, options = {}) {
+  return getOutfitRecommendationResult(
+    items,
+    profile,
+    "여름",
+    [],
+    options
+  ).recommendations[0];
+}
+
+test("감사 특성화: 현재 패션 휴리스틱을 승인하지 않고 운영 동작만 기록한다", async (t) => {
+  await t.test("legacy cropped-wide heuristic remains unchanged during audit", () => {
+    const recommendation = getAuditRecommendation(
+      createAuditOutfit({ id: "audit-cropped-wide" })
+    );
+
+    assert.equal(recommendation.score, 82);
+    assert.equal(recommendation.breakdown.silhouette, 23);
+  });
+
+  await t.test("legacy semi-oversized-wide heuristic remains unchanged during audit", () => {
+    const items = createAuditOutfit({
+      id: "audit-semi-wide",
+      top: {
+        garmentProfile: {
+          ...AUDIT_TOP_PROFILE,
+          silhouette: "semiOversized",
+          volume: 6,
+          lengthBalance: "regular",
+          fitIntent: "relaxed",
+        },
+      },
+    });
+    const recommendation = getAuditRecommendation(items);
+
+    assert.equal(recommendation.score, 82);
+    assert.equal(recommendation.breakdown.silhouette, 22);
+  });
+
+  await t.test("legacy oversized-slim heuristic stays below display quality during audit", () => {
+    const items = createAuditOutfit({
+      id: "audit-oversized-slim",
+      top: {
+        garmentProfile: {
+          ...AUDIT_TOP_PROFILE,
+          silhouette: "oversized",
+          volume: 8,
+          lengthBalance: "regular",
+          fitIntent: "oversized",
+        },
+      },
+      bottom: {
+        garmentProfile: {
+          ...AUDIT_BOTTOM_PROFILE,
+          silhouette: "slim",
+          volume: 2,
+          lengthBalance: "regular",
+          fitIntent: "trueToSize",
+        },
+      },
+    });
+    const result = getOutfitRecommendationResult(items, {}, "여름");
+
+    assert.equal(result.recommendations.length, 0);
+    assert.equal(result.emptyReason, "below_quality_threshold");
+  });
+
+  await t.test("legacy long-long heuristic remains unchanged during audit", () => {
+    const items = createAuditOutfit({
+      id: "audit-long-long",
+      top: {
+        garmentProfile: {
+          ...AUDIT_TOP_PROFILE,
+          silhouette: "long",
+          volume: 6,
+          lengthBalance: "long",
+        },
+      },
+      bottom: {
+        garmentProfile: {
+          ...AUDIT_BOTTOM_PROFILE,
+          silhouette: "regular",
+          volume: 5,
+        },
+      },
+    });
+    const recommendation = getAuditRecommendation(items);
+
+    assert.equal(recommendation.score, 73);
+    assert.equal(recommendation.breakdown.silhouette, 19);
+  });
+
+  await t.test("legacy dual-high-volume heuristic stays below display quality during audit", () => {
+    const items = createAuditOutfit({
+      id: "audit-high-volume",
+      top: {
+        garmentProfile: {
+          ...AUDIT_TOP_PROFILE,
+          silhouette: "oversized",
+          volume: 8,
+          lengthBalance: "regular",
+          fitIntent: "oversized",
+        },
+      },
+    });
+    const result = getOutfitRecommendationResult(items, {}, "여름");
+
+    assert.equal(result.recommendations.length, 0);
+    assert.equal(result.emptyReason, "below_quality_threshold");
+  });
+
+  await t.test("legacy black-denim color heuristic remains unchanged during audit", () => {
+    const recommendation = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-black-denim",
+        top: { color: "블랙" },
+        bottom: { color: "데님" },
+      })
+    );
+
+    assert.equal(recommendation.score, 82);
+    assert.equal(recommendation.breakdown.colorSupport, 10);
+  });
+
+  await t.test("legacy different-basic-colors heuristic remains unchanged during audit", () => {
+    const recommendation = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-basic-colors",
+        top: { color: "화이트" },
+        bottom: { color: "베이지" },
+      })
+    );
+
+    assert.equal(recommendation.score, 82);
+    assert.equal(recommendation.breakdown.colorSupport, 9);
+  });
+
+  await t.test("legacy dark-dark color heuristic remains unchanged during audit", () => {
+    const recommendation = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-dark-colors",
+        top: { color: "차콜" },
+        bottom: { color: "네이비" },
+      })
+    );
+
+    assert.equal(recommendation.score, 73);
+    assert.equal(recommendation.breakdown.colorSupport, 5);
+    assert.equal(
+      recommendation.warnings.includes(
+        "상의와 하의가 모두 어두운 색이라 답답하게 보일 수 있어요."
+      ),
+      true
+    );
+  });
+
+  await t.test("legacy single-accent color heuristic remains unchanged during audit", () => {
+    const recommendation = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-single-accent",
+        top: { color: "레드" },
+        bottom: { color: "베이지" },
+      })
+    );
+
+    assert.equal(recommendation.score, 82);
+    assert.equal(recommendation.breakdown.colorSupport, 8);
+  });
+
+  await t.test("legacy multiple-strong-colors heuristic stays below display quality during audit", () => {
+    const items = createAuditOutfit({
+      id: "audit-strong-colors",
+      top: { color: "레드" },
+      bottom: { color: "블루" },
+    });
+    const result = getOutfitRecommendationResult(items, {}, "여름");
+
+    assert.equal(result.recommendations.length, 0);
+    assert.equal(result.emptyReason, "below_quality_threshold");
+  });
+
+  await t.test("legacy matchColors heuristic remains unchanged during audit", () => {
+    const recommendation = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-match-colors",
+        top: {
+          color: "화이트",
+          styleProfile: { matchColors: ["베이지"] },
+        },
+        bottom: { color: "베이지" },
+      })
+    );
+
+    assert.equal(recommendation.score, 82);
+    assert.equal(recommendation.breakdown.colorSupport, 10);
+  });
+
+  await t.test("legacy avoidColors heuristic remains unchanged during audit", () => {
+    const recommendation = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-avoid-colors",
+        top: {
+          color: "화이트",
+          styleProfile: { avoidColors: ["베이지"] },
+        },
+        bottom: { color: "베이지" },
+      })
+    );
+
+    assert.equal(recommendation.score, 76);
+    assert.equal(recommendation.breakdown.colorSupport, 8);
+  });
+
+  await t.test("recommendedPairings currently does not change compatibility score", () => {
+    const baseline = getAuditRecommendation(
+      createAuditOutfit({ id: "audit-pairings-baseline" })
+    );
+    const withPairings = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-pairings",
+        top: {
+          styleProfile: {
+            recommendedPairings: ["베이지 와이드 팬츠"],
+          },
+        },
+      })
+    );
+
+    assert.equal(withPairings.score, baseline.score);
+    assert.deepEqual(withPairings.breakdown, baseline.breakdown);
+  });
+
+  await t.test("avoidPairings currently does not change compatibility score", () => {
+    const baseline = getAuditRecommendation(
+      createAuditOutfit({ id: "audit-avoid-pairings-baseline" })
+    );
+    const withAvoidPairings = getAuditRecommendation(
+      createAuditOutfit({
+        id: "audit-avoid-pairings",
+        top: {
+          styleProfile: {
+            avoidPairings: ["베이지 와이드 팬츠"],
+          },
+        },
+      })
+    );
+
+    assert.equal(withAvoidPairings.score, baseline.score);
+    assert.deepEqual(withAvoidPairings.breakdown, baseline.breakdown);
+  });
+
+  await t.test("measurement source keeps stronger influence than image impression", () => {
+    const impressionItems = createAuditOutfit({
+      id: "audit-impression-source",
+      top: { detailCategory: "크롭 반팔 티셔츠" },
+    });
+    const measuredItems = createAuditOutfit({
+      id: "audit-measurement-source",
+      top: {
+        detailCategory: "크롭 반팔 티셔츠",
+        confirmedProduct: {
+          brand: "NAES",
+          productName: "크롭 반팔 티셔츠",
+          confirmedAt: createdAt,
+          productSizeGuide: {
+            unit: "cm",
+            sizes: [{ size: "M", totalLength: 55, chest: 55 }],
+          },
+        },
+      },
+      bottom: {
+        confirmedProduct: {
+          brand: "NAES",
+          productName: "와이드 팬츠",
+          confirmedAt: createdAt,
+          productSizeGuide: {
+            unit: "cm",
+            sizes: [{ size: "M", totalLength: 106, thigh: 36, hem: 28 }],
+          },
+        },
+      },
+    });
+    const impression = getAuditRecommendation(impressionItems);
+    const measured = getAuditRecommendation(measuredItems);
+
+    assert.equal(impression.score, 82);
+    assert.equal(measured.score, 89);
+    assert.ok(measured.breakdown.silhouette > impression.breakdown.silhouette);
+    assert.ok(measured.breakdown.wearFit > impression.breakdown.wearFit);
+  });
+
+  await t.test("user-edited material remains higher priority than official material", () => {
+    const item = createItem("audit-user-material", "상의", {
+      material: "린넨 혼방",
+      userEditedClassificationFields: ["material"],
+      confirmedProduct: {
+        brand: "NAES",
+        productName: "테스트 셔츠",
+        confirmedAt: createdAt,
+        materialComposition: {
+          summary: "면 100%",
+          items: [{ name: "면", percentage: 100 }],
+          source: "official",
+        },
+      },
+    });
+
+    assert.equal(getResolvedItemMaterial(item), "린넨 혼방");
+    assert.equal(toRecommendationInputItems([item])[0].material, "린넨 혼방");
+  });
+
+  await t.test("body adjustment changes personal wear-fit but not base silhouette", () => {
+    const items = createAuditOutfit({
+      id: "audit-body-adjustment",
+      top: {
+        detailCategory: "크롭 반팔 티셔츠",
+        confirmedProduct: {
+          brand: "NAES",
+          productName: "크롭 반팔 티셔츠",
+          confirmedAt: createdAt,
+          productSizeGuide: {
+            unit: "cm",
+            sizes: [
+              {
+                size: "M",
+                totalLength: 55,
+                shoulder: 55,
+                chest: 63,
+                sleeve: 22,
+              },
+            ],
+          },
+        },
+      },
+      bottom: {
+        confirmedProduct: {
+          brand: "NAES",
+          productName: "와이드 팬츠",
+          confirmedAt: createdAt,
+          productSizeGuide: {
+            unit: "cm",
+            sizes: [
+              {
+                size: "M",
+                totalLength: 106,
+                waist: 42,
+                hip: 56,
+                thigh: 36,
+                hem: 28,
+              },
+            ],
+          },
+        },
+      },
+    });
+    const measurements = {
+      height: "175",
+      shoulderWidth: "45",
+      chestCircumference: "100",
+      waistCircumference: "80",
+      hipCircumference: "100",
+      thighCircumference: "60",
+      inseam: "80",
+    };
+    const regularBody = getAuditRecommendation(items, {
+      ...measurements,
+      bodyType: "보통",
+    });
+    const upperBody = getAuditRecommendation(items, {
+      ...measurements,
+      bodyType: "상체 발달",
+    });
+
+    assert.equal(regularBody.breakdown.silhouette, 24);
+    assert.equal(upperBody.breakdown.silhouette, 24);
+    assert.equal(regularBody.breakdown.wearFit, 19);
+    assert.equal(upperBody.breakdown.wearFit, 18);
+    assert.equal(regularBody.score, 90);
+    assert.equal(upperBody.score, 86);
+  });
+
+  await t.test("temperature suitability remains the shared weather score source", () => {
+    const items = createAuditOutfit({ id: "audit-temperature-source" });
+    const weather = {
+      temperature: 27,
+      condition: "맑음",
+      rainChance: 0,
+    };
+    const assessment = assessOutfitTemperatureSuitability(items, weather);
+    const recommendation = getAuditRecommendation(items, {}, { weather });
+
+    assert.equal(assessment.hardBlocked, false);
+    assert.equal(assessment.score, 25);
+    assert.equal(recommendation.breakdown.weather, assessment.score);
+  });
+});
