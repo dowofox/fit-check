@@ -177,9 +177,59 @@ test("명확한 고온 부적합 옷은 현재 조건 후보에서 제외한다"
   });
 
   assert.equal(result.ready, false);
-  assert.equal(result.reason, "not_enough_season_items");
+  assert.equal(result.reason, "not_enough_weather_items");
+  assert.equal(result.seasonCounts.tops, 3);
   assert.equal(result.currentConditionCounts.tops, 2);
   assert.equal(result.currentConditionCounts.coreCombinations, 6);
+  assert.equal(result.diagnostics.excluded.strongWeatherKeyword, 1);
+});
+
+test("사용자가 수정한 legacy 계절 문자열은 stale 배열 때문에 유실되지 않는다", () => {
+  const closet = makeReadyCloset().map((item) => ({
+    ...item,
+    seasons: ["겨울"],
+    season: "봄, 여름, 가을",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+  }));
+  const result = getOutfitRecommendationReadiness(closet, "여름");
+
+  assert.equal(result.ready, true);
+});
+
+test("계절 후보가 충분하고 날씨 후보만 부족하면 날씨 부족으로 구분한다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("top-1", "상의", {
+    detailCategory: "패딩 셔츠",
+    seasons: ["여름"],
+    season: "여름",
+  });
+  const result = getOutfitRecommendationReadiness(closet, "여름", {
+    temperature: 28,
+    condition: "맑음",
+  });
+
+  assert.equal(result.reason, "not_enough_weather_items");
+  assert.equal(result.seasonCounts.tops, 3);
+  assert.equal(result.currentConditionCounts.tops, 2);
+});
+
+test("계절과 날씨 후보가 모두 기준 이상이면 준비 완료다", () => {
+  const result = getOutfitRecommendationReadiness(
+    makeReadyCloset().map((item) => ({
+      ...item,
+      seasons: ["여름"],
+      season: "여름",
+    })),
+    "여름",
+    { temperature: 27, condition: "맑음" }
+  );
+
+  assert.equal(result.reason, "ready");
+  assert.equal(result.seasonCounts.tops, 3);
+  assert.equal(result.seasonCounts.bottoms, 3);
+  assert.equal(result.currentConditionCounts.tops, 3);
+  assert.equal(result.currentConditionCounts.bottoms, 3);
 });
 
 test("추천 준비 문구는 부족 원인에 맞는 다음 행동을 안내한다", () => {
@@ -206,6 +256,21 @@ test("추천 준비 문구는 부족 원인에 맞는 다음 행동을 안내한
 
   assert.equal(seasonalContent.title, "지금 계절에 맞는 옷이 조금 부족해요");
   assert.equal(seasonalContent.primaryActionLabel, "계절 옷 추가하기");
+
+  const weatherCloset = makeReadyCloset();
+  weatherCloset[0] = makeItem("top-1", "상의", {
+    detailCategory: "패딩 셔츠",
+    seasons: ["여름"],
+    season: "여름",
+  });
+  const weatherContent = getOutfitRecommendationReadinessContent(
+    getOutfitRecommendationReadiness(weatherCloset, "여름", {
+      temperature: 28,
+    })
+  );
+
+  assert.equal(weatherContent.title, "현재 기온에 맞는 옷이 조금 부족해요");
+  assert.equal(weatherContent.primaryActionLabel, "날씨에 맞는 옷 추가하기");
 });
 
 test("추천 준비의 기본 계절 계산은 월 경계를 따른다", () => {
@@ -236,9 +301,9 @@ test("같은 옷장과 날씨는 모든 진입점에서 동일한 준비 상태�
   assert.deepEqual(
     contexts.map((context) => context.readiness.reason),
     [
-      "not_enough_season_items",
-      "not_enough_season_items",
-      "not_enough_season_items",
+      "not_enough_weather_items",
+      "not_enough_weather_items",
+      "not_enough_weather_items",
     ]
   );
   assert.deepEqual(

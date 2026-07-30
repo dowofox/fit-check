@@ -82,10 +82,12 @@ export default function OutfitHubScreen() {
   );
   const readiness = recommendationContext.readiness;
   const readinessContent = getOutfitRecommendationReadinessContent(readiness);
-  const displayedCounts =
-    readiness.reason === "not_enough_season_items"
-      ? readiness.currentConditionCounts
-      : readiness.counts;
+  let displayedCounts = readiness.counts;
+  if (readiness.reason === "not_enough_season_items") {
+    displayedCounts = readiness.seasonCounts;
+  } else if (readiness.reason === "not_enough_weather_items") {
+    displayedCounts = readiness.currentConditionCounts;
+  }
   const metrics = [
     {
       label: "상의",

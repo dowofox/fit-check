@@ -2,6 +2,7 @@ import {
   getClosetItemReviewFields,
   normalizeClosetRegistrationBasics,
 } from "@/utils/closetRegistration";
+import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 import { normalizeProductColor } from "@/utils/color";
 import {
   doesProductSizeRowMatch,
@@ -62,7 +63,7 @@ export function toRecommendationInputItem(item: ClosetItem): ClosetItem {
   const registration = normalizeClosetRegistrationBasics({
     category: item.category,
     color: item.color,
-    seasons: item.seasons?.length ? item.seasons : item.season,
+    seasons: getCanonicalClosetItemSeasons(item),
   });
   const reviewFields = getClosetItemReviewFields(item);
   const category = registration.reviewFields.includes("category")

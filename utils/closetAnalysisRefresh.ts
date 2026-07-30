@@ -16,6 +16,7 @@ import type {
   ProductClassificationField,
   SeasonInferenceResult,
 } from "@/utils/storage";
+import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 
 const INVALID_TEXT_VALUES = new Set([
   "",
@@ -226,6 +227,15 @@ function getTaxonomyAnalysis(
   item: ClosetItem,
   analysis?: ClothesAnalysis
 ): ClothesAnalysis {
+  const hasAnalysisSeason =
+    analysis?.season !== undefined || analysis?.seasons !== undefined;
+  const seasons = getCanonicalClosetItemSeasons({
+    season: hasAnalysisSeason ? analysis?.season : item.season,
+    seasons: hasAnalysisSeason ? analysis?.seasons : item.seasons,
+    seasonSource: analysis?.seasonSource ?? item.seasonSource,
+    userEditedClassificationFields: item.userEditedClassificationFields,
+  });
+
   return normalizePhotoClassificationWithTaxonomy({
     category: analysis?.category || item.category,
     subCategory: analysis?.subCategory || item.subCategory,
@@ -233,8 +243,8 @@ function getTaxonomyAnalysis(
     color: analysis?.color || item.color,
     style: analysis?.style || item.style,
     styleTags: analysis?.styleTags || item.styleTags,
-    season: analysis?.season || item.season,
-    seasons: analysis?.seasons || item.seasons,
+    season: seasons.join(", "),
+    seasons,
     seasonSource: analysis?.seasonSource || item.seasonSource,
     seasonNeedsReview: analysis?.seasonNeedsReview ?? item.seasonNeedsReview,
     fit: analysis?.fit || item.fit,
@@ -468,6 +478,9 @@ export function mergeClosetItemAnalysisUpdate(
   const protectedFields = new Set(
     currentItem.userEditedClassificationFields || []
   );
+  if (currentItem.seasonSource === "user") {
+    protectedFields.add("season");
+  }
   const skippedFields = new Set<ProductClassificationField>();
   const taxonomyAnalysis = getTaxonomyAnalysis(currentItem, newAnalysis);
   const candidates: Partial<ClosetItem> = {};

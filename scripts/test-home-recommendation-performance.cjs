@@ -1051,6 +1051,24 @@ test("기존 옷장은 경량 인덱스를 한 번 생성한 뒤 전체 JSON을 
   assert.equal(storageReadCounts.get(CLOSET_KEY), closetReadsAfterFirstLoad);
 });
 
+test("추천 인덱스는 사용자 수정 계절 충돌을 canonical 값으로 재생성한다", async () => {
+  const item = {
+    ...createClosetItem("canonical-season-top"),
+    seasons: ["겨울"],
+    season: "봄, 여름, 가을",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+  };
+  storageMemory.set(CLOSET_KEY, JSON.stringify([item]));
+
+  const result = await getClosetRecommendationIndex();
+  const indexedItem = result.index.recommendationItems[0];
+
+  assert.equal(result.index.version, CLOSET_RECOMMENDATION_INDEX_VERSION);
+  assert.equal(indexedItem.season, "봄, 여름, 가을, 겨울");
+  assert.deepEqual(indexedItem.seasons, ["봄", "여름", "가을", "겨울"]);
+});
+
 test("동시 인덱스 요청은 구버전 옷장을 한 번만 읽어 재생성한다", async () => {
   const legacyItem = createClosetItem("concurrent-index-top");
   storageMemory.set(CLOSET_KEY, JSON.stringify([legacyItem]));

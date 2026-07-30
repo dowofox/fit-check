@@ -24,6 +24,7 @@ import {
   getRegistrationReviewLabels,
   normalizeClosetRegistrationBasics,
 } from "@/utils/closetRegistration";
+import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 import { normalizeProductColor } from "@/utils/color";
 import { hasInvalidMaterialPercentageTotal } from "@/utils/materialComposition";
 import {
@@ -305,17 +306,6 @@ function getItemStyleTags(item: ClosetItem) {
   return ["데일리"];
 }
 
-function getItemSeasons(item: ClosetItem) {
-  if (item.seasons?.length) return item.seasons;
-  if (item.season) {
-    const seasons = SEASON_OPTIONS.filter((season) => item.season?.includes(season));
-
-    return seasons;
-  }
-
-  return [];
-}
-
 function toggleSeason(currentSeasons: string[], season: string) {
   if (season === "사계절") return ["사계절"];
 
@@ -346,7 +336,7 @@ function getEditableValues(item: ClosetItem): EditableClosetFields {
     material: item.material || "",
     style: item.style || "",
     styleTags: getItemStyleTags(item),
-    seasons: getItemSeasons(item),
+    seasons: getCanonicalClosetItemSeasons(item),
     fit: item.fit || "",
     size: item.size || "",
     intendedFit: item.intendedFit || "상관없음",
@@ -374,7 +364,10 @@ function getUserEditedClassificationFields(
   if (JSON.stringify(draft.styleTags) !== JSON.stringify(getItemStyleTags(item))) {
     editedFields.add("styleTags");
   }
-  if (JSON.stringify(draft.seasons) !== JSON.stringify(getItemSeasons(item))) {
+  if (
+    JSON.stringify(draft.seasons) !==
+    JSON.stringify(getCanonicalClosetItemSeasons(item))
+  ) {
     editedFields.add("season");
   }
 
@@ -3671,7 +3664,10 @@ export default function ClothesDetailScreen() {
                   />
                   <DetailRow
                     label="계절"
-                    value={getItemSeasons(item).join(", ") || "계절 확인 필요"}
+                    value={
+                      getCanonicalClosetItemSeasons(item).join(", ") ||
+                      "계절 확인 필요"
+                    }
                   />
                   <DetailRow label="스타일" value={getDisplayStyleText(item)} />
                   <DetailRow label="핏" value={item.fit} />

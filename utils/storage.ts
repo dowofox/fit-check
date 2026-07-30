@@ -11,6 +11,7 @@ import {
   type RecommendationRevisionField,
   type RecommendationRevisionState,
 } from "@/utils/homeRecommendationIndex";
+import { normalizeClosetItemSeasonFields } from "@/utils/closetSeason";
 import {
   getOutfitFeedbackKey,
   normalizeOutfitRecommendationFeedbacks,
@@ -439,7 +440,9 @@ function parseStoredClosetItemsLoadResult(
 
     return {
       status: "loaded",
-      items: parsedValue.filter(isStoredClosetItem),
+      items: parsedValue
+        .filter(isStoredClosetItem)
+        .map(normalizeClosetItemSeasonFields),
     };
   } catch {
     return { status: "failed", items: [] };
@@ -454,7 +457,7 @@ function parseStoredClosetItemsForMutation(rawValue: string | null) {
     throw new Error("Stored closet data is invalid");
   }
 
-  return parsedValue;
+  return parsedValue.map(normalizeClosetItemSeasonFields);
 }
 
 async function getClosetItemsForMutation() {
@@ -933,7 +936,7 @@ export function saveClosetItem(item: ClosetItem) {
       return closet;
     }
 
-    closet.unshift(item);
+    closet.unshift(normalizeClosetItemSeasonFields(item));
 
     await persistStorageMutationEntries(getClosetStorageEntries(closet, revisions));
 
@@ -1052,7 +1055,9 @@ export function updateClosetItem(id: string, updatedItem: Partial<ClosetItem>) {
     }
 
     const updatedCloset = closet.map((item) =>
-      item.id === id ? { ...item, ...updatedItem } : item
+      item.id === id
+        ? normalizeClosetItemSeasonFields({ ...item, ...updatedItem })
+        : item
     );
     const profile = profileLoad.profile;
     const nextReferenceClothing = profile
@@ -1135,7 +1140,10 @@ export function updateClosetItemFromLatest(
         };
       }
 
-      const updatedItem = { ...currentItem, ...changes };
+      const updatedItem = normalizeClosetItemSeasonFields({
+        ...currentItem,
+        ...changes,
+      });
       const didChangeCategory = currentItem.category !== updatedItem.category;
       const [currentRevisions, profileLoad] = await Promise.all([
         getRecommendationRevisionState(),
@@ -1210,7 +1218,9 @@ export function updateClosetItemsBatch(
 
       const updatedCloset = closet.map((item) => {
         const changes = updatesById.get(item.id);
-        return changes ? { ...item, ...changes } : item;
+        return changes
+          ? normalizeClosetItemSeasonFields({ ...item, ...changes })
+          : item;
       });
       const didChangeCategory = closet.some((item, index) => {
         const updatedItem = updatedCloset[index];

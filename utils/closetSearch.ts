@@ -1,4 +1,5 @@
 import type { ClosetItem } from "@/utils/storage";
+import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 
 export type ClosetSortOrder = "newest" | "oldest";
 
@@ -26,8 +27,7 @@ function getClosetItemSearchText(item: ClosetItem) {
     ...(item.styleTags || []),
     item.fit,
     item.size,
-    item.season,
-    ...(item.seasons || []),
+    ...getCanonicalClosetItemSeasons(item),
     item.material,
     item.pattern,
     item.confirmedBrand,

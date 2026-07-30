@@ -1,7 +1,12 @@
 import type { ClosetItem, ProductClassificationField } from "@/utils/storage";
+import {
+  getCanonicalClosetItemSeasons,
+  normalizeClosetSeasons,
+} from "@/utils/closetSeason";
 
-const SEASONS = ["봄", "여름", "가을", "겨울", "사계절"];
 const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전|미분석/;
+
+export { normalizeClosetSeasons } from "@/utils/closetSeason";
 
 export type RegistrationReviewField = "category" | "color" | "season";
 export type RegistrationValidationResult = {
@@ -123,19 +128,6 @@ export function getUniqueRegistrationImageUris(
   return uniqueUris;
 }
 
-export function normalizeClosetSeasons(value?: string | string[]) {
-  const values = Array.isArray(value) ? value : value ? [value] : [];
-  const matchedSeasons = SEASONS.filter((season) =>
-    values.some((currentValue) => currentValue.includes(season))
-  );
-
-  if (matchedSeasons.length > 1 && matchedSeasons.includes("사계절")) {
-    return matchedSeasons.filter((season) => season !== "사계절");
-  }
-
-  return matchedSeasons;
-}
-
 export function normalizeClosetRegistrationBasics({
   category,
   color,
@@ -215,7 +207,7 @@ export function getClosetItemReviewFields(
   const reviewFields = normalizeClosetRegistrationBasics({
     category: item.category,
     color: item.color,
-    seasons: item.seasons?.length ? item.seasons : item.season,
+    seasons: getCanonicalClosetItemSeasons(item),
   }).reviewFields;
 
   if (item.seasonNeedsReview && !reviewFields.includes("season")) {

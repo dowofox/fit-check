@@ -234,6 +234,40 @@ test("3. user-edited seasons are preserved over official inference", () => {
   assert.equal(result.item.season, "겨울");
 });
 
+test("3-1. seasonSource user also protects seasons without an edit marker", () => {
+  const item = makeItem({
+    seasons: ["여름"],
+    season: "여름",
+    seasonSource: "user",
+    userEditedClassificationFields: [],
+    confirmedProduct: {
+      brand: "NAES",
+      productName: "울 패딩",
+      productUrl: "",
+      confirmedAt: createdAt,
+    },
+  });
+  const result = getClosetItemLocalAnalysisUpdate(item);
+
+  assert.deepEqual(result.item.seasons, ["여름"]);
+  assert.equal(result.item.season, "여름");
+});
+
+test("3-2. a season-only analysis does not reuse a stale seasons array", () => {
+  const item = makeItem({
+    seasons: ["겨울"],
+    season: "겨울",
+    seasonSource: "photo_ai",
+  });
+  const result = mergeClosetItemAnalysisUpdate(item, {
+    season: "여름",
+    seasonSource: "photo_ai",
+  });
+
+  assert.deepEqual(result.item.seasons, ["여름"]);
+  assert.equal(result.item.season, "여름");
+});
+
 test("4. a generic photo result cannot downgrade a specific detail category", () => {
   const item = makeItem({ detailCategory: "벌룬 팬츠" });
   const result = mergeClosetItemAnalysisUpdate(item, {

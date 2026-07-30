@@ -3,6 +3,7 @@ import {
   isClosetItemAvailableForRecommendation,
 } from "@/utils/storage";
 import { normalizeProductColor } from "@/utils/color";
+import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 
 export type RecommendedShoppingItem = {
   id: string;
@@ -38,12 +39,6 @@ function getItemText(item: ClosetItem) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-}
-
-function getItemSeasons(item: ClosetItem) {
-  if (item.seasons?.length) return item.seasons;
-  if (item.season) return item.season.split(/[,/]/).map((season) => season.trim()).filter(Boolean);
-  return [];
 }
 
 function getCurrentSeason(): Season {
@@ -113,14 +108,14 @@ export function getRecommendedShoppingItems(items: ClosetItem[]): RecommendedSho
   const accessories = byCategory("액세서리");
   const currentSeason = getCurrentSeason();
   const currentSeasonItems = itemsForRecommendation.filter((item) => {
-    const seasons = getItemSeasons(item);
+    const seasons = getCanonicalClosetItemSeasons(item);
     return seasons.length === 0 || seasons.includes(currentSeason) || seasons.includes("사계절") || seasons.includes("전체");
   });
   const seasonTaggedItems = itemsForRecommendation.filter(
-    (item) => getItemSeasons(item).length > 0
+    (item) => getCanonicalClosetItemSeasons(item).length > 0
   );
   const explicitlyMatchedSeasonItems = seasonTaggedItems.filter((item) => {
-    const seasons = getItemSeasons(item);
+    const seasons = getCanonicalClosetItemSeasons(item);
     return seasons.includes(currentSeason) || seasons.includes("사계절") || seasons.includes("전체");
   });
   const itemTexts = new Map(
@@ -187,7 +182,7 @@ export function getRecommendedShoppingItems(items: ClosetItem[]): RecommendedSho
   }
 
   const summerItems = itemsForRecommendation.filter((item) =>
-    getItemSeasons(item).some(
+    getCanonicalClosetItemSeasons(item).some(
       (season) => season === "여름" || season === "사계절"
     )
   );

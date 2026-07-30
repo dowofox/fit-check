@@ -1,4 +1,5 @@
 import { getClosetItemReviewFields } from "@/utils/closetRegistration";
+import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 import type { OutfitRecommendationWeather } from "@/utils/outfitRecommend";
 import {
   isClosetItemAvailableForRecommendation,
@@ -18,7 +19,8 @@ export type OutfitRecommendationReadinessReason =
   | "not_enough_tops"
   | "not_enough_bottoms"
   | "not_enough_core_combinations"
-  | "not_enough_season_items";
+  | "not_enough_season_items"
+  | "not_enough_weather_items";
 
 export type OutfitRecommendationReadinessCounts = {
   tops: number;
@@ -32,9 +34,15 @@ export type OutfitRecommendationReadiness = {
   ready: boolean;
   reason: OutfitRecommendationReadinessReason;
   counts: OutfitRecommendationReadinessCounts;
+  seasonCounts: OutfitRecommendationReadinessCounts;
   currentConditionCounts: OutfitRecommendationReadinessCounts;
   requirements: typeof OUTFIT_RECOMMENDATION_READINESS_REQUIREMENTS;
   missing: {
+    tops: number;
+    bottoms: number;
+    coreCombinations: number;
+  };
+  seasonMissing: {
     tops: number;
     bottoms: number;
     coreCombinations: number;
@@ -43,6 +51,18 @@ export type OutfitRecommendationReadiness = {
     tops: number;
     bottoms: number;
     coreCombinations: number;
+  };
+  diagnostics: {
+    currentSeason: string;
+    temperature?: number;
+    excluded: {
+      archived: number;
+      reviewRequired: number;
+      invalidCategory: number;
+      seasonMismatch: number;
+      temperatureRange: number;
+      strongWeatherKeyword: number;
+    };
   };
 };
 
@@ -85,57 +105,65 @@ function getItemSearchText(item: ClosetItem) {
     .toLowerCase();
 }
 
-function getItemSeasons(item: ClosetItem) {
-  if (item.seasons?.length) return item.seasons;
-  if (!item.season) return [];
-
-  return ["봄", "여름", "가을", "겨울", "사계절", "전체"].filter(
-    (season) => item.season?.includes(season)
-  );
-}
-
 function isSeasonMatch(item: ClosetItem, currentSeason?: string) {
   if (!currentSeason) return true;
-  const seasons = getItemSeasons(item);
+  const seasons = getCanonicalClosetItemSeasons(item);
   return (
     seasons.includes(currentSeason) ||
-    seasons.includes("사계절") ||
-    seasons.includes("전체")
+    seasons.includes("사계절")
   );
 }
 
-function isWeatherMatch(
+type WeatherMismatchReason =
+  | "temperatureRange"
+  | "strongWeatherKeyword";
+
+function getWeatherMismatchReason(
   item: ClosetItem,
   weather?: OutfitRecommendationWeather | null
-) {
+): WeatherMismatchReason | null {
   const temperature = weather?.temperature;
-  if (typeof temperature !== "number") return true;
+  if (typeof temperature !== "number") return null;
 
   const range = item.styleProfile?.temperatureRange;
-  if (typeof range?.min === "number" && temperature < range.min) return false;
-  if (typeof range?.max === "number" && temperature > range.max) return false;
+  if (typeof range?.min === "number" && temperature < range.min) {
+    return "temperatureRange";
+  }
+  if (typeof range?.max === "number" && temperature > range.max) {
+    return "temperatureRange";
+  }
 
   const searchText = getItemSearchText(item);
   if (
     temperature >= 24 &&
     HEAVY_WARM_WEATHER_KEYWORDS.some((keyword) => searchText.includes(keyword))
   ) {
-    return false;
+    return "strongWeatherKeyword";
   }
   if (
     temperature <= 10 &&
     LIGHT_COLD_WEATHER_KEYWORDS.some((keyword) => searchText.includes(keyword))
   ) {
-    return false;
+    return "strongWeatherKeyword";
   }
 
-  return true;
+  return null;
 }
 
-function isReadinessCandidate(item: ClosetItem) {
+const READINESS_CATEGORIES = new Set([
+  "상의",
+  "하의",
+  "신발",
+  "아우터",
+  "액세서리",
+]);
+
+function hasEnoughCoreItems(counts: OutfitRecommendationReadinessCounts) {
+  const requirements = OUTFIT_RECOMMENDATION_READINESS_REQUIREMENTS;
   return (
-    isClosetItemAvailableForRecommendation(item) &&
-    getClosetItemReviewFields(item).length === 0
+    counts.tops >= requirements.tops &&
+    counts.bottoms >= requirements.bottoms &&
+    counts.coreCombinations >= requirements.coreCombinations
   );
 }
 
@@ -213,9 +241,19 @@ export function getOutfitRecommendationReadinessContent(
     return {
       title: "지금 계절에 맞는 옷이 조금 부족해요",
       text: `현재 조건 ${getReadinessCountSummary(
+        readiness.seasonCounts
+      )}. ${getMissingItemSummary(readiness.seasonMissing)}`.trim(),
+      primaryActionLabel: "계절 옷 추가하기",
+    };
+  }
+
+  if (readiness.reason === "not_enough_weather_items") {
+    return {
+      title: "현재 기온에 맞는 옷이 조금 부족해요",
+      text: `현재 날씨 기준 ${getReadinessCountSummary(
         readiness.currentConditionCounts
       )}. ${getMissingItemSummary(readiness.currentConditionMissing)}`.trim(),
-      primaryActionLabel: "계절 옷 추가하기",
+      primaryActionLabel: "날씨에 맞는 옷 추가하기",
     };
   }
 
@@ -233,12 +271,45 @@ export function getOutfitRecommendationReadiness(
   currentSeason = getCurrentSeasonForReadiness(),
   weather?: OutfitRecommendationWeather | null
 ): OutfitRecommendationReadiness {
-  const availableItems = items.filter(isReadinessCandidate);
-  const currentConditionItems = availableItems.filter(
-    (item) =>
-      isSeasonMatch(item, currentSeason) && isWeatherMatch(item, weather)
-  );
+  const diagnostics: OutfitRecommendationReadiness["diagnostics"] = {
+    currentSeason,
+    temperature: weather?.temperature,
+    excluded: {
+      archived: 0,
+      reviewRequired: 0,
+      invalidCategory: 0,
+      seasonMismatch: 0,
+      temperatureRange: 0,
+      strongWeatherKeyword: 0,
+    },
+  };
+  const availableItems = items.filter((item) => {
+    if (!isClosetItemAvailableForRecommendation(item)) {
+      diagnostics.excluded.archived += 1;
+      return false;
+    }
+    if (getClosetItemReviewFields(item).length > 0) {
+      diagnostics.excluded.reviewRequired += 1;
+      return false;
+    }
+    if (!READINESS_CATEGORIES.has(item.category)) {
+      diagnostics.excluded.invalidCategory += 1;
+      return false;
+    }
+    return true;
+  });
+  const seasonItems = availableItems.filter((item) => {
+    const matches = isSeasonMatch(item, currentSeason);
+    if (!matches) diagnostics.excluded.seasonMismatch += 1;
+    return matches;
+  });
+  const currentConditionItems = seasonItems.filter((item) => {
+    const mismatchReason = getWeatherMismatchReason(item, weather);
+    if (mismatchReason) diagnostics.excluded[mismatchReason] += 1;
+    return mismatchReason === null;
+  });
   const counts = getCounts(availableItems);
+  const seasonCounts = getCounts(seasonItems);
   const currentConditionCounts = getCounts(currentConditionItems);
   const requirements = OUTFIT_RECOMMENDATION_READINESS_REQUIREMENTS;
 
@@ -249,22 +320,22 @@ export function getOutfitRecommendationReadiness(
     reason = "not_enough_bottoms";
   } else if (counts.coreCombinations < requirements.coreCombinations) {
     reason = "not_enough_core_combinations";
-  } else if (
-    currentConditionCounts.tops < requirements.tops ||
-    currentConditionCounts.bottoms < requirements.bottoms ||
-    currentConditionCounts.coreCombinations <
-      requirements.coreCombinations
-  ) {
+  } else if (!hasEnoughCoreItems(seasonCounts)) {
     reason = "not_enough_season_items";
+  } else if (!hasEnoughCoreItems(currentConditionCounts)) {
+    reason = "not_enough_weather_items";
   }
 
   return {
     ready: reason === "ready",
     reason,
     counts,
+    seasonCounts,
     currentConditionCounts,
     requirements,
     missing: getMissing(counts),
+    seasonMissing: getMissing(seasonCounts),
     currentConditionMissing: getMissing(currentConditionCounts),
+    diagnostics,
   };
 }

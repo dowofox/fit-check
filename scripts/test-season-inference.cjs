@@ -37,6 +37,10 @@ const {
 } = require("../utils/seasonInference.ts");
 const { resolveClothesSeasons } = require("../server/clothesSeason.js");
 const { normalizeClosetSeasons } = require("../utils/closetRegistration.ts");
+const {
+  getCanonicalClosetItemSeasons,
+  normalizeClosetItemSeasonFields,
+} = require("../utils/closetSeason.ts");
 
 test("빈 계절은 사계절로 바꾸지 않는다", () => {
   assert.deepEqual(normalizeClosetSeasons(undefined), []);
@@ -105,6 +109,65 @@ test("추상적인 상품명은 공식 카테고리의 계절 근거로 보완�
   assert.equal(shorts.source, "official_product");
   assert.deepEqual(sandals.seasons, ["여름"]);
   assert.equal(genericPants, null);
+});
+
+test("다중·중복·legacy 계절을 고정 순서로 정규화한다", () => {
+  assert.deepEqual(
+    normalizeClosetSeasons(["여름", "봄/여름", "가을", "여름"]),
+    ["봄", "여름", "가을"]
+  );
+  assert.deepEqual(
+    getCanonicalClosetItemSeasons({ season: "봄, 여름/가을" }),
+    ["봄", "여름", "가을"]
+  );
+  assert.deepEqual(normalizeClosetSeasons("전체"), ["사계절"]);
+  assert.deepEqual(normalizeClosetSeasons(["사계절", "여름"]), ["여름"]);
+});
+
+test("사용자 수정 근거가 있는 충돌은 두 필드의 계절 선택을 보존한다", () => {
+  assert.deepEqual(
+    getCanonicalClosetItemSeasons({
+      seasons: ["겨울"],
+      season: "봄, 여름, 가을",
+      seasonSource: "user",
+    }),
+    ["봄", "여름", "가을", "겨울"]
+  );
+  assert.deepEqual(
+    getCanonicalClosetItemSeasons({
+      seasons: ["봄", "여름"],
+      season: "겨울",
+      userEditedClassificationFields: ["season"],
+    }),
+    ["봄", "여름", "겨울"]
+  );
+});
+
+test("사용자 근거가 없는 충돌은 canonical seasons 배열을 우선한다", () => {
+  assert.deepEqual(
+    getCanonicalClosetItemSeasons({
+      seasons: ["봄", "가을"],
+      season: "겨울",
+      seasonSource: "photo_ai",
+    }),
+    ["봄", "가을"]
+  );
+});
+
+test("계절 필드 정규화는 ID와 생성일을 보존하며 반복 실행해도 같다", () => {
+  const item = {
+    id: "legacy-season-item",
+    createdAt: "2024-01-02T03:04:05.000Z",
+    season: "봄/가을",
+  };
+  const normalized = normalizeClosetItemSeasonFields(item);
+  const normalizedAgain = normalizeClosetItemSeasonFields(normalized);
+
+  assert.equal(normalized.id, item.id);
+  assert.equal(normalized.createdAt, item.createdAt);
+  assert.equal(normalized.season, "봄, 가을");
+  assert.deepEqual(normalized.seasons, ["봄", "가을"]);
+  assert.deepEqual(normalizedAgain, normalized);
 });
 
 test("세분화된 오픈형 신발과 레인부츠의 계절 용도를 구분한다", () => {

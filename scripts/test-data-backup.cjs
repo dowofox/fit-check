@@ -502,16 +502,22 @@ test("legacy closet and profile fields survive partial updates and version 1 bac
   storageMemory.set("naes_closet", JSON.stringify([legacyItem]));
   storageMemory.set("naes_profile", JSON.stringify(legacyProfile));
 
-  assert.deepEqual(await getClosetItems(), [legacyItem]);
+  const canonicalLegacyItem = {
+    ...legacyItem,
+    season: "봄, 가을",
+    seasons: ["봄", "가을"],
+  };
+
+  assert.deepEqual(await getClosetItems(), [canonicalLegacyItem]);
   assert.deepEqual(await getUserProfile(), legacyProfile);
 
   await updateClosetItem(legacyItem.id, { recommendationPreference: "prefer" });
   const updatedItem = (await getClosetItems())[0];
 
   assert.equal(updatedItem.style, legacyItem.style);
-  assert.equal(updatedItem.season, legacyItem.season);
+  assert.equal(updatedItem.season, "봄, 가을");
   assert.equal(updatedItem.recommendationPreference, "prefer");
-  assert.equal(updatedItem.seasons, undefined);
+  assert.deepEqual(updatedItem.seasons, ["봄", "가을"]);
   assert.equal(updatedItem.styleTags, undefined);
 
   const payload = await buildNaesBackupPayload(
@@ -525,6 +531,31 @@ test("legacy closet and profile fields survive partial updates and version 1 bac
 
   assert.deepEqual(await getClosetItems(), [updatedItem]);
   assert.deepEqual(await getUserProfile(), legacyProfile);
+});
+
+test("user-edited conflicting season fields normalize without losing either selection", async () => {
+  storageMemory.clear();
+  const conflictedItem = {
+    id: "user-season-conflict",
+    imageUri: "https://example.com/user-season-conflict.jpg",
+    category: "상의",
+    color: "화이트",
+    seasons: ["겨울"],
+    season: "봄, 여름, 가을",
+    seasonSource: "user",
+    userEditedClassificationFields: ["season"],
+    createdAt: "2024-01-02T03:04:05.000Z",
+  };
+  storageMemory.set("naes_closet", JSON.stringify([conflictedItem]));
+
+  const [normalizedItem] = await getClosetItems();
+  assert.equal(normalizedItem.id, conflictedItem.id);
+  assert.equal(normalizedItem.createdAt, conflictedItem.createdAt);
+  assert.equal(normalizedItem.season, "봄, 여름, 가을, 겨울");
+  assert.deepEqual(normalizedItem.seasons, ["봄", "여름", "가을", "겨울"]);
+
+  storageMemory.set("naes_closet", JSON.stringify([normalizedItem]));
+  assert.deepEqual((await getClosetItems())[0], normalizedItem);
 });
 
 test("corrupted storage shapes are isolated without discarding valid records", async () => {

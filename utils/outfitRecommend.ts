@@ -21,6 +21,7 @@ import {
   type OutfitSituation,
 } from "@/utils/outfitSituation";
 import { getRecommendationMaterialText } from "@/utils/productClassification";
+import { getCanonicalClosetItemSeasons } from "@/utils/closetSeason";
 import {
   ClosetItem,
   GarmentProfile,
@@ -246,13 +247,7 @@ function getItemSeasons(item: ClosetItem) {
   const cachedSeasons = itemSeasonsCache.get(item);
   if (cachedSeasons) return cachedSeasons;
 
-  const seasons = item.seasons?.length
-    ? item.seasons
-    : item.season
-      ? ["봄", "여름", "가을", "겨울", "사계절", "전체"].filter(
-          (season) => item.season?.includes(season)
-        )
-      : [];
+  const seasons = getCanonicalClosetItemSeasons(item);
   itemSeasonsCache.set(item, seasons);
   return seasons;
 }

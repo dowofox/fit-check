@@ -17,7 +17,7 @@ import type {
   UserProfile,
 } from "@/utils/storage";
 
-export const OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION = 1;
+export const OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION = 2;
 
 export type OutfitRecommendationContext = {
   items: ClosetItem[];
