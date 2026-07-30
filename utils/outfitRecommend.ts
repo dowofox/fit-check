@@ -132,6 +132,7 @@ export type OutfitRecommendationWeather = {
 
 export type OutfitRecommendationOptions = {
   weather?: OutfitRecommendationWeather | null;
+  allowSeasonFallback?: boolean;
   feedbacks?: OutfitRecommendationFeedback[];
   preferredItemIds?: string[];
   situation?: OutfitSituation;
@@ -2888,6 +2889,7 @@ function buildRecommendationCandidatesWithFallback(
   });
 
   if (filteredCandidates.length > 0) return filteredCandidates;
+  if (options.allowSeasonFallback !== true) return [];
 
   return buildRecommendationCandidates(items, profile, currentSeason, {
     ...options,

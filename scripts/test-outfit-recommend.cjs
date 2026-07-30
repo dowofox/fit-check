@@ -63,18 +63,11 @@ const {
 const {
   getRecommendationDataKey,
   getSavedOutfitItemIds,
-  shouldUseRecommendationWeather,
   toRecommendationInputItems,
 } = require("../utils/recommendationInput.ts");
 const { getRecommendedShoppingItems } = require("../utils/shoppingRecommend.ts");
 
 const createdAt = "2026-07-01T00:00:00.000Z";
-
-test("날씨 추천은 홈에서 이어진 경로에만 적용한다", () => {
-  assert.equal(shouldUseRecommendationWeather("home"), true);
-  assert.equal(shouldUseRecommendationWeather(undefined), false);
-  assert.equal(shouldUseRecommendationWeather("outfit"), false);
-});
 
 test("상황 적합성은 추천 순서만 바꾸고 품질 점수와 등급은 유지한다", () => {
   const alternative = {
@@ -308,6 +301,29 @@ function createWardrobe() {
     createItem("accessory-cap", "액세서리"),
   ];
 }
+
+test("계절 후보가 없으면 명시적으로 허용하지 않는 한 다른 계절 옷을 복원하지 않는다", () => {
+  const winterWardrobe = createWardrobe().map((item) => ({
+    ...item,
+    seasons: ["겨울"],
+    season: "겨울",
+  }));
+  const defaultResult = getOutfitRecommendationResult(
+    winterWardrobe,
+    null,
+    "여름"
+  );
+  const strictResult = getOutfitRecommendationResult(
+    winterWardrobe,
+    null,
+    "여름",
+    [],
+    { allowSeasonFallback: false }
+  );
+
+  assert.equal(defaultResult.recommendations.length, 0);
+  assert.equal(strictResult.recommendations.length, 0);
+});
 
 function recommendationItemKey(recommendation) {
   return recommendation.items.map((item) => item.id).sort().join("|");

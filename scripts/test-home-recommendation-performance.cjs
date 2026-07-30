@@ -90,6 +90,9 @@ const {
   getOutfitRecommendationResult,
 } = require("../utils/outfitRecommend.ts");
 const {
+  getOutfitRecommendationContextCacheKey,
+} = require("../utils/outfitRecommendationContext.ts");
+const {
   areRecommendationWeathersEquivalent,
   createHomeRecommendationCacheEntry,
   getHomeRecommendationCacheRevisionMismatchReason,
@@ -1663,4 +1666,53 @@ test("의미가 같은 날씨는 홈 추천을 다시 계산하지 않아도 된
     }),
     false
   );
+});
+
+test("계절이나 준비 정책이 달라진 홈 추천 캐시는 복원하지 않는다", () => {
+  const items = [
+    createClosetItem("season-cache-top"),
+    createClosetItem("season-cache-bottom", {
+      category: "하의",
+      subCategory: "팬츠",
+      detailCategory: "슬랙스",
+    }),
+  ];
+  const revisionKey = getRecommendationRevisionKey({
+    version: 1,
+    closetRevision: 2,
+    profileRevision: 1,
+    savedOutfitRevision: 0,
+    feedbackRevision: 0,
+  });
+  const summerContextKey = getOutfitRecommendationContextCacheKey(
+    revisionKey,
+    "여름"
+  );
+  const winterContextKey = getOutfitRecommendationContextCacheKey(
+    revisionKey,
+    "겨울"
+  );
+  const entry = createHomeRecommendationCacheEntry(
+    summerContextKey,
+    [
+      {
+        id: "season-cache-outfit",
+        items,
+        title: "여름 추천",
+        tags: ["여름"],
+        reasons: ["여름 기준 추천"],
+      },
+    ],
+    {},
+    null,
+    null
+  );
+  const result = getHomeRecommendationCacheHydrationResult(
+    entry,
+    items,
+    winterContextKey
+  );
+
+  assert.equal(result.cache, null);
+  assert.equal(result.missReason, "recommendation_context_changed");
 });

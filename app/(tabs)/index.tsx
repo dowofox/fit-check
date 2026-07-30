@@ -9,8 +9,11 @@ import type {
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import {
+  createOutfitRecommendationContext,
+  getOutfitRecommendationContextCacheKey,
+} from "@/utils/outfitRecommendationContext";
+import {
   getCurrentSeasonForReadiness,
-  getOutfitRecommendationReadiness,
   getOutfitRecommendationReadinessContent,
 } from "@/utils/outfitRecommendationReadiness";
 import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
@@ -133,17 +136,11 @@ function getWeatherIconName(
 }
 
 function getRecommendationRouteParams(
-  recommendation?: HomeRecommendationCardData,
-  weather?: OutfitRecommendationWeather | null
+  recommendation?: HomeRecommendationCardData
 ) {
   return {
     source: "home",
     selectedItemIds: recommendation?.items.map((item) => item.id).join(",") || "",
-    weatherTemperature:
-      typeof weather?.temperature === "number" ? String(weather.temperature) : "",
-    weatherCondition: weather?.condition || "",
-    weatherRainChance:
-      typeof weather?.rainChance === "number" ? String(weather.rainChance) : "",
   };
 }
 
@@ -213,6 +210,9 @@ export default function HomeScreen() {
   const [weatherLabel, setWeatherLabel] = useState<string | null>(null);
   const [currentRecommendationWeather, setCurrentRecommendationWeather] =
     useState<OutfitRecommendationWeather | null>(null);
+  const [recommendationSeason, setRecommendationSeason] = useState(() =>
+    getCurrentSeasonForReadiness()
+  );
   const [isRecommendationPreparing, setIsRecommendationPreparing] = useState(true);
   const [hasDashboardData, setHasDashboardData] = useState(false);
   const [hasDashboardLoadError, setHasDashboardLoadError] = useState(false);
@@ -229,6 +229,8 @@ export default function HomeScreen() {
   const recommendationExecutionCountRef = useRef({ initial: 0, weather: 0 });
   const dashboardContextRef = useRef<{
     dataKey: string;
+    recommendationContextKey: string;
+    currentSeason: string;
     items: ClosetItem[];
     profile: Awaited<ReturnType<typeof getUserProfile>>;
     savedOutfitItemIds: string[][];
@@ -268,12 +270,14 @@ export default function HomeScreen() {
       ) {
         if (!isActive) return;
 
-        const readiness = getOutfitRecommendationReadiness(
+        const context = createOutfitRecommendationContext({
           items,
-          getCurrentSeasonForReadiness(),
-          cache.weather
+          recommendationItems: items,
+          weather: cache.weather,
+        });
+        setTodayRecommendations(
+          context.readiness.ready ? cache.recommendations : []
         );
-        setTodayRecommendations(readiness.ready ? cache.recommendations : []);
         setRecommendationEmptyState(cache.emptyState);
         setWeatherLabel(cache.weatherLabel);
         setCurrentRecommendationWeather(cache.weather);
@@ -281,9 +285,10 @@ export default function HomeScreen() {
       }
 
       function restoreCachedRecommendation(
-        dataKey: string,
+        recommendationContextKey: string,
         persistentSnapshot: HomeRecommendationCacheSnapshot | null,
-        items: ClosetItem[]
+        items: ClosetItem[],
+        sharedWeather: OutfitRecommendationWeather | null
       ) {
         const restoreTimer = startPerformanceTimer(
           "home.cached-recommendation-restore"
@@ -291,12 +296,12 @@ export default function HomeScreen() {
         const persistedWeatherResult = getHomeRecommendationCacheHydrationResult(
           persistentSnapshot?.weather,
           items,
-          dataKey
+          recommendationContextKey
         );
         const persistedInitialResult = getHomeRecommendationCacheHydrationResult(
           persistentSnapshot?.initial,
           items,
-          dataKey
+          recommendationContextKey
         );
         const persistedWeatherCache = persistedWeatherResult.cache;
         const persistedInitialCache = persistedInitialResult.cache;
@@ -305,19 +310,37 @@ export default function HomeScreen() {
         const memoryWeatherCache =
           isHomeRecommendationCacheKeyForRevision(
             memoryWeatherEntry?.key,
-            dataKey
+            recommendationContextKey
           ) &&
-          isHomeWeatherRecommendationCacheEntryFresh(memoryWeatherEntry)
+          isHomeWeatherRecommendationCacheEntryFresh(memoryWeatherEntry) &&
+          sharedWeather &&
+          areRecommendationWeathersEquivalent(
+            memoryWeatherEntry?.weather,
+            sharedWeather
+          )
           ? memoryWeatherEntry
           : null;
-        const memoryInitialCache = isHomeRecommendationCacheKeyForRevision(
-          memoryInitialEntry?.key,
-          dataKey
-        )
-          ? memoryInitialEntry
-          : null;
-        const weatherCache = memoryWeatherCache || persistedWeatherCache;
-        const initialCache = memoryInitialCache || persistedInitialCache;
+        const memoryInitialCache =
+          !sharedWeather &&
+          isHomeRecommendationCacheKeyForRevision(
+            memoryInitialEntry?.key,
+            recommendationContextKey
+          )
+            ? memoryInitialEntry
+            : null;
+        const weatherCacheCandidate = memoryWeatherCache || persistedWeatherCache;
+        const weatherCache =
+          weatherCacheCandidate &&
+          sharedWeather &&
+          areRecommendationWeathersEquivalent(
+            weatherCacheCandidate.weather,
+            sharedWeather
+          )
+            ? weatherCacheCandidate
+            : null;
+        const initialCache = sharedWeather
+          ? null
+          : memoryInitialCache || persistedInitialCache;
 
         weatherRecommendationCacheRef.current = weatherCache;
         initialRecommendationCacheRef.current = initialCache;
@@ -326,29 +349,32 @@ export default function HomeScreen() {
           ...(persistedInitialCache && persistentSnapshot?.initial
             ? { initial: persistentSnapshot.initial }
             : {}),
-          ...(persistedWeatherCache && persistentSnapshot?.weather
+          ...(weatherCache && persistentSnapshot?.weather
             ? { weather: persistentSnapshot.weather }
             : {}),
         };
         const cachedResult = isHomeRecommendationCacheKeyForRevision(
           weatherCache?.key,
-          dataKey
+          recommendationContextKey
         )
           ? weatherCache
-          : isHomeRecommendationCacheKeyForRevision(initialCache?.key, dataKey)
+          : isHomeRecommendationCacheKeyForRevision(
+                initialCache?.key,
+                recommendationContextKey
+              )
             ? initialCache
             : null;
         const memoryCacheMissReason =
           (memoryWeatherEntry
             ? getHomeRecommendationCacheRevisionMismatchReason(
                 memoryWeatherEntry.key,
-                dataKey
+                recommendationContextKey
               )
             : null) ||
           (memoryInitialEntry
             ? getHomeRecommendationCacheRevisionMismatchReason(
                 memoryInitialEntry.key,
-                dataKey
+                recommendationContextKey
               )
             : null) ||
           (memoryWeatherEntry &&
@@ -414,7 +440,8 @@ export default function HomeScreen() {
         items: ClosetItem[],
         profile: Awaited<ReturnType<typeof getUserProfile>>,
         weather: OutfitRecommendationWeather | null,
-        dataKey: string,
+        recommendationContextKey: string,
+        currentSeason: string,
         savedOutfitItemIds: string[][],
         feedbacks: OutfitRecommendationFeedback[],
         weatherSource: "none" | "cache" | "live" = "none"
@@ -423,16 +450,25 @@ export default function HomeScreen() {
         const cacheRef = weather
           ? weatherRecommendationCacheRef
           : initialRecommendationCacheRef;
-        const cacheKey = weather ? `${dataKey}|${getWeatherKey(weather)}` : dataKey;
+        const cacheKey = weather
+          ? `${recommendationContextKey}|${getWeatherKey(weather)}`
+          : recommendationContextKey;
         const cachedResult = cacheRef.current;
         const hasEquivalentWeatherCache = Boolean(
           weather &&
             cachedResult?.weather &&
-            isHomeRecommendationCacheKeyForRevision(cachedResult.key, dataKey) &&
+            isHomeRecommendationCacheKeyForRevision(
+              cachedResult.key,
+              recommendationContextKey
+            ) &&
             areRecommendationWeathersEquivalent(cachedResult.weather, weather)
         );
 
-        if (cachedResult?.key === cacheKey || hasEquivalentWeatherCache) {
+        if (
+          cachedResult &&
+          (cachedResult.key === cacheKey || hasEquivalentWeatherCache)
+        ) {
+          applyCachedRecommendation(cachedResult, items);
           logPerformanceMetric(`home.${kind}-outfit-recommendation.skipped`, {
             reason: hasEquivalentWeatherCache ? "equivalent weather" : "same input",
             recommendationExecutionCount:
@@ -448,20 +484,25 @@ export default function HomeScreen() {
         const recommendationTimer = startPerformanceTimer(
           weather ? "home.weather-outfit-recommendation" : "home.initial-outfit-recommendation"
         );
-        const readiness = getOutfitRecommendationReadiness(
+        const context = createOutfitRecommendationContext({
           items,
-          getCurrentSeasonForReadiness(),
-          weather
-        );
-        const recommendationResult = readiness.ready
+          recommendationItems: items,
+          profile,
+          currentSeason,
+          weather,
+          feedbacks,
+          savedOutfitItemIds,
+        });
+        const recommendationResult = context.readiness.ready
           ? getOutfitRecommendationResult(
-              items,
-              profile,
-              undefined,
-              savedOutfitItemIds,
+              context.recommendationItems,
+              context.profile,
+              context.currentSeason,
+              context.savedOutfitItemIds,
               {
-                weather,
-                feedbacks,
+                weather: context.weather,
+                allowSeasonFallback: false,
+                feedbacks: context.feedbacks,
                 onDiagnostics: (diagnostic) => {
                   logPerformanceMetric(
                     `home.recommendation.stage.${diagnostic.stage}`,
@@ -521,7 +562,8 @@ export default function HomeScreen() {
       async function refreshWeatherRecommendation(
         items: ClosetItem[],
         profile: Awaited<ReturnType<typeof getUserProfile>>,
-        dataKey: string,
+        recommendationContextKey: string,
+        currentSeason: string,
         savedOutfitItemIds: string[][],
         feedbacks: OutfitRecommendationFeedback[],
         fallbackToInitial = false
@@ -553,7 +595,8 @@ export default function HomeScreen() {
                 items,
                 profile,
                 cachedWeather,
-                dataKey,
+                recommendationContextKey,
+                currentSeason,
                 savedOutfitItemIds,
                 feedbacks,
                 "cache"
@@ -594,7 +637,8 @@ export default function HomeScreen() {
                 items,
                 profile,
                 currentWeather,
-                dataKey,
+                recommendationContextKey,
+                currentSeason,
                 savedOutfitItemIds,
                 feedbacks,
                 "live"
@@ -644,7 +688,8 @@ export default function HomeScreen() {
               items,
               profile,
               null,
-              dataKey,
+              recommendationContextKey,
+              currentSeason,
               savedOutfitItemIds,
               feedbacks
             );
@@ -668,19 +713,27 @@ export default function HomeScreen() {
       async function loadDashboard() {
         try {
           const cachedDashboardContext = dashboardContextRef.current;
+          const currentSeason = getCurrentSeasonForReadiness();
+          setRecommendationSeason(currentSeason);
 
           if (cachedDashboardContext) {
             const revisionTimer = startPerformanceTimer(
               "home.storage.revision-check"
             );
             const currentRevisions = await getRecommendationRevisionState();
-            const canReuseDashboard = canReuseHomeDashboardData(
-              cachedDashboardContext.dataKey,
-              currentRevisions
-            );
+            const canReuseDashboard =
+              cachedDashboardContext.currentSeason === currentSeason &&
+              canReuseHomeDashboardData(
+                cachedDashboardContext.dataKey,
+                currentRevisions
+              );
             endPerformanceTimer(revisionTimer, {
               cacheHit: canReuseDashboard,
-              cacheMissReason: canReuseDashboard ? null : "revision_changed",
+              cacheMissReason: canReuseDashboard
+                ? null
+                : cachedDashboardContext.currentSeason !== currentSeason
+                  ? "season_changed"
+                  : "revision_changed",
             });
 
             if (canReuseDashboard) {
@@ -712,9 +765,11 @@ export default function HomeScreen() {
                 void refreshWeatherRecommendation(
                   cachedDashboardContext.items,
                   cachedDashboardContext.profile,
-                  cachedDashboardContext.dataKey,
+                  cachedDashboardContext.recommendationContextKey,
+                  cachedDashboardContext.currentSeason,
                   cachedDashboardContext.savedOutfitItemIds,
-                  cachedDashboardContext.feedbacks
+                  cachedDashboardContext.feedbacks,
+                  true
                 );
               });
               return;
@@ -728,6 +783,7 @@ export default function HomeScreen() {
             profileLoad,
             feedbacksLoad,
             recommendationCacheLoad,
+            sharedWeatherLoad,
           ] = await Promise.all([
             (async () => {
               const timer = startPerformanceTimer("home.storage.closet-load");
@@ -789,6 +845,7 @@ export default function HomeScreen() {
               });
               return result;
             })(),
+            getCachedWeatherRecommendationResult(),
           ]);
 
           if (
@@ -828,8 +885,10 @@ export default function HomeScreen() {
             "home.recommendation-key-build"
           );
           const dataKey = getRecommendationRevisionKey(indexLoad.revisions);
+          const recommendationContextKey =
+            getOutfitRecommendationContextCacheKey(dataKey, currentSeason);
           endPerformanceTimer(keyBuildTimer, {
-            serializedCharacters: dataKey.length,
+            serializedCharacters: recommendationContextKey.length,
             cacheHit: indexLoad.source === "cache",
             cacheMissReason: indexLoad.source === "cache" ? null : indexLoad.source,
           });
@@ -837,7 +896,7 @@ export default function HomeScreen() {
           logPerformanceMetric("home.lightweight-recommendation-data", {
             itemCount: recommendationItems.length,
             serializedCharacters: indexLoad.serializedCharacters,
-            recommendationKeyCharacters: dataKey.length,
+            recommendationKeyCharacters: recommendationContextKey.length,
             containsProductSizeGuide: recommendationItems.some(
               (item) => Boolean(item.confirmedProduct?.productSizeGuide)
             ),
@@ -850,15 +909,18 @@ export default function HomeScreen() {
           setHasDashboardLoadError(false);
           dashboardContextRef.current = {
             dataKey,
+            recommendationContextKey,
+            currentSeason,
             items: recommendationItems,
             profile: nextProfile,
             savedOutfitItemIds,
             feedbacks,
           };
           const cacheRestoreResult = restoreCachedRecommendation(
-            dataKey,
+            recommendationContextKey,
             recommendationCacheLoad.snapshot,
-            recommendationItems
+            recommendationItems,
+            sharedWeatherLoad.weather
           );
           const cacheRestored = cacheRestoreResult.restored;
 
@@ -879,7 +941,8 @@ export default function HomeScreen() {
             return refreshWeatherRecommendation(
               recommendationItems,
               nextProfile,
-              dataKey,
+              recommendationContextKey,
+              currentSeason,
               savedOutfitItemIds,
               feedbacks,
               fallbackToInitial
@@ -897,7 +960,7 @@ export default function HomeScreen() {
                   recommendationExecutionCountRef.current.initial,
                 cacheHit: true,
               });
-              void startWeatherRefresh();
+              void startWeatherRefresh(true);
               return;
             }
 
@@ -954,15 +1017,17 @@ export default function HomeScreen() {
 
   const today = useMemo(() => new Date(), []);
   const weekDays = useMemo(() => getCurrentWeek(today), [today]);
-  const homeReadiness = useMemo(
+  const homeRecommendationContext = useMemo(
     () =>
-      getOutfitRecommendationReadiness(
-        closetItems,
-        getCurrentSeasonForReadiness(today),
-        currentRecommendationWeather
-      ),
-    [closetItems, currentRecommendationWeather, today]
+      createOutfitRecommendationContext({
+        items: closetItems,
+        recommendationItems: closetItems,
+        currentSeason: recommendationSeason,
+        weather: currentRecommendationWeather,
+      }),
+    [closetItems, currentRecommendationWeather, recommendationSeason]
   );
+  const homeReadiness = homeRecommendationContext.readiness;
   const recommendationEmptyContent = homeReadiness.ready
     ? getOutfitRecommendationEmptyContent(recommendationEmptyState, closetItems)
     : getOutfitRecommendationReadinessContent(homeReadiness);
@@ -992,10 +1057,7 @@ export default function HomeScreen() {
 
     router.push({
       pathname: "/outfit-recommend",
-      params: getRecommendationRouteParams(
-        activeRecommendation,
-        currentRecommendationWeather
-      ),
+      params: getRecommendationRouteParams(activeRecommendation),
     });
   }
 

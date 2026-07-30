@@ -12,7 +12,7 @@ import type {
 import type { ClosetItem } from "@/utils/storage";
 
 export { HOME_RECOMMENDATION_CACHE_STORAGE_KEY };
-export const HOME_RECOMMENDATION_CACHE_VERSION = 2;
+export const HOME_RECOMMENDATION_CACHE_VERSION = 3;
 export const HOME_WEATHER_RECOMMENDATION_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 2;
 
 export type HomeRecommendationEmptyState = {
@@ -72,6 +72,7 @@ export type HomeRecommendationCacheMissReason =
   | "profile_revision_changed"
   | "saved_outfit_revision_changed"
   | "feedback_revision_changed"
+  | "recommendation_context_changed"
   | "weather_expired"
   | "missing_item";
 
@@ -125,7 +126,7 @@ export function getHomeRecommendationCacheRevisionMismatchReason(
   }
   if (cached.feedback !== current.feedback) return "feedback_revision_changed";
 
-  return "revision_changed";
+  return "recommendation_context_changed";
 }
 
 function isValidWeather(value: unknown): value is OutfitRecommendationWeather | null {

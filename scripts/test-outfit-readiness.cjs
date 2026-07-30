@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const Module = require("node:module");
 const path = require("node:path");
 const test = require("node:test");
@@ -61,6 +62,11 @@ const {
   getOutfitRecommendationReadiness,
   getOutfitRecommendationReadinessContent,
 } = require("../utils/outfitRecommendationReadiness.ts");
+const {
+  createOutfitRecommendationContext,
+  getOutfitRecommendationContextCacheKey,
+  OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION,
+} = require("../utils/outfitRecommendationContext.ts");
 
 function makeItem(id, category, overrides = {}) {
   return {
@@ -207,4 +213,94 @@ test("추천 준비의 기본 계절 계산은 월 경계를 따른다", () => {
   assert.equal(getCurrentSeasonForReadiness(new Date(2026, 5, 1)), "여름");
   assert.equal(getCurrentSeasonForReadiness(new Date(2026, 8, 1)), "가을");
   assert.equal(getCurrentSeasonForReadiness(new Date(2026, 11, 1)), "겨울");
+});
+
+test("같은 옷장과 날씨는 모든 진입점에서 동일한 준비 상태를 만든다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("top-1", "상의", {
+    detailCategory: "패딩 셔츠",
+  });
+  const weather = {
+    temperature: 28,
+    condition: "맑음",
+    rainChance: 0,
+  };
+  const contexts = ["home", "outfit", "recommend"].map(() =>
+    createOutfitRecommendationContext({
+      items: closet,
+      currentSeason: "여름",
+      weather,
+    })
+  );
+
+  assert.deepEqual(
+    contexts.map((context) => context.readiness.reason),
+    [
+      "not_enough_season_items",
+      "not_enough_season_items",
+      "not_enough_season_items",
+    ]
+  );
+  assert.deepEqual(
+    contexts.map((context) => context.readiness.currentConditionCounts),
+    [
+      contexts[0].readiness.currentConditionCounts,
+      contexts[0].readiness.currentConditionCounts,
+      contexts[0].readiness.currentConditionCounts,
+    ]
+  );
+});
+
+test("날씨가 없으면 모든 진입점은 동일한 계절 전용 준비 상태를 사용한다", () => {
+  const closet = makeReadyCloset();
+  closet[0] = makeItem("top-1", "상의", {
+    detailCategory: "패딩 셔츠",
+  });
+  const contexts = ["home", "outfit", "recommend"].map(() =>
+    createOutfitRecommendationContext({
+      items: closet,
+      currentSeason: "여름",
+      weather: null,
+    })
+  );
+
+  assert.equal(contexts.every((context) => context.readiness.ready), true);
+  assert.equal(contexts.every((context) => context.weather === null), true);
+});
+
+test("추천 캐시 키는 계절과 준비 정책 변경을 구분한다", () => {
+  const revisionKey = "v1|c3|p2|s1|f0";
+  const summerKey = getOutfitRecommendationContextCacheKey(
+    revisionKey,
+    "여름"
+  );
+  const winterKey = getOutfitRecommendationContextCacheKey(
+    revisionKey,
+    "겨울"
+  );
+
+  assert.notEqual(summerKey, winterKey);
+  assert.match(
+    summerKey,
+    new RegExp(`readiness${OUTFIT_RECOMMENDATION_READINESS_POLICY_VERSION}`)
+  );
+  assert.match(summerKey, /season:여름/);
+});
+
+test("홈·코디 탭·추천 화면은 공통 추천 컨텍스트를 사용한다", () => {
+  const sourcePaths = [
+    "app/(tabs)/index.tsx",
+    "app/outfit.tsx",
+    "app/outfit-recommend.tsx",
+  ];
+
+  sourcePaths.forEach((sourcePath) => {
+    const source = fs.readFileSync(path.join(projectRoot, sourcePath), "utf8");
+    assert.match(source, /createOutfitRecommendationContext/);
+  });
+
+  ["app/outfit.tsx", "app/outfit-recommend.tsx"].forEach((sourcePath) => {
+    const source = fs.readFileSync(path.join(projectRoot, sourcePath), "utf8");
+    assert.match(source, /getOutfitRecommendationWeatherContext/);
+  });
 });

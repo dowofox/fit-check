@@ -187,6 +187,17 @@ function getMissingItemSummary(
   return "";
 }
 
+function getReadinessCountSummary(
+  counts: OutfitRecommendationReadinessCounts
+) {
+  const requirements = OUTFIT_RECOMMENDATION_READINESS_REQUIREMENTS;
+  return [
+    `상의 ${counts.tops}/${requirements.tops}`,
+    `하의 ${counts.bottoms}/${requirements.bottoms}`,
+    `핵심 조합 ${counts.coreCombinations}/${requirements.coreCombinations}`,
+  ].join(" · ");
+}
+
 export function getOutfitRecommendationReadinessContent(
   readiness: OutfitRecommendationReadiness
 ): OutfitRecommendationReadinessContent {
@@ -201,16 +212,18 @@ export function getOutfitRecommendationReadinessContent(
   if (readiness.reason === "not_enough_season_items") {
     return {
       title: "지금 계절에 맞는 옷이 조금 부족해요",
-      text: `옷장에는 옷이 충분하지만 현재 조건에 맞는 조합이 부족해요. ${getMissingItemSummary(
-        readiness.currentConditionMissing
-      )}`.trim(),
+      text: `현재 조건 ${getReadinessCountSummary(
+        readiness.currentConditionCounts
+      )}. ${getMissingItemSummary(readiness.currentConditionMissing)}`.trim(),
       primaryActionLabel: "계절 옷 추가하기",
     };
   }
 
   return {
     title: "추천 준비까지 조금 남았어요",
-    text: getMissingItemSummary(readiness.missing),
+    text: `${getReadinessCountSummary(readiness.counts)}. ${getMissingItemSummary(
+      readiness.missing
+    )}`.trim(),
     primaryActionLabel: "필요한 옷 추가하기",
   };
 }

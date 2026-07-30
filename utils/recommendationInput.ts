@@ -140,10 +140,6 @@ export function toRecommendationInputItems(items: ClosetItem[]) {
     .map(toRecommendationInputItem);
 }
 
-export function shouldUseRecommendationWeather(source?: string) {
-  return source === "home";
-}
-
 export function getSavedOutfitItemIds(
   savedOutfits: SavedOutfit[],
   closetItems: ClosetItem[]

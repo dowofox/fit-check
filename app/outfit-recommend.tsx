@@ -10,16 +10,17 @@ import {
   getOutfitDisplayReasons,
   getOutfitRecommendationResult,
   OutfitRecommendation,
-  OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
 import {
-  getCurrentSeasonForReadiness,
-  getOutfitRecommendationReadiness,
   getOutfitRecommendationReadinessContent,
 } from "@/utils/outfitRecommendationReadiness";
 import {
-  type OutfitRecommendationFeedback,
+  createOutfitRecommendationContext,
+  type OutfitRecommendationContext,
+} from "@/utils/outfitRecommendationContext";
+import { getOutfitRecommendationWeatherContext } from "@/utils/outfitRecommendationWeatherContext";
+import {
   type OutfitFeedbackValue,
 } from "@/utils/outfitFeedback";
 import {
@@ -33,12 +34,10 @@ import {
 } from "@/utils/shoppingRecommend";
 import {
   getSavedOutfitItemIds,
-  shouldUseRecommendationWeather,
   toRecommendationInputItems,
 } from "@/utils/recommendationInput";
 import {
   ClosetItem,
-  type UserProfile,
   createSavedOutfitId,
   getClosetItemsLoadResult,
   getOutfitRecommendationFeedbacksLoadResult,
@@ -48,10 +47,6 @@ import {
   setOutfitRecommendationFeedback,
 } from "@/utils/storage";
 import { colors } from "@/utils/theme";
-import {
-  getCachedWeatherForRecommendation,
-  getCurrentWeatherForRecommendation,
-} from "@/utils/weather";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -67,16 +62,6 @@ import {
 
 const DEFAULT_EMPTY_MESSAGE = getOutfitRecommendationEmptyContent({});
 
-type LoadedRecommendationContext = {
-  items: ClosetItem[];
-  recommendationItems: ClosetItem[];
-  profile: UserProfile | null;
-  savedOutfitItemIds: string[][];
-  weather?: OutfitRecommendationWeather | null;
-  feedbacks: OutfitRecommendationFeedback[];
-  preferredItemIds?: string[];
-};
-
 function getItemName(item: ClosetItem) {
   return item.detailCategory || item.subCategory || item.category;
 }
@@ -89,45 +74,11 @@ function parseParamValue(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function parseNumberParam(value?: string | string[]) {
-  const parsed = Number(parseParamValue(value));
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 function parseSelectedItemIds(value?: string | string[]) {
   return (parseParamValue(value) || "")
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
-}
-
-function getWeatherFromParams(params: {
-  weatherTemperature?: string | string[];
-  weatherCondition?: string | string[];
-  weatherRainChance?: string | string[];
-}): OutfitRecommendationWeather | null {
-  const temperature = parseNumberParam(params.weatherTemperature);
-  const rainChance = parseNumberParam(params.weatherRainChance);
-  const condition = parseParamValue(params.weatherCondition);
-
-  if (temperature === undefined && rainChance === undefined && !condition) return null;
-
-  return {
-    temperature,
-    condition: condition || undefined,
-    rainChance,
-  };
-}
-
-async function getWeatherForRecommendation(
-  paramsWeather: OutfitRecommendationWeather | null
-) {
-  if (paramsWeather && typeof paramsWeather.temperature === "number") return paramsWeather;
-
-  const cachedWeather = await getCachedWeatherForRecommendation();
-  if (cachedWeather) return cachedWeather;
-
-  return getCurrentWeatherForRecommendation();
 }
 
 function getDefaultOutfitName(date: Date) {
@@ -572,15 +523,9 @@ export default function OutfitRecommendScreen() {
   const params = useLocalSearchParams<{
     source?: string;
     selectedItemIds?: string;
-    weatherTemperature?: string;
-    weatherCondition?: string;
-    weatherRainChance?: string;
   }>();
   const sourceParam = parseParamValue(params.source);
   const selectedItemIdsParam = parseParamValue(params.selectedItemIds);
-  const weatherTemperatureParam = parseParamValue(params.weatherTemperature);
-  const weatherConditionParam = parseParamValue(params.weatherCondition);
-  const weatherRainChanceParam = parseParamValue(params.weatherRainChance);
   const [baseRecommendations, setBaseRecommendations] = useState<OutfitRecommendation[]>([]);
   const [shoppingRecommendations, setShoppingRecommendations] = useState<RecommendedShoppingItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -592,17 +537,13 @@ export default function OutfitRecommendScreen() {
   const recommendationLoadRequestRef = useRef(0);
   const outfitSaveInProgressRef = useRef(false);
   const selectedSituationRef = useRef<OutfitSituationId>("all");
-  const recommendationContextRef = useRef<LoadedRecommendationContext | null>(null);
+  const recommendationContextRef = useRef<OutfitRecommendationContext | null>(null);
 
   function applyRecommendationContext(
-    context: LoadedRecommendationContext,
+    context: OutfitRecommendationContext,
     situationId: OutfitSituationId
   ) {
-    const readiness = getOutfitRecommendationReadiness(
-      context.items,
-      getCurrentSeasonForReadiness(),
-      context.weather
-    );
+    const readiness = context.readiness;
 
     if (!readiness.ready) {
       setBaseRecommendations([]);
@@ -613,10 +554,11 @@ export default function OutfitRecommendScreen() {
     const recommendationResult = getOutfitRecommendationResult(
       context.recommendationItems,
       context.profile,
-      undefined,
+      context.currentSeason,
       context.savedOutfitItemIds,
       {
         weather: context.weather,
+        allowSeasonFallback: false,
         feedbacks: context.feedbacks,
         preferredItemIds: context.preferredItemIds,
         situation: OUTFIT_SITUATIONS.find((option) => option.id === situationId),
@@ -643,24 +585,27 @@ export default function OutfitRecommendScreen() {
     recommendationLoadRequestRef.current = requestId;
     setIsLoaded(false);
     setHasLoadError(false);
+    recommendationContextRef.current = null;
+    setBaseRecommendations([]);
+    setShoppingRecommendations([]);
+    setEmptyMessage(DEFAULT_EMPTY_MESSAGE);
 
     const source = sourceParam;
-    const useWeather = shouldUseRecommendationWeather(source);
-    const selectedItemIds = useWeather
+    const selectedItemIds = source === "home"
       ? parseSelectedItemIds(selectedItemIdsParam)
       : [];
-    const paramsWeather = useWeather
-      ? getWeatherFromParams({
-          weatherTemperature: weatherTemperatureParam,
-          weatherCondition: weatherConditionParam,
-          weatherRainChance: weatherRainChanceParam,
-        })
-      : null;
-    const [closetResult, profileResult, savedOutfitsResult, feedbacksResult] = await Promise.all([
+    const [
+      closetResult,
+      profileResult,
+      savedOutfitsResult,
+      feedbacksResult,
+      weatherContext,
+    ] = await Promise.all([
       getClosetItemsLoadResult(),
       getUserProfileLoadResult(),
       getSavedOutfitsLoadResult(),
       getOutfitRecommendationFeedbacksLoadResult(),
+      getOutfitRecommendationWeatherContext(),
     ]);
     if (requestId !== recommendationLoadRequestRef.current) return;
 
@@ -681,20 +626,15 @@ export default function OutfitRecommendScreen() {
     const feedbacks = feedbacksResult.feedbacks;
     const recommendationItems = toRecommendationInputItems(items);
     const savedOutfitItemIds = getSavedOutfitItemIds(savedOutfits, items);
-    const weather = useWeather
-      ? await getWeatherForRecommendation(paramsWeather)
-      : undefined;
-    if (requestId !== recommendationLoadRequestRef.current) return;
-
-    const recommendationContext: LoadedRecommendationContext = {
+    const recommendationContext = createOutfitRecommendationContext({
       items,
       recommendationItems,
       profile,
       savedOutfitItemIds,
-      weather,
+      weather: weatherContext.weather,
       feedbacks,
       preferredItemIds: source === "home" ? selectedItemIds : undefined,
-    };
+    });
 
     recommendationContextRef.current = recommendationContext;
     applyRecommendationContext(
@@ -703,13 +643,7 @@ export default function OutfitRecommendScreen() {
     );
     setShoppingRecommendations(getRecommendedShoppingItems(items));
     setIsLoaded(true);
-  }, [
-    selectedItemIdsParam,
-    sourceParam,
-    weatherConditionParam,
-    weatherRainChanceParam,
-    weatherTemperatureParam,
-  ]);
+  }, [selectedItemIdsParam, sourceParam]);
 
   const recommendations = baseRecommendations;
   const visibleEmptyMessage = emptyMessage;

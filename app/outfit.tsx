@@ -7,10 +7,13 @@ import {
   StatusCard,
 } from "@/components/ui/NaesUi";
 import {
-  getCurrentSeasonForReadiness,
-  getOutfitRecommendationReadiness,
   getOutfitRecommendationReadinessContent,
 } from "@/utils/outfitRecommendationReadiness";
+import {
+  createOutfitRecommendationContext,
+  type OutfitRecommendationContext,
+} from "@/utils/outfitRecommendationContext";
+import { getOutfitRecommendationWeatherContext } from "@/utils/outfitRecommendationWeatherContext";
 import {
   type ClosetItem,
   getClosetItemsLoadResult,
@@ -26,6 +29,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 export default function OutfitHubScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [savedOutfitCount, setSavedOutfitCount] = useState(0);
+  const [weather, setWeather] =
+    useState<OutfitRecommendationContext["weather"]>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasLoadError, setHasLoadError] = useState(false);
   const loadRequestRef = useRef(0);
@@ -35,9 +40,10 @@ export default function OutfitHubScreen() {
     loadRequestRef.current = requestId;
     setHasLoadError(false);
     setIsLoaded(false);
-    const [closetResult, savedOutfitsResult] = await Promise.all([
+    const [closetResult, savedOutfitsResult, weatherContext] = await Promise.all([
       getClosetItemsLoadResult(),
       getSavedOutfitsLoadResult(),
+      getOutfitRecommendationWeatherContext(),
     ]);
 
     if (requestId !== loadRequestRef.current) return;
@@ -52,6 +58,7 @@ export default function OutfitHubScreen() {
 
     setClosetItems(closetResult.items);
     setSavedOutfitCount(savedOutfitsResult.outfits.length);
+    setWeather(weatherContext.weather);
     setIsLoaded(true);
   }, []);
 
@@ -65,14 +72,15 @@ export default function OutfitHubScreen() {
     }, [loadOutfitSummary])
   );
 
-  const readiness = useMemo(
+  const recommendationContext = useMemo(
     () =>
-      getOutfitRecommendationReadiness(
-        closetItems,
-        getCurrentSeasonForReadiness()
-      ),
-    [closetItems]
+      createOutfitRecommendationContext({
+        items: closetItems,
+        weather,
+      }),
+    [closetItems, weather]
   );
+  const readiness = recommendationContext.readiness;
   const readinessContent = getOutfitRecommendationReadinessContent(readiness);
   const displayedCounts =
     readiness.reason === "not_enough_season_items"
@@ -141,48 +149,49 @@ export default function OutfitHubScreen() {
             <Text style={styles.subtitle}>{readinessContent.text}</Text>
 
             <View style={styles.metrics}>
-          {metrics.map((metric, index) => {
-            const complete = metric.current >= metric.required;
-            return (
-              <View key={metric.label} style={styles.metricRow}>
-                <View style={styles.metricTrack}>
-                  <View
-                    style={[
-                      styles.metricDot,
-                      complete && styles.metricDotComplete,
-                    ]}
-                  >
-                    {complete ? (
-                      <Feather name="check" size={13} color={colors.card} />
-                    ) : (
-                      <Text style={styles.metricIndex}>{index + 1}</Text>
-                    )}
+              {metrics.map((metric, index) => {
+                const complete = metric.current >= metric.required;
+                return (
+                  <View key={metric.label} style={styles.metricRow}>
+                    <View style={styles.metricTrack}>
+                      <View
+                        style={[
+                          styles.metricDot,
+                          complete && styles.metricDotComplete,
+                        ]}
+                      >
+                        {complete ? (
+                          <Feather name="check" size={13} color={colors.card} />
+                        ) : (
+                          <Text style={styles.metricIndex}>{index + 1}</Text>
+                        )}
+                      </View>
+                      {index < metrics.length - 1 ? (
+                        <View style={styles.metricLine} />
+                      ) : null}
+                    </View>
+                    <View style={styles.metricTextArea}>
+                      <View style={styles.metricTitleRow}>
+                        <Text style={styles.metricTitle}>{metric.label}</Text>
+                        <Text
+                          style={[
+                            styles.metricCount,
+                            complete && styles.metricCountComplete,
+                          ]}
+                        >
+                          {metric.current} / {metric.required} ·{" "}
+                          {metric.requiredLabel}
+                        </Text>
+                      </View>
+                      <Text style={styles.metricDescription}>
+                        {complete
+                          ? "준비됐어요"
+                          : `${Math.max(metric.required - metric.current, 0)}개 더 필요해요`}
+                      </Text>
+                    </View>
                   </View>
-                  {index < metrics.length - 1 ? (
-                    <View style={styles.metricLine} />
-                  ) : null}
-                </View>
-                <View style={styles.metricTextArea}>
-                  <View style={styles.metricTitleRow}>
-                    <Text style={styles.metricTitle}>{metric.label}</Text>
-                    <Text
-                      style={[
-                        styles.metricCount,
-                        complete && styles.metricCountComplete,
-                      ]}
-                    >
-                      {metric.current} / {metric.required} · {metric.requiredLabel}
-                    </Text>
-                  </View>
-                  <Text style={styles.metricDescription}>
-                    {complete
-                      ? "준비됐어요"
-                      : `${Math.max(metric.required - metric.current, 0)}개 더 필요해요`}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
+                );
+              })}
             </View>
 
             <View style={styles.nextAction}>
