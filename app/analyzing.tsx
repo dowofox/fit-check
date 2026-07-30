@@ -5,6 +5,7 @@ import {
 } from "@/utils/api";
 import { encodeAnalysisImageUri } from "@/utils/analysisImage";
 import { getUserProfile, saveAnalysis } from "@/utils/storage";
+import { colors, typography } from "@/utils/theme";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
@@ -104,7 +105,11 @@ export default function AnalyzingScreen() {
 
     return (
         <View style={styles.container}>
-            <ActivityIndicator size="large" color="#000" />
+            <ActivityIndicator
+                accessibilityLabel="코디 분석 중"
+                size="large"
+                color={colors.point}
+            />
             <Text style={styles.title}>AI가 코디를 분석하고 있어요</Text>
             <Text style={styles.subtitle}>핏, 색 조합, 비율, 체형 적합도까지 자세히 분석하는 중이에요.</Text>
         </View>
@@ -114,22 +119,22 @@ export default function AnalyzingScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#fff",
+        backgroundColor: colors.background,
         justifyContent: "center",
         alignItems: "center",
         paddingHorizontal: 24,
     },
     title: {
+        ...typography.screenTitle,
         marginTop: 24,
-        fontSize: 22,
-        fontWeight: "700",
+        color: colors.primaryText,
         textAlign: "center",
     },
     subtitle: {
+        ...typography.body,
         marginTop: 12,
-        fontSize: 15,
-        color: "#666",
+        color: colors.secondaryText,
         textAlign: "center",
-        lineHeight: 22,
+        maxWidth: 300,
     },
 });

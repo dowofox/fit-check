@@ -1,4 +1,5 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import { ScreenHeader } from "@/components/ui/NaesUi";
 import { useClosetAnalysisRefresh } from "@/providers/ClosetAnalysisRefreshProvider";
 import { getNaesBackupSummary, type NaesBackupPayload } from "@/utils/dataBackup";
 import {
@@ -71,6 +72,7 @@ function MeasurementInput({
       <Text style={styles.inputLabel}>{label}</Text>
       <View style={styles.textInputWrap}>
         <TextInput
+          accessibilityLabel={label}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -382,15 +384,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={18} color="#111" />
-          </Pressable>
-
-          <Text style={styles.headerTitle}>마이페이지</Text>
-
-          <View style={styles.headerBlank} />
-        </View>
+        <ScreenHeader title="마이페이지" onBack={() => router.back()} />
 
         {!isProfileReady && !hasProfileLoadError ? (
           <View style={styles.profileLoadCard}>
@@ -480,6 +474,9 @@ export default function ProfileScreen() {
             {genderOptions.map((option) => (
               <Pressable
                 key={option}
+                accessibilityRole="button"
+                accessibilityLabel={`성별 ${option}`}
+                accessibilityState={{ selected: gender === option }}
                 style={[styles.optionButton, gender === option && styles.activeOptionButton]}
                 onPress={() => setGender(option)}
               >
@@ -543,6 +540,9 @@ export default function ProfileScreen() {
             {bodyTypeOptions.map((option) => (
               <Pressable
                 key={option}
+                accessibilityRole="button"
+                accessibilityLabel={`체형 ${option}`}
+                accessibilityState={{ selected: bodyType === option }}
                 style={[styles.bodyTypeButton, bodyType === option && styles.activeBodyTypeButton]}
                 onPress={() => setBodyType(option)}
               >
@@ -567,6 +567,9 @@ export default function ProfileScreen() {
                   style={styles.textInput}
                 />
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="상의 FREE 사이즈"
+                  accessibilityState={{ selected: topSize === "FREE" }}
                   style={[
                     styles.freeSizeButton,
                     topSize === "FREE" && styles.freeSizeButtonActive,
@@ -596,6 +599,9 @@ export default function ProfileScreen() {
                   style={styles.textInput}
                 />
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="하의 FREE 사이즈"
+                  accessibilityState={{ selected: bottomSize === "FREE" }}
                   style={[
                     styles.freeSizeButton,
                     bottomSize === "FREE" && styles.freeSizeButtonActive,
@@ -628,6 +634,9 @@ export default function ProfileScreen() {
                 />
                 {shoeSize !== "FREE" ? <Text style={styles.unitText}>mm</Text> : null}
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="신발 FREE 사이즈"
+                  accessibilityState={{ selected: shoeSize === "FREE" }}
                   style={[
                     styles.freeSizeButton,
                     shoeSize === "FREE" && styles.freeSizeButtonActive,
@@ -733,6 +742,15 @@ export default function ProfileScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="프로필 저장하기"
+          accessibilityState={{
+            disabled:
+              !isProfileReady ||
+              hasProfileLoadError ||
+              isProfileDataOperationInProgress,
+            busy: isSavingProfile,
+          }}
           style={[
             styles.saveButton,
             (!isProfileReady ||
@@ -1044,9 +1062,11 @@ const styles = StyleSheet.create({
   },
   optionButton: {
     flex: 1,
+    minHeight: 44,
     backgroundColor: "#fff",
     borderRadius: 14,
     paddingVertical: 8,
+    justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#eee7dd",
@@ -1079,7 +1099,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textInputWrap: {
-    height: 42,
+    minHeight: 44,
     backgroundColor: "#fff",
     borderRadius: 14,
     borderWidth: 1,
@@ -1100,11 +1120,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   freeSizeButton: {
+    minWidth: 44,
+    minHeight: 34,
     backgroundColor: "#f4eee7",
     borderRadius: 10,
     paddingVertical: 5,
     paddingHorizontal: 7,
     marginLeft: 5,
+    alignItems: "center",
+    justifyContent: "center",
   },
   freeSizeButtonActive: {
     backgroundColor: "#111",
@@ -1124,9 +1148,11 @@ const styles = StyleSheet.create({
   },
   bodyTypeButton: {
     width: "48.4%",
+    minHeight: 44,
     backgroundColor: "#fff",
     borderRadius: 14,
     paddingVertical: 8,
+    justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#eee7dd",
@@ -1191,6 +1217,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   saveButton: {
+    minHeight: 50,
     backgroundColor: "#111",
     borderRadius: 18,
     paddingVertical: 10,
@@ -1229,7 +1256,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   dataActionButton: {
-    minHeight: 42,
+    minHeight: 44,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E8DED2",

@@ -24,7 +24,16 @@ function NavItem({
   onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.navItem} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label} 탭`}
+      accessibilityState={{ selected: active }}
+      style={({ pressed }) => [
+        styles.navItem,
+        pressed && styles.navItemPressed,
+      ]}
+      onPress={onPress}
+    >
       <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
         <Feather name={icon} size={17} color={active ? ACTIVE_COLOR : INACTIVE_COLOR} />
       </View>
@@ -41,7 +50,15 @@ export default function BottomNav({ activeTab }: { activeTab: BottomNavTab }) {
       <View style={styles.bottomNav}>
         <NavItem active={activeTab === "home"} icon="home" label="홈" onPress={() => router.replace("/")} />
         <NavItem active={activeTab === "closet"} icon="book-open" label="옷장" onPress={() => router.push("/closet")} />
-        <Pressable style={styles.centerButton} onPress={() => router.push("/add-clothes")}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="옷 추가하기"
+          style={({ pressed }) => [
+            styles.centerButton,
+            pressed && styles.navItemPressed,
+          ]}
+          onPress={() => router.push("/add-clothes")}
+        >
           <Feather name="plus" size={21} color={colors.card} />
         </Pressable>
         <NavItem active={activeTab === "outfit"} icon="star" label="코디" onPress={() => router.push("/outfit")} />
@@ -74,6 +91,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
     position: "relative",
+  },
+  navItemPressed: {
+    opacity: 0.72,
   },
   centerButton: {
     width: 46,

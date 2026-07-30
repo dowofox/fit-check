@@ -420,6 +420,9 @@ function SavedOutfitCard({
 
       {!isEditing && (
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="저장한 코디 이름과 메모 수정"
+          accessibilityState={{ disabled: isMutationPending }}
           style={[
             styles.editButton,
             isMutationPending && styles.mutationButtonDisabled,
@@ -433,6 +436,9 @@ function SavedOutfitCard({
       )}
 
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="저장한 코디 삭제"
+        accessibilityState={{ disabled: isMutationPending }}
         style={[
           styles.deleteButton,
           isMutationPending && styles.mutationButtonDisabled,
@@ -650,12 +656,24 @@ export default function SavedOutfitsScreen() {
         <Text style={styles.headerTitle}>코디</Text>
 
         <View style={styles.topActionRow}>
-          <Pressable style={styles.recommendTab} onPress={() => router.push("/outfit-recommend")}>
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel="코디 추천"
+            accessibilityState={{ selected: false }}
+            style={styles.recommendTab}
+            onPress={() => router.push("/outfit-recommend")}
+          >
             <Feather name="star" size={15} color="#fff" />
             <Text style={styles.recommendTabText}>코디 추천</Text>
           </Pressable>
 
-          <View style={styles.savedTab}>
+          <View
+            accessible
+            accessibilityRole="tab"
+            accessibilityLabel="저장한 코디"
+            accessibilityState={{ selected: true }}
+            style={styles.savedTab}
+          >
             <Feather name="bookmark" size={15} color="#8C6F47" />
             <Text style={styles.savedTabText}>저장한 코디</Text>
           </View>
@@ -677,7 +695,12 @@ export default function SavedOutfitsScreen() {
                 저장된 데이터는 그대로 있어요. 잠시 후 다시 시도해주세요.
               </Text>
             </View>
-            <Pressable style={styles.loadErrorAction} onPress={loadSavedOutfits}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="저장한 코디 다시 불러오기"
+              style={styles.loadErrorAction}
+              onPress={loadSavedOutfits}
+            >
               <Text style={styles.loadErrorActionText}>다시 시도</Text>
             </Pressable>
           </View>
@@ -701,6 +724,8 @@ export default function SavedOutfitsScreen() {
               코디 추천 화면에서 마음에 드는 조합을 저장하면 여기에 모아볼 수 있어요.
             </Text>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="코디 추천 받기"
               style={styles.primaryButton}
               onPress={() => router.push("/outfit-recommend")}
             >

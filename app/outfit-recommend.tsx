@@ -1,12 +1,23 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
 import ClosetItemImage from "@/components/ClosetItemImage";
 import {
+  FilterChip,
+  HeaderIconButton,
+  ScreenHeader,
+  StatusCard,
+} from "@/components/ui/NaesUi";
+import {
   getOutfitDisplayReasons,
   getOutfitRecommendationResult,
   OutfitRecommendation,
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
+import {
+  getCurrentSeasonForReadiness,
+  getOutfitRecommendationReadiness,
+  getOutfitRecommendationReadinessContent,
+} from "@/utils/outfitRecommendationReadiness";
 import {
   type OutfitRecommendationFeedback,
   type OutfitFeedbackValue,
@@ -204,6 +215,8 @@ function RecommendationCard({
           {getDisplayItems(recommendation.items).map((item) => (
             <Pressable
               key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${getItemName(item)} 상세 보기`}
               style={styles.itemCard}
               onPress={() => router.push({
                 pathname: "/clothes-detail",
@@ -238,6 +251,8 @@ function RecommendationCard({
             {seasonReviewItems.map((item) => (
               <Pressable
                 key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${getItemName(item)} 계절 정보 수정`}
                 style={styles.seasonReviewItemButton}
                 onPress={() =>
                   router.push({
@@ -258,6 +273,9 @@ function RecommendationCard({
 
       {previewReasons.length > 0 ? (
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`추천 이유 ${isDetailOpen ? "접기" : "자세히 보기"}`}
+          accessibilityState={{ expanded: isDetailOpen }}
           style={styles.reasonSummaryBox}
           onPress={() => setIsDetailOpen((current) => !current)}
         >
@@ -325,6 +343,11 @@ function RecommendationCard({
 
       {recommendation.alternativeCount ? (
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`다른 버전 ${recommendation.alternativeCount}개 ${
+            isAlternativeOpen ? "접기" : "보기"
+          }`}
+          accessibilityState={{ expanded: isAlternativeOpen }}
           style={styles.alternativeBox}
           onPress={() => setIsAlternativeOpen((current) => !current)}
         >
@@ -362,6 +385,8 @@ function RecommendationCard({
                 {getDisplayItems(alternative.items).map((item) => (
                   <Pressable
                     key={item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${getItemName(item)} 상세 보기`}
                     style={styles.alternativeItemCard}
                     onPress={() => router.push({
                       pathname: "/clothes-detail",
@@ -573,6 +598,18 @@ export default function OutfitRecommendScreen() {
     context: LoadedRecommendationContext,
     situationId: OutfitSituationId
   ) {
+    const readiness = getOutfitRecommendationReadiness(
+      context.items,
+      getCurrentSeasonForReadiness(),
+      context.weather
+    );
+
+    if (!readiness.ready) {
+      setBaseRecommendations([]);
+      setEmptyMessage(getOutfitRecommendationReadinessContent(readiness));
+      return;
+    }
+
     const recommendationResult = getOutfitRecommendationResult(
       context.recommendationItems,
       context.profile,
@@ -754,83 +791,61 @@ export default function OutfitRecommendScreen() {
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={20} color={colors.text} />
-          </Pressable>
-
-          <Text style={styles.headerTitle}>코디 추천</Text>
-
-          <Pressable
-            style={styles.savedIconButton}
-            onPress={() => router.push("/saved-outfits")}
-          >
-            <Feather name="bookmark" size={17} color={colors.text} />
-          </Pressable>
-        </View>
+        <ScreenHeader
+          title="코디 추천"
+          onBack={() => router.back()}
+          right={
+            <HeaderIconButton
+              accessibilityLabel="저장한 코디 보기"
+              icon="bookmark"
+              onPress={() => router.push("/saved-outfits")}
+            />
+          }
+        />
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.situationFilter}
           contentContainerStyle={styles.situationFilterRow}
         >
           {OUTFIT_SITUATIONS.map((option) => {
             const isActive = selectedSituation === option.id;
 
             return (
-              <Pressable
+              <FilterChip
                 key={option.id}
-                style={[styles.situationChip, isActive && styles.situationChipActive]}
+                label={option.label}
+                selected={isActive}
+                disabled={!isLoaded || hasLoadError}
                 onPress={() => handleSituationChange(option.id)}
-              >
-                <Text
-                  style={[
-                    styles.situationChipText,
-                    isActive && styles.situationChipTextActive,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
+              />
             );
           })}
         </ScrollView>
 
-        {hasLoadError ? (
-          <View style={styles.loadErrorCard}>
-            <Feather name="alert-circle" size={20} color={colors.warning} />
-            <View style={styles.loadErrorTextArea}>
-              <Text style={styles.loadErrorTitle}>추천 정보를 불러오지 못했어요</Text>
-              <Text style={styles.loadErrorText}>
-                저장된 옷은 그대로 있어요. 잠시 후 다시 시도해주세요.
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="코디 추천 다시 불러오기"
-              style={styles.loadErrorAction}
-              onPress={loadRecommendations}
-            >
-              <Text style={styles.loadErrorActionText}>다시 시도</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {isLoaded && recommendations.length === 0 && !hasLoadError ? (
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconCircle}>
-              <Feather name="layers" size={26} color={colors.point} />
-            </View>
-            <Text style={styles.emptyTitle}>{visibleEmptyMessage.title}</Text>
-            <Text style={styles.emptyText}>{visibleEmptyMessage.text}</Text>
-            <Pressable
-              style={styles.emptyActionButton}
-              onPress={() => router.push("/add-clothes")}
-            >
-              <Feather name="plus" size={16} color={colors.card} />
-              <Text style={styles.emptyActionButtonText}>옷 추가하기</Text>
-            </Pressable>
-          </View>
+        {!isLoaded ? (
+          <StatusCard
+            kind="loading"
+            title="오늘의 코디를 준비하고 있어요"
+            description="옷장과 선택한 상황을 확인한 뒤 어울리는 조합만 보여드릴게요."
+          />
+        ) : hasLoadError ? (
+          <StatusCard
+            kind="error"
+            title="추천 정보를 불러오지 못했어요"
+            description="저장된 옷은 그대로 있어요. 잠시 후 다시 시도해주세요."
+            actionLabel="다시 시도"
+            onAction={loadRecommendations}
+          />
+        ) : recommendations.length === 0 ? (
+          <StatusCard
+            kind="empty"
+            title={visibleEmptyMessage.title}
+            description={visibleEmptyMessage.text}
+            actionLabel="옷 추가하기"
+            onAction={() => router.push("/add-clothes")}
+          />
         ) : (
           <View style={styles.listArea}>
             {recommendations.map((recommendation, index) => (
@@ -847,7 +862,9 @@ export default function OutfitRecommendScreen() {
           </View>
         )}
 
-        {isLoaded ? <ShoppingRecommendationSection items={shoppingRecommendations} /> : null}
+        {isLoaded && !hasLoadError ? (
+          <ShoppingRecommendationSection items={shoppingRecommendations} />
+        ) : null}
       </ScrollView>
       <BottomNav activeTab="outfit" />
     </View>
@@ -894,10 +911,15 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textAlign: "center",
   },
+  situationFilter: {
+    flexGrow: 0,
+    maxHeight: 44,
+    marginBottom: 14,
+  },
   situationFilterRow: {
     gap: 8,
     paddingRight: 14,
-    marginBottom: 14,
+    alignItems: "center",
   },
   situationChip: {
     minHeight: 34,

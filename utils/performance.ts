@@ -10,7 +10,6 @@ export function startPerformanceTimer(label: string): PerformanceTimer {
 
   performanceSequence += 1;
   const timerLabel = `[perf] ${label} #${performanceSequence}`;
-  console.time(timerLabel);
   return {
     label: timerLabel,
     startedAt: Date.now(),
@@ -29,7 +28,6 @@ export function endPerformanceTimer(
     durationMs,
     ...(details || {}),
   });
-  console.timeEnd(timer.label);
 }
 
 export function logPerformanceMetric(label: string, details: Record<string, unknown>) {

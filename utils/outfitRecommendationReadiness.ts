@@ -46,6 +46,12 @@ export type OutfitRecommendationReadiness = {
   };
 };
 
+export type OutfitRecommendationReadinessContent = {
+  title: string;
+  text: string;
+  primaryActionLabel: string;
+};
+
 const HEAVY_WARM_WEATHER_KEYWORDS = [
   "패딩",
   "다운",
@@ -158,9 +164,60 @@ function getMissing(counts: OutfitRecommendationReadinessCounts) {
   };
 }
 
+export function getCurrentSeasonForReadiness(date = new Date()) {
+  const month = date.getMonth() + 1;
+  if (month >= 3 && month <= 5) return "봄";
+  if (month >= 6 && month <= 8) return "여름";
+  if (month >= 9 && month <= 11) return "가을";
+  return "겨울";
+}
+
+function getMissingItemSummary(
+  missing: OutfitRecommendationReadiness["missing"]
+) {
+  const parts = [
+    missing.tops > 0 ? `상의 ${missing.tops}벌` : "",
+    missing.bottoms > 0 ? `하의 ${missing.bottoms}벌` : "",
+  ].filter(Boolean);
+
+  if (parts.length > 0) return `${parts.join(", ")}을 더 추가해주세요.`;
+  if (missing.coreCombinations > 0) {
+    return "서로 다른 상의와 하의를 조금 더 추가해주세요.";
+  }
+  return "";
+}
+
+export function getOutfitRecommendationReadinessContent(
+  readiness: OutfitRecommendationReadiness
+): OutfitRecommendationReadinessContent {
+  if (readiness.ready) {
+    return {
+      title: "추천 준비가 끝났어요",
+      text: "현재 옷장으로 서로 다른 코디를 추천할 수 있어요.",
+      primaryActionLabel: "오늘의 코디 보기",
+    };
+  }
+
+  if (readiness.reason === "not_enough_season_items") {
+    return {
+      title: "지금 계절에 맞는 옷이 조금 부족해요",
+      text: `옷장에는 옷이 충분하지만 현재 조건에 맞는 조합이 부족해요. ${getMissingItemSummary(
+        readiness.currentConditionMissing
+      )}`.trim(),
+      primaryActionLabel: "계절 옷 추가하기",
+    };
+  }
+
+  return {
+    title: "추천 준비까지 조금 남았어요",
+    text: getMissingItemSummary(readiness.missing),
+    primaryActionLabel: "필요한 옷 추가하기",
+  };
+}
+
 export function getOutfitRecommendationReadiness(
   items: ClosetItem[],
-  currentSeason?: string,
+  currentSeason = getCurrentSeasonForReadiness(),
   weather?: OutfitRecommendationWeather | null
 ): OutfitRecommendationReadiness {
   const availableItems = items.filter(isReadinessCandidate);

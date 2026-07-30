@@ -4,6 +4,7 @@ import {
   fetchApiWithTimeout,
   isApiRequestTimeoutError,
 } from "@/utils/api";
+import { ScreenHeader } from "@/components/ui/NaesUi";
 import { isAnalysisImageTooLargeError } from "@/utils/analysisImage";
 import {
   requestClothesAnalysis,
@@ -1122,18 +1123,11 @@ export default function AddClothesScreen() {
         contentContainerStyle={[styles.container, { paddingBottom: Math.max(insets.bottom + 56, 96) }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={22} color="#111" />
-          </Pressable>
-
-          <View>
-            <Text style={styles.headerEyebrow}>ADD CLOTHES</Text>
-            <Text style={styles.headerTitle}>옷 추가</Text>
-          </View>
-
-          <View style={styles.headerSpacer} />
-        </View>
+        <ScreenHeader
+          eyebrow="ADD CLOTHES"
+          title="옷 추가"
+          onBack={() => router.back()}
+        />
 
         {analysis ? (
           <View style={styles.registrationSourceCard}>
@@ -1157,7 +1151,12 @@ export default function AddClothesScreen() {
                   (analysis.source === "manual" ? "직접 입력한 옷" : "선택한 옷 사진")}
               </Text>
             </View>
-            <Pressable style={styles.registrationSourceReset} onPress={resetAnalysisState}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="등록 방식 다시 선택"
+              style={styles.registrationSourceReset}
+              onPress={resetAnalysisState}
+            >
               <Text style={styles.registrationSourceResetText}>다시 선택</Text>
             </Pressable>
           </View>
@@ -1176,6 +1175,12 @@ export default function AddClothesScreen() {
 
         <View style={styles.modeSelectionList}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="상품 링크로 추가"
+            accessibilityState={{
+              selected: addMode === "link",
+              disabled: isSaving,
+            }}
             style={[
               styles.modeOptionCard,
               styles.modeOptionCardPrimary,
@@ -1200,6 +1205,12 @@ export default function AddClothesScreen() {
           </Pressable>
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="사진으로 빠르게 추가"
+            accessibilityState={{
+              selected: addMode === "photo",
+              disabled: isSaving,
+            }}
             style={[styles.modeOptionCard, addMode === "photo" && styles.modeOptionCardActive]}
             onPress={() => switchAddMode("photo")}
             disabled={isSaving}
@@ -1217,6 +1228,12 @@ export default function AddClothesScreen() {
           </Pressable>
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="직접 입력해서 추가"
+            accessibilityState={{
+              selected: addMode === "manual",
+              disabled: isSaving,
+            }}
             style={[styles.modeOptionCard, addMode === "manual" && styles.modeOptionCardActive]}
             onPress={() => switchAddMode("manual")}
             disabled={isSaving}
@@ -1244,7 +1261,12 @@ export default function AddClothesScreen() {
             </Text>
           </View>
         ) : null}
-        <Pressable style={styles.uploadCard} onPress={pickImage}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="옷 사진 선택"
+          style={styles.uploadCard}
+          onPress={pickImage}
+        >
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           ) : (
@@ -1261,12 +1283,22 @@ export default function AddClothesScreen() {
         </Pressable>
 
         <View style={styles.photoButtonRow}>
-          <Pressable style={styles.photoButton} onPress={pickImage}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="앨범에서 옷 사진 선택"
+            style={styles.photoButton}
+            onPress={pickImage}
+          >
             <Feather name="image" size={18} color="#111" />
             <Text style={styles.photoButtonText}>앨범에서 선택</Text>
           </Pressable>
 
-          <Pressable style={styles.photoButton} onPress={takePhoto}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="카메라로 옷 사진 촬영"
+            style={styles.photoButton}
+            onPress={takePhoto}
+          >
             <Feather name="camera" size={18} color="#111" />
             <Text style={styles.photoButtonText}>카메라로 촬영</Text>
           </Pressable>
@@ -1307,6 +1339,7 @@ export default function AddClothesScreen() {
             </View>
 
             <TextInput
+              accessibilityLabel="상품 링크"
               style={styles.linkInput}
               value={productUrlInput}
               onChangeText={handleProductUrlInputChange}
@@ -1321,6 +1354,12 @@ export default function AddClothesScreen() {
             </Text>
 
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="상품 정보 가져오기"
+              accessibilityState={{
+                disabled: isExtractingProduct || isSaving,
+                busy: isExtractingProduct,
+              }}
               style={[
                 styles.linkExtractButton,
                 (isExtractingProduct || isSaving) && styles.linkExtractButtonDisabled,
@@ -1345,7 +1384,12 @@ export default function AddClothesScreen() {
                   <Text style={styles.linkErrorTitle}>{productLinkFailure.title}</Text>
                 </View>
                 <Text style={styles.linkErrorText}>{productLinkFailure.message}</Text>
-                <Pressable style={styles.linkFallbackButton} onPress={switchToPhotoFallback}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="사진 등록으로 전환"
+                  style={styles.linkFallbackButton}
+                  onPress={switchToPhotoFallback}
+                >
                   <Text style={styles.linkFallbackButtonText}>
                     {productLinkFailure.kind === "missing_image"
                       ? "사진을 추가해 계속"
@@ -1639,6 +1683,20 @@ export default function AddClothesScreen() {
         {progressText ? <Text style={styles.progressText}>{progressText}</Text> : null}
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            analysis
+              ? "옷장에 저장"
+              : extractedProduct
+                ? "상품 이미지 분석하고 등록 정보 확인"
+                : selectedImages.length > 1
+                  ? "선택한 사진 분석하기"
+                  : "옷 사진 분석하기"
+          }
+          accessibilityState={{
+            disabled: !canContinue || isSaving || isExtractingProduct,
+            busy: isSaving,
+          }}
           style={[
             styles.primaryButton,
             (!canContinue || isSaving || isExtractingProduct) && styles.primaryButtonDisabled,

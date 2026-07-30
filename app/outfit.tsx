@@ -1,85 +1,109 @@
 import BottomNav, {
   BOTTOM_NAV_CONTENT_PADDING,
 } from "@/components/BottomNav";
-import { getOutfitRecommendationReadiness } from "@/utils/outfitRecommendationReadiness";
+import {
+  ActionButton,
+  ScreenHeader,
+  StatusCard,
+} from "@/components/ui/NaesUi";
+import {
+  getCurrentSeasonForReadiness,
+  getOutfitRecommendationReadiness,
+  getOutfitRecommendationReadinessContent,
+} from "@/utils/outfitRecommendationReadiness";
 import {
   type ClosetItem,
-  getClosetItems,
-  getSavedOutfits,
+  getClosetItemsLoadResult,
+  getSavedOutfitsLoadResult,
 } from "@/utils/storage";
 import { colors, radius } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, Stack } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function OutfitHubScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [savedOutfitCount, setSavedOutfitCount] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const loadRequestRef = useRef(0);
+
+  const loadOutfitSummary = useCallback(async () => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    setHasLoadError(false);
+    setIsLoaded(false);
+    const [closetResult, savedOutfitsResult] = await Promise.all([
+      getClosetItemsLoadResult(),
+      getSavedOutfitsLoadResult(),
+    ]);
+
+    if (requestId !== loadRequestRef.current) return;
+    if (
+      closetResult.status === "failed" ||
+      savedOutfitsResult.status === "failed"
+    ) {
+      setHasLoadError(true);
+      setIsLoaded(true);
+      return;
+    }
+
+    setClosetItems(closetResult.items);
+    setSavedOutfitCount(savedOutfitsResult.outfits.length);
+    setIsLoaded(true);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-
-      async function loadOutfitSummary() {
-        const [items, savedOutfits] = await Promise.all([
-          getClosetItems(),
-          getSavedOutfits(),
-        ]);
-
-        if (!isActive) return;
-        setClosetItems(items);
-        setSavedOutfitCount(savedOutfits.length);
-      }
-
       void loadOutfitSummary();
 
       return () => {
-        isActive = false;
+        loadRequestRef.current += 1;
       };
-    }, [])
+    }, [loadOutfitSummary])
   );
 
   const readiness = useMemo(
-    () => getOutfitRecommendationReadiness(closetItems),
+    () =>
+      getOutfitRecommendationReadiness(
+        closetItems,
+        getCurrentSeasonForReadiness()
+      ),
     [closetItems]
   );
+  const readinessContent = getOutfitRecommendationReadinessContent(readiness);
+  const displayedCounts =
+    readiness.reason === "not_enough_season_items"
+      ? readiness.currentConditionCounts
+      : readiness.counts;
   const metrics = [
     {
       label: "상의",
-      current: readiness.counts.tops,
+      current: displayedCounts.tops,
       required: readiness.requirements.tops,
       requiredLabel: "필수",
     },
     {
       label: "하의",
-      current: readiness.counts.bottoms,
+      current: displayedCounts.bottoms,
       required: readiness.requirements.bottoms,
       requiredLabel: "필수",
     },
     {
       label: "신발",
-      current: readiness.counts.shoes,
+      current: displayedCounts.shoes,
       required: readiness.requirements.recommendedShoes,
       requiredLabel: "권장",
     },
     {
       label: "서로 다른 조합",
-      current: readiness.counts.coreCombinations,
+      current: displayedCounts.coreCombinations,
       required: readiness.requirements.coreCombinations,
       requiredLabel: "필수",
     },
   ];
-
-  const missingMessage =
-    readiness.missing.tops > 0
-      ? `상의 ${readiness.missing.tops}벌을 더 추가하면 좋아요`
-      : readiness.missing.bottoms > 0
-        ? `하의 ${readiness.missing.bottoms}벌을 더 추가하면 좋아요`
-        : readiness.missing.coreCombinations > 0
-          ? "서로 다른 상의와 하의를 조금 더 추가해주세요"
-          : "오늘의 코디를 확인할 준비가 끝났어요";
 
   return (
     <View style={styles.screen}>
@@ -88,31 +112,35 @@ export default function OutfitHubScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>N</Text>
-            </View>
-            <Text style={styles.logoText}>NAES</Text>
-          </View>
-          <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>STEP 2 OF 3</Text>
-          </View>
-        </View>
+        <ScreenHeader title="코디 준비" />
 
-        <Text style={styles.eyebrow}>
-          {readiness.ready ? "READY TO STYLE" : "WARDROBE CHECK"}
-        </Text>
-        <Text style={styles.title}>
-          {readiness.ready ? "추천 준비가 끝났어요" : "조금만 더 채우면 돼요"}
-        </Text>
-        <Text style={styles.subtitle}>
-          {readiness.ready
-            ? "현재 옷장으로 서로 다른 코디를 만들 수 있어요."
-            : "좋지 않은 조합을 억지로 보여주지 않고 필요한 옷만 알려드릴게요."}
-        </Text>
+        {!isLoaded ? (
+          <StatusCard
+            kind="loading"
+            title="옷장 상태를 확인하고 있어요"
+            description="추천에 사용할 수 있는 옷만 안전하게 확인할게요."
+          />
+        ) : null}
 
-        <View style={styles.metrics}>
+        {isLoaded && hasLoadError ? (
+          <StatusCard
+            kind="error"
+            title="코디 준비 상태를 불러오지 못했어요"
+            description="저장된 옷과 코디는 그대로 있어요. 다시 확인해주세요."
+            actionLabel="다시 불러오기"
+            onAction={() => void loadOutfitSummary()}
+          />
+        ) : null}
+
+        {isLoaded && !hasLoadError ? (
+          <>
+            <Text style={styles.eyebrow}>
+              {readiness.ready ? "READY TO STYLE" : "WARDROBE CHECK"}
+            </Text>
+            <Text style={styles.title}>{readinessContent.title}</Text>
+            <Text style={styles.subtitle}>{readinessContent.text}</Text>
+
+            <View style={styles.metrics}>
           {metrics.map((metric, index) => {
             const complete = metric.current >= metric.required;
             return (
@@ -155,60 +183,71 @@ export default function OutfitHubScreen() {
               </View>
             );
           })}
-        </View>
+            </View>
 
-        <View style={styles.nextAction}>
-          <View style={styles.nextActionIcon}>
-            <Feather
-              name={readiness.ready ? "star" : "plus"}
-              size={18}
-              color={colors.point}
+            <View style={styles.nextAction}>
+              <View style={styles.nextActionIcon}>
+                <Feather
+                  name={readiness.ready ? "star" : "plus"}
+                  size={18}
+                  color={colors.point}
+                />
+              </View>
+              <View style={styles.nextActionTextArea}>
+                <Text style={styles.nextActionEyebrow}>NEXT ACTION</Text>
+                <Text style={styles.nextActionTitle}>
+                  {readiness.ready
+                    ? "오늘 입을 코디를 확인해보세요"
+                    : readinessContent.primaryActionLabel}
+                </Text>
+                <Text style={styles.nextActionText}>
+                  {readiness.ready
+                    ? "날씨와 취향을 반영한 추천을 바로 확인할 수 있어요."
+                    : "추천 기준을 채운 뒤 자신 있게 어울리는 조합만 보여드릴게요."}
+                </Text>
+              </View>
+            </View>
+
+            <ActionButton
+              label={readinessContent.primaryActionLabel}
+              icon={readiness.ready ? "arrow-right" : "plus"}
+              onPress={() => {
+                if (readiness.ready) {
+                  router.push("/outfit-recommend");
+                  return;
+                }
+                router.push("/add-clothes");
+              }}
             />
-          </View>
-          <View style={styles.nextActionTextArea}>
-            <Text style={styles.nextActionEyebrow}>NEXT ACTION</Text>
-            <Text style={styles.nextActionTitle}>{missingMessage}</Text>
-            <Text style={styles.nextActionText}>
-              {readiness.ready
-                ? "날씨와 취향을 반영한 추천을 바로 확인해보세요."
-                : "현재 가능한 추천도 확인할 수 있어요."}
-            </Text>
-          </View>
-        </View>
 
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => router.push("/outfit-recommend")}
-        >
-          <Text style={styles.primaryButtonText}>
-            {readiness.ready ? "오늘의 코디 보기" : "현재 가능한 코디 보기"}
-          </Text>
-          <Feather name="arrow-right" size={17} color={colors.card} />
-        </Pressable>
+            {!readiness.ready ? (
+              <View style={styles.secondaryActionWrap}>
+                <ActionButton
+                  label="옷장 확인하기"
+                  icon="grid"
+                  variant="secondary"
+                  onPress={() => router.push("/closet")}
+                />
+              </View>
+            ) : null}
 
-        {!readiness.ready ? (
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => router.push("/add-clothes")}
-          >
-            <Text style={styles.secondaryButtonText}>필요한 옷 추가하기</Text>
-            <Feather name="plus" size={16} color={colors.point} />
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`저장한 코디 ${savedOutfitCount}개 보기`}
+              style={styles.savedRow}
+              onPress={() => router.push("/saved-outfits")}
+            >
+              <View style={styles.savedIcon}>
+                <Feather name="bookmark" size={17} color={colors.point} />
+              </View>
+              <View style={styles.savedTextArea}>
+                <Text style={styles.savedTitle}>저장한 코디</Text>
+                <Text style={styles.savedText}>{savedOutfitCount}개 저장됨</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.subText} />
+            </Pressable>
+          </>
         ) : null}
-
-        <Pressable
-          style={styles.savedRow}
-          onPress={() => router.push("/saved-outfits")}
-        >
-          <View style={styles.savedIcon}>
-            <Feather name="bookmark" size={17} color={colors.point} />
-          </View>
-          <View style={styles.savedTextArea}>
-            <Text style={styles.savedTitle}>저장한 코디</Text>
-            <Text style={styles.savedText}>{savedOutfitCount}개 저장됨</Text>
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.subText} />
-        </Pressable>
       </ScrollView>
 
       <BottomNav activeTab="outfit" />
@@ -431,6 +470,9 @@ const styles = StyleSheet.create({
     color: colors.point,
     fontSize: 13,
     fontWeight: "800",
+  },
+  secondaryActionWrap: {
+    marginTop: 9,
   },
   savedRow: {
     minHeight: 72,

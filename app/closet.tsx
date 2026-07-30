@@ -473,6 +473,7 @@ export default function ClosetScreen() {
                     <View style={styles.searchBox}>
                         <Feather name="search" size={17} color={colors.subText} />
                         <TextInput
+                            accessibilityLabel="옷장 검색"
                             autoFocus
                             value={searchQuery}
                             onChangeText={setSearchQuery}
@@ -527,7 +528,12 @@ export default function ClosetScreen() {
                             옷장 기반 코디 추천을 만들 수 있어요.
                         </Text>
 
-                        <Pressable style={styles.primaryButton} onPress={() => router.push("/add-clothes")}>
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="옷 추가하기"
+                            style={styles.primaryButton}
+                            onPress={() => router.push("/add-clothes")}
+                        >
                             <Feather name="plus" size={15} color={colors.card} />
                             <Text style={styles.primaryButtonText}>옷 추가하기</Text>
                         </Pressable>
@@ -636,6 +642,9 @@ export default function ClosetScreen() {
                                 return (
                                     <Pressable
                                         key={filter}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`${filter} 옷 보기`}
+                                        accessibilityState={{ selected: isActive }}
                                         style={[styles.filterChip, isActive && styles.filterChipActive]}
                                         onPress={() => {
                                             setSelectedCategory(filter);
@@ -665,6 +674,9 @@ export default function ClosetScreen() {
                                     return (
                                         <Pressable
                                             key={filter}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={`${filter} 세부 분류 보기`}
+                                            accessibilityState={{ selected: isActive }}
                                             style={[
                                                 styles.detailFilterChip,
                                                 isActive && styles.detailFilterChipActive,

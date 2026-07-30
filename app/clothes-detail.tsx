@@ -82,6 +82,7 @@ import {
   updateUserProfile,
   UserProfile,
 } from "@/utils/storage";
+import { ScreenHeader, StatusCard } from "@/components/ui/NaesUi";
 import { colors } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -3349,31 +3350,18 @@ export default function ClothesDetailScreen() {
       <View style={styles.screen}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.container}>
-          <View style={styles.headerRow}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <Feather name="chevron-left" size={22} color="#111" />
-            </Pressable>
-
-            <View>
-              <Text style={styles.headerEyebrow}>CLOTHES DETAIL</Text>
-              <Text style={styles.headerTitle}>옷 상세</Text>
-            </View>
-
-            <View style={styles.headerSpacer} />
-          </View>
-
-          <View style={styles.emptyCard}>
-            <Feather name="alert-circle" size={28} color={colors.warning} />
-            <Text style={styles.emptyTitle}>옷장을 불러오지 못했어요</Text>
-            <Text style={styles.emptyText}>저장된 옷은 그대로 있어요. 다시 시도해주세요.</Text>
-            <Pressable
-              style={styles.sizeRecommendationActionButton}
-              onPress={() => setClosetLoadRevision((revision) => revision + 1)}
-            >
-              <Text style={styles.sizeRecommendationActionButtonText}>다시 시도</Text>
-              <Feather name="refresh-cw" size={15} color="#fff" />
-            </Pressable>
-          </View>
+          <ScreenHeader
+            title="옷 상세"
+            eyebrow="CLOTHES DETAIL"
+            onBack={() => router.back()}
+          />
+          <StatusCard
+            kind="error"
+            title="옷장을 불러오지 못했어요"
+            description="저장된 옷은 그대로 있어요. 다시 시도해주세요."
+            actionLabel="다시 시도"
+            onAction={() => setClosetLoadRevision((revision) => revision + 1)}
+          />
         </View>
       </View>
     );
@@ -3384,24 +3372,18 @@ export default function ClothesDetailScreen() {
       <View style={styles.screen}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.container}>
-          <View style={styles.headerRow}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <Feather name="chevron-left" size={22} color="#111" />
-            </Pressable>
-
-            <View>
-              <Text style={styles.headerEyebrow}>CLOTHES DETAIL</Text>
-              <Text style={styles.headerTitle}>옷 상세</Text>
-            </View>
-
-            <View style={styles.headerSpacer} />
-          </View>
-
-          <View style={styles.emptyCard}>
-            <Feather name="alert-circle" size={28} color="#8c6f47" />
-            <Text style={styles.emptyTitle}>옷 정보를 찾을 수 없어요</Text>
-            <Text style={styles.emptyText}>옷장 화면에서 다시 선택해주세요.</Text>
-          </View>
+          <ScreenHeader
+            title="옷 상세"
+            eyebrow="CLOTHES DETAIL"
+            onBack={() => router.back()}
+          />
+          <StatusCard
+            kind="empty"
+            title="옷 정보를 찾을 수 없어요"
+            description="옷장 화면에서 다시 선택해주세요."
+            actionLabel="옷장으로 이동"
+            onAction={() => router.replace("/closet")}
+          />
         </View>
       </View>
     );
@@ -3412,7 +3394,12 @@ export default function ClothesDetailScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="이전 화면으로 돌아가기"
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Feather name="chevron-left" size={22} color="#111" />
           </Pressable>
 
@@ -3423,15 +3410,30 @@ export default function ClothesDetailScreen() {
 
           {editMode ? (
             <View style={styles.editActionRow}>
-              <Pressable style={styles.cancelButton} onPress={handleCancel}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="옷 정보 수정 취소"
+                style={styles.cancelButton}
+                onPress={handleCancel}
+              >
                 <Text style={styles.cancelButtonText}>취소</Text>
               </Pressable>
-              <Pressable style={styles.saveButton} onPress={() => handleSave()}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="옷 정보 저장"
+                style={styles.saveButton}
+                onPress={() => handleSave()}
+              >
                 <Text style={styles.saveButtonText}>저장</Text>
               </Pressable>
             </View>
           ) : (
-            <Pressable style={styles.editButton} onPress={handleEdit}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="옷 정보 수정"
+              style={styles.editButton}
+              onPress={handleEdit}
+            >
               <Text style={styles.editButtonText}>수정</Text>
             </Pressable>
           )}
@@ -3905,8 +3907,8 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -3921,6 +3923,7 @@ const styles = StyleSheet.create({
   },
 
   editButton: {
+    minHeight: 44,
     backgroundColor: "#111",
     borderRadius: 999,
     paddingVertical: 10,
@@ -3939,6 +3942,7 @@ const styles = StyleSheet.create({
   },
 
   cancelButton: {
+    minHeight: 44,
     backgroundColor: "#fff",
     borderRadius: 999,
     borderWidth: 1,
@@ -3954,6 +3958,7 @@ const styles = StyleSheet.create({
   },
 
   saveButton: {
+    minHeight: 44,
     backgroundColor: "#111",
     borderRadius: 999,
     paddingVertical: 10,

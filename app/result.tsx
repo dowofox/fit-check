@@ -1,4 +1,5 @@
 import BottomNav, { BOTTOM_NAV_CONTENT_PADDING } from "@/components/BottomNav";
+import { HeaderIconButton, ScreenHeader } from "@/components/ui/NaesUi";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
@@ -140,20 +141,18 @@ export default function ResultScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="chevron-left" size={22} color="#111" />
-          </Pressable>
-
-          <View>
-            <Text style={styles.headerEyebrow}>ANALYSIS COMPLETE</Text>
-            <Text style={styles.headerTitle}>분석 결과</Text>
-          </View>
-
-          <Pressable style={styles.shareIconButton} onPress={handleShare}>
-            <Feather name="share-2" size={18} color="#111" />
-          </Pressable>
-        </View>
+        <ScreenHeader
+          title="분석 결과"
+          eyebrow="ANALYSIS COMPLETE"
+          onBack={() => router.back()}
+          right={
+            <HeaderIconButton
+              accessibilityLabel="분석 결과 공유하기"
+              icon="share-2"
+              onPress={() => void handleShare()}
+            />
+          }
+        />
 
         <View style={styles.outcomeCard}>
           <View style={styles.outcomeContent}>

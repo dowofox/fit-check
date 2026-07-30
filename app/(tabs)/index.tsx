@@ -8,6 +8,11 @@ import type {
   OutfitRecommendationWeather,
 } from "@/utils/outfitRecommend";
 import { getOutfitRecommendationEmptyContent } from "@/utils/outfitRecommendationEmptyState";
+import {
+  getCurrentSeasonForReadiness,
+  getOutfitRecommendationReadiness,
+  getOutfitRecommendationReadinessContent,
+} from "@/utils/outfitRecommendationReadiness";
 import type { OutfitRecommendationFeedback } from "@/utils/outfitFeedback";
 import { canReuseHomeDashboardData } from "@/utils/homeDashboardRefresh";
 import {
@@ -258,11 +263,17 @@ export default function HomeScreen() {
       }
 
       function applyCachedRecommendation(
-        cache: HydratedHomeRecommendationCacheEntry
+        cache: HydratedHomeRecommendationCacheEntry,
+        items: ClosetItem[]
       ) {
         if (!isActive) return;
 
-        setTodayRecommendations(cache.recommendations);
+        const readiness = getOutfitRecommendationReadiness(
+          items,
+          getCurrentSeasonForReadiness(),
+          cache.weather
+        );
+        setTodayRecommendations(readiness.ready ? cache.recommendations : []);
         setRecommendationEmptyState(cache.emptyState);
         setWeatherLabel(cache.weatherLabel);
         setCurrentRecommendationWeather(cache.weather);
@@ -353,7 +364,7 @@ export default function HomeScreen() {
           : memoryCacheMissReason || persistentCacheMissReason || "cache_empty";
 
         if (cachedResult) {
-          applyCachedRecommendation(cachedResult);
+          applyCachedRecommendation(cachedResult, items);
         }
 
         endPerformanceTimer(restoreTimer, {
@@ -437,22 +448,33 @@ export default function HomeScreen() {
         const recommendationTimer = startPerformanceTimer(
           weather ? "home.weather-outfit-recommendation" : "home.initial-outfit-recommendation"
         );
-        const recommendationResult = getOutfitRecommendationResult(
+        const readiness = getOutfitRecommendationReadiness(
           items,
-          profile,
-          undefined,
-          savedOutfitItemIds,
-          {
-            weather,
-            feedbacks,
-            onDiagnostics: (diagnostic) => {
-              logPerformanceMetric(
-                `home.recommendation.stage.${diagnostic.stage}`,
-                diagnostic
-              );
-            },
-          }
+          getCurrentSeasonForReadiness(),
+          weather
         );
+        const recommendationResult = readiness.ready
+          ? getOutfitRecommendationResult(
+              items,
+              profile,
+              undefined,
+              savedOutfitItemIds,
+              {
+                weather,
+                feedbacks,
+                onDiagnostics: (diagnostic) => {
+                  logPerformanceMetric(
+                    `home.recommendation.stage.${diagnostic.stage}`,
+                    diagnostic
+                  );
+                },
+              }
+            )
+          : {
+              recommendations: [],
+              emptyReason: undefined,
+              missingCategories: undefined,
+            };
         const recommendations = recommendationResult.recommendations.slice(0, 5);
         const cardRecommendations = recommendations.map((recommendation) => ({
           id: recommendation.id,
@@ -930,17 +952,29 @@ export default function HomeScreen() {
     }
   }
 
-  const recommendationEmptyContent = getOutfitRecommendationEmptyContent(
-    recommendationEmptyState,
-    closetItems
-  );
   const today = useMemo(() => new Date(), []);
   const weekDays = useMemo(() => getCurrentWeek(today), [today]);
+  const homeReadiness = useMemo(
+    () =>
+      getOutfitRecommendationReadiness(
+        closetItems,
+        getCurrentSeasonForReadiness(today),
+        currentRecommendationWeather
+      ),
+    [closetItems, currentRecommendationWeather, today]
+  );
+  const recommendationEmptyContent = homeReadiness.ready
+    ? getOutfitRecommendationEmptyContent(recommendationEmptyState, closetItems)
+    : getOutfitRecommendationReadinessContent(homeReadiness);
+  const visibleTodayRecommendations = homeReadiness.ready
+    ? todayRecommendations
+    : [];
   const activeRecommendationIndex =
-    todayRecommendations.length > 0
-      ? recommendationCursor % todayRecommendations.length
+    visibleTodayRecommendations.length > 0
+      ? recommendationCursor % visibleTodayRecommendations.length
       : 0;
-  const activeRecommendation = todayRecommendations[activeRecommendationIndex];
+  const activeRecommendation =
+    visibleTodayRecommendations[activeRecommendationIndex];
   const weatherIconName = getWeatherIconName(currentRecommendationWeather);
   const contextLabel =
     weatherLabel ||
@@ -949,7 +983,7 @@ export default function HomeScreen() {
       : "오늘 옷장 기준 추천");
 
   function showNextRecommendation() {
-    if (todayRecommendations.length < 2) return;
+    if (visibleTodayRecommendations.length < 2) return;
     setRecommendationCursor((current) => current + 1);
   }
 
@@ -973,7 +1007,12 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.logoText}>NAES</Text>
-          <Pressable style={styles.profileButton} onPress={() => router.push("/profile")}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="마이페이지 열기"
+            style={styles.profileButton}
+            onPress={() => router.push("/profile")}
+          >
             <Feather name="user" size={17} color={colors.text} />
           </Pressable>
         </View>
@@ -985,10 +1024,10 @@ export default function HomeScreen() {
             </Text>
             <Text style={styles.todayTitle}>오늘 입을 한 벌</Text>
           </View>
-          {todayRecommendations.length > 0 ? (
+          {visibleTodayRecommendations.length > 0 ? (
             <View style={styles.stepIndicator}>
               <Text style={styles.stepCurrent}>{activeRecommendationIndex + 1}</Text>
-              <Text style={styles.stepTotal}> / {todayRecommendations.length}</Text>
+              <Text style={styles.stepTotal}> / {visibleTodayRecommendations.length}</Text>
             </View>
           ) : null}
         </View>
@@ -1017,6 +1056,8 @@ export default function HomeScreen() {
             {contextLabel}
           </Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`저장한 코디 ${savedOutfits.length}개 보기`}
             style={styles.savedContextAction}
             onPress={() => router.push("/saved-outfits")}
           >
@@ -1053,7 +1094,7 @@ export default function HomeScreen() {
             <TodayRecommendationCard
               recommendation={activeRecommendation}
               current={activeRecommendationIndex + 1}
-              total={todayRecommendations.length}
+              total={visibleTodayRecommendations.length}
             />
           ) : (
             <View style={styles.recommendationStateCard}>
@@ -1086,6 +1127,12 @@ export default function HomeScreen() {
               </Text>
               {!isRecommendationPreparing ? (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    hasDashboardLoadError && !hasDashboardData
+                      ? "홈 정보 다시 불러오기"
+                      : "옷 추가하기"
+                  }
                   style={styles.recommendationStateButton}
                   onPress={
                     hasDashboardLoadError && !hasDashboardData
@@ -1108,17 +1155,27 @@ export default function HomeScreen() {
         {activeRecommendation ? (
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="다른 코디 보기"
+              accessibilityState={{
+                disabled: visibleTodayRecommendations.length < 2,
+              }}
               style={[
                 styles.nextButton,
-                todayRecommendations.length < 2 && styles.nextButtonDisabled,
+                visibleTodayRecommendations.length < 2 && styles.nextButtonDisabled,
               ]}
-              disabled={todayRecommendations.length < 2}
+              disabled={visibleTodayRecommendations.length < 2}
               onPress={showNextRecommendation}
             >
               <Feather name="refresh-cw" size={18} color={colors.subText} />
               <Text style={styles.nextButtonText}>다른 코디</Text>
             </Pressable>
-            <Pressable style={styles.selectButton} onPress={openActiveRecommendation}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="이 코디 상세 보기"
+              style={styles.selectButton}
+              onPress={openActiveRecommendation}
+            >
               <Feather name="check" size={18} color={colors.card} />
               <Text style={styles.selectButtonText}>이 코디 선택</Text>
             </Pressable>
@@ -1126,12 +1183,22 @@ export default function HomeScreen() {
         ) : null}
 
         <View style={styles.quickLinks}>
-          <Pressable style={styles.quickLink} onPress={startAnalysis}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="사진으로 코디 분석하기"
+            style={styles.quickLink}
+            onPress={startAnalysis}
+          >
             <Feather name="camera" size={15} color={colors.point} />
             <Text style={styles.quickLinkText}>사진 코디 분석</Text>
           </Pressable>
           <View style={styles.quickLinkDivider} />
-          <Pressable style={styles.quickLink} onPress={() => router.push("/closet")}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="옷장 열기"
+            style={styles.quickLink}
+            onPress={() => router.push("/closet")}
+          >
             <Feather name="grid" size={15} color={colors.point} />
             <Text style={styles.quickLinkText}>
               옷장 {hasDashboardLoadError && !hasDashboardData ? "-" : closetItems.length}벌
@@ -1168,9 +1235,9 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   profileButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",

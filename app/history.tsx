@@ -123,7 +123,12 @@ export default function HistoryScreen() {
                   저장된 기록은 그대로 있어요. 잠시 후 다시 시도해주세요.
                 </Text>
               </View>
-              <Pressable style={styles.loadErrorAction} onPress={loadHistory}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="코디 기록 다시 불러오기"
+                style={styles.loadErrorAction}
+                onPress={loadHistory}
+              >
                 <Text style={styles.loadErrorActionText}>다시 시도</Text>
               </Pressable>
             </View>
@@ -143,6 +148,8 @@ export default function HistoryScreen() {
               return (
                 <Pressable
                   key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${formatDate(item.createdAt)} 코디 분석 결과 보기`}
                   style={styles.card}
                   onPress={() => {
                     if (isMenuOpen) {
@@ -167,6 +174,8 @@ export default function HistoryScreen() {
                   <View style={styles.actionArea}>
                     {isMenuOpen && (
                       <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="코디 분석 기록 삭제"
                         style={styles.deleteAction}
                         onPress={(event) => {
                           event.stopPropagation();
@@ -177,6 +186,9 @@ export default function HistoryScreen() {
                       </Pressable>
                     )}
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={isMenuOpen ? "기록 메뉴 닫기" : "기록 메뉴 열기"}
+                      accessibilityState={{ expanded: isMenuOpen }}
                       style={[styles.menuButton, isMenuOpen && styles.activeMenuButton]}
                       onPress={(event) => {
                         event.stopPropagation();

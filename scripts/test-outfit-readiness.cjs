@@ -57,7 +57,9 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 };
 
 const {
+  getCurrentSeasonForReadiness,
   getOutfitRecommendationReadiness,
+  getOutfitRecommendationReadinessContent,
 } = require("../utils/outfitRecommendationReadiness.ts");
 
 function makeItem(id, category, overrides = {}) {
@@ -172,4 +174,37 @@ test("명확한 고온 부적합 옷은 현재 조건 후보에서 제외한다"
   assert.equal(result.reason, "not_enough_season_items");
   assert.equal(result.currentConditionCounts.tops, 2);
   assert.equal(result.currentConditionCounts.coreCombinations, 6);
+});
+
+test("추천 준비 문구는 부족 원인에 맞는 다음 행동을 안내한다", () => {
+  const missingCore = getOutfitRecommendationReadiness([
+    makeItem("top-1", "상의"),
+    makeItem("bottom-1", "하의"),
+  ], "여름");
+  const missingCoreContent =
+    getOutfitRecommendationReadinessContent(missingCore);
+
+  assert.equal(missingCoreContent.title, "추천 준비까지 조금 남았어요");
+  assert.match(missingCoreContent.text, /상의 2벌/);
+  assert.match(missingCoreContent.text, /하의 2벌/);
+  assert.equal(missingCoreContent.primaryActionLabel, "필요한 옷 추가하기");
+
+  const seasonal = makeReadyCloset().map((item) => ({
+    ...item,
+    seasons: item.id.endsWith("1") ? ["여름"] : ["겨울"],
+    season: item.id.endsWith("1") ? "여름" : "겨울",
+  }));
+  const seasonalContent = getOutfitRecommendationReadinessContent(
+    getOutfitRecommendationReadiness(seasonal, "여름")
+  );
+
+  assert.equal(seasonalContent.title, "지금 계절에 맞는 옷이 조금 부족해요");
+  assert.equal(seasonalContent.primaryActionLabel, "계절 옷 추가하기");
+});
+
+test("추천 준비의 기본 계절 계산은 월 경계를 따른다", () => {
+  assert.equal(getCurrentSeasonForReadiness(new Date(2026, 2, 1)), "봄");
+  assert.equal(getCurrentSeasonForReadiness(new Date(2026, 5, 1)), "여름");
+  assert.equal(getCurrentSeasonForReadiness(new Date(2026, 8, 1)), "가을");
+  assert.equal(getCurrentSeasonForReadiness(new Date(2026, 11, 1)), "겨울");
 });
