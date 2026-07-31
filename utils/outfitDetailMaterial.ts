@@ -18,6 +18,13 @@ export type DetailMaterialAdjustment = {
   warnings: string[];
 };
 
+export type DetailMaterialEffectTrace = {
+  ruleId: string;
+  effect: "detail" | "season-positive" | "season-negative" | "season-style";
+  score: number;
+  itemIds: string[];
+};
+
 const itemTextCache = new WeakMap<ClosetItem, string>();
 const itemDescriptorTextCache = new WeakMap<ClosetItem, string>();
 const materialTextCache = new WeakMap<ClosetItem, string>();
@@ -232,7 +239,8 @@ function pushUnique(values: string[], value?: string) {
 
 export function getDetailMaterialAdjustment(
   items: ClosetItem[],
-  currentSeason: string
+  currentSeason: string,
+  onEffect?: (trace: DetailMaterialEffectTrace) => void
 ): DetailMaterialAdjustment {
   const reasons: string[] = [];
   const warnings: string[] = [];
@@ -255,6 +263,12 @@ export function getDetailMaterialAdjustment(
         score += effect.score;
         pushUnique(reasons, effect.reason);
         pushUnique(warnings, effect.warning);
+        onEffect?.({
+          ruleId: effect.id,
+          effect: "detail",
+          score: effect.score,
+          itemIds: [targetItem.id],
+        });
       });
     });
   });
@@ -266,10 +280,22 @@ export function getDetailMaterialAdjustment(
     if (rule.positiveSeasons?.includes(currentSeason)) {
       score += rule.positiveScore || 0;
       pushUnique(reasons, rule.positiveReason);
+      onEffect?.({
+        ruleId: rule.id,
+        effect: "season-positive",
+        score: rule.positiveScore || 0,
+        itemIds: matchingItems.map((item) => item.id),
+      });
     }
     if (rule.negativeSeasons?.includes(currentSeason)) {
       score += rule.negativeScore || 0;
       pushUnique(warnings, rule.negativeWarning);
+      onEffect?.({
+        ruleId: rule.id,
+        effect: "season-negative",
+        score: rule.negativeScore || 0,
+        itemIds: matchingItems.map((item) => item.id),
+      });
     }
     if (
       rule.styleTags?.length &&
@@ -280,6 +306,12 @@ export function getDetailMaterialAdjustment(
       )
     ) {
       score += rule.styleScore || 0;
+      onEffect?.({
+        ruleId: rule.id,
+        effect: "season-style",
+        score: rule.styleScore || 0,
+        itemIds: matchingItems.map((item) => item.id),
+      });
     }
   });
 
