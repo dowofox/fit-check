@@ -13,6 +13,65 @@
 5. 색상·shape profile은 기존 `ClosetItem`을 깨지 않는 버전 객체로 추가한다.
 6. 호환성 품질과 개인 취향을 하나의 숫자에 숨기지 않는다.
 
+## Phase 2 구현 구조
+
+```text
+outfitRecommend.ts
+  ├─ 후보·계절 준비
+  ├─ assessOutfitTemperatureSuitability()   # 기존 환경 모듈
+  ├─ evaluateLegacyFashionCompatibility()   # legacy adapter
+  │    ├─ legacyShapeRules.ts
+  │    ├─ legacyColorRules.ts
+  │    ├─ legacyStyleRules.ts
+  │    └─ legacyMaterialRules.ts
+  ├─ 회전율·피드백·상황 정렬
+  └─ hard block·cap·다양화·결과 변환
+```
+
+- `types.ts`: metadata, evidence, legacy result, 비활성 shadow comparison 타입
+- `ruleRegistry.ts`: 안정적인 `legacy.*` ID와 O(1) `Map` 조회
+- `legacyEvaluator.ts`: 기존 호출 순서와 합산 순서를 보존하는 단일 adapter
+- `legacyColorRules.ts`: 문자열 기반 색상 그룹, match/avoid color, 포인트 색
+- `legacyShapeRules.ts`: 실측·사진 인상·텍스트 fallback, 실루엣, 실착 균형, 포인트
+- `legacyMaterialRules.ts`: 기존 detail/material table 적용 결과의 evidence 변환
+- `legacyStyleRules.ts`: style tag 그룹, 반복, 충돌
+
+상황은 `outfitSituation.ts`, 개인화는 feedback·rotation 경로, 환경은 `outfitTemperatureSuitability.ts`에 남긴다. 이 계산을 compatibility 폴더에 복제하지 않는다.
+
+### Legacy adapter와 evidence flow
+
+1. 기존 분기가 동일한 점수·이유·경고를 계산한다.
+2. 적용된 분기는 registry의 안정적인 ID로 최소 evidence를 추가한다.
+3. evidence confidence는 registry 근거 상태이고, source diagnostics는 입력 데이터 신뢰도를 별도로 기록한다.
+4. evaluator는 기존 breakdown과 detail/material adjustment를 그대로 반환한다.
+5. `outfitRecommend.ts`가 기존 weather, rotation, warning penalty, cap을 같은 순서로 적용한다.
+
+Evidence는 점수 입력이 아니며 recommendation 결과, UI, cache, 백업, `ClosetItem`에 저장하지 않는다. 상품명·이미지 URI·개인 치수 원문도 넣지 않는다.
+
+### 입력 source
+
+- `measurement`: 선택 사이즈의 공식 상품 실측
+- `impression`: 사진 기반 `garmentProfile`
+- `fallback`: fit, detailCategory, description 문자열 추정
+- 소재는 `user_confirmed`, `official_product`, `image_analysis`, `legacy_default`를 구분
+
+기존 source weight 계산은 그대로 유지한다. registry confidence `0.35`와 input source weight는 서로 다른 값이며 어느 쪽도 새 운영 점수를 만들지 않는다.
+
+### Shadow 확장점
+
+`CompatibilityComparison`과 `createLegacyOnlyComparison()`만 제공한다. 기본 mode는 `legacy-only`이며 전문 점수가 없을 때 0점이나 차이를 만들지 않는다. shadow 실행, 원격 전송, UI 노출, 순위 변경은 구현하지 않았다.
+
+### 성능 정책
+
+- registry 조회는 미리 만든 `Map`을 사용한다.
+- evidence는 적용된 분기만 생성하고 전체 `ClosetItem`이나 이미지 데이터를 복사하지 않는다.
+- detail/material은 기존 계산의 optional trace callback을 사용해 두 번째 평가를 하지 않는다.
+- registry 배열 순서는 점수와 추천 순서에 관여하지 않는다.
+
+### Rollback
+
+Phase 2는 `outfitRecommend.ts`의 adapter 호출과 `utils/fashionCompatibility/` 모듈로 격리돼 있다. 문제가 생기면 Phase 2 커밋을 되돌려 기존 인라인 함수로 복구할 수 있고, 저장 schema·cache key·백업 형식 migration은 필요하지 않다. 15개 golden parity fixture와 Phase 1 characterization test가 rollback 전후 운영 결과를 확인한다.
+
 ## 목표 평가 구조
 
 ```ts

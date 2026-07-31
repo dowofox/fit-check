@@ -6,6 +6,7 @@
 - 감사 범위: 코디 후보 생성부터 최종 노출까지의 색상, 실루엣, 핏, 소재, 스타일, 상황, 개인화 규칙
 - 이번 단계의 원칙: 운영 점수, 정렬, hard block, 캐시, 저장 형식을 변경하지 않는다.
 - 해석 주의: 아래 숫자는 현재 구현을 기록한 값이지 패션 전문가의 합의나 외부 연구로 검증된 기준이 아니다.
+- Phase 2 구현: 기존 규칙은 `utils/fashionCompatibility/`로 이동했고 모든 metadata는 `ruleRegistry.ts`에서 조회할 수 있다. 점수와 사용자 문구는 Phase 1 특성화 및 parity test로 고정했다.
 
 ## 현재 실행 경로
 
@@ -13,8 +14,8 @@
 2. `outfitRecommend.ts`가 보관 중인 옷, 계절, 날씨 hard block을 적용한다.
 3. 상의 × 하의 × 선택 신발 × 선택 아우터 후보를 만든다.
 4. `outfitTemperatureSuitability.ts`가 온도 적합도와 hard block을 계산한다.
-5. `buildRecommendation()`이 실루엣, 실착 균형, 포인트, 색상, 스타일, 날씨, 회전율을 계산한다.
-6. `outfitDetailMaterial.ts`가 세부 분류·소재 가감점을 총점에 추가한다.
+5. `buildRecommendation()`이 `evaluateLegacyFashionCompatibility()`를 호출해 실루엣, 실착 균형, 포인트, 색상, 스타일, 세부 분류·소재 점수를 받는다.
+6. `outfitDetailMaterial.ts`는 기존 가감점을 유지하면서 적용된 effect만 trace callback으로 알린다.
 7. 사이즈와 날씨 경고를 감점하고 점수 상한을 적용한다.
 8. 액세서리는 핵심 점수 계산 후 최대 한 개를 붙인다. 액세서리 자체는 총점을 바꾸지 않는다.
 9. 사용자 피드백과 상황 점수는 품질 점수를 바꾸지 않고 정렬에만 사용한다.
@@ -26,11 +27,11 @@
 
 | 항목 | 최대 | 구현 |
 |---|---:|---|
-| 실루엣 | 25 | `getSilhouetteScore()` |
-| 실착 균형 | 20 | `getWearFitBalanceScore()` |
-| 포인트 균형 | 10 | `getPointBalanceScore()` |
-| 색상 보조 | 10 | `getColorSupportScore()` |
-| 스타일 보조 | 5 | `getStyleSupportScore()` |
+| 실루엣 | 25 | `evaluateLegacySilhouette()` |
+| 실착 균형 | 20 | `evaluateLegacyWearFit()` |
+| 포인트 균형 | 10 | `evaluateLegacyPointBalance()` |
+| 색상 보조 | 10 | `evaluateLegacyColorSupport()` |
+| 스타일 보조 | 5 | `evaluateLegacyStyleSupport()` |
 | 날씨·온도 | 25 | `assessOutfitTemperatureSuitability()` |
 | 회전율 | 5 | `getRotationBreakdownScore()` |
 | 명목 합계 | 100 | 위 breakdown 합 |
@@ -107,13 +108,29 @@ type CurrentFashionRuleAudit = {
 - `developer_heuristic`: 숫자와 조건이 코드에 직접 들어간 규칙
 - `unknown`: 출처와 설계 의도를 코드에서 확인할 수 없는 규칙
 
-현재 호환성 점수 규칙에는 source ID, 버전, 리뷰어가 없다. 온도 모듈의 제품 정책 외에는 대부분 `developer_heuristic`이며, 외부 표준을 직접 구현한 규칙은 없다.
+Phase 2부터 각 운영 규칙에는 안정적인 `legacy.*` ID, `legacy-v1` 버전, 활성 상태가 있다. 외부 출처를 직접 연결한 규칙은 없으므로 모든 registry record는 `temporary_heuristic`, 빈 `sourceReferences`, 보수적 confidence `0.35`로 등록한다. 이 confidence는 운영 점수에 사용하지 않으며 패션 정확도 확률을 뜻하지 않는다.
+
+## Phase 2 모듈 및 추적 상태
+
+| 영역 | 실제 모듈 | ID 접두사 | registry | evidence |
+|---|---|---|---|---|
+| 색상 | `fashionCompatibility/legacyColorRules.ts` | `legacy.color.*` | 등록 | 적용 분기별 생성 |
+| 스타일 태그 | `fashionCompatibility/legacyStyleRules.ts` | `legacy.style.*` | 등록 | 적용 분기별 생성 |
+| 실루엣·비율 | `fashionCompatibility/legacyShapeRules.ts` | `legacy.shape.*` | 등록 | 적용 분기와 source별 생성 |
+| 실착 균형·체형 | `fashionCompatibility/legacyShapeRules.ts` | `legacy.fit.*` | 등록 | 적용 분기와 source별 생성 |
+| 포인트 균형 | `fashionCompatibility/legacyShapeRules.ts` | `legacy.style.point-*` | 등록 | 선택 분기와 source별 생성 |
+| 상세 품목·소재 | `fashionCompatibility/legacyMaterialRules.ts` | `legacy.material.*` | 등록 | 기존 effect callback으로 생성 |
+| 상황 | `outfitSituation.ts` | `legacy.occasion.*` | 등록 | 기존 정렬 경계 유지, 아직 evaluator evidence 미연결 |
+| 개인화·회전율 | `outfitRecommend.ts`, `outfitFeedback.ts` | `legacy.personal.*` | 등록 | 기존 정렬 경계 유지, 아직 evaluator evidence 미연결 |
+| 환경 | `outfitTemperatureSuitability.ts` | `legacy.environment.*` | 등록 | 공통 모듈 유지, 패션 evaluator에서 복제하지 않음 |
+
+`OutfitScoreEvidence`는 기존 점수 적용을 관찰하는 내부 기록이다. 점수를 결정하거나 사용자 UI, 추천 cache, 저장 schema에 들어가지 않는다. item ID 외 상품명·이미지 URI·신체 치수 원문은 담지 않으며 현재 원격 전송 경로도 없다.
 
 ## 색상 규칙
 
 | ID | 위치 | 조건 | 현재 효과 | 입력 | 근거 | 알려진 예외·위험 |
 |---|---|---|---:|---|---|---|
-| `color.black-denim` | `outfitRecommend.ts:getBaseColorScore` | 블랙 상의 + 데님 하의 | raw 25 | 색상명, 하의 이름 | developer heuristic | 블랙 면적, 데님 명도, 워싱 미반영 |
+| `legacy.color.black-denim` | `fashionCompatibility/legacyColorRules.ts` | 블랙 상의 + 데님 하의 | raw 25 | 색상명, 하의 이름 | temporary heuristic | 블랙 면적, 데님 명도, 워싱 미반영 |
 | `color.basic-different` | 동일 | 서로 다른 BASIC_COLORS | raw 23 | 색상명 | developer heuristic | 실제 색차·면적 미반영 |
 | `color.same-non-monochrome` | 동일 | 같은 색, 블랙·화이트 제외 | raw 10 + 경고 | 색상명 | developer heuristic | 톤온톤과 셋업을 오판 가능 |
 | `color.dark-dark` | 동일 | 상·하의 모두 DARK_COLORS | raw 13 + 경고 | 색상명 | developer heuristic | 명도 차이와 소재 광택 미반영 |
@@ -122,11 +139,11 @@ type CurrentFashionRuleAudit = {
 | `color.single-accent` | 동일 | 포인트 색 1개 | raw 20 | 색상명 | developer heuristic | 포인트 면적과 채도 미반영 |
 | `color.four-or-more` | 동일 | 서로 다른 색 4개 이상 | raw 6 + 경고 | 색상명 개수 | developer heuristic | 작은 로고색도 동일 가중 |
 | `color.multiple-accents` | 동일 | 포인트 색 2개 이상 | raw 10 + 경고 | 색상명 개수 | developer heuristic | 보색·유사색 구분 없음 |
-| `color.match-profile` | `getColorScore` | 다른 아이템 색이 `matchColors` 문자열과 부분 일치 | +2/건, 최대 +4 | AI styleProfile | ai generated attribute | matchColors 자체의 근거·confidence 미사용 |
+| `legacy.color.match-colors` | `legacyColorRules.ts:getColorScore` | 다른 아이템 색이 `matchColors` 문자열과 부분 일치 | +2/건, 최대 +4 | AI styleProfile | temporary heuristic | matchColors 자체의 근거·confidence 미사용 |
 | `color.avoid-profile` | 동일 | 다른 아이템 색이 `avoidColors`와 부분 일치 | -4/건, 최대 -8 | AI styleProfile | ai generated attribute | 사용자 수정과 AI 추정을 구분하지 않음 |
 | `color.one-strong` | 동일 | STRONG_COLORS 1개 | +1 | 색상명 | developer heuristic | 채도·면적 미반영 |
 | `color.multiple-strong` | 동일 | STRONG_COLORS 2개 이상 | -5 + 경고 | 색상명 | developer heuristic | 실제 조화 관계 미반영 |
-| `color.support-scale` | `getColorSupportScore` | raw color 0~25 | `round(raw×0.4)`, 최대 10 | 위 규칙 | documented internal policy | 반올림으로 작은 차이 소실 |
+| `legacy.color.*` support scale | `legacyColorRules.ts:evaluateLegacyColorSupport` | raw color 0~25 | `round(raw×0.4)`, 최대 10 | 위 규칙 | temporary heuristic | 반올림으로 작은 차이 소실 |
 
 현재 색상은 이름 문자열만 사용한다. LAB, 명도, 채도, 색상 면적, 패턴 내부 색, 조명, 배경 분리는 없다. `colorValuesMatch()`는 양방향 부분 문자열 비교이므로 색상 taxonomy가 안정적이지 않으면 오탐 가능하다.
 
@@ -136,7 +153,7 @@ type CurrentFashionRuleAudit = {
 
 | ID | 위치 | 조건 | 현재 효과 | 근거 | 알려진 예외·위험 |
 |---|---|---|---:|---|---|
-| `shape.cropped-wide` | `getSilhouetteScore` | 짧은 상의 + wide 하의 | raw 35 | developer heuristic | tuck 여부, 밑위, 신체 비율 미반영 |
+| `legacy.shape.cropped-wide` | `legacyShapeRules.ts:evaluateLegacySilhouette` | 짧은 상의 + wide 하의 | raw 35 | temporary heuristic | tuck 여부, 밑위, 신체 비율 미반영 |
 | `shape.semi-wide` | 동일 | semiOversized 상의 + wide 하의 | raw 34 | developer heuristic | 실제 ease가 아닌 라벨일 수 있음 |
 | `shape.oversized-wide` | 동일 | oversized 상의 + wide 하의 | raw 31 | developer heuristic | 전신 볼륨 과다 예외와 중복 |
 | `shape.regular-wide` | 동일 | slim/regular 상의 + wide 하의 | raw 32 | developer heuristic | 스타일 의도 미반영 |
@@ -148,7 +165,7 @@ type CurrentFashionRuleAudit = {
 | `shape.visual-weight-far` | 동일 | visualWeight 차 ≥6 | -5 + 경고 | developer heuristic | 의도된 대비 예외 |
 | `shape.impression-cropped` | 동일 | AI 상의 cropped + 하의 wide | +1 | ai generated attribute | 이미 resolved silhouette에 반영돼 중복 가능 |
 | `shape.source-blend` | `blendScoreBySource` | measurement/impression/fallback | weight 1/0.5/0.25 | documented internal policy | numeric confidence는 미사용 |
-| `fit.volume-near` | `getWearFitBalanceScore` | volume 차 ≤3 | +3 | developer heuristic | 둘 다 과대인 경우와 분리 불완전 |
+| `legacy.fit.volume-balance` | `legacyShapeRules.ts:evaluateLegacyWearFit` | volume 차 ≤3 | +3 | temporary heuristic | 둘 다 과대인 경우와 분리 불완전 |
 | `fit.volume-far` | 동일 | volume 차 ≥6 | -4 + 경고 | developer heuristic | 스타일 의도 예외 |
 | `fit.short-long` | 동일 | 짧은 상의 + 긴 하의 | +3 | developer heuristic | 상·하의 실제 비율 미사용 |
 | `fit.long-long` | 동일 | 긴 상의 + 긴 하의 | -4 | developer heuristic | silhouette 규칙과 중복 |
@@ -167,41 +184,36 @@ type CurrentFashionRuleAudit = {
 | `shape.measure-bottom-slim` | 동일 | 허벅지 ≤28 및 밑단 ≤19 | volume 2 | 동일 |
 | `shape.measure-top-length` | `getMeasuredLengthBalance` | 총장 ≤58 / ≥75cm | short / long | 키와 카테고리 세분화 없음 |
 | `shape.measure-bottom-length` | 동일 | 총장 ≤90 / ≥105cm | short / long | 인심·밑위 미반영 |
-| `shape.default-volume` | `getResolvedGarmentProfile` | silhouette 라벨 | 2~8 기본값 | 라벨 taxonomy 의존 |
+| `legacy.shape.source-weight` | `legacyShapeRules.ts:getResolvedLegacyGarmentProfile` | silhouette 라벨과 source fallback | 2~8 기본값과 source weight | 라벨 taxonomy 의존 |
 | `shape.default-weight` | 동일 | stiff/패딩/코트/울/두꺼운 | visualWeight 7 | 색 면적과 실제 중량 미반영 |
 | `shape.default-point` | 동일 | 그래픽·패턴·강한 색 | point 6, 일반 2 | 포인트 크기·위치 제한적 |
 | `shape.impression-blend` | 동일 | AI volume/point | base 75% + AI 25% | confidence 미사용 |
 
-### 남아 있지만 운영 점수에 쓰이지 않는 레거시
+### 운영 점수에 쓰이지 않던 레거시 정리
 
-- `getCategoryScore()`: 상의·하의·신발 25, 상의·하의 8. 호출부가 없다.
-- `getStyleScore()`: mood, styleProfile silhouette, 포인트 개수 보정이 있으나 호출부가 없다.
-- `getBaseFitScore()` / `getFitScore()`: 오버핏·와이드·슬림 조합의 3~20점 규칙이 있으나 현재 breakdown에 쓰이지 않는다.
-- `getVersatilityScore()`: 기본색·무지·그래픽·계절성으로 -5~+5를 계산하지만 호출부가 없다.
-
-이 함수들은 현재 결과를 바꾸지 않지만, 이름 때문에 실제 운영 규칙으로 오해하기 쉽고 향후 중복 적용될 위험이 있다.
+Phase 1에서 확인한 `getCategoryScore()`, `getStyleScore()`, `getBaseFitScore()` / `getFitScore()`, `getVersatilityScore()`는 호출부가 없는 코드였다. Phase 2에서 운영 결과와 무관함을 기존 테스트로 확인한 뒤 삭제해, 실제 평가 규칙으로 오해하거나 향후 중복 적용할 위험을 줄였다.
 
 ## 포인트·스타일 규칙
 
 | ID | 위치 | 조건 | 효과 | 근거·위험 |
 |---|---|---|---:|---|
-| `point.none` | `getPointBalanceScore` | 강한 포인트 0, 평균 이하 | raw 13 | developer heuristic |
+| `legacy.style.point-low` | `legacyShapeRules.ts:evaluateLegacyPointBalance` | 강한 포인트 0, 평균 이하 | raw 13 | temporary heuristic |
 | `point.single` | 동일 | 강한 포인트 1 | raw 15 | developer heuristic |
 | `point.double` | 동일 | 강한 포인트 2 | raw 8 + 경고 | developer heuristic |
 | `point.multiple` | 동일 | 강한 포인트 3+ | raw 3 + 경고 | developer heuristic |
 | `point.support-scale` | 동일 | source blend 후 0~15 | 0~10으로 축소 | source confidence 미사용 |
-| `style.conflict` | `getBaseStyleScore` | 지정 conflict pair 포함 | raw 5 + 경고 | developer heuristic, 문화·시대·의도 예외 큼 |
+| `legacy.style.tag-conflict` | `legacyStyleRules.ts:getBaseStyleScore` | 지정 conflict pair 포함 | raw 5 + 경고 | temporary heuristic, 문화·시대·의도 예외 큼 |
 | `style.same-three` | 동일 | 같은 tag 3회 이상 | raw 24 | AI tag 반복이 과대 가점 |
 | `style.same-two` | 동일 | 같은 tag 2회 | raw 18 | 동일 |
 | `style.same-group` | 동일 | 같은 style group | raw 14 | 그룹 taxonomy 출처 없음 |
 | `style.weak-link` | 동일 | tag는 있으나 연결 약함 | raw 4 + 경고 | 미지 스타일을 부정적으로 처리 |
-| `style.support-scale` | `getStyleSupportScore` | raw 0~24 | `round(raw/5)`, 최대 5 | 스타일은 총점의 보조 5점 |
+| `legacy.style.*` support scale | `legacyStyleRules.ts:evaluateLegacyStyleSupport` | raw 0~24 | `round(raw/5)`, 최대 5 | 스타일은 총점의 보조 5점 |
 
 Style group과 conflict pair는 코드 상수다. 각 그룹의 버전, 적용 상황, 예외, 전문가 검토 기록이 없다.
 
 ## 세부 분류·소재 규칙
 
-`OUTFIT_DETAIL_RULES`와 `MATERIAL_SEASON_RULES`는 테이블 기반이라 확장은 쉽지만, evidence metadata와 버전은 없다. 효과 ID 중복은 `Set`으로 한 번만 적용한다. 최종 합은 -12~+8로 clamp한다.
+`OUTFIT_DETAIL_RULES`와 `MATERIAL_SEASON_RULES`는 기존 테이블을 유지한다. Phase 2 registry가 각 effect를 `legacy.material.*` ID와 `legacy-v1` metadata로 감싸고, optional trace callback이 적용 evidence를 만든다. 효과 ID 중복은 기존처럼 `Set`으로 한 번만 적용하고 최종 합은 -12~+8로 clamp한다.
 
 | 규칙 | 효과 |
 |---|---:|
@@ -338,18 +350,15 @@ AI는 최종 0~100 코디 점수를 직접 만들지 않는다. 다만 AI 속성
 
 ## 중복·모순·위험
 
-1. `getFitScore()`는 과거 fit 규칙을 보존하지만 호출되지 않아 실제 동작과 코드 독자의 기대가 다르다.
-2. `getStyleScore()`는 mood·point를 계산하지만 현재는 `getBaseStyleScore()`만 사용한다.
-3. `getVersatilityScore()`는 계산만 남아 있고 breakdown에 없다.
-4. long-long과 volume 차이는 silhouette와 wearFit에서 동시에 반영된다.
-5. 린넨·플리스는 detail과 material 규칙에서 동시에 가감될 수 있다.
-6. AI garmentProfile source는 고정 0.5이며 필드별 AI confidence를 사용하지 않는다.
-7. 실측 행이 있다는 사실과 실제로 필요한 실측 필드가 있다는 사실이 source 판정에서 완전히 분리되지 않는다.
-8. color/style 이름 기반 그룹은 면적·명도·채도·조명·패턴을 표현하지 못한다.
-9. style tag가 없는 아이템은 경량 입력에서 `데일리`로 보완돼 정보 부족이 중립이 아니라 특정 스타일 신호가 된다.
-10. `bodyType` 감점 키워드가 현재 프로필 UI의 `마름/보통/근육형/통통`과 맞지 않아 사실상 비활성일 수 있다.
-11. situation 정렬이 두 모듈에 중복돼 유지보수 시 결과 불일치 위험이 있다.
-12. 경고 문구의 한국어 단어가 중요 감점 여부를 결정한다. 문구 수정이 점수를 바꿀 수 있다.
+1. long-long과 volume 차이는 silhouette와 wearFit에서 동시에 반영된다.
+2. 린넨·플리스는 detail과 material 규칙에서 동시에 가감될 수 있다.
+3. AI garmentProfile source는 고정 0.5이며 필드별 AI confidence를 사용하지 않는다.
+4. 실측 행이 있다는 사실과 실제로 필요한 실측 필드가 있다는 사실이 source 판정에서 완전히 분리되지 않는다.
+5. color/style 이름 기반 그룹은 면적·명도·채도·조명·패턴을 표현하지 못한다.
+6. style tag가 없는 아이템은 경량 입력에서 `데일리`로 보완돼 정보 부족이 중립이 아니라 특정 스타일 신호가 된다.
+7. `bodyType` 감점 키워드가 현재 프로필 UI의 `마름/보통/근육형/통통`과 맞지 않아 사실상 비활성일 수 있다.
+8. situation 정렬이 두 모듈에 중복돼 유지보수 시 결과 불일치 위험이 있다.
+9. 경고 문구의 한국어 단어가 중요 감점 여부를 결정한다. 문구 수정이 점수를 바꿀 수 있다.
 
 ## 현재 데이터로 가능한 평가
 

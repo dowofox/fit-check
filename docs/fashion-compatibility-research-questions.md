@@ -116,6 +116,9 @@
 6. learned model을 on-device, server, batch 중 어디에서 실행할 것인가?
 7. unsupported category와 새 taxonomy는 어떤 fallback을 사용할 것인가?
 8. 전문가 rule과 learned model이 충돌할 때 어느 쪽이 score cap을 결정하는가?
+9. rule metadata confidence와 입력 source confidence를 어떤 calibration 절차로 검증하고 결합할 것인가?
+10. detailCategory와 소재가 같은 신호를 중복 적용한 evidence를 언제 하나의 exclusive rule group으로 합칠 것인가?
+11. 상황·개인화·환경 evidence를 수집할 때 item ID를 로컬 진단에만 둘지 익명화할지 어떤 보존 정책을 적용할 것인가?
 
 ## 권장 조사 순서
 
