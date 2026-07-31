@@ -1,5 +1,17 @@
 # Fashion Compatibility Audit
 
+## Phase 4A shape audit update
+
+- legacy `bodyType` 기반 상체·하체 volume 보정은 객관적 outfit compatibility가 아니라 personal suitability에 해당한다. 운영 parity를 위해 유지하지만 향후 rubric에서는 별도 dimension이어야 한다.
+- legacy chest, totalLength, thigh, hem threshold는 현재 코드의 임시 heuristic이며 전문가 검증값이 아니다.
+- 상품 `chest`, `waist`, `hip`, `thigh`, `hem`은 현재 서버/UI 계약상 단면이고 사용자 대응 field는 둘레다. 일반 subtraction은 의미가 다르므로 금지한다.
+- `rise`는 선형 길이지만 source별 앞밑위/일반 밑위 의미가 저장되지 않아 모호하다.
+- 자동 추출 실측과 직접 입력 실측은 같은 `productSizeGuide`에 저장되어 행 단위 provenance를 복원할 수 없다.
+- `garmentProfile`은 사진 기반 의류 인상이며 실제 사용자 착용 여유가 아니다.
+- 새 `shape-profile-v1`은 legacy silhouette/wearFit/point 점수에 사용하지 않는다.
+- 새 `OutfitShapeFeatures`의 relation은 관찰값이며 좋음/나쁨 판정이 아니다.
+- 새 shape shadow는 기본 비활성이고 UI, cache, storage, telemetry, 추천 순위에 연결되지 않는다.
+
 ## 문서 상태
 
 - 기준 커밋: `5a4be5325e983b334579a2b20b236cbc1d7541b5`

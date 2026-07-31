@@ -1,5 +1,20 @@
 # Fashion Compatibility Research Questions
 
+## Phase 4A 이후 shape 검증 질문
+
+1. 공급처별 `chest`, `waist`, `hip`, `thigh`, `hem`은 언제 단면이고 언제 둘레인가?
+2. 상품 총장과 하의 rise subtype을 ISO 18890 측정 지점에 어떻게 검증해 매핑할 것인가?
+3. 상의 기장과 하의 밑위·총장 관계에서 tuck 여부를 모르면 어떤 feature를 보류해야 하는가?
+4. 신발 visual weight를 이미지 또는 구조화 상품 정보로 재현 가능하게 평가하는 기준은 무엇인가?
+5. structure와 drape의 관찰자 간 agreement가 충분한 rubric은 무엇인가?
+6. 아우터 포함 착장에서 실제로 보이는 안쪽 상의와 layer coverage를 어떻게 기록할 것인가?
+7. 사용자 키 대비 상의 기장과 선호 바지 총장 대비 하의 기장을 어떤 별도 feature로 유지할 것인가?
+8. 체형 적합성과 착장 자체의 shape 조화를 전문가 평가에서 어떻게 분리할 것인가?
+9. style intent별 volume·length 관계 허용 범위를 어떤 blind set으로 검증할 것인가?
+10. professional shape score를 만들기 위한 최소 전문가 수, anchor, agreement 기준은 무엇인가?
+11. 자동 추출 실측과 사용자 직접 입력 실측의 provenance를 migration 없이 어떻게 보존할 것인가?
+12. `rise`가 앞밑위인지 전체 밑위인지 알 수 없을 때 어떤 계산을 차단해야 하는가?
+
 ## 목적
 
 현재 코드만으로 답할 수 없는 질문을 명시해, 근거 없는 숫자를 더 추가하지 않기 위한 목록이다. 우선순위는 운영 위험, 제품 핵심 가치, 데이터 취득 가능성 순이다.

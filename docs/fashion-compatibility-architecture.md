@@ -1,5 +1,27 @@
 # Fashion Compatibility Architecture
 
+## Phase 4A: Professional shape foundation
+
+Phase 4A는 `utils/fashionCompatibility/shape/` 아래에 운영 점수와 분리된 shape 분석 경로를 추가한다.
+
+```text
+ClosetItem (read only)
+  -> shape-profile-v1
+  -> shape-features-v1
+  -> optional disabled-by-default shadow
+
+UserProfile + reference clothing (read only)
+  -> personal-fit-features-v1
+```
+
+- `measurementSemantics.ts`: 상품 단면, 신체 둘레, 선형 길이의 호환 가능 연산만 허용한다.
+- `shapeProfiles.ts`: 선택 사이즈 실측, 사진 인상, style, text source를 구분한 immutable profile을 만든다.
+- `shapeFeatures.ts`: 상하 volume·length, visual weight, structure·drape, 아우터 layering을 관찰한다.
+- `personalFitFeatures.ts`: 사용자 ease와 기준 옷 차이를 objective outfit feature와 분리한다.
+- `shapeShadowEvaluator.ts`: 명시적 opt-in에서만 feature를 계산하며 professional score는 만들지 않는다.
+
+기본 shadow 경로는 item과 profile을 읽지 않는다. 운영 `outfitRecommend.ts`, 추천 cache, UI, `ClosetItem`/`UserProfile` schema와 backup 형식에는 연결하지 않았다. rollback은 Phase 4A 모듈, `test:fashion-shape`, 관련 문서만 제거하면 되며 data migration은 없다. 자세한 계약은 [Fashion Shape Foundation](./fashion-shape-foundation.md)을 따른다.
+
 ## 목표
 
 현재 운영 추천을 유지하면서 호환성, 개인 적합성, 환경 적합성을 분리하고 각 판단의 근거·confidence·버전을 추적할 수 있는 구조로 이동한다.
