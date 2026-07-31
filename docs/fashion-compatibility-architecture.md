@@ -72,6 +72,24 @@ Evidence는 점수 입력이 아니며 recommendation 결과, UI, cache, 백업,
 
 Phase 2는 `outfitRecommend.ts`의 adapter 호출과 `utils/fashionCompatibility/` 모듈로 격리돼 있다. 문제가 생기면 Phase 2 커밋을 되돌려 기존 인라인 함수로 복구할 수 있고, 저장 schema·cache key·백업 형식 migration은 필요하지 않다. 15개 golden parity fixture와 Phase 1 characterization test가 rollback 전후 운영 결과를 확인한다.
 
+## Phase 3A 구현 구조
+
+```text
+utils/fashionCompatibility/color/
+  types.ts                 # profile/feature/shadow versioned contracts
+  colorMath.ts             # sRGB D65 -> XYZ -> Lab -> LCh, Delta E
+  namedColorCatalog.ts     # static alias Map and low-confidence representatives
+  colorProfiles.ts         # read-only ClosetItem adapter
+  colorFeatures.ts         # measurable outfit color relations
+  colorShadowEvaluator.ts  # explicit opt-in development/test comparison
+```
+
+흐름은 `ClosetItem -> color-profile-v1 -> color-features-v1 -> optional shadow`다. 현재 저장 데이터에는 측정 RGB와 색 면적이 없으므로 사용자·공식·AI·legacy 색상명의 의미상 우선순위를 보존하되 모두 named-color fallback으로 표시한다. `utils/color.ts`의 legacy 정규화와 `legacyColorRules.ts`는 변경하지 않는다.
+
+Shadow 기본값은 비활성이다. `outfitRecommend.ts`에서 새 모듈을 호출하지 않으므로 운영 점수·순위·cache key·UI·저장·Android bundle 실행 경로는 바뀌지 않는다. 명시적으로 `{ enabled: true }`를 전달한 테스트 또는 개발 함수만 profile과 pairwise feature를 계산한다. Phase 3A에는 professional score가 없으며 0점이나 score difference를 만들지 않는다.
+
+Rollback은 `utils/fashionCompatibility/color/`, `test:fashion-color`, 이 문서 변경만 제거하면 끝난다. 저장 schema migration과 데이터 복구는 없다. 자세한 수학·source·privacy 제약은 [Fashion Color Foundation](./fashion-color-foundation.md)을 따른다.
+
 ## 목표 평가 구조
 
 ```ts
@@ -489,14 +507,23 @@ type CompatibilityComparison = {
 - rollback: adapter off
 - 완료 조건: 모든 active rule에 ID, sourceType, version, exception 필드 존재
 
-### Phase 3: color profile PoC
+### Phase 3A: color profile foundation
 
-- 변경 후보: versioned `GarmentColorProfile`, 오프라인 추출 도구
-- 데이터 migration: 기존 항목은 `legacy_name` fallback
-- 테스트: CIE 변환 test vector, segmentation 품질 set
-- 위험: 배경·조명 오염
-- rollback: profile 미사용
-- 완료 조건: 추출 confidence와 실패 조건 검증
+- 변경: versioned `GarmentColorProfile`, 표준 색채 계산, named fallback, 측정 feature, 비활성 shadow
+- 데이터 migration: 없음. 기존 항목은 실행 중 `legacy_color_name` fallback
+- 테스트: sRGB/Lab, CIEDE2000 reference pair, profile/feature/shadow, legacy golden parity
+- 위험: 대표 named RGB를 실제 의류 측정으로 오인
+- rollback: color 모듈과 테스트 호출 제거. 운영 경로는 원래부터 비활성
+- 완료 조건: profile·feature 계산 검증, 운영 추천 결과 완전 동일
+
+### Phase 3B: measured palette and expert rubric
+
+- 변경 후보: 배경 제외 이미지 palette, 면적·패턴 feature, 전문가 평가 rubric
+- 데이터 migration: 검증 전 결정하지 않음
+- 테스트: 조명·배경·패턴 fixture, 전문가 blind set, calibration
+- 위험: 이미지 오염과 측정값을 조화 점수로 오해
+- rollback: shadow flag off
+- 완료 조건: 색 면적 품질과 전문가 기준이 별도로 검증됨
 
 ### Phase 4: shape profile 개선
 
