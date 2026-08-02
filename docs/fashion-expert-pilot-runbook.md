@@ -60,6 +60,13 @@ npm run fashion:expert:pilot -- `
 6. 전체 호환성은 선택 항목이다. Image가 없으면 rated로 기록할 수 없다.
 7. 모든 Case 저장 후 `전체 완료 확인`으로 최종 검증한다.
 
+입력을 바꾸면 현재 Case는 `저장되지 않은 변경`으로 표시된다. 이전·다음 Case로 이동해도 브라우저 메모리에 Case별 초안이 남고, 돌아오면 저장된 평가보다 초안을 우선 복원한다. 초안은 명시적 저장에 성공한 Case만 제거되며 저장 실패 시 유지된다. `현재 Case 변경 버리기`는 해당 Case 초안만 제거한다.
+
+- 초안이 하나라도 있으면 새로고침·탭 종료 전에 브라우저 표준 경고가 표시되고 `전체 완료 확인`이 차단된다.
+- 초안은 현재 브라우저 메모리에만 있다. 새로고침, 탭 종료, 브라우저 종료 또는 서버 재시작 뒤에는 복원되지 않는다.
+- `localStorage`, `sessionStorage`, IndexedDB, 쿠키, 서버 파일을 초안 저장에 사용하지 않는다.
+- 초안은 input dataset과 output JSON에 기록되지 않으며 이미지 경로, asset ID, session token, 원본 outfit ID를 포함하지 않는다.
+
 UI에는 pairwise 비교, 총점 계산, professional score가 없다. 평가는 registry의 dimension, anchor, evidence code를 동적으로 읽으므로 별도 화면 상수를 만들지 않는다.
 
 ## 저장과 재개
@@ -78,6 +85,7 @@ Output과 로컬 manifest 기본 패턴은 `.gitignore`에 포함된다. 실제 
 - **시작 전 validator 실패**: dataset을 기존 `fashion:expert:validate`로 먼저 수정한다.
 - **이미지 거부**: 파일 크기, 확장자, 실제 MIME, symlink 여부, snapshot의 `imageAvailable`을 확인한다.
 - **저장 거부**: 화면의 필수 13개 dimension, confidence, rating 가용성 조건을 확인한다.
+- **Case에 저장되지 않은 변경 표시**: 해당 Case를 다시 열어 저장하거나 `현재 Case 변경 버리기`로 메모리 초안을 제거한다.
 - **완료 거부**: 저장되지 않은 Case가 남아 있다. `/api/session`의 완료 상태를 기준으로 첫 미완료 Case가 자동 선택된다.
 - **Output 손상**: 손상 파일을 별도로 보존한 뒤 마지막 정상 백업에서 재개한다. Input dataset을 output으로 사용하지 않는다.
 
@@ -90,4 +98,4 @@ npm run lint
 npx tsc --noEmit
 ```
 
-Pilot test는 인자 거부, asset 경계, MIME spoofing, 결정적 순서·ID, 평가 잠금, localhost 보안 헤더, 원자 저장, 재개, 중복 방지, 전체 완료, input 불변과 output privacy를 확인한다.
+Pilot test는 Case별 초안 격리·불변 복사·privacy, 인자 거부, asset 경계, MIME spoofing, 결정적 순서·ID, 평가 잠금, localhost 보안 헤더, 원자 저장, 재개, 중복 방지, 전체 완료, input 불변과 output privacy를 확인한다.

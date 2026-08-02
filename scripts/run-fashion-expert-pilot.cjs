@@ -409,6 +409,11 @@ function createPilotServer(options) {
         response.end(fs.readFileSync(path.join(UI_DIR, "app.js")));
         return;
       }
+      if (url.pathname === "/draftState.js" && request.method === "GET") {
+        response.writeHead(200, securityHeaders("text/javascript; charset=utf-8"));
+        response.end(fs.readFileSync(path.join(UI_DIR, "draftState.js")));
+        return;
+      }
       if (url.pathname === "/styles.css" && request.method === "GET") {
         response.writeHead(200, securityHeaders("text/css; charset=utf-8"));
         response.end(fs.readFileSync(path.join(UI_DIR, "styles.css")));

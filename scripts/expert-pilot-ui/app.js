@@ -8,12 +8,16 @@ const AVAILABILITIES = [
   ["abstained", "판단 보류"],
 ];
 const RATINGS = [1, 2, 3, 4, 5];
+const draftStore = window.PilotDraftState.createDraftStore();
 const state = {
   token: "",
   session: null,
   currentCase: 1,
   caseData: null,
-  startedAt: Date.now(),
+  baseDurationSeconds: 0,
+  elapsedMilliseconds: 0,
+  editStartedAt: null,
+  rendering: false,
 };
 
 const elements = {
@@ -22,6 +26,7 @@ const elements = {
   workspace: document.querySelector("#workspace"),
   rubricVersion: document.querySelector("#rubric-version"),
   caseProgress: document.querySelector("#case-progress"),
+  caseState: document.querySelector("#case-state"),
   images: document.querySelector("#images"),
   contextList: document.querySelector("#context-list"),
   availabilityList: document.querySelector("#availability-list"),
@@ -34,11 +39,40 @@ const elements = {
   overallConfidence: document.querySelector("#overall-confidence"),
   overallNotes: document.querySelector("#overall-notes"),
   evaluatorConfidence: document.querySelector("#evaluator-confidence"),
+  draftStatus: document.querySelector("#draft-status"),
   saveStatus: document.querySelector("#save-status"),
   previous: document.querySelector("#previous-button"),
   next: document.querySelector("#next-button"),
+  discard: document.querySelector("#discard-button"),
   complete: document.querySelector("#complete-button"),
 };
+
+function beforeUnload(event) {
+  event.preventDefault();
+  event.returnValue = "";
+}
+
+function syncUnloadProtection() {
+  const method = draftStore.hasAnyDraft() ? "addEventListener" : "removeEventListener";
+  window[method]("beforeunload", beforeUnload);
+}
+
+function syncDraftStatus() {
+  const dirtyCases = draftStore.getDirtyCaseNumbers();
+  const currentDirty = draftStore.hasDraft(state.currentCase);
+  const saved = Boolean(state.caseData?.existingEvaluation);
+  elements.caseState.textContent = currentDirty
+    ? "저장되지 않은 변경"
+    : saved
+      ? "저장됨"
+      : "아직 평가하지 않음";
+  elements.caseState.dataset.state = currentDirty ? "dirty" : saved ? "saved" : "empty";
+  elements.draftStatus.textContent = dirtyCases.length
+    ? `저장되지 않은 변경사항이 있는 Case: ${dirtyCases.join(", ")}`
+    : "";
+  elements.discard.hidden = !currentDirty;
+  syncUnloadProtection();
+}
 
 function option(value, label, disabled = false) {
   const entry = document.createElement("option");
@@ -244,9 +278,9 @@ function renderDimension(definition, existing) {
   return card;
 }
 
-function fillOverall(existing) {
-  elements.overallEnabled.checked = Boolean(existing);
-  elements.overallFields.hidden = !existing;
+function fillOverall(existing, enabled = Boolean(existing)) {
+  elements.overallEnabled.checked = enabled;
+  elements.overallFields.hidden = !enabled;
   populateSelect(elements.overallAvailability, AVAILABILITIES);
   populateSelect(elements.overallRating, [["", "선택하세요"], ...RATINGS.map((v) => [v, `${v}점`])]);
   populateSelect(elements.overallConfidence, [["", "선택하세요"], ...RATINGS.map((v) => [v, `${v}`])]);
@@ -267,11 +301,96 @@ function updateOverallRating() {
   if (!rated) elements.overallRating.value = "";
 }
 
-async function loadCase(caseNumber) {
-  state.caseData = await request(`/api/outfits/${caseNumber}`);
-  state.currentCase = caseNumber;
-  state.startedAt = Date.now();
+function getElapsedMilliseconds() {
+  const active = state.editStartedAt === null ? 0 : Date.now() - state.editStartedAt;
+  const elapsed = state.elapsedMilliseconds + active;
+  return Number.isFinite(elapsed) ? Math.max(0, elapsed) : 0;
+}
+
+function collectDimensionDraft(card) {
+  return {
+    dimension: card.dataset.dimension,
+    availability: card.querySelector('[data-field="availability"]').value,
+    rating: card.querySelector('[data-field="rating"]').value,
+    confidence: card.querySelector('[data-field="confidence"]').value,
+    supportingEvidenceCodes: [
+      ...card.querySelectorAll('[data-evidence="supporting"]:checked'),
+    ].map((entry) => entry.value),
+    conflictingEvidenceCodes: [
+      ...card.querySelectorAll('[data-evidence="conflicting"]:checked'),
+    ].map((entry) => entry.value),
+    notes: card.querySelector('[data-field="notes"]').value,
+  };
+}
+
+function collectCurrentDraft() {
+  return {
+    dimensions: [...document.querySelectorAll(".dimension-card")].map(collectDimensionDraft),
+    overall: {
+      enabled: elements.overallEnabled.checked,
+      availability: elements.overallAvailability.value,
+      rating: elements.overallRating.value,
+      confidence: elements.overallConfidence.value,
+      notes: elements.overallNotes.value,
+    },
+    evaluatorConfidence: elements.evaluatorConfidence.value,
+    elapsedMilliseconds: getElapsedMilliseconds(),
+  };
+}
+
+function preserveCurrentDraft() {
+  if (!state.caseData || !draftStore.hasDraft(state.currentCase)) return;
+  const draft = collectCurrentDraft();
+  draftStore.setDraft(state.currentCase, draft);
+  state.elapsedMilliseconds = draft.elapsedMilliseconds;
+  state.editStartedAt = null;
+}
+
+function markCurrentCaseDirty() {
+  if (state.rendering || !state.caseData) return;
+  if (state.editStartedAt === null) state.editStartedAt = Date.now();
+  draftStore.setDraft(state.currentCase, collectCurrentDraft());
+  syncDraftStatus();
+}
+
+function renderCurrentCase() {
+  const draft = draftStore.getDraft(state.currentCase);
   const existing = state.caseData.existingEvaluation;
+  const dimensions = draft?.dimensions || existing?.dimensions;
+  state.rendering = true;
+  state.baseDurationSeconds = Number(existing?.durationSeconds) || 0;
+  state.elapsedMilliseconds = draft?.elapsedMilliseconds || 0;
+  state.editStartedAt = null;
+  elements.dimensionList.replaceChildren(
+    ...state.caseData.rubric.map((definition) =>
+      renderDimension(
+        definition,
+        dimensions?.find((entry) => entry.dimension === definition.id)
+      )
+    )
+  );
+  fillOverall(
+    draft?.overall || existing?.overallCompatibility,
+    draft ? draft.overall.enabled : Boolean(existing?.overallCompatibility)
+  );
+  populateSelect(elements.evaluatorConfidence, [
+    ["", "선택하세요"],
+    ...RATINGS.map((value) => [value, `${value}`]),
+  ]);
+  elements.evaluatorConfidence.value = draft?.evaluatorConfidence || existing?.evaluatorConfidence || "";
+  elements.saveStatus.textContent = draft
+    ? "저장되지 않은 입력을 복원했습니다."
+    : existing
+      ? "저장된 평가를 이어서 수정할 수 있습니다."
+      : "";
+  state.rendering = false;
+  syncDraftStatus();
+}
+
+async function loadCase(caseNumber) {
+  const caseData = await request(`/api/outfits/${caseNumber}`);
+  state.caseData = caseData;
+  state.currentCase = caseNumber;
   elements.caseProgress.textContent = `Case ${caseNumber} / ${state.caseData.totalCases}`;
   elements.rubricVersion.textContent = state.caseData.rubricVersion;
   elements.images.replaceChildren(
@@ -297,24 +416,19 @@ async function loadCase(caseNumber) {
     "Material context": state.caseData.inputAvailability.materialContextAvailable,
     "Body fit context": state.caseData.inputAvailability.bodyFitContextAvailable,
   });
-  elements.dimensionList.replaceChildren(
-    ...state.caseData.rubric.map((definition) =>
-      renderDimension(
-        definition,
-        existing?.dimensions?.find((entry) => entry.dimension === definition.id)
-      )
-    )
-  );
-  fillOverall(existing?.overallCompatibility);
-  populateSelect(elements.evaluatorConfidence, [
-    ["", "선택하세요"],
-    ...RATINGS.map((value) => [value, `${value}`]),
-  ]);
-  elements.evaluatorConfidence.value = existing?.evaluatorConfidence || "";
+  renderCurrentCase();
   elements.previous.disabled = caseNumber === 1;
   elements.next.disabled = caseNumber === state.caseData.totalCases;
-  elements.saveStatus.textContent = existing ? "저장된 평가를 이어서 수정할 수 있습니다." : "";
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function navigateToCase(caseNumber) {
+  preserveCurrentDraft();
+  try {
+    await loadCase(caseNumber);
+  } catch (error) {
+    elements.saveStatus.textContent = error instanceof Error ? error.message : String(error);
+  }
 }
 
 function collectDimension(card) {
@@ -364,6 +478,7 @@ function collectOverall() {
 
 async function saveCurrent(event) {
   event.preventDefault();
+  const submittedDraft = draftStore.getDraft(state.currentCase);
   try {
     const evaluatorConfidence = Number(elements.evaluatorConfidence.value);
     if (!evaluatorConfidence) throw new Error("평가 전체 확신도를 선택해주세요.");
@@ -372,22 +487,42 @@ async function saveCurrent(event) {
       dimensions,
       overallCompatibility: collectOverall(),
       evaluatorConfidence,
-      durationSeconds: Math.max(1, Math.round((Date.now() - state.startedAt) / 1000)),
+      durationSeconds: Math.max(
+        1,
+        Math.round(state.baseDurationSeconds + getElapsedMilliseconds() / 1000)
+      ),
     };
     elements.saveStatus.textContent = "저장 중입니다.";
     const result = await request(`/api/evaluations/${state.currentCase}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    state.caseData.existingEvaluation = payload;
+    const latestDraft = draftStore.getDraft(state.currentCase);
+    if (!latestDraft || window.PilotDraftState.draftsEqual(latestDraft, submittedDraft)) {
+      draftStore.clearDraft(state.currentCase);
+      state.baseDurationSeconds = payload.durationSeconds;
+      state.elapsedMilliseconds = 0;
+      state.editStartedAt = null;
+    }
     elements.saveStatus.textContent = result.warnings.length
       ? `저장됨. 경고 ${result.warnings.length}개: ${result.warnings[0].message}`
       : "안전하게 저장했습니다.";
+    syncDraftStatus();
   } catch (error) {
     elements.saveStatus.textContent = error instanceof Error ? error.message : String(error);
+    syncDraftStatus();
   }
 }
 
 async function completeSession() {
+  const dirtyCases = draftStore.getDirtyCaseNumbers();
+  if (dirtyCases.length) {
+    elements.saveStatus.textContent =
+      `저장되지 않은 변경사항이 있는 Case: ${dirtyCases.join(", ")}. ` +
+      "먼저 각 Case를 저장하거나 변경사항을 버려주세요.";
+    return;
+  }
   try {
     const result = await request("/api/complete", {
       method: "POST",
@@ -397,6 +532,18 @@ async function completeSession() {
   } catch (error) {
     elements.saveStatus.textContent = error instanceof Error ? error.message : String(error);
   }
+}
+
+function discardCurrentDraft() {
+  if (!draftStore.hasDraft(state.currentCase)) return;
+  if (!window.confirm("현재 Case의 저장되지 않은 변경사항을 버릴까요?")) return;
+  draftStore.clearDraft(state.currentCase);
+  state.elapsedMilliseconds = 0;
+  state.editStartedAt = null;
+  renderCurrentCase();
+  elements.saveStatus.textContent = state.caseData.existingEvaluation
+    ? "저장된 평가로 되돌렸습니다."
+    : "저장되지 않은 변경사항을 버렸습니다.";
 }
 
 async function initialize() {
@@ -417,8 +564,11 @@ async function initialize() {
 }
 
 elements.form.addEventListener("submit", saveCurrent);
-elements.previous.addEventListener("click", () => loadCase(state.currentCase - 1));
-elements.next.addEventListener("click", () => loadCase(state.currentCase + 1));
+elements.form.addEventListener("input", markCurrentCaseDirty);
+elements.form.addEventListener("change", markCurrentCaseDirty);
+elements.previous.addEventListener("click", () => navigateToCase(state.currentCase - 1));
+elements.next.addEventListener("click", () => navigateToCase(state.currentCase + 1));
+elements.discard.addEventListener("click", discardCurrentDraft);
 elements.complete.addEventListener("click", completeSession);
 elements.overallEnabled.addEventListener("change", () => {
   elements.overallFields.hidden = !elements.overallEnabled.checked;

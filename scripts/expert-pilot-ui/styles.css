@@ -59,6 +59,11 @@ textarea {
   text-align: right;
 }
 
+#case-state[data-state="dirty"],
+.draft-status {
+  color: #b45309;
+}
+
 main {
   margin: 0 auto;
   max-width: 1440px;
@@ -286,6 +291,12 @@ textarea {
 .submit-card {
   display: grid;
   gap: 12px;
+}
+
+.draft-status {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .actions {

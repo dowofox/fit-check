@@ -15,6 +15,7 @@
       <div class="session-meta">
         <span id="rubric-version">불러오는 중</span>
         <span id="case-progress">Case - / -</span>
+        <span id="case-state">아직 평가하지 않음</span>
       </div>
     </header>
 
@@ -70,11 +71,15 @@
               평가 전체 확신도
               <select id="evaluator-confidence" required></select>
             </label>
+            <p id="draft-status" class="draft-status" role="status"></p>
             <p id="save-status" role="status"></p>
             <div class="actions">
               <button id="previous-button" type="button" class="secondary">이전</button>
               <button id="save-button" type="submit">현재 Case 저장</button>
               <button id="next-button" type="button" class="secondary">다음</button>
+              <button id="discard-button" type="button" class="secondary" hidden>
+                현재 Case 변경 버리기
+              </button>
               <button id="complete-button" type="button" class="secondary">전체 완료 확인</button>
             </div>
           </section>
@@ -82,6 +87,7 @@
       </div>
     </main>
 
+    <script src="/draftState.js" defer></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

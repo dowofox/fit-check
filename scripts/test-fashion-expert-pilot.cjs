@@ -2,6 +2,10 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const {
+  createDraftStore,
+  draftsEqual,
+} = require("./expert-pilot-ui/draftState.js");
 
 const {
   createPilotServer,
@@ -85,6 +89,77 @@ async function fetchJson(url, options) {
 
 async function main() {
   const dataset = readJson(datasetPath);
+
+  await test("draft store keeps independent, immutable, privacy-safe case state", () => {
+    const store = createDraftStore();
+    const first = {
+      dimensions: [{
+        dimension: "color_harmony",
+        availability: "rated",
+        rating: "4",
+        confidence: "3",
+        supportingEvidenceCodes: ["color_relation_stable"],
+        conflictingEvidenceCodes: [],
+        notes: "partial note",
+      }],
+      overall: { enabled: true, availability: "rated", rating: "4", confidence: "3" },
+      evaluatorConfidence: "3",
+      elapsedMilliseconds: 1500,
+      token: "must-not-survive",
+      imagePath: "C:/private/outfit.png",
+      productName: "private product",
+    };
+    store.setDraft(2, first);
+    store.setDraft(1, { dimensions: [], evaluatorConfidence: "2" });
+    first.dimensions[0].notes = "mutated later";
+
+    assert.deepEqual(store.getDirtyCaseNumbers(), [1, 2]);
+    assert.equal(store.getDraft(2).dimensions[0].notes, "partial note");
+    const serialized = JSON.stringify(store.getDraft(2));
+    assert.doesNotMatch(serialized, /token|private|file:|base64|imagePath|productName/i);
+
+    store.clearDraft(1);
+    assert.equal(store.hasDraft(1), false);
+    assert.equal(store.hasDraft(2), true);
+    assert.equal(store.hasAnyDraft(), true);
+  });
+
+  await test("navigation, save, failure, and discard preserve the intended draft", () => {
+    const store = createDraftStore();
+    const savedEvaluation = createSafeEvaluation();
+    const partial = {
+      dimensions: [{
+        dimension: "color_harmony",
+        availability: "rated",
+        rating: "5",
+        confidence: "4",
+        supportingEvidenceCodes: ["color_relation_stable"],
+        conflictingEvidenceCodes: ["color_temperature_conflict"],
+        notes: "keep me",
+      }],
+      overall: { enabled: false, availability: "", rating: "", confidence: "", notes: "" },
+      evaluatorConfidence: "4",
+      elapsedMilliseconds: 2100,
+    };
+    store.setDraft(1, partial);
+    store.setDraft(2, { dimensions: [], evaluatorConfidence: "2" });
+
+    const restored = store.getDraft(1) || savedEvaluation;
+    assert.equal(restored.dimensions[0].rating, "5");
+    assert.equal(restored.dimensions[0].notes, "keep me");
+    assert.equal(draftsEqual(restored, partial), true);
+
+    // A failed save leaves every draft untouched.
+    assert.deepEqual(store.getDirtyCaseNumbers(), [1, 2]);
+    // A successful save clears only the submitted Case.
+    store.clearDraft(1);
+    assert.equal(store.hasDraft(1), false);
+    assert.equal(store.hasDraft(2), true);
+    // Discard uses the same Case-local clear and never changes the saved evaluation.
+    store.clearDraft(2);
+    assert.equal(store.hasAnyDraft(), false);
+    assert.equal(savedEvaluation.dimensions.length, REQUIRED_EXPERT_DIMENSIONS.length);
+  });
 
   await test("CLI arguments reject missing, unsafe, and colliding values", () => {
     assert.throws(() => parsePilotArguments([]), /--dataset/);
@@ -232,7 +307,11 @@ async function main() {
       assert.equal(page.headers.get("x-frame-options"), "DENY");
       const pageText = await page.text();
       assert.match(pageText, /절대평가 파일럿/);
+      assert.match(pageText, /draftState\.js/);
       assert.doesNotMatch(pageText, /pairwise|professionalScore/i);
+      const draftScript = await fetch(`${origin}/draftState.js`);
+      assert.equal(draftScript.status, 200);
+      assert.match(await draftScript.text(), /createDraftStore/);
 
       const sessionResult = await fetchJson(`${origin}/api/session`);
       assert.equal(sessionResult.response.status, 200);
