@@ -84,7 +84,7 @@ import {
   UserProfile,
 } from "@/utils/storage";
 import { ScreenHeader, StatusCard } from "@/components/ui/NaesUi";
-import { colors } from "@/utils/theme";
+import { colors, layout, radius, spacing } from "@/utils/theme";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image as ExpoImage } from "expo-image";
@@ -655,7 +655,7 @@ function SeasonChipEditor({
           onPress={onConfirm}
           disabled={isConfirmed}
         >
-          <Feather name={isConfirmed ? "check-circle" : "check"} size={14} color="#fff" />
+          <Feather name={isConfirmed ? "check-circle" : "check"} size={14} color={colors.surface} />
           <Text style={styles.seasonConfirmationButtonText}>
             {isConfirmed ? "계절 확인 완료" : "선택한 계절로 확인"}
           </Text>
@@ -775,7 +775,7 @@ function AiDetailCard({ item }: { item: ClosetItem }) {
     <View style={styles.aiDetailCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="cpu" size={16} color="#8c6f47" />
+          <Feather name="cpu" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>AI 상세 분석</Text>
@@ -872,7 +872,7 @@ function AnalysisQualityCard({ item }: { item: ClosetItem }) {
     <View style={styles.analysisQualityCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="alert-triangle" size={16} color="#8c6f47" />
+          <Feather name="alert-triangle" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>분석 검증</Text>
@@ -948,7 +948,7 @@ function AnalysisActionNoticeCard({ item }: { item: ClosetItem }) {
     <View style={styles.analysisActionNoticeCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="alert-circle" size={16} color="#8c6f47" />
+          <Feather name="alert-circle" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>확인하면 더 좋아요</Text>
@@ -994,7 +994,7 @@ function AiAnalysisAccordion({
             추천 엔진이 참고하는 내부 분석값이에요. 필요할 때만 펼쳐서 확인하세요.
           </Text>
         </View>
-        <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={20} color="#8c6f47" />
+        <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.accent} />
       </Pressable>
 
       {isOpen ? (
@@ -1054,7 +1054,7 @@ function StyleProfileCard({ item }: { item: ClosetItem }) {
     <View style={styles.styleProfileCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="sliders" size={16} color="#8c6f47" />
+          <Feather name="sliders" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>스타일 프로필</Text>
@@ -1144,7 +1144,7 @@ function GarmentProfileCard({ item }: { item: ClosetItem }) {
     <View style={styles.styleProfileCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="maximize-2" size={16} color="#8c6f47" />
+          <Feather name="maximize-2" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>의류 인상 프로필</Text>
@@ -1231,7 +1231,7 @@ function MatchingItemSearchCard({ item }: { item: ClosetItem }) {
     <View style={styles.matchingSearchCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="shopping-bag" size={16} color="#8c6f47" />
+          <Feather name="shopping-bag" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>이 옷에 어울리는 아이템</Text>
@@ -1291,7 +1291,7 @@ function RecommendationPreferenceCard({
     <View style={styles.recommendationPreferenceCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="sliders" size={16} color="#8c6f47" />
+          <Feather name="sliders" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>추천 조절</Text>
@@ -1381,7 +1381,7 @@ function ConfirmedProductCard({
     <View style={styles.productReferenceCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="check-circle" size={16} color="#8c6f47" />
+          <Feather name="check-circle" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>확정 상품</Text>
@@ -1445,7 +1445,7 @@ function ConfirmedProductCard({
                   <Feather
                     name={isSizeGuideOpen ? "chevron-up" : "chevron-down"}
                     size={14}
-                    color="#8c6f47"
+                    color={colors.accent}
                   />
                 </Pressable>
               </View>
@@ -1486,7 +1486,7 @@ function ConfirmedProductCard({
                       accessibilityRole="button"
                       accessibilityLabel={`${displaySize} 실측 삭제`}
                     >
-                      <Feather name="trash-2" size={13} color="#b45309" />
+                      <Feather name="trash-2" size={13} color={colors.warning} />
                     </Pressable>
                   </View>
                 </View>
@@ -1516,7 +1516,7 @@ function ConfirmedProductCard({
       <View style={styles.confirmedProductActionRow}>
         {confirmedProduct.productUrl ? (
           <Pressable style={styles.confirmedProductPrimaryButton} onPress={onOpenUrl}>
-            <Feather name="external-link" size={14} color="#fff" />
+            <Feather name="external-link" size={14} color={colors.surface} />
             <Text style={styles.confirmedProductPrimaryButtonText}>상품 링크 열기</Text>
           </Pressable>
         ) : null}
@@ -1528,7 +1528,7 @@ function ConfirmedProductCard({
           onPress={onOpenUrlForm}
           disabled={isMeasurementSaving}
         >
-          <Feather name="link" size={14} color="#8c6f47" />
+          <Feather name="link" size={14} color={colors.accent} />
           <Text style={styles.confirmedProductSecondaryButtonText}>상품 URL로 변경</Text>
         </Pressable>
         <Pressable
@@ -1539,7 +1539,7 @@ function ConfirmedProductCard({
           onPress={onEdit}
           disabled={isMeasurementSaving}
         >
-          <Feather name="edit-2" size={14} color="#8c6f47" />
+          <Feather name="edit-2" size={14} color={colors.accent} />
           <Text style={styles.confirmedProductSecondaryButtonText}>확정 정보 수정</Text>
         </Pressable>
         {!isAccessoryOrBag ? (
@@ -1551,7 +1551,7 @@ function ConfirmedProductCard({
             onPress={onOpenMeasurementForm}
             disabled={isMeasurementSaving}
           >
-            <Feather name="maximize" size={14} color="#8c6f47" />
+            <Feather name="maximize" size={14} color={colors.accent} />
             <Text style={styles.confirmedProductSecondaryButtonText}>
               {sizeGuideRows.length > 0 ? "실측 수정" : "실측 직접 입력"}
             </Text>
@@ -1600,7 +1600,7 @@ function ProductMeasurementForm({
     <View style={styles.confirmedProductFormCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="maximize" size={16} color="#8c6f47" />
+          <Feather name="maximize" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>상품 실측 직접 입력</Text>
@@ -1655,7 +1655,7 @@ function ProductMeasurementForm({
           onPress={onSave}
           disabled={isSaving}
         >
-          <Feather name="save" size={14} color="#fff" />
+          <Feather name="save" size={14} color={colors.surface} />
           <Text style={styles.confirmedProductPrimaryButtonText}>실측 저장</Text>
         </Pressable>
       </View>
@@ -1678,7 +1678,7 @@ function ConfirmedProductForm({
     <View style={styles.confirmedProductFormCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="edit-3" size={16} color="#8c6f47" />
+          <Feather name="edit-3" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>직접 입력해서 확정</Text>
@@ -1727,7 +1727,7 @@ function ProductUrlConfirmCard({
     <View style={styles.confirmedProductFormCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="link" size={16} color="#8c6f47" />
+          <Feather name="link" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>상품 URL로 확정</Text>
@@ -1739,7 +1739,7 @@ function ProductUrlConfirmCard({
 
       <View style={styles.confirmedProductActionRow}>
         <Pressable style={styles.confirmedProductPrimaryButton} onPress={onExtract} disabled={isLoading}>
-          <Feather name="download" size={14} color="#fff" />
+          <Feather name="download" size={14} color={colors.surface} />
           <Text style={styles.confirmedProductPrimaryButtonText}>
             {isLoading ? "가져오는 중..." : "상품 정보 가져오기"}
           </Text>
@@ -1753,7 +1753,7 @@ function ProductUrlConfirmCard({
         <View style={styles.productExtractNotice}>
           <Text style={styles.productExtractNoticeText}>{errorMessage}</Text>
           <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenManualForm}>
-            <Feather name="edit-3" size={14} color="#8c6f47" />
+            <Feather name="edit-3" size={14} color={colors.accent} />
             <Text style={styles.confirmedProductSecondaryButtonText}>직접 입력하기</Text>
           </Pressable>
         </View>
@@ -1773,7 +1773,7 @@ function ProductUrlConfirmCard({
             </Text>
           ) : null}
           <Pressable style={styles.confirmedProductPrimaryButton} onPress={onConfirm}>
-            <Feather name="check" size={14} color="#fff" />
+            <Feather name="check" size={14} color={colors.surface} />
             <Text style={styles.confirmedProductPrimaryButtonText}>이 상품으로 확정</Text>
           </Pressable>
         </View>
@@ -1796,17 +1796,17 @@ function ProductConfirmActionCard({
   return (
     <View style={styles.productConfirmArea}>
       <Pressable style={styles.confirmedProductPrimaryButton} onPress={onOpenUrlForm}>
-        <Feather name="link" size={14} color="#fff" />
+        <Feather name="link" size={14} color={colors.surface} />
         <Text style={styles.confirmedProductPrimaryButtonText}>상품 URL로 확정</Text>
       </Pressable>
       {hasCandidate ? (
         <Pressable style={styles.confirmedProductSecondaryButton} onPress={onConfirmCandidate}>
-          <Feather name="check" size={14} color="#8c6f47" />
+          <Feather name="check" size={14} color={colors.accent} />
           <Text style={styles.confirmedProductSecondaryButtonText}>참고 후보로 바로 확정</Text>
         </Pressable>
       ) : null}
       <Pressable style={styles.confirmedProductSecondaryButton} onPress={onOpenManualForm}>
-        <Feather name="edit-3" size={14} color="#8c6f47" />
+        <Feather name="edit-3" size={14} color={colors.accent} />
         <Text style={styles.confirmedProductSecondaryButtonText}>직접 입력해서 확정</Text>
       </Pressable>
     </View>
@@ -1823,7 +1823,7 @@ function ProductReferenceCard({ item }: { item: ClosetItem }) {
     <View style={styles.productReferenceCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="bookmark" size={16} color="#8c6f47" />
+          <Feather name="bookmark" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>참고 상품</Text>
@@ -1884,7 +1884,7 @@ function EditRow({
         value={value}
         onChangeText={onChangeText}
         placeholder="입력해주세요"
-        placeholderTextColor="#b2aaa1"
+        placeholderTextColor={colors.mutedText}
       />
     </View>
   );
@@ -1903,7 +1903,7 @@ function TipCard({
     <View style={styles.tipCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name={icon} size={16} color="#8c6f47" />
+          <Feather name={icon} size={16} color={colors.accent} />
         </View>
         <Text style={styles.tipTitle}>{title}</Text>
       </View>
@@ -1927,7 +1927,7 @@ function TipEditCard({
     <View style={styles.tipCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name={icon} size={16} color="#8c6f47" />
+          <Feather name={icon} size={16} color={colors.accent} />
         </View>
         <Text style={styles.tipTitle}>{title}</Text>
       </View>
@@ -1936,7 +1936,7 @@ function TipEditCard({
         value={value}
         onChangeText={onChangeText}
         placeholder="입력해주세요"
-        placeholderTextColor="#b2aaa1"
+        placeholderTextColor={colors.mutedText}
         multiline
         textAlignVertical="top"
       />
@@ -1967,7 +1967,7 @@ function ClosetAvailabilityCard({
     <View style={styles.closetAvailabilityCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="archive" size={16} color="#8c6f47" />
+          <Feather name="archive" size={16} color={colors.accent} />
         </View>
         <View style={styles.tipHeaderText}>
           <Text style={styles.tipTitle}>옷 보관 상태</Text>
@@ -1989,7 +1989,7 @@ function ClosetAvailabilityCard({
         <Feather
           name={isArchived ? "refresh-cw" : "archive"}
           size={14}
-          color={isArchived ? "#fff" : "#8c6f47"}
+          color={isArchived ? colors.surface : colors.accent}
         />
         <Text
           style={[
@@ -2025,7 +2025,7 @@ function RecommendedSizeCard({
             <Feather
               name={missingInfo.kind === "product" ? "sliders" : "user-check"}
               size={16}
-              color="#8c6f47"
+              color={colors.accent}
             />
           </View>
           <Text style={styles.tipTitle}>{missingInfo.title}</Text>
@@ -2042,7 +2042,7 @@ function RecommendedSizeCard({
           <Text style={styles.sizeRecommendationActionButtonText}>
             {missingInfo.actionLabel}
           </Text>
-          <Feather name="chevron-right" size={15} color="#fff" />
+          <Feather name="chevron-right" size={15} color={colors.surface} />
         </Pressable>
       </View>
     );
@@ -2069,7 +2069,7 @@ function RecommendedSizeCard({
     <View style={styles.sizeMatchCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="user-check" size={16} color="#8c6f47" />
+          <Feather name="user-check" size={16} color={colors.accent} />
         </View>
         <Text style={styles.tipTitle}>내 체형 기준 추천 사이즈</Text>
       </View>
@@ -2152,7 +2152,7 @@ function FitSuitabilityCard({
     <View style={styles.sizeMatchCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipIconCircle}>
-          <Feather name="check-square" size={16} color="#8c6f47" />
+          <Feather name="check-square" size={16} color={colors.accent} />
         </View>
         <Text style={styles.tipTitle}>내 사이즈 적합도</Text>
       </View>
@@ -2161,7 +2161,7 @@ function FitSuitabilityCard({
       {action ? (
         <Pressable style={styles.sizeRecommendationActionButton} onPress={action.onPress}>
           <Text style={styles.sizeRecommendationActionButtonText}>{action.label}</Text>
-          <Feather name="chevron-right" size={15} color="#fff" />
+          <Feather name="chevron-right" size={15} color={colors.surface} />
         </Pressable>
       ) : null}
     </View>
@@ -3393,7 +3393,7 @@ export default function ClothesDetailScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Feather name="chevron-left" size={22} color="#111" />
+            <Feather name="chevron-left" size={22} color={colors.primaryText} />
           </Pressable>
 
           <View>
@@ -3475,14 +3475,14 @@ export default function ClothesDetailScreen() {
               />
             ) : (
               <View style={[styles.heroImage, styles.heroImagePlaceholder]}>
-                <Feather name="image" size={28} color="#8c6f47" />
+                <Feather name="image" size={28} color={colors.accent} />
                 <Text style={styles.heroImagePlaceholderText}>등록된 사진이 없어요</Text>
                 <Pressable
                   style={styles.heroImageAddButton}
                   onPress={handleAddItemPhoto}
                   disabled={isUpdatingImage}
                 >
-                  <Feather name="plus" size={14} color="#fff" />
+                  <Feather name="plus" size={14} color={colors.surface} />
                   <Text style={styles.heroImageAddButtonText}>
                     {isUpdatingImage ? "사진 저장 중" : "사진 추가"}
                   </Text>
@@ -3547,7 +3547,7 @@ export default function ClothesDetailScreen() {
             {!editMode && recommendationReviewFields.length > 0 ? (
               <View style={styles.recommendationInfoReviewCard}>
                 <View style={styles.recommendationInfoReviewHeader}>
-                  <Feather name="alert-circle" size={18} color="#b45309" />
+                  <Feather name="alert-circle" size={18} color={colors.warning} />
                   <View style={styles.tipHeaderText}>
                     <Text style={styles.recommendationInfoReviewTitle}>추천 정보 확인</Text>
                     <Text style={styles.recommendationInfoReviewText}>
@@ -3556,7 +3556,7 @@ export default function ClothesDetailScreen() {
                   </View>
                 </View>
                 <Pressable style={styles.recommendationInfoReviewButton} onPress={handleEdit}>
-                  <Feather name="edit-3" size={14} color="#fff" />
+                  <Feather name="edit-3" size={14} color={colors.surface} />
                   <Text style={styles.recommendationInfoReviewButtonText}>정보 수정</Text>
                 </Pressable>
               </View>
@@ -3566,7 +3566,7 @@ export default function ClothesDetailScreen() {
               {editMode ? (
                 <>
                   <View style={styles.editPriorityNotice}>
-                    <Feather name="check-circle" size={15} color="#8c6f47" />
+                    <Feather name="check-circle" size={15} color={colors.accent} />
                     <Text style={styles.editPriorityNoticeText}>
                       직접 수정한 정보는 상품 링크나 사진 분석보다 우선 적용돼요.
                     </Text>
@@ -3696,7 +3696,7 @@ export default function ClothesDetailScreen() {
                   <Feather
                     name={isCurrentReferenceClothing ? "check" : "bookmark"}
                     size={14}
-                    color={isCurrentReferenceClothing ? "#fff" : "#8c6f47"}
+                    color={isCurrentReferenceClothing ? colors.surface : colors.accent}
                   />
                   <Text
                     style={[
@@ -3771,7 +3771,7 @@ export default function ClothesDetailScreen() {
                   onPress={() => setProfileLoadRevision((revision) => revision + 1)}
                 >
                   <Text style={styles.sizeRecommendationActionButtonText}>다시 시도</Text>
-                  <Feather name="refresh-cw" size={15} color="#fff" />
+                  <Feather name="refresh-cw" size={15} color={colors.surface} />
                 </Pressable>
               </View>
             ) : null}
@@ -3887,7 +3887,7 @@ export default function ClothesDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f5f2ee" },
+  screen: { flex: 1, backgroundColor: colors.background },
   container: {
     flexGrow: 1,
     paddingTop: 34,
@@ -3899,16 +3899,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: spacing.lg,
   },
 
   backButton: {
     width: 44,
     height: 44,
-    borderRadius: 999,
-    backgroundColor: "#fff",
+    borderRadius: radius.round,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3920,14 +3920,14 @@ const styles = StyleSheet.create({
 
   editButton: {
     minHeight: 44,
-    backgroundColor: "#111",
-    borderRadius: 999,
-    paddingVertical: 10,
+    backgroundColor: colors.primaryText,
+    borderRadius: radius.round,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 16,
   },
 
   editButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 13,
     fontWeight: "900",
   },
@@ -3939,36 +3939,36 @@ const styles = StyleSheet.create({
 
   cancelButton: {
     minHeight: 44,
-    backgroundColor: "#fff",
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderRadius: radius.round,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    paddingVertical: 10,
+    borderColor: colors.divider,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 13,
   },
 
   cancelButtonText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "900",
   },
 
   saveButton: {
     minHeight: 44,
-    backgroundColor: "#111",
-    borderRadius: 999,
-    paddingVertical: 10,
+    backgroundColor: colors.primaryText,
+    borderRadius: radius.round,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 13,
   },
 
   saveButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 13,
     fontWeight: "900",
   },
 
   headerEyebrow: {
-    color: "#9b7a4b",
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 1.4,
@@ -3976,7 +3976,7 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 24,
     fontWeight: "900",
     marginTop: 2,
@@ -3987,49 +3987,49 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 390,
     borderRadius: 28,
-    backgroundColor: "#ddd",
+    backgroundColor: colors.disabled,
     marginBottom: 16,
   },
   heroImagePlaceholder: {
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#f4eee7",
+    backgroundColor: colors.softCard,
   },
   heroImagePlaceholderText: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "700",
   },
   heroImageAddButton: {
     minHeight: 38,
-    borderRadius: 14,
-    backgroundColor: "#111",
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryText,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: spacing.xs,
     paddingVertical: 9,
     paddingHorizontal: 15,
     marginTop: 3,
   },
   heroImageAddButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "800",
   },
 
   summaryCard: {
-    backgroundColor: "#111",
-    borderRadius: 24,
+    backgroundColor: colors.primaryText,
+    borderRadius: radius.card,
     padding: 20,
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
 
   itemTitle: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 27,
     lineHeight: 32,
     fontWeight: "900",
@@ -4038,12 +4038,12 @@ const styles = StyleSheet.create({
   },
   recommendationInfoReviewCard: {
     backgroundColor: "#fff7ed",
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: "#f1d4b3",
-    padding: 14,
-    gap: 12,
-    marginBottom: 14,
+    padding: spacing.md,
+    gap: spacing.control,
+    marginBottom: spacing.md,
   },
   recommendationInfoReviewHeader: {
     flexDirection: "row",
@@ -4051,38 +4051,38 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   recommendationInfoReviewTitle: {
-    color: "#8a3f08",
+    color: colors.warning,
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "900",
     marginBottom: 3,
   },
   recommendationInfoReviewText: {
-    color: "#b45309",
+    color: colors.warning,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "600",
   },
   recommendationInfoReviewButton: {
     minHeight: 40,
-    borderRadius: 14,
-    backgroundColor: "#111",
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryText,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: spacing.xs,
     paddingVertical: 9,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
   },
   recommendationInfoReviewButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "800",
   },
 
   itemSubtitle: {
-    color: "#d8d2ca",
+    color: colors.disabled,
     fontSize: 15,
     lineHeight: 21,
     fontWeight: "800",
@@ -4091,22 +4091,22 @@ const styles = StyleSheet.create({
 
   analysisRefreshCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 15,
-    marginBottom: 14,
-    gap: 12,
+    marginBottom: spacing.md,
+    gap: spacing.control,
   },
   analysisRefreshHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: spacing.sm,
   },
   analysisRefreshIcon: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.control,
     backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
@@ -4131,11 +4131,11 @@ const styles = StyleSheet.create({
   },
   analysisRefreshButton: {
     minHeight: 40,
-    borderRadius: 14,
+    borderRadius: radius.md,
     backgroundColor: colors.text,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
   },
   analysisRefreshButtonDisabled: {
     backgroundColor: colors.softCard,
@@ -4152,35 +4152,35 @@ const styles = StyleSheet.create({
   },
 
   infoCard: {
-    backgroundColor: "#faf8f5",
-    borderRadius: 24,
-    paddingHorizontal: 18,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.card,
+    paddingHorizontal: layout.screenPadding,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#f0eee9",
-    marginBottom: 14,
+    borderColor: colors.divider,
+    marginBottom: spacing.md,
   },
 
   referenceClothingActionCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#E8DED2",
-    marginBottom: 14,
-    gap: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.md,
+    gap: spacing.control,
   },
 
   referenceClothingActionTextWrap: {
-    gap: 4,
+    gap: spacing.xxs,
   },
 
   referenceClothingButton: {
     minHeight: 42,
     borderRadius: 15,
-    backgroundColor: "#F4EEE7",
+    backgroundColor: colors.softCard,
     borderWidth: 1,
-    borderColor: "#E8DED2",
+    borderColor: colors.divider,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -4188,18 +4188,18 @@ const styles = StyleSheet.create({
   },
 
   referenceClothingButtonActive: {
-    backgroundColor: "#8c6f47",
-    borderColor: "#8c6f47",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
 
   referenceClothingButtonText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 13,
     fontWeight: "700",
   },
 
   referenceClothingButtonTextActive: {
-    color: "#fff",
+    color: colors.surface,
   },
 
   detailRow: {
@@ -4208,11 +4208,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     paddingVertical: 13,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee7dd",
+    borderBottomColor: colors.divider,
   },
 
   detailLabel: {
-    color: "#8a8178",
+    color: colors.secondaryText,
     fontSize: 14,
     fontWeight: "900",
     flexShrink: 0,
@@ -4226,7 +4226,7 @@ const styles = StyleSheet.create({
   },
 
   detailValue: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 15,
     lineHeight: 21,
     fontWeight: "900",
@@ -4235,20 +4235,20 @@ const styles = StyleSheet.create({
   },
 
   editRow: {
-    paddingVertical: 12,
+    paddingVertical: spacing.control,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee7dd",
+    borderBottomColor: colors.divider,
   },
 
   textInput: {
     marginTop: 8,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    borderRadius: 14,
+    borderColor: colors.divider,
+    borderRadius: radius.md,
     paddingVertical: 11,
     paddingHorizontal: 13,
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 15,
     fontWeight: "800",
     width: "100%",
@@ -4259,17 +4259,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: "#f4eee7",
-    borderRadius: 14,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.md,
     paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.control,
     marginBottom: 6,
   },
 
   editPriorityNoticeText: {
     flex: 1,
     minWidth: 0,
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
@@ -4279,74 +4279,74 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 10,
+    marginTop: spacing.sm,
   },
 
   optionChip: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    borderRadius: 999,
+    borderColor: colors.divider,
+    borderRadius: radius.round,
     paddingVertical: 9,
     paddingHorizontal: 13,
   },
 
   optionChipActive: {
-    backgroundColor: "#111",
-    borderColor: "#111",
+    backgroundColor: colors.primaryText,
+    borderColor: colors.primaryText,
   },
 
   optionChipText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "900",
   },
 
   optionChipTextActive: {
-    color: "#fff",
+    color: colors.surface,
   },
 
   seasonConfirmationButton: {
     minHeight: 38,
     alignSelf: "flex-start",
     borderRadius: 13,
-    backgroundColor: "#8c6f47",
+    backgroundColor: colors.accent,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: spacing.xs,
     paddingVertical: 9,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.control,
     marginTop: 8,
     marginBottom: 4,
   },
 
   seasonConfirmationButtonDone: {
-    backgroundColor: "#777064",
+    backgroundColor: colors.secondaryText,
   },
 
   seasonConfirmationButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "800",
   },
 
   tipCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   recommendationPreferenceCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   recommendationPreferenceHeaderText: {
@@ -4356,74 +4356,74 @@ const styles = StyleSheet.create({
   recommendationPreferenceOptions: {
     flexDirection: "row",
     gap: 7,
-    marginTop: 14,
+    marginTop: spacing.md,
   },
 
   recommendationPreferenceButton: {
     flex: 1,
     minHeight: 38,
-    borderRadius: 14,
-    backgroundColor: "#f4eee7",
+    borderRadius: radius.md,
+    backgroundColor: colors.softCard,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 7,
   },
 
   recommendationPreferenceButtonActive: {
-    backgroundColor: "#111",
-    borderColor: "#111",
+    backgroundColor: colors.primaryText,
+    borderColor: colors.primaryText,
   },
 
   recommendationPreferenceButtonText: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 11,
     fontWeight: "800",
     textAlign: "center",
   },
 
   recommendationPreferenceButtonTextActive: {
-    color: "#fff",
+    color: colors.surface,
   },
 
   sizeMatchCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   recommendedSizeHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 12,
+    marginBottom: spacing.control,
   },
 
   recommendedSizeLabel: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "800",
   },
 
   recommendedSizeValue: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 22,
     fontWeight: "900",
   },
 
   recommendedSizeScore: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     fontWeight: "800",
     marginLeft: "auto",
   },
 
   recommendedSizeReason: {
-    color: "#625a51",
+    color: colors.secondaryText,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: "700",
@@ -4431,7 +4431,7 @@ const styles = StyleSheet.create({
   },
 
   freeSizeAnalysisText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "800",
@@ -4439,14 +4439,14 @@ const styles = StyleSheet.create({
   },
 
   recommendedSizeNotice: {
-    backgroundColor: "#f4eee7",
-    borderRadius: 14,
-    padding: 12,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.md,
+    padding: spacing.control,
     marginTop: 8,
   },
 
   recommendedSizeNoticeText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "800",
@@ -4454,30 +4454,30 @@ const styles = StyleSheet.create({
 
   alternativeSizeList: {
     borderTopWidth: 1,
-    borderTopColor: "#eee7dd",
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 12,
+    borderTopColor: colors.divider,
+    gap: spacing.xs,
+    marginTop: spacing.control,
+    paddingTop: spacing.control,
   },
 
   alternativeSizeText: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
   },
 
   aiDetailCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   aiDetailSubtitle: {
-    color: "#8a8178",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
@@ -4487,58 +4487,58 @@ const styles = StyleSheet.create({
   },
 
   closetAvailabilityCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   closetAvailabilityButton: {
     minHeight: 40,
     alignSelf: "flex-start",
-    borderRadius: 14,
-    backgroundColor: "#f4eee7",
+    borderRadius: radius.md,
+    backgroundColor: colors.softCard,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
     paddingVertical: 9,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.control,
     marginTop: 4,
   },
 
   closetAvailabilityButtonActive: {
-    backgroundColor: "#8c6f47",
-    borderColor: "#8c6f47",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
 
   closetAvailabilityButtonText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "800",
   },
 
   closetAvailabilityButtonTextActive: {
-    color: "#fff",
+    color: colors.surface,
   },
   sizeRecommendationActionButton: {
     alignSelf: "flex-start",
     minHeight: 40,
-    borderRadius: 14,
-    backgroundColor: "#111",
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryText,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    marginTop: 12,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.control,
   },
   sizeRecommendationActionButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 12,
     fontWeight: "800",
   },
@@ -4551,48 +4551,48 @@ const styles = StyleSheet.create({
 
   aiDetailPill: {
     width: "48%",
-    backgroundColor: "#faf8f5",
-    borderRadius: 16,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.control,
   },
 
   aiDetailLabel: {
-    color: "#8a8178",
+    color: colors.secondaryText,
     fontSize: 11,
     fontWeight: "900",
     marginBottom: 5,
   },
 
   aiDetailValue: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "900",
   },
 
   analysisQualityCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   analysisActionNoticeCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   analysisQualityText: {
-    color: "#625a51",
+    color: colors.secondaryText,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: "800",
@@ -4600,31 +4600,31 @@ const styles = StyleSheet.create({
   },
 
   aiAnalysisAccordionCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   aiAnalysisToggle: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: spacing.sm,
   },
 
   aiAnalysisContent: {
-    marginTop: 14,
+    marginTop: spacing.md,
   },
 
   styleProfileCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   styleProfileGrid: {
@@ -4635,39 +4635,39 @@ const styles = StyleSheet.create({
 
   styleProfilePill: {
     width: "48%",
-    backgroundColor: "#faf8f5",
-    borderRadius: 16,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.control,
   },
 
   styleProfileLabel: {
-    color: "#8a8178",
+    color: colors.secondaryText,
     fontSize: 11,
     fontWeight: "900",
     marginBottom: 5,
   },
 
   styleProfileValue: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "900",
   },
 
   productReferenceCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   productReferenceBrand: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "900",
@@ -4676,7 +4676,7 @@ const styles = StyleSheet.create({
   },
 
   productReferenceName: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 16,
     lineHeight: 22,
     fontWeight: "900",
@@ -4685,7 +4685,7 @@ const styles = StyleSheet.create({
   },
 
   productReferenceReason: {
-    color: "#625a51",
+    color: colors.secondaryText,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: "700",
@@ -4693,7 +4693,7 @@ const styles = StyleSheet.create({
   },
 
   productReferenceConfidence: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
     marginTop: 8,
@@ -4702,14 +4702,14 @@ const styles = StyleSheet.create({
   confirmedProductImage: {
     width: 78,
     height: 78,
-    borderRadius: 18,
-    backgroundColor: "#faf8f5",
+    borderRadius: radius.lg,
+    backgroundColor: colors.softCard,
   },
 
   confirmedProductInfoRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
+    gap: spacing.control,
   },
 
   confirmedProductInfoText: {
@@ -4718,20 +4718,20 @@ const styles = StyleSheet.create({
   },
 
   confirmedProductSizeGuideBox: {
-    backgroundColor: "#f4eee7",
-    borderRadius: 16,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginTop: 10,
+    borderColor: colors.divider,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.control,
+    marginTop: spacing.sm,
   },
 
   confirmedProductSizeGuideHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: spacing.sm,
   },
 
   confirmedProductSizeGuideTextWrap: {
@@ -4740,14 +4740,14 @@ const styles = StyleSheet.create({
   },
 
   confirmedProductSizeGuideTitle: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
     marginBottom: 4,
   },
 
   confirmedProductSizeGuideText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "800",
@@ -4758,48 +4758,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flexShrink: 0,
-    gap: 4,
-    backgroundColor: "#fff",
-    borderRadius: 999,
+    gap: spacing.xxs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.round,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     paddingVertical: 7,
     paddingHorizontal: 9,
   },
 
   sizeGuideToggleText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "900",
   },
 
   sizeGuideDetailBox: {
-    backgroundColor: "#faf8f5",
-    borderRadius: 18,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    padding: 12,
-    marginTop: 12,
-    gap: 10,
+    borderColor: colors.divider,
+    padding: spacing.control,
+    marginTop: spacing.control,
+    gap: spacing.sm,
   },
 
   sizeGuideProfileHint: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
   },
 
   sizeGuideRowCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    padding: 12,
+    borderColor: colors.divider,
+    padding: spacing.control,
   },
 
   sizeGuideRowCardActive: {
-    borderColor: "#8c6f47",
-    backgroundColor: "#f4eee7",
+    borderColor: colors.accent,
+    backgroundColor: colors.softCard,
   },
 
   sizeGuideRowHeader: {
@@ -4810,15 +4810,15 @@ const styles = StyleSheet.create({
   },
 
   sizeGuideSizeText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 15,
     fontWeight: "900",
   },
 
   sizeGuideMySizeBadge: {
-    color: "#fff",
-    backgroundColor: "#8c6f47",
-    borderRadius: 999,
+    color: colors.surface,
+    backgroundColor: colors.accent,
+    borderRadius: radius.round,
     overflow: "hidden",
     paddingVertical: 4,
     paddingHorizontal: 8,
@@ -4834,34 +4834,34 @@ const styles = StyleSheet.create({
 
   sizeGuideMeasurementPill: {
     minWidth: "30%",
-    backgroundColor: "#f4eee7",
+    backgroundColor: colors.softCard,
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 9,
   },
 
   sizeGuideMeasurementLabel: {
-    color: "#8a8178",
+    color: colors.secondaryText,
     fontSize: 10,
     fontWeight: "900",
     marginBottom: 3,
   },
 
   sizeGuideMeasurementValue: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 12,
     fontWeight: "900",
   },
 
   productSearchArea: {
     borderTopWidth: 1,
-    borderTopColor: "#eee7dd",
-    marginTop: 14,
+    borderTopColor: colors.divider,
+    marginTop: spacing.md,
     paddingTop: 13,
   },
 
   productSearchTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "900",
     marginBottom: 9,
@@ -4874,37 +4874,37 @@ const styles = StyleSheet.create({
   },
 
   productSearchButton: {
-    backgroundColor: "#f4eee7",
-    borderRadius: 999,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.round,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     paddingVertical: 9,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.control,
   },
 
   productSearchButtonText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
   },
 
   productConfirmArea: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
     gap: 9,
   },
 
   confirmedProductFormCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   measurementFormHeaderText: {
@@ -4923,24 +4923,24 @@ const styles = StyleSheet.create({
 
   manualMeasurementInputWrap: {
     height: 42,
-    backgroundColor: "#faf8f5",
-    borderRadius: 14,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    paddingHorizontal: 10,
+    borderColor: colors.divider,
+    paddingHorizontal: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
   },
 
   manualMeasurementInput: {
     flex: 1,
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 14,
     fontWeight: "700",
   },
 
   manualMeasurementUnit: {
-    color: "#8a8178",
+    color: colors.secondaryText,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -4949,7 +4949,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 14,
+    marginTop: spacing.md,
   },
 
   confirmedProductPrimaryButton: {
@@ -4958,15 +4958,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     maxWidth: "100%",
     flexShrink: 1,
-    gap: 6,
-    backgroundColor: "#111",
-    borderRadius: 999,
-    paddingVertical: 10,
+    gap: spacing.xs,
+    backgroundColor: colors.primaryText,
+    borderRadius: radius.round,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 13,
   },
 
   confirmedProductPrimaryButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 12,
     fontWeight: "900",
     flexShrink: 1,
@@ -4986,7 +4986,7 @@ const styles = StyleSheet.create({
   sizeGuideDeleteButton: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff7ed",
@@ -5000,17 +5000,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     maxWidth: "100%",
     flexShrink: 1,
-    gap: 6,
-    backgroundColor: "#f4eee7",
-    borderRadius: 999,
+    gap: spacing.xs,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.round,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    paddingVertical: 10,
+    borderColor: colors.divider,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 13,
   },
 
   confirmedProductSecondaryButtonText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
     flexShrink: 1,
@@ -5020,44 +5020,44 @@ const styles = StyleSheet.create({
 
   productExtractNotice: {
     backgroundColor: "#fff7ed",
-    borderRadius: 16,
+    borderRadius: radius.control,
     borderWidth: 1,
     borderColor: "#f2d5b5",
-    padding: 12,
-    marginTop: 12,
-    gap: 10,
+    padding: spacing.control,
+    marginTop: spacing.control,
+    gap: spacing.sm,
   },
 
   productExtractNoticeText: {
-    color: "#b45309",
+    color: colors.warning,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "800",
   },
 
   productExtractPreview: {
-    backgroundColor: "#faf8f5",
-    borderRadius: 16,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     padding: 13,
-    marginTop: 12,
+    marginTop: spacing.control,
   },
 
   productExtractPreviewTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "900",
     marginBottom: 8,
   },
 
   matchingSearchCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: layout.cardPadding,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    marginBottom: 12,
+    borderColor: colors.divider,
+    marginBottom: spacing.control,
   },
 
   matchingSearchHeaderText: {
@@ -5065,27 +5065,27 @@ const styles = StyleSheet.create({
   },
 
   matchingSearchBaseText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "800",
-    marginBottom: 12,
+    marginBottom: spacing.control,
   },
 
   matchingQueryList: {
-    gap: 10,
+    gap: spacing.sm,
   },
 
   matchingQueryCard: {
-    backgroundColor: "#faf8f5",
-    borderRadius: 16,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    padding: 12,
+    borderColor: colors.divider,
+    padding: spacing.control,
   },
 
   matchingQueryText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 14,
     fontWeight: "900",
     marginBottom: 9,
@@ -5098,16 +5098,16 @@ const styles = StyleSheet.create({
   },
 
   matchingSearchButton: {
-    backgroundColor: "#fff",
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderRadius: radius.round,
     borderWidth: 1,
-    borderColor: "#eee7dd",
+    borderColor: colors.divider,
     paddingVertical: 8,
     paddingHorizontal: 11,
   },
 
   matchingSearchButtonText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
   },
@@ -5116,7 +5116,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
-    marginBottom: 10,
+    marginBottom: spacing.sm,
     minWidth: 0,
   },
 
@@ -5130,15 +5130,15 @@ const styles = StyleSheet.create({
   tipIconCircle: {
     width: 30,
     height: 30,
-    borderRadius: 999,
-    backgroundColor: "#f0e7dc",
+    borderRadius: radius.round,
+    backgroundColor: colors.inactiveTab,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
 
   tipTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 16,
     fontWeight: "900",
     lineHeight: 22,
@@ -5146,14 +5146,14 @@ const styles = StyleSheet.create({
   },
 
   sizeMatchStatus: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 18,
     fontWeight: "900",
     marginBottom: 8,
   },
 
   tipText: {
-    color: "#625a51",
+    color: colors.secondaryText,
     fontSize: 14,
     lineHeight: 22,
     fontWeight: "700",
@@ -5161,13 +5161,13 @@ const styles = StyleSheet.create({
 
   tipInput: {
     minHeight: 96,
-    backgroundColor: "#faf8f5",
+    backgroundColor: colors.softCard,
     borderWidth: 1,
-    borderColor: "#eee7dd",
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderColor: colors.divider,
+    borderRadius: radius.control,
+    paddingVertical: spacing.control,
     paddingHorizontal: 13,
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: "700",
@@ -5176,11 +5176,11 @@ const styles = StyleSheet.create({
   detailLoadErrorCard: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.control,
     paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderRadius: 18,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
@@ -5204,8 +5204,8 @@ const styles = StyleSheet.create({
   detailLoadErrorAction: {
     minHeight: 30,
     justifyContent: "center",
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
     backgroundColor: colors.softCard,
     flexShrink: 0,
   },
@@ -5216,24 +5216,24 @@ const styles = StyleSheet.create({
   },
 
   emptyCard: {
-    backgroundColor: "#faf8f5",
+    backgroundColor: colors.softCard,
     borderRadius: 28,
     padding: 22,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#f0eee9",
+    borderColor: colors.divider,
   },
 
   emptyTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 19,
     fontWeight: "900",
-    marginTop: 12,
+    marginTop: spacing.control,
     marginBottom: 7,
   },
 
   emptyText: {
-    color: "#6b6258",
+    color: colors.secondaryText,
     fontSize: 14,
     fontWeight: "700",
   },
