@@ -13,12 +13,19 @@ const {
   createBatchLock,
   createOutputProvenance,
   getDatasetSnapshotDigest,
+  getExpertPilotProtocolDigest,
   validateBatchLock,
 } = require("./fashion-expert-pilot-provenance.cjs");
 const { freezeBatch } = require("./freeze-fashion-expert-pilot.cjs");
 const {
   createExpertPilotSession,
+  getExpertPilotProtocolPayload,
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
+const {
+  EXPERT_EVALUATION_CONTRACT,
+  EXPERT_EVIDENCE_REGISTRY,
+  EXPERT_RUBRIC_REGISTRY,
+} = require("../utils/fashionCompatibility/expert/rubricRegistry.ts");
 
 const datasetPath = path.join(__dirname, "fixtures", "fashion-expert-synthetic-valid.json");
 const onePixelPng = Buffer.from(
@@ -66,7 +73,12 @@ function createAssets(directory, dataset, options = {}) {
 
 function buildLock(dataset, manifestPath, batchId = "batch-v1") {
   const assets = validateAssetManifest(readJson(manifestPath), manifestPath, dataset);
-  return createBatchLock({ dataset, assets, batchId });
+  return createBatchLock({
+    dataset,
+    assets,
+    batchId,
+    protocol: getExpertPilotProtocolPayload(),
+  });
 }
 
 function test(name, run) {
@@ -92,6 +104,45 @@ async function main() {
     assert.notEqual(getDatasetSnapshotDigest(dataset), getDatasetSnapshotDigest(featureChanged));
   });
 
+  await test("annotation protocol digest canonicalizes registries and binds evaluator-visible policy", () => {
+    const protocol = getExpertPilotProtocolPayload();
+    const reordered = getExpertPilotProtocolPayload({
+      rubricRegistry: [...EXPERT_RUBRIC_REGISTRY].reverse(),
+      evidenceRegistry: [...EXPERT_EVIDENCE_REGISTRY].reverse(),
+      evaluationContract: reverseObjectKeys(structuredClone(EXPERT_EVALUATION_CONTRACT)),
+    });
+    assert.equal(
+      getExpertPilotProtocolDigest(protocol),
+      getExpertPilotProtocolDigest(reverseObjectKeys(reordered))
+    );
+
+    const expectChange = (mutate) => {
+      const changed = structuredClone(protocol);
+      mutate(changed);
+      assert.notEqual(
+        getExpertPilotProtocolDigest(protocol),
+        getExpertPilotProtocolDigest(changed)
+      );
+    };
+    expectChange((value) => { value.dimensions[0].label += " changed"; });
+    expectChange((value) => { value.dimensions[0].anchors[4] += " changed"; });
+    expectChange((value) => { value.dimensions[0].description += " changed"; });
+    expectChange((value) => { value.dimensions[0].contextRequirements[0].policy = "required"; });
+    expectChange((value) => { value.dimensions[0].observationRequirements[0].rationale += " changed"; });
+    expectChange((value) => { value.dimensions[0].allowedEvidenceCodes.pop(); });
+    expectChange((value) => { value.evidence[0].description += " changed"; });
+    expectChange((value) => { value.evidence[0].label += " changed"; });
+    expectChange((value) => { value.evidence[0].origin = "context_interpretation"; });
+    expectChange((value) => { value.evidence[0].polarity = "context_direction"; });
+    expectChange((value) => { value.evaluationContract.requiredDimensions.reverse(); });
+    expectChange((value) => { value.evaluationContract.ratingScale.pop(); });
+    expectChange((value) => { value.evaluationContract.availabilityValues.pop(); });
+    expectChange((value) => {
+      value.evaluationContract.overallCompatibility.requiresImageWhenRated = false;
+    });
+    assert.doesNotMatch(JSON.stringify(protocol), /reviewedBy|sourceReferences/);
+  });
+
   await test("batch fingerprint is path-independent and binds bytes, count, and order", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "naes-pilot-lock-"));
     try {
@@ -105,6 +156,12 @@ async function main() {
         createAssets(secondDir, dataset, { prefix: "two" })
       );
       assert.equal(first.batchFingerprintSha256, sameBytesDifferentPath.batchFingerprintSha256);
+      assert.equal(first.schemaVersion, "expert-pilot-batch-lock-v2");
+      assert.equal("dimensions" in first.protocol, false);
+      assert.equal(
+        first.protocol.protocolDigestSha256,
+        getExpertPilotProtocolDigest(getExpertPilotProtocolPayload())
+      );
 
       const changed = buildLock(
         dataset,
@@ -149,7 +206,7 @@ async function main() {
       assert.match(lock.batchFingerprintSha256, /^[a-f0-9]{64}$/);
 
       const unsupported = structuredClone(lock);
-      unsupported.schemaVersion = "future-lock";
+      unsupported.schemaVersion = "expert-pilot-batch-lock-v1";
       assert.throws(() => validateBatchLock(unsupported), /unsupported schema/);
       const wrongBatch = structuredClone(lock);
       wrongBatch.batchId = "other-batch";
@@ -188,6 +245,41 @@ async function main() {
         /does not match/
       );
       assert.equal(fs.existsSync(path.join(directory, "output.json")), false);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  await test("runner rejects a different annotation protocol before writing output", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-pilot-protocol-"));
+    try {
+      const assetsPath = createAssets(directory, dataset);
+      const assets = validateAssetManifest(readJson(assetsPath), assetsPath, dataset);
+      const changedProtocol = structuredClone(getExpertPilotProtocolPayload());
+      changedProtocol.dimensions[0].anchors[4] += " changed";
+      const lockPath = path.join(directory, "batch-lock.json");
+      fs.writeFileSync(lockPath, JSON.stringify(createBatchLock({
+        dataset,
+        assets,
+        batchId: "protocol-v2",
+        protocol: changedProtocol,
+      })));
+      const outputPath = path.join(directory, "output.json");
+      assert.throws(
+        () => createPilotServer({
+          datasetPath,
+          assetsPath,
+          batchLockPath: lockPath,
+          outputPath,
+          evaluatorId: "protocol-reviewer",
+          evaluatorGroup: "pilot",
+          seed: "seed-v1",
+          port: 4317,
+        }),
+        /Annotation protocol does not match/
+      );
+      assert.equal(fs.existsSync(outputPath), false);
+      assert.equal(fs.existsSync(`${outputPath}.pilot-provenance.json`), false);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

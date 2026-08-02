@@ -1,5 +1,6 @@
 import {
   EXPERT_EVALUATION_SCHEMA_VERSION,
+  EXPERT_RUBRIC_VERSION,
   type ExpertAbsoluteEvaluation,
   type ExpertConfidence,
   type ExpertDimension,
@@ -10,6 +11,8 @@ import {
   type OverallCompatibilityEvaluation,
 } from "@/utils/fashionCompatibility/expert/types";
 import {
+  EXPERT_EVALUATION_CONTRACT,
+  EXPERT_EVIDENCE_REGISTRY,
   EXPERT_RUBRIC_REGISTRY,
   REQUIRED_EXPERT_DIMENSIONS,
   getExpertRubricDimension,
@@ -55,6 +58,78 @@ export type ExpertPilotEvaluationInput = {
   durationSeconds?: number;
   datasetSplit?: ExpertAbsoluteEvaluation["datasetSplit"];
 };
+
+function sortStrings(values: readonly string[]) {
+  return [...values].sort((left, right) => left.localeCompare(right));
+}
+
+export function getExpertPilotProtocolPayload(input?: {
+  rubricRegistry?: typeof EXPERT_RUBRIC_REGISTRY;
+  evidenceRegistry?: typeof EXPERT_EVIDENCE_REGISTRY;
+  evaluationContract?: typeof EXPERT_EVALUATION_CONTRACT;
+}) {
+  const rubricRegistry = input?.rubricRegistry || EXPERT_RUBRIC_REGISTRY;
+  const evidenceRegistry = input?.evidenceRegistry || EXPERT_EVIDENCE_REGISTRY;
+  const evaluationContract = input?.evaluationContract || EXPERT_EVALUATION_CONTRACT;
+  const dimensionOrder = new Map(
+    evaluationContract.requiredDimensions.map((dimension, index) => [dimension, index])
+  );
+
+  return {
+    rubricVersion: EXPERT_RUBRIC_VERSION,
+    dimensions: [...rubricRegistry]
+      .sort(
+        (left, right) =>
+          (dimensionOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+            (dimensionOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER) ||
+          left.id.localeCompare(right.id)
+      )
+      .map((definition) => ({
+        id: definition.id,
+        label: definition.label,
+        description: definition.description,
+        anchors: { ...definition.anchors },
+        contextRequirements: definition.contextRequirements
+          .map((requirement) => ({
+            field: requirement.field,
+            policy: requirement.policy,
+            ...(requirement.unavailableValues
+              ? { unavailableValues: sortStrings(requirement.unavailableValues) }
+              : {}),
+          }))
+          .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+        observationRequirements: definition.observationRequirements
+          .map((requirement) => ({
+            policy: requirement.policy,
+            groups: requirement.groups
+              .map((group) => ({ mode: group.mode, signals: sortStrings(group.signals) }))
+              .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+            rationale: requirement.rationale,
+          }))
+          .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+        allowedEvidenceCodes: sortStrings(definition.allowedEvidenceCodes),
+        version: definition.version,
+        status: definition.status,
+      })),
+    evidence: [...evidenceRegistry]
+      .sort((left, right) => left.code.localeCompare(right.code))
+      .map((definition) => ({
+        code: definition.code,
+        label: definition.label,
+        description: definition.description,
+        origin: definition.origin,
+        allowedDimensions: sortStrings(definition.allowedDimensions),
+        polarity: definition.polarity,
+        status: definition.status,
+      })),
+    evaluationContract: {
+      requiredDimensions: [...evaluationContract.requiredDimensions],
+      ratingScale: [...evaluationContract.ratingScale],
+      availabilityValues: [...evaluationContract.availabilityValues],
+      overallCompatibility: { ...evaluationContract.overallCompatibility },
+    },
+  };
+}
 
 function stableHash(value: string) {
   let hash = 0x811c9dc5;

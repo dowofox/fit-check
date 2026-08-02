@@ -33,7 +33,7 @@ Repository의 `scripts/fixtures/fashion-expert-pilot-assets.json`은 synthetic d
 
 ## 실행
 
-평가를 시작하기 전에 dataset snapshot과 실제 이미지 바이트를 하나의 배치로 고정한다. 잠금 파일에는 로컬 경로와 파일명이 들어가지 않는다.
+평가를 시작하기 전에 dataset snapshot, 실제 이미지 바이트, 현재 annotation protocol을 하나의 배치로 고정한다. 잠금 파일에는 로컬 경로와 파일명, 전체 rubric 문구가 들어가지 않는다.
 
 ```powershell
 npm run fashion:expert:pilot:freeze -- `
@@ -44,6 +44,8 @@ npm run fashion:expert:pilot:freeze -- `
 ```
 
 Snapshot은 `outfitId` 순서로 canonicalize하므로 JSON key 순서, 공백, snapshot 배열 순서는 digest에 영향을 주지 않는다. Snapshot context·feature·input availability 또는 이미지 바이트·개수·표시 순서가 바뀌면 배치 fingerprint가 바뀐다. 평가는 snapshot digest에 포함하지 않는다.
+
+Annotation protocol digest는 실제 rubric/evidence registry에서 생성한다. 13개 dimension의 label·description·anchor·context/observation requirement·허용 evidence, evidence의 label·description·origin·polarity, 필수 dimension 순서, rating scale, availability 값과 overall image 정책을 포함한다. `reviewedBy`와 `sourceReferences`는 평가 화면이나 입력 가능 여부에 영향을 주지 않는 검토 metadata라 제외한다. Registry 순서는 정규화하지만 필수 dimension 순서는 평가 계약으로 보존한다. 기존 `expert-pilot-batch-lock-v1`은 자동 이관하지 않고 명시적으로 거부하므로 `freeze`로 v2 lock을 다시 만들어야 한다.
 
 ```powershell
 npm run fashion:expert:pilot -- `
@@ -99,6 +101,7 @@ Output과 로컬 manifest 기본 패턴은 `.gitignore`에 포함된다. 실제 
 ## 실패 대응
 
 - **시작 전 validator 실패**: dataset을 기존 `fashion:expert:validate`로 먼저 수정한다.
+- **Annotation protocol 불일치**: 같은 dataset과 이미지라도 freeze 이후 rubric, anchor, requirement 또는 evidence 정의가 바뀌었다. 기존 lock을 덮어쓰지 말고 변경 의도를 검토한 뒤 새 batch ID로 다시 freeze한다.
 - **이미지 거부**: 파일 크기, 확장자, 실제 MIME, symlink 여부, snapshot의 `imageAvailable`을 확인한다.
 - **저장 거부**: 화면의 필수 13개 dimension, confidence, rating 가용성 조건을 확인한다.
 - **Case에 저장되지 않은 변경 표시**: 해당 Case를 다시 열어 저장하거나 `현재 Case 변경 버리기`로 메모리 초안을 제거한다.

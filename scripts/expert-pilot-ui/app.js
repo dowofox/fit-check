@@ -1,13 +1,11 @@
 "use strict";
 
-const AVAILABILITIES = [
-  ["", "선택하세요"],
-  ["rated", "평가 가능"],
-  ["not_enough_information", "정보 부족"],
-  ["not_applicable", "해당 없음"],
-  ["abstained", "판단 보류"],
-];
-const RATINGS = [1, 2, 3, 4, 5];
+const AVAILABILITY_LABELS = {
+  rated: "평가 가능",
+  not_enough_information: "정보 부족",
+  not_applicable: "해당 없음",
+  abstained: "판단 보류",
+};
 const draftStore = window.PilotDraftState.createDraftStore();
 const state = {
   token: "",
@@ -114,6 +112,20 @@ function option(value, label, disabled = false) {
 
 function populateSelect(select, entries) {
   select.replaceChildren(...entries.map(([value, label, disabled]) => option(value, label, disabled)));
+}
+
+function getAvailabilityEntries() {
+  return [
+    ["", "선택하세요"],
+    ...state.session.evaluationContract.availabilityValues.map((value) => [
+      value,
+      AVAILABILITY_LABELS[value] || value,
+    ]),
+  ];
+}
+
+function getRatings() {
+  return state.session.evaluationContract.ratingScale;
 }
 
 function renderKeyValues(container, values) {
@@ -234,7 +246,7 @@ function renderDimension(definition, existing) {
 
   const fields = document.createElement("div");
   fields.className = "field-row";
-  const availabilityEntries = AVAILABILITIES.map(([value, label]) => [
+  const availabilityEntries = getAvailabilityEntries().map(([value, label]) => [
     value,
     label,
     value === "rated" && !definition.state.canRate,
@@ -246,13 +258,13 @@ function renderDimension(definition, existing) {
   );
   availability.dataset.field = "availability";
   const rating = buildSelect(
-    [["", "선택하세요"], ...RATINGS.map((value) => [value, `${value}점`])],
+    [["", "선택하세요"], ...getRatings().map((value) => [value, `${value}점`])],
     existing?.rating,
     `${definition.id}-rating`
   );
   rating.dataset.field = "rating";
   const confidence = buildSelect(
-    [["", "선택하세요"], ...RATINGS.map((value) => [value, `${value}`])],
+    [["", "선택하세요"], ...getRatings().map((value) => [value, `${value}`])],
     existing?.confidence,
     `${definition.id}-confidence`
   );
@@ -311,9 +323,9 @@ function renderDimension(definition, existing) {
 function fillOverall(existing, enabled = Boolean(existing)) {
   elements.overallEnabled.checked = enabled;
   elements.overallFields.hidden = !enabled;
-  populateSelect(elements.overallAvailability, AVAILABILITIES);
-  populateSelect(elements.overallRating, [["", "선택하세요"], ...RATINGS.map((v) => [v, `${v}점`])]);
-  populateSelect(elements.overallConfidence, [["", "선택하세요"], ...RATINGS.map((v) => [v, `${v}`])]);
+  populateSelect(elements.overallAvailability, getAvailabilityEntries());
+  populateSelect(elements.overallRating, [["", "선택하세요"], ...getRatings().map((v) => [v, `${v}점`])]);
+  populateSelect(elements.overallConfidence, [["", "선택하세요"], ...getRatings().map((v) => [v, `${v}`])]);
   elements.overallAvailability.value = existing?.availability || "";
   elements.overallRating.value = existing?.rating || "";
   elements.overallConfidence.value = existing?.confidence || "";
@@ -405,7 +417,7 @@ function renderCurrentCase() {
   );
   populateSelect(elements.evaluatorConfidence, [
     ["", "선택하세요"],
-    ...RATINGS.map((value) => [value, `${value}`]),
+    ...getRatings().map((value) => [value, `${value}`]),
   ]);
   elements.evaluatorConfidence.value = draft?.evaluatorConfidence || existing?.evaluatorConfidence || "";
   elements.saveStatus.textContent = draft

@@ -20,6 +20,8 @@ validated expert dataset + separate local asset manifest
 - 저장 전 입력은 Case별 브라우저 메모리 초안으로만 보존한다. Case 이동 시 복원하고, 저장 성공 시 해당 초안만 제거하며, 초안이 있으면 페이지 종료 경고와 전체 완료 차단을 적용한다.
 - 저장 요청은 단일 in-flight 트랜잭션으로 잠그고 Case 번호와 초안 revision을 고정한다. 응답은 같은 트랜잭션과 revision에만 반영하므로 다른 Case 상태나 새 입력을 지우지 않는다.
 - 메모리 초안은 허용된 폼 값과 누적 편집 시간만 복사한다. dataset schema, output, 서버 API, asset manifest에는 초안이나 로컬 식별자를 기록하지 않는다.
+- `expert-pilot-batch-lock-v2`는 snapshot과 이미지 바이트뿐 아니라 실제 rubric, anchor, requirement, evidence, rating/availability 계약의 canonical digest를 전체 batch fingerprint에 포함한다. Registry 내용이 달라지면 rubric version 문자열이 같아도 runner가 listen 전에 거부한다.
+- Protocol payload는 실제 registry에서 생성하며 평가에 영향이 없는 `reviewedBy`와 `sourceReferences`만 제외한다. Lock에는 전체 rubric text 대신 SHA-256 digest만 저장하고 output sidecar는 batch fingerprint를 통해 protocol을 간접적으로 고정한다.
 - 기존 absolute/pairwise 레코드는 보존하지만 UI는 절대평가만 제공한다.
 - Pairwise UI, professional score, 운영 추천·앱 UI·저장소 연결, 외부 전송은 구현하지 않는다.
 

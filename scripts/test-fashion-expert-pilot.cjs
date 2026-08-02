@@ -20,6 +20,7 @@ const {
 const {
   buildPilotAbsoluteEvaluation,
   createExpertPilotSession,
+  getExpertPilotProtocolPayload,
   getDeterministicOutfitOrder,
   getPilotDimensionState,
   getPilotEvaluationId,
@@ -88,7 +89,12 @@ function createTemporaryAssets(directory, dataset) {
 
 function createBatchLockFile(directory, dataset, manifestPath, batchId = "synthetic-batch-v1") {
   const assets = validateAssetManifest(readJson(manifestPath), manifestPath, dataset);
-  const lock = createBatchLock({ dataset, assets, batchId });
+  const lock = createBatchLock({
+    dataset,
+    assets,
+    batchId,
+    protocol: getExpertPilotProtocolPayload(),
+  });
   const lockPath = path.join(directory, "batch-lock.json");
   fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
   return lockPath;
@@ -364,6 +370,13 @@ async function main() {
       assert.equal(sessionResult.payload.session.totalCases, dataset.snapshots.length);
       assert.equal(sessionResult.payload.session.batchId, "synthetic-batch-v1");
       assert.match(sessionResult.payload.session.batchFingerprintPrefix, /^[a-f0-9]{12}$/);
+      assert.deepEqual(sessionResult.payload.session.evaluationContract.ratingScale, [1, 2, 3, 4, 5]);
+      assert.deepEqual(sessionResult.payload.session.evaluationContract.availabilityValues, [
+        "rated",
+        "not_enough_information",
+        "not_applicable",
+        "abstained",
+      ]);
       const provenancePath = getOutputProvenancePath(outputPath);
       assert.equal(fs.existsSync(provenancePath), true);
       const initialProvenance = readPilotJson(provenancePath, "Pilot output provenance");
@@ -456,6 +469,7 @@ async function main() {
         dataset,
         assets: validateAssetManifest(readJson(assetsPath), assetsPath, dataset),
         batchId: "different-batch",
+        protocol: getExpertPilotProtocolPayload(),
       });
       const otherBatchLockPath = path.join(directory, "other-batch-lock.json");
       fs.writeFileSync(otherBatchLockPath, JSON.stringify(otherBatchLock), "utf8");

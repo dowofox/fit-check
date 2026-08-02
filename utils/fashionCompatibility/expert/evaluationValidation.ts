@@ -20,6 +20,7 @@ import {
   type PairwisePreference,
 } from "@/utils/fashionCompatibility/expert/types";
 import {
+  EXPERT_EVALUATION_CONTRACT,
   REQUIRED_EXPERT_DIMENSIONS,
   getExpertEvidenceDefinition,
   getExpertRubricDimension,
@@ -38,13 +39,10 @@ const MAX_NOTES_LENGTH = 1_000;
 const MIN_REASONABLE_DURATION_SECONDS = 5;
 const MAX_REASONABLE_DURATION_SECONDS = 7_200;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$/;
-const RATINGS = new Set([1, 2, 3, 4, 5]);
-const AVAILABILITIES = new Set<EvaluationAvailability>([
-  "rated",
-  "not_enough_information",
-  "not_applicable",
-  "abstained",
-]);
+const RATINGS = new Set<number>(EXPERT_EVALUATION_CONTRACT.ratingScale);
+const AVAILABILITIES = new Set<EvaluationAvailability>(
+  EXPERT_EVALUATION_CONTRACT.availabilityValues
+);
 const SPLITS = new Set<DatasetSplit>(["unassigned", "train", "validation", "test"]);
 const PAIRWISE_PREFERENCES = new Set<PairwisePreference>([
   "a",
@@ -488,8 +486,10 @@ function validateAbsoluteEvaluation(
     );
     if (isRecord(evaluation.overallCompatibility)) {
       validateDimensionObservationInput({
-        dimension: "style_coherence",
-        shouldValidate: evaluation.overallCompatibility.availability === "rated",
+        dimension: EXPERT_EVALUATION_CONTRACT.overallCompatibility.requiredObservationDimension,
+        shouldValidate:
+          evaluation.overallCompatibility.availability === "rated" &&
+          EXPERT_EVALUATION_CONTRACT.overallCompatibility.requiresImageWhenRated,
         snapshot,
         path: `${path}.overallCompatibility`,
         issues,

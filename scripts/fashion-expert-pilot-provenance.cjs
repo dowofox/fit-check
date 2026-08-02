@@ -1,7 +1,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 
-const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v1";
+const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v2";
 const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v1";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -54,17 +54,29 @@ function getDatasetSnapshotDigest(dataset) {
   return sha256(canonicalJson(getDatasetSnapshotPayload(dataset)));
 }
 
+function getExpertPilotProtocolDigest(protocol) {
+  if (!protocol || typeof protocol !== "object" || Array.isArray(protocol)) {
+    fail("Annotation protocol is required.");
+  }
+  return sha256(canonicalJson(protocol));
+}
+
 function getBatchFingerprintPayload(lock) {
   return {
     schemaVersion: lock.schemaVersion,
     batchId: lock.batchId,
     dataset: lock.dataset,
+    protocol: lock.protocol,
     outfits: lock.outfits,
   };
 }
 
-function createBatchLock({ dataset, assets, batchId }) {
+function createBatchLock({ dataset, assets, batchId, protocol }) {
   if (typeof batchId !== "string" || !batchId.trim()) fail("Batch ID is required.");
+  const protocolDigestSha256 = getExpertPilotProtocolDigest(protocol);
+  if (protocol.rubricVersion !== dataset.rubricVersion) {
+    fail("Annotation protocol rubric version does not match the dataset.");
+  }
   const outfits = [...dataset.snapshots]
     .sort((left, right) => left.outfitId.localeCompare(right.outfitId))
     .map((snapshot) => {
@@ -93,6 +105,10 @@ function createBatchLock({ dataset, assets, batchId }) {
       rubricVersion: dataset.rubricVersion,
       snapshotDigestSha256: getDatasetSnapshotDigest(dataset),
     },
+    protocol: {
+      rubricVersion: protocol.rubricVersion,
+      protocolDigestSha256,
+    },
     outfits,
   };
   return {
@@ -113,6 +129,13 @@ function validateBatchLock(lock) {
   }
   if (!SHA256_PATTERN.test(lock.dataset.snapshotDigestSha256 || "")) {
     fail("Batch lock snapshot digest is invalid.");
+  }
+  if (
+    !lock.protocol ||
+    lock.protocol.rubricVersion !== lock.dataset.rubricVersion ||
+    !SHA256_PATTERN.test(lock.protocol.protocolDigestSha256 || "")
+  ) {
+    fail("Batch lock annotation protocol is invalid.");
   }
   if (!Array.isArray(lock.outfits)) fail("Batch lock outfits are invalid.");
   const seenOutfits = new Set();
@@ -145,6 +168,9 @@ function validateBatchLock(lock) {
 function assertBatchLockMatches(lock, current) {
   validateBatchLock(lock);
   validateBatchLock(current);
+  if (lock.protocol.protocolDigestSha256 !== current.protocol.protocolDigestSha256) {
+    fail("Annotation protocol does not match the frozen pilot batch.");
+  }
   if (canonicalJson(lock) !== canonicalJson(current)) {
     fail("Batch lock does not match the current dataset and assets.");
   }
@@ -231,6 +257,7 @@ module.exports = {
   createBatchLock,
   createOutputProvenance,
   getDatasetSnapshotDigest,
+  getExpertPilotProtocolDigest,
   getOrderedOutfitIdsDigest,
   getOutputProvenancePath,
   validateBatchLock,

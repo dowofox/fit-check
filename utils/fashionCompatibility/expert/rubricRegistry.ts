@@ -197,6 +197,21 @@ export const REQUIRED_EXPERT_DIMENSIONS = Object.freeze(
   EXPERT_RUBRIC_REGISTRY.map((entry) => entry.id)
 ) as readonly ExpertDimension[];
 
+export const EXPERT_EVALUATION_CONTRACT = Object.freeze({
+  requiredDimensions: REQUIRED_EXPERT_DIMENSIONS,
+  ratingScale: Object.freeze([1, 2, 3, 4, 5] as const),
+  availabilityValues: Object.freeze([
+    "rated",
+    "not_enough_information",
+    "not_applicable",
+    "abstained",
+  ] as const),
+  overallCompatibility: Object.freeze({
+    requiredObservationDimension: "style_coherence" as ExpertDimension,
+    requiresImageWhenRated: true,
+  }),
+});
+
 export function getExpertRubricDimension(dimension: ExpertDimension) {
   return EXPERT_RUBRIC_REGISTRY.find((entry) => entry.id === dimension);
 }

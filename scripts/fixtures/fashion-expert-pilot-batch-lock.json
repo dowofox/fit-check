@@ -1,11 +1,15 @@
 {
-  "schemaVersion": "expert-pilot-batch-lock-v1",
+  "schemaVersion": "expert-pilot-batch-lock-v2",
   "batchId": "synthetic-pilot-v1",
   "dataset": {
     "datasetId": "synthetic-fashion-expert",
     "datasetVersion": "1.0.0",
     "rubricVersion": "expert-rubric-draft-v0.3",
     "snapshotDigestSha256": "69b343201383b2a04f7685aab3fe6d5c4b9e38af0e7710a4a4965dfeea1ab875"
+  },
+  "protocol": {
+    "rubricVersion": "expert-rubric-draft-v0.3",
+    "protocolDigestSha256": "1b0c78e4ea81b1a10aaefd6c964ef44aa8db20e7f67150b81130bf110b18e9d6"
   },
   "outfits": [
     {
@@ -58,5 +62,5 @@
       "orderedAssetsDigestSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   ],
-  "batchFingerprintSha256": "05340abb047f0e8921ca78b51d888fd39128bb6bae20b4f963c35b8c609b8dca"
+  "batchFingerprintSha256": "aa1c1fff2e5e3b906500fef76f8f1351a12a3c66bc7e49c776bf9bdabd06fba0"
 }

@@ -9,6 +9,9 @@ const {
   assertBatchLockMatches,
   createBatchLock,
 } = require("./fashion-expert-pilot-provenance.cjs");
+const {
+  getExpertPilotProtocolPayload,
+} = require("../utils/fashionCompatibility/expert/pilotSession.ts");
 
 function argumentValue(argv, name) {
   const index = argv.indexOf(name);
@@ -46,7 +49,12 @@ function freezeBatch(options) {
   validateInputDataset(dataset);
   const manifest = readJson(options.assetsPath, "Asset manifest");
   const assets = validateAssetManifest(manifest, options.assetsPath, dataset);
-  const lock = createBatchLock({ dataset, assets, batchId: options.batchId });
+  const lock = createBatchLock({
+    dataset,
+    assets,
+    batchId: options.batchId,
+    protocol: getExpertPilotProtocolPayload(),
+  });
   atomicWriteJson(options.outputPath, lock);
   const saved = readJson(options.outputPath, "Saved batch lock");
   assertBatchLockMatches(saved, lock);

@@ -31,6 +31,7 @@ const {
   createExpertPilotSession,
   findPilotEvaluation,
   getPilotCompletion,
+  getExpertPilotProtocolPayload,
   getPilotRubricView,
   upsertPilotEvaluation,
   validatePilotOutput,
@@ -375,10 +376,12 @@ function createPilotServer(options) {
   const manifest = readJson(options.assetsPath, "Asset manifest");
   const assets = validateAssetManifest(manifest, options.assetsPath, sourceDataset);
   const batchLock = readJson(options.batchLockPath, "Batch lock");
+  const protocol = getExpertPilotProtocolPayload();
   const currentBatchLock = createBatchLock({
     dataset: sourceDataset,
     assets,
     batchId: batchLock.batchId,
+    protocol,
   });
   assertBatchLockMatches(batchLock, currentBatchLock);
   const lockedOutfitById = new Map(batchLock.outfits.map((outfit) => [outfit.outfitId, outfit]));
@@ -474,6 +477,7 @@ function createPilotServer(options) {
             seed: session.seed,
             batchId: batchLock.batchId,
             batchFingerprintPrefix: batchLock.batchFingerprintSha256.slice(0, 12),
+            evaluationContract: protocol.evaluationContract,
             totalCases: session.orderedOutfitIds.length,
             completedCaseNumbers: session.orderedOutfitIds
               .map((outfitId, index) =>
