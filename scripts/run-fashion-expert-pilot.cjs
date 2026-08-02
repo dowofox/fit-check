@@ -371,6 +371,8 @@ function createPilotServer(options) {
     seed: options.seed,
   });
   const snapshotById = new Map(dataset.snapshots.map((snapshot) => [snapshot.outfitId, snapshot]));
+  const saveDelayMs = Number.isFinite(options.saveDelayMs) ? Math.max(0, options.saveDelayMs) : 0;
+  let saveRequestCount = 0;
 
   function getCase(caseNumber) {
     if (!Number.isInteger(caseNumber) || caseNumber < 1 || caseNumber > session.orderedOutfitIds.length) {
@@ -484,11 +486,13 @@ function createPilotServer(options) {
       }
       const evaluationMatch = url.pathname.match(/^\/api\/evaluations\/(\d+)$/);
       if (evaluationMatch && request.method === "POST") {
+        saveRequestCount += 1;
         assertMutationRequest(request);
         const caseNumber = Number(evaluationMatch[1]);
         const currentCase = getCase(caseNumber);
         if (!currentCase) return sendError(response, 404, "Case not found.");
         const body = await readRequestJson(request);
+        if (saveDelayMs) await new Promise((resolve) => setTimeout(resolve, saveDelayMs));
         const existing = findPilotEvaluation(dataset, options.evaluatorId, currentCase.outfitId);
         const evaluation = buildPilotAbsoluteEvaluation({
           dataset,
@@ -550,6 +554,7 @@ function createPilotServer(options) {
     server,
     session,
     getDataset: () => dataset,
+    getSaveRequestCount: () => saveRequestCount,
     listen(port = options.port) {
       return new Promise((resolve, reject) => {
         server.once("error", reject);

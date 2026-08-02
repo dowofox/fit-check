@@ -109,19 +109,29 @@ async function main() {
       imagePath: "C:/private/outfit.png",
       productName: "private product",
     };
-    store.setDraft(2, first);
-    store.setDraft(1, { dimensions: [], evaluatorConfidence: "2" });
+    const firstRevision = store.setDraft(2, first);
+    const otherRevision = store.setDraft(1, { dimensions: [], evaluatorConfidence: "2" });
+    const secondRevision = store.setDraft(2, first);
     first.dimensions[0].notes = "mutated later";
 
+    assert.equal(firstRevision, 1);
+    assert.equal(otherRevision, 1);
+    assert.equal(secondRevision, 2);
+    assert.equal(store.getDraftRecord(2).revision, 2);
     assert.deepEqual(store.getDirtyCaseNumbers(), [1, 2]);
     assert.equal(store.getDraft(2).dimensions[0].notes, "partial note");
     const serialized = JSON.stringify(store.getDraft(2));
     assert.doesNotMatch(serialized, /token|private|file:|base64|imagePath|productName/i);
 
-    store.clearDraft(1);
+    assert.equal(store.clearDraft(2, firstRevision), false);
+    assert.equal(store.hasDraft(2), true);
+    assert.equal(store.clearDraft(1, otherRevision), true);
     assert.equal(store.hasDraft(1), false);
     assert.equal(store.hasDraft(2), true);
     assert.equal(store.hasAnyDraft(), true);
+    assert.equal(store.clearDraft(2, secondRevision), true);
+    assert.equal(store.setDraft(2, first), 3);
+    assert.equal("revision" in store.getDraft(2), false);
   });
 
   await test("navigation, save, failure, and discard preserve the intended draft", () => {
@@ -361,6 +371,7 @@ async function main() {
         body: JSON.stringify(createSafeEvaluation()),
       });
       assert.equal(firstSave.response.status, 200);
+      assert.equal(pilot.getSaveRequestCount(), 3);
       assert.equal(firstSave.payload.completion.complete, false);
       const firstOutput = readJson(outputPath);
       const firstEvaluationId = firstOutput.absoluteEvaluations.find(

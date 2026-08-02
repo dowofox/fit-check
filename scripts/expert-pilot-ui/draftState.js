@@ -45,19 +45,33 @@
 
   function createDraftStore() {
     const drafts = new Map();
+    const revisions = new Map();
     return {
       setDraft(caseNumber, draft) {
-        drafts.set(Number(caseNumber), cloneDraft(draft));
+        const key = Number(caseNumber);
+        const revision = (revisions.get(key) || 0) + 1;
+        revisions.set(key, revision);
+        drafts.set(key, { revision, draft: cloneDraft(draft) });
+        return revision;
       },
       getDraft(caseNumber) {
-        const draft = drafts.get(Number(caseNumber));
-        return draft ? cloneDraft(draft) : undefined;
+        const record = drafts.get(Number(caseNumber));
+        return record ? cloneDraft(record.draft) : undefined;
+      },
+      getDraftRecord(caseNumber) {
+        const record = drafts.get(Number(caseNumber));
+        return record
+          ? { revision: record.revision, draft: cloneDraft(record.draft) }
+          : undefined;
       },
       hasDraft(caseNumber) {
         return drafts.has(Number(caseNumber));
       },
-      clearDraft(caseNumber) {
-        drafts.delete(Number(caseNumber));
+      clearDraft(caseNumber, expectedRevision) {
+        const key = Number(caseNumber);
+        const record = drafts.get(key);
+        if (expectedRevision !== undefined && record?.revision !== expectedRevision) return false;
+        return drafts.delete(key);
       },
       getDirtyCaseNumbers() {
         return [...drafts.keys()].sort((left, right) => left - right);
