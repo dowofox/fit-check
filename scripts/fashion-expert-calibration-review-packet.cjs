@@ -45,7 +45,28 @@ function assertNonNegativeInteger(value, label) {
   }
 }
 
-function validateAgreement(agreement, dimension) {
+function canDistributeResponses({ outfitCount, reviewersPerOutfit, responseCount, comparisonCount }) {
+  let states = new Set([0]);
+  const width = comparisonCount + 1;
+  for (let outfit = 0; outfit < outfitCount; outfit += 1) {
+    const next = new Set();
+    for (const state of states) {
+      const responses = Math.floor(state / width);
+      const comparisons = state % width;
+      for (let rated = 0; rated <= reviewersPerOutfit; rated += 1) {
+        const nextResponses = responses + rated;
+        const nextComparisons = comparisons + rated * (rated - 1) / 2;
+        if (nextResponses <= responseCount && nextComparisons <= comparisonCount) {
+          next.add(nextResponses * width + nextComparisons);
+        }
+      }
+    }
+    states = next;
+  }
+  return states.has(responseCount * width + comparisonCount);
+}
+
+function validateAgreement(agreement, dimension, counts) {
   assertNonNegativeInteger(agreement.responseCount, `${dimension} response count`);
   assertNonNegativeInteger(agreement.comparisonCount, `${dimension} comparison count`);
   const { comparisonCount } = agreement;
@@ -60,8 +81,13 @@ function validateAgreement(agreement, dimension) {
     }
     return;
   }
-  if (agreement.responseCount < 2 || comparisonCount > agreement.responseCount * (agreement.responseCount - 1) / 2) {
-    fail(`${dimension} comparison count is inconsistent with response count.`);
+  if (!canDistributeResponses({
+    outfitCount: counts.outfits,
+    reviewersPerOutfit: counts.reviewersPerOutfit,
+    responseCount: agreement.responseCount,
+    comparisonCount,
+  })) {
+    fail(`${dimension} response and comparison counts are not possible for this pilot.`);
   }
   assertRate(agreement.exactAgreement, `${dimension} exact agreement`);
   assertRate(agreement.adjacentAgreement, `${dimension} adjacent agreement`);
@@ -128,6 +154,19 @@ function validateReadinessForReview(readiness) {
   if (!isRecord(readiness.counts) || !isRecord(readiness.diagnostics)) {
     fail("Readiness counts or diagnostics are missing.");
   }
+  for (const key of [
+    "outfits",
+    "assignedEvaluators",
+    "expectedAssignedEvaluations",
+    "actualAssignedEvaluations",
+    "validationErrors",
+    "validationWarnings",
+  ]) {
+    assertNonNegativeInteger(readiness.counts[key], `Readiness ${key}`);
+  }
+  if (!readiness.counts.outfits || !readiness.counts.assignedEvaluators) {
+    fail("Readiness outfit and evaluator counts must be positive.");
+  }
   if (readiness.counts.validationErrors !== 0) {
     fail("Readiness result contains validation errors.");
   }
@@ -137,6 +176,16 @@ function validateReadinessForReview(readiness) {
   ) {
     fail("Assigned evaluation coverage is incomplete.");
   }
+  const reviewersPerOutfit =
+    readiness.counts.expectedAssignedEvaluations / readiness.counts.outfits;
+  if (
+    !Number.isInteger(reviewersPerOutfit) ||
+    reviewersPerOutfit < 2 ||
+    reviewersPerOutfit > readiness.counts.assignedEvaluators
+  ) {
+    fail("Readiness reviewer coverage is invalid.");
+  }
+  const pilotCounts = { ...readiness.counts, reviewersPerOutfit };
   const diagnostics = readiness.diagnostics;
   for (const key of [
     "coverageByDimension",
@@ -176,13 +225,22 @@ function validateReadinessForReview(readiness) {
     if (!isRecord(agreement)) {
       fail(`${dimension} agreement is missing.`);
     }
-    validateAgreement(agreement, dimension);
+    const expectedCoverage = agreement.responseCount / readiness.counts.expectedAssignedEvaluations;
+    if (
+      Math.abs(diagnostics.coverageByDimension[dimension] - expectedCoverage) > 1e-9 ||
+      Math.abs(
+        diagnostics.unavailableRateByDimension[dimension] - (1 - expectedCoverage)
+      ) > 1e-9
+    ) {
+      fail(`${dimension} coverage is inconsistent with response count.`);
+    }
+    validateAgreement(agreement, dimension, pilotCounts);
   });
-  return dimensions;
+  return { dimensions, reviewersPerOutfit };
 }
 
 function createCalibrationReviewPacket(readiness) {
-  const dimensions = validateReadinessForReview(readiness);
+  const { dimensions, reviewersPerOutfit } = validateReadinessForReview(readiness);
   const payload = {
     schemaVersion: REVIEW_PACKET_SCHEMA_VERSION,
     status: "ready_for_human_calibration_review",
@@ -204,6 +262,7 @@ function createCalibrationReviewPacket(readiness) {
       actualAssignedEvaluations: readiness.counts.actualAssignedEvaluations,
       validationErrors: readiness.counts.validationErrors,
       validationWarnings: readiness.counts.validationWarnings,
+      reviewersPerOutfit,
     },
     integrityChecks: readiness.checks.map((check) => check.id).sort(),
     dimensions: dimensions

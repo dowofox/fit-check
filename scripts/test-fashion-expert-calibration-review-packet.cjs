@@ -50,12 +50,12 @@ function validReadiness() {
       coverageByDimension: dimensionRecord((_, index) => index === 0 ? 0.5 : 1),
       unavailableRateByDimension: dimensionRecord((_, index) => index === 0 ? 0.5 : 0),
       confidenceByDimension: dimensionRecord(() => 3),
-      agreementByDimension: dimensionRecord(() => ({
-        responseCount: 10,
-        comparisonCount: 5,
-        exactAgreement: 0.8,
+      agreementByDimension: dimensionRecord((_, index) => ({
+        responseCount: index === 0 ? 5 : 10,
+        comparisonCount: index === 0 ? 2 : 5,
+        exactAgreement: index === 0 ? 0.5 : 0.8,
         adjacentAgreement: 1,
-        meanAbsoluteDifference: 0.2,
+        meanAbsoluteDifference: index === 0 ? 0.5 : 0.2,
       })),
       highDisagreementOutfitIds: ["outfit-003", "outfit-001", "outfit-003"],
     },
@@ -128,10 +128,34 @@ async function main() {
     ].adjacentAgreement = 0.8;
     assert.throws(() => createCalibrationReviewPacket(impossibleAgreement), /cannot exceed/);
 
+    const impossiblePairCount = validReadiness();
+    impossiblePairCount.diagnostics.agreementByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = {
+      responseCount: 3,
+      comparisonCount: 2,
+      exactAgreement: 0.5,
+      adjacentAgreement: 1,
+      meanAbsoluteDifference: 0.5,
+    };
+    impossiblePairCount.diagnostics.coverageByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = 0.3;
+    impossiblePairCount.diagnostics.unavailableRateByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = 0.7;
+    assert.throws(() => createCalibrationReviewPacket(impossiblePairCount), /not possible/);
+
     const metricsWithoutComparisons = validReadiness();
     metricsWithoutComparisons.diagnostics.agreementByDimension[
       REQUIRED_EXPERT_DIMENSIONS[0]
     ] = { responseCount: 1, comparisonCount: 0, exactAgreement: 0 };
+    metricsWithoutComparisons.diagnostics.coverageByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = 0.1;
+    metricsWithoutComparisons.diagnostics.unavailableRateByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = 0.9;
     assert.throws(() => createCalibrationReviewPacket(metricsWithoutComparisons), /require comparisons/);
   });
 
