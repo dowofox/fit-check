@@ -22,11 +22,15 @@ require.extensions[".ts"] = function loadTypeScript(module, filename) {
 
 const {
   EXPERT_EVIDENCE_CODES,
+  EXPERT_EVIDENCE_REGISTRY,
+  EXPERT_DIMENSION_ANCHORS,
   EXPERT_RUBRIC_REGISTRY,
   REQUIRED_EXPERT_DIMENSIONS,
 } = require("../utils/fashionCompatibility/expert/rubricRegistry.ts");
 const {
   getStablePairKey,
+  getContextFingerprint,
+  getStablePairEvaluationKey,
   validateAbsoluteRecordForTest,
   validateDimensionRecordForTest,
   validateExpertEvaluationDataset,
@@ -59,11 +63,15 @@ test("rubric registry is complete, unique, and unvalidated", () => {
   assert.deepEqual(EXPERT_RUBRIC_REGISTRY.map((entry) => entry.id), [...REQUIRED_EXPERT_DIMENSIONS]);
   assert.equal(new Set(EXPERT_EVIDENCE_CODES).size, EXPERT_EVIDENCE_CODES.length);
   for (const entry of EXPERT_RUBRIC_REGISTRY) {
+    assert.equal(entry.version, "expert-rubric-draft-v0.2");
     assert.equal(entry.status, "draft");
     assert.deepEqual(entry.reviewedBy, []);
     assert.deepEqual(entry.sourceReferences, []);
     assert.deepEqual(Object.keys(entry.anchors), ["1", "2", "3", "4", "5"]);
+    assert.ok(Object.values(entry.anchors).every((anchor) => anchor.trim().length > 0));
+    assert.deepEqual(entry.anchors, EXPERT_DIMENSION_ANCHORS[entry.id]);
   }
+  assert.equal(new Set(EXPERT_RUBRIC_REGISTRY.map((entry) => entry.anchors)).size, 13);
 });
 
 test("dimension validation separates unavailable responses from rating 3", () => {
@@ -83,22 +91,135 @@ test("dimension validation separates unavailable responses from rating 3", () =>
   assert.ok(validateDimensionRecordForTest({ ...rated, supportingEvidenceCodes: ["invented.rule"] }).some((entry) => entry.code === "unknown_evidence_code"));
 });
 
+test("evidence metadata keeps origins and neutral material observations explicit", () => {
+  assert.equal(new Set(EXPERT_EVIDENCE_REGISTRY.map((entry) => entry.code)).size, EXPERT_EVIDENCE_REGISTRY.length);
+  const material = EXPERT_EVIDENCE_REGISTRY.filter((entry) => entry.code.startsWith("material."));
+  assert.ok(material.length >= 10);
+  assert.ok(material.every((entry) => entry.origin === "human_observed_material"));
+  assert.ok(material.every((entry) => entry.allowedDimensions.includes("material_compatibility")));
+  assert.ok(material.every((entry) => !/(good|bad|harmony|conflict)/i.test(entry.code)));
+  assert.ok(EXPERT_EVIDENCE_REGISTRY.filter((entry) => entry.code.startsWith("color.")).every((entry) => entry.origin === "derived_color_feature"));
+  assert.ok(EXPERT_EVIDENCE_REGISTRY.filter((entry) => entry.code.startsWith("shape.")).every((entry) => entry.origin === "derived_shape_feature"));
+});
+
+test("required context blocks ratings while recommended context warns", () => {
+  const dataset = readFixture();
+  const evaluation = clone(dataset.absoluteEvaluations[0]);
+  const snapshot = clone(dataset.snapshots[0]);
+  snapshot.context.occasion = "unknown";
+  assert.ok(validateAbsoluteRecordForTest(evaluation, [snapshot]).some((entry) => entry.code === "rated_without_required_context"));
+
+  const temperatureSnapshot = clone(dataset.snapshots[0]);
+  delete temperatureSnapshot.context.temperatureContext;
+  assert.ok(validateAbsoluteRecordForTest(evaluation, [temperatureSnapshot]).some((entry) => entry.path.includes("temperature_suitability") || entry.code === "rated_without_required_context"));
+
+  const rainEvaluation = clone(evaluation);
+  const rain = rainEvaluation.dimensions.find((entry) => entry.dimension === "rain_suitability");
+  rain.availability = "rated";
+  rain.rating = 3;
+  const rainSnapshot = clone(dataset.snapshots[0]);
+  rainSnapshot.context.weatherContext.rain = "unknown";
+  assert.ok(validateAbsoluteRecordForTest(rainEvaluation, [rainSnapshot]).some((entry) => entry.code === "rated_without_required_context"));
+
+  const fitEvaluation = clone(evaluation);
+  const fit = fitEvaluation.dimensions.find((entry) => entry.dimension === "fit_preference_suitability");
+  fit.availability = "rated";
+  fit.rating = 3;
+  assert.ok(validateAbsoluteRecordForTest(fitEvaluation, [snapshot]).some((entry) => entry.code === "rated_without_required_context"));
+
+  const unavailable = clone(evaluation);
+  const occasion = unavailable.dimensions.find((entry) => entry.dimension === "occasion_suitability");
+  occasion.availability = "not_enough_information";
+  delete occasion.rating;
+  assert.equal(validateAbsoluteRecordForTest(unavailable, [snapshot]).some((entry) => entry.code === "rated_without_required_context" && entry.path.includes("occasion_suitability")), false);
+
+  const recommendedSnapshot = clone(dataset.snapshots[0]);
+  recommendedSnapshot.context.styleIntent = "unknown";
+  assert.ok(validateAbsoluteRecordForTest(evaluation, [recommendedSnapshot]).some((entry) => entry.code === "rated_without_recommended_context"));
+});
+
+test("context fingerprints and pair evaluation keys are canonical", () => {
+  const context = readFixture().snapshots[0].context;
+  const reordered = {
+    weatherContext: { wind: context.weatherContext.wind, rain: context.weatherContext.rain },
+    stylingState: {
+      closureState: context.stylingState.closureState,
+      outerWorn: context.stylingState.outerWorn,
+      topTucked: context.stylingState.topTucked,
+    },
+    exposurePreferenceContext: context.exposurePreferenceContext,
+    fitPreferenceContext: context.fitPreferenceContext,
+    bodyFitContext: context.bodyFitContext,
+    temperatureContext: context.temperatureContext,
+    season: context.season,
+    occasion: context.occasion,
+    styleIntent: context.styleIntent,
+  };
+  assert.equal(getContextFingerprint(context), getContextFingerprint(reordered));
+  const base = {
+    outfitIdA: "outfit-a",
+    outfitIdB: "outfit-b",
+    rubricVersion: "expert-rubric-draft-v0.2",
+    contextFingerprint: getContextFingerprint(context),
+  };
+  assert.equal(getStablePairEvaluationKey(base), getStablePairEvaluationKey({ ...base, outfitIdA: "outfit-b", outfitIdB: "outfit-a" }));
+  assert.notEqual(getStablePairEvaluationKey(base), getStablePairEvaluationKey({ ...base, rubricVersion: "expert-rubric-draft-v0.1" }));
+  assert.notEqual(getStablePairEvaluationKey(base), getStablePairEvaluationKey({ ...base, contextFingerprint: getContextFingerprint({ ...context, occasion: "date" }) }));
+  assert.notEqual(getStablePairEvaluationKey(base), getStablePairEvaluationKey({ ...base, contextFingerprint: getContextFingerprint({ ...context, styleIntent: "formal" }) }));
+});
+
+test("derived evidence requires matching features while human observations remain valid", () => {
+  const dataset = readFixture();
+  const evaluation = clone(dataset.absoluteEvaluations[0]);
+  evaluation.outfitId = "outfit-002";
+  evaluation.dimensions.forEach((entry) => {
+    entry.supportingEvidenceCodes = [];
+    entry.conflictingEvidenceCodes = [];
+  });
+  evaluation.dimensions.find((entry) => entry.dimension === "color_harmony").supportingEvidenceCodes = ["color.similar_hue"];
+  assert.ok(validateAbsoluteRecordForTest(evaluation, [dataset.snapshots[1]]).some((entry) => entry.code === "evidence_without_feature"));
+
+  evaluation.dimensions.find((entry) => entry.dimension === "color_harmony").supportingEvidenceCodes = [];
+  evaluation.dimensions.find((entry) => entry.dimension === "silhouette_balance").supportingEvidenceCodes = ["shape.upper_visual_weight"];
+  assert.ok(validateAbsoluteRecordForTest(evaluation, [dataset.snapshots[1]]).some((entry) => entry.code === "evidence_without_feature"));
+
+  evaluation.dimensions.find((entry) => entry.dimension === "silhouette_balance").supportingEvidenceCodes = [];
+  evaluation.dimensions.find((entry) => entry.dimension === "material_compatibility").supportingEvidenceCodes = ["material.mixed_surface"];
+  assert.equal(validateAbsoluteRecordForTest(evaluation, [dataset.snapshots[1]]).some((entry) => entry.code === "evidence_without_feature"), false);
+  const noObservationInput = clone(dataset.snapshots[1]);
+  noObservationInput.inputAvailability.imageAvailable = false;
+  noObservationInput.inputAvailability.materialContextAvailable = false;
+  assert.ok(validateAbsoluteRecordForTest(evaluation, [noObservationInput]).some((entry) => entry.code === "evidence_without_observation_input"));
+  assert.ok(validateDimensionRecordForTest({
+    dimension: "color_harmony",
+    availability: "rated",
+    rating: 3,
+    confidence: 3,
+    supportingEvidenceCodes: ["material.mixed_surface"],
+    conflictingEvidenceCodes: [],
+  }).some((entry) => entry.code === "unknown_evidence_code"));
+});
+
 test("absolute and pairwise records enforce completeness and stable pairs", () => {
   const dataset = readFixture();
-  assert.deepEqual(validateAbsoluteRecordForTest(dataset.absoluteEvaluations[0], dataset.snapshots.map((entry) => entry.outfitId)), []);
+  assert.deepEqual(validateAbsoluteRecordForTest(dataset.absoluteEvaluations[0], dataset.snapshots), []);
   const missing = clone(dataset.absoluteEvaluations[0]);
   missing.dimensions.pop();
-  assert.ok(validateAbsoluteRecordForTest(missing, dataset.snapshots.map((entry) => entry.outfitId)).some((entry) => entry.code === "missing_required_dimension"));
+  assert.ok(validateAbsoluteRecordForTest(missing, dataset.snapshots).some((entry) => entry.code === "missing_required_dimension"));
   const duplicateDimension = clone(dataset.absoluteEvaluations[0]);
   duplicateDimension.dimensions[1] = clone(duplicateDimension.dimensions[0]);
-  assert.ok(validateAbsoluteRecordForTest(duplicateDimension, dataset.snapshots.map((entry) => entry.outfitId)).some((entry) => entry.code === "duplicate_dimension"));
+  assert.ok(validateAbsoluteRecordForTest(duplicateDimension, dataset.snapshots).some((entry) => entry.code === "duplicate_dimension"));
   const invalidRubric = { ...dataset.absoluteEvaluations[0], rubricVersion: "not-registered" };
-  assert.ok(validateAbsoluteRecordForTest(invalidRubric, dataset.snapshots.map((entry) => entry.outfitId)).some((entry) => entry.code === "unknown_rubric_version"));
+  assert.ok(validateAbsoluteRecordForTest(invalidRubric, dataset.snapshots).some((entry) => entry.code === "unknown_rubric_version"));
   const invalidEvaluator = { ...dataset.absoluteEvaluations[0], evaluatorId: "" };
-  assert.ok(validateAbsoluteRecordForTest(invalidEvaluator, dataset.snapshots.map((entry) => entry.outfitId)).some((entry) => entry.code === "invalid_id"));
+  assert.ok(validateAbsoluteRecordForTest(invalidEvaluator, dataset.snapshots).some((entry) => entry.code === "invalid_id"));
   assert.equal(getStablePairKey("outfit-001", "outfit-002"), getStablePairKey("outfit-002", "outfit-001"));
   assert.ok(validatePairwiseRecordForTest({ ...dataset.pairwiseEvaluations[0], outfitIdB: "outfit-001" }, dataset.snapshots).some((entry) => entry.code === "same_pair_outfit"));
   assert.equal(validatePairwiseRecordForTest(dataset.pairwiseEvaluations[2], dataset.snapshots).some((entry) => entry.code === "pair_context_mismatch"), true);
+  const falseSameContext = { ...dataset.pairwiseEvaluations[0], outfitIdB: "outfit-003" };
+  assert.ok(validatePairwiseRecordForTest(falseSameContext, dataset.snapshots).some((entry) => entry.severity === "error" && entry.code === "pair_context_mismatch"));
+  const falseDifferentContext = { ...dataset.pairwiseEvaluations[0], contextCompatibility: "different_context" };
+  assert.ok(validatePairwiseRecordForTest(falseDifferentContext, dataset.snapshots).some((entry) => entry.code === "pair_context_declared_different_but_equal"));
   assert.equal(dataset.pairwiseEvaluations[2].preferred, "tie");
   assert.equal(dataset.pairwiseEvaluations[3].preferred, "not_comparable");
 });
@@ -110,6 +231,17 @@ test("synthetic dataset validates while preserving warnings and disagreement", (
   assert.ok(result.warnings.some((entry) => entry.code === "pair_context_mismatch"));
   assert.equal(result.statistics.outfits, 4);
   assert.equal(result.statistics.evaluators, 3);
+});
+
+test("snapshot validation aligns payloads, versions, and declared availability", () => {
+  const personalVersion = readFixture();
+  personalVersion.snapshots[0].featureVersions.personalFitFeatureVersion = "personal-fit-features-v1";
+  assert.ok(validateExpertEvaluationDataset(personalVersion).errors.some((entry) => entry.code === "personal_fit_version_without_feature"));
+
+  const missingColorPayload = readFixture();
+  delete missingColorPayload.snapshots[0].colorFeatures;
+  assert.ok(validateExpertEvaluationDataset(missingColorPayload).errors.some((entry) => entry.code === "feature_version_payload_mismatch"));
+  assert.ok(validateExpertEvaluationDataset(missingColorPayload).errors.some((entry) => entry.code === "input_availability_mismatch"));
 });
 
 test("dataset validation catches duplicates, leakage, and source contradictions", () => {
@@ -126,6 +258,14 @@ test("dataset validation catches duplicates, leakage, and source contradictions"
   const credentials = readFixture();
   credentials.absoluteEvaluations[0].evaluatorGroup = "stylist";
   assert.ok(validateExpertEvaluationDataset(credentials).errors.some((entry) => entry.code === "synthetic_expert_claim"));
+
+  const reversedPair = readFixture();
+  const duplicatePair = clone(reversedPair.pairwiseEvaluations[0]);
+  duplicatePair.evaluationId = "pairwise-duplicate";
+  duplicatePair.outfitIdA = reversedPair.pairwiseEvaluations[0].outfitIdB;
+  duplicatePair.outfitIdB = reversedPair.pairwiseEvaluations[0].outfitIdA;
+  reversedPair.pairwiseEvaluations.push(duplicatePair);
+  assert.ok(validateExpertEvaluationDataset(reversedPair).errors.some((entry) => entry.code === "duplicate_pairwise_evaluation"));
 });
 
 test("privacy scanner blocks prohibited fields, URLs, paths, email, and raw measurements", () => {
@@ -177,16 +317,22 @@ test("agreement metrics handle exact, adjacent, missing, ties, and not comparabl
   assert.equal(agreement.silhouette_balance.adjacentAgreement, 0);
   assert.equal(agreement.silhouette_balance.meanAbsoluteDifference, 4);
   assert.equal(agreement.color_harmony.comparisonCount, 0);
-  const pairwise = calculatePairwiseAgreement(dataset.pairwiseEvaluations);
+  const pairwise = calculatePairwiseAgreement(dataset.pairwiseEvaluations, dataset.snapshots);
   assert.equal(pairwise.agreement, 1);
   assert.equal(pairwise.tieRate, 0.25);
   assert.equal(pairwise.notComparableRate, 0.25);
+  assert.equal(pairwise.excludedContextMismatchCount, 1);
+  assert.equal(pairwise.excludedUnknownContextCount, 1);
 });
 
 test("dataset report omits raw notes and surfaces coverage and disagreement", () => {
   const report = createExpertDatasetReport(readFixture());
   assert.equal(report.counts.outfits, 4);
   assert.equal(report.coverageByDimension.color_harmony, 0.5);
+  assert.equal(report.rubricVersion, "expert-rubric-draft-v0.2");
+  assert.equal(report.pairwiseExcludedContextMismatchCount, 1);
+  assert.equal(report.pairwiseExcludedUnknownContextCount, 1);
+  assert.ok(report.materialEvidenceUsageCount >= 1);
   assert.deepEqual(report.highDisagreementOutfitIds, ["outfit-001"]);
   const markdown = renderExpertDatasetReportMarkdown(report);
   assert.match(markdown, /Dimension coverage/);
@@ -197,6 +343,9 @@ test("snapshot adapter requires anonymization and strips private item fields", (
   const context = {
     styleIntent: "minimal",
     occasion: "daily",
+    bodyFitContext: "not_available",
+    fitPreferenceContext: "not_available",
+    exposurePreferenceContext: "not_available",
     stylingState: { topTucked: "unknown", outerWorn: "no", closureState: "unknown" },
   };
   const items = [
@@ -226,12 +375,22 @@ test("snapshot adapter requires anonymization and strips private item fields", (
     anonymizeItemId: (id) => `anon-${id === "private-top-id" ? "1" : "2"}`,
     includeColorFeatures: true,
     includeShapeFeatures: true,
+    inputAvailability: {
+      imageAvailable: true,
+      colorFeaturesAvailable: true,
+      shapeFeaturesAvailable: true,
+      materialContextAvailable: false,
+      bodyFitContextAvailable: false,
+    },
     createdAt: "2026-07-01T00:00:00.000Z",
   });
   const serialized = JSON.stringify(snapshot);
   assert.doesNotMatch(serialized, /private-top-id|private-bottom-id|private product name|private brand|file:\/\/|https:\/\//);
   assert.equal(snapshot.featureVersions.colorFeatureVersion, "color-features-v1");
   assert.equal(snapshot.featureVersions.shapeFeatureVersion, "shape-features-v1");
+  assert.equal("personalFitFeatureVersion" in snapshot.featureVersions, false);
+  assert.equal("height" in snapshot, false);
+  assert.equal("userProfile" in snapshot, false);
   assert.equal("professionalScore" in snapshot, false);
 });
 

@@ -1,34 +1,84 @@
 {
   "schemaVersion": "expert-dataset-v1",
   "datasetId": "synthetic-invalid",
-  "datasetVersion": "1.0.0",
-  "rubricVersion": "expert-rubric-draft-v0.1",
+  "datasetVersion": "1.1.0",
+  "rubricVersion": "expert-rubric-draft-v0.2",
   "createdAt": "2026-07-01T00:00:00.000Z",
   "source": "synthetic_test",
   "productName": "This prohibited field intentionally makes the fixture invalid",
   "snapshots": [
     {
-      "outfitId": "outfit-invalid",
-      "itemRefs": [{ "anonymousItemId": "anon-invalid", "category": "top" }],
-      "context": { "styleIntent": "unknown", "occasion": "unknown", "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" } },
+      "outfitId": "outfit-invalid-a",
+      "itemRefs": [{ "anonymousItemId": "anon-invalid-a", "category": "top" }],
+      "context": {
+        "styleIntent": "unknown",
+        "occasion": "unknown",
+        "bodyFitContext": "unknown",
+        "fitPreferenceContext": "unknown",
+        "exposurePreferenceContext": "unknown",
+        "weatherContext": { "rain": "unknown", "wind": "unknown" },
+        "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" }
+      },
       "featureVersions": {},
+      "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": false, "bodyFitContextAvailable": false },
+      "createdAt": "2026-07-01T00:00:00.000Z"
+    },
+    {
+      "outfitId": "outfit-invalid-b",
+      "itemRefs": [{ "anonymousItemId": "anon-invalid-b", "category": "bottom" }],
+      "context": {
+        "styleIntent": "unknown",
+        "occasion": "unknown",
+        "bodyFitContext": "unknown",
+        "fitPreferenceContext": "unknown",
+        "exposurePreferenceContext": "unknown",
+        "weatherContext": { "rain": "unknown", "wind": "unknown" },
+        "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" }
+      },
+      "featureVersions": {},
+      "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": false, "bodyFitContextAvailable": false },
       "createdAt": "2026-07-01T00:00:00.000Z"
     }
   ],
-  "absoluteEvaluations": [],
+  "absoluteEvaluations": [
+    {
+      "schemaVersion": "expert-evaluation-v1",
+      "evaluationId": "absolute-invalid",
+      "outfitId": "outfit-invalid-a",
+      "rubricVersion": "expert-rubric-draft-v0.2",
+      "evaluatorId": "eval-invalid",
+      "dimensions": [
+        { "dimension": "occasion_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] }
+      ],
+      "evaluatorConfidence": 2,
+      "createdAt": "2026-07-01T00:01:00.000Z"
+    }
+  ],
   "pairwiseEvaluations": [
     {
       "schemaVersion": "expert-pairwise-v1",
-      "evaluationId": "pair-invalid",
-      "outfitIdA": "outfit-invalid",
-      "outfitIdB": "outfit-invalid",
+      "evaluationId": "pair-invalid-1",
+      "outfitIdA": "outfit-invalid-a",
+      "outfitIdB": "outfit-invalid-b",
       "contextCompatibility": "same_context",
       "preferred": "a",
       "dimensions": [],
       "evaluatorId": "eval-invalid",
-      "rubricVersion": "expert-rubric-draft-v0.1",
-      "createdAt": "2026-07-01T00:01:00.000Z"
+      "rubricVersion": "expert-rubric-draft-v0.2",
+      "createdAt": "2026-07-01T00:02:00.000Z"
+    },
+    {
+      "schemaVersion": "expert-pairwise-v1",
+      "evaluationId": "pair-invalid-2",
+      "outfitIdA": "outfit-invalid-b",
+      "outfitIdB": "outfit-invalid-a",
+      "contextCompatibility": "same_context",
+      "preferred": "b",
+      "dimensions": [],
+      "evaluatorId": "eval-invalid",
+      "rubricVersion": "expert-rubric-draft-v0.2",
+      "createdAt": "2026-07-01T00:03:00.000Z"
     }
   ],
-  "metadata": { "evaluatorCount": 1, "outfitCount": 1 }
+  "metadata": { "evaluatorCount": 1, "outfitCount": 2 }
 }

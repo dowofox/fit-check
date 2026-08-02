@@ -2,7 +2,7 @@
   "schemaVersion": "expert-dataset-v1",
   "datasetId": "synthetic-fashion-expert",
   "datasetVersion": "1.0.0",
-  "rubricVersion": "expert-rubric-draft-v0.1",
+  "rubricVersion": "expert-rubric-draft-v0.2",
   "createdAt": "2026-07-01T00:00:00.000Z",
   "source": "synthetic_test",
   "snapshots": [
@@ -19,15 +19,19 @@
         "occasion": "daily",
         "season": "spring",
         "temperatureContext": "mild",
+        "bodyFitContext": "not_available",
+        "fitPreferenceContext": "not_available",
+        "exposurePreferenceContext": "not_available",
+        "weatherContext": { "rain": "none", "wind": "light" },
         "stylingState": { "topTucked": "untucked", "outerWorn": "no", "closureState": "unknown" }
       },
       "featureVersions": {
         "colorProfileVersion": "color-profile-v1",
         "colorFeatureVersion": "color-features-v1",
         "shapeProfileVersion": "shape-profile-v1",
-        "shapeFeatureVersion": "shape-features-v1",
-        "personalFitFeatureVersion": "personal-fit-features-v1"
+        "shapeFeatureVersion": "shape-features-v1"
       },
+      "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": true, "shapeFeaturesAvailable": true, "materialContextAvailable": true, "bodyFitContextAvailable": false },
       "colorFeatures": {
         "itemCount": 2,
         "swatchCount": 2,
@@ -74,8 +78,9 @@
       "outfitGroupId": "group-002",
       "compositionGroupKey": "composition-002",
       "itemRefs": [{ "anonymousItemId": "anon-item-003", "category": "top" }, { "anonymousItemId": "anon-item-004", "category": "bottom" }],
-      "context": { "styleIntent": "minimal", "occasion": "daily", "season": "spring", "temperatureContext": "mild", "stylingState": { "topTucked": "untucked", "outerWorn": "no", "closureState": "unknown" } },
+      "context": { "styleIntent": "minimal", "occasion": "daily", "season": "spring", "temperatureContext": "mild", "bodyFitContext": "not_available", "fitPreferenceContext": "not_available", "exposurePreferenceContext": "not_available", "weatherContext": { "rain": "none", "wind": "light" }, "stylingState": { "topTucked": "untucked", "outerWorn": "no", "closureState": "unknown" } },
       "featureVersions": {},
+      "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": true, "bodyFitContextAvailable": false },
       "createdAt": "2026-07-01T00:00:00.000Z"
     },
     {
@@ -83,8 +88,9 @@
       "outfitGroupId": "group-003",
       "compositionGroupKey": "composition-003",
       "itemRefs": [{ "anonymousItemId": "anon-item-005", "category": "top" }, { "anonymousItemId": "anon-item-006", "category": "bottom" }],
-      "context": { "styleIntent": "street", "occasion": "daily", "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" } },
+      "context": { "styleIntent": "street", "occasion": "daily", "bodyFitContext": "not_available", "fitPreferenceContext": "not_available", "exposurePreferenceContext": "not_available", "weatherContext": { "rain": "unknown", "wind": "unknown" }, "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" } },
       "featureVersions": {},
+      "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": false, "bodyFitContextAvailable": false },
       "createdAt": "2026-07-01T00:00:00.000Z"
     },
     {
@@ -92,8 +98,9 @@
       "outfitGroupId": "group-004",
       "compositionGroupKey": "composition-004",
       "itemRefs": [{ "anonymousItemId": "anon-item-007", "category": "top" }, { "anonymousItemId": "anon-item-008", "category": "bottom" }],
-      "context": { "styleIntent": "unknown", "occasion": "unknown", "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" } },
+      "context": { "styleIntent": "unknown", "occasion": "unknown", "bodyFitContext": "unknown", "fitPreferenceContext": "unknown", "exposurePreferenceContext": "unknown", "weatherContext": { "rain": "unknown", "wind": "unknown" }, "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" } },
       "featureVersions": {},
+      "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": false, "bodyFitContextAvailable": false },
       "createdAt": "2026-07-01T00:00:00.000Z"
     }
   ],
@@ -102,14 +109,14 @@
       "schemaVersion": "expert-evaluation-v1",
       "evaluationId": "absolute-001",
       "outfitId": "outfit-001",
-      "rubricVersion": "expert-rubric-draft-v0.1",
+      "rubricVersion": "expert-rubric-draft-v0.2",
       "evaluatorId": "eval-001",
       "evaluatorGroup": "unknown",
       "dimensions": [
         { "dimension": "color_harmony", "availability": "rated", "rating": 5, "confidence": 4, "supportingEvidenceCodes": ["color.achromatic_palette", "supports_declared_intent"], "conflictingEvidenceCodes": [] },
         { "dimension": "silhouette_balance", "availability": "rated", "rating": 5, "confidence": 4, "supportingEvidenceCodes": ["shape.low_volume_difference"], "conflictingEvidenceCodes": [] },
         { "dimension": "proportion_coherence", "availability": "rated", "rating": 4, "confidence": 4, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
-        { "dimension": "material_compatibility", "availability": "rated", "rating": 4, "confidence": 3, "supportingEvidenceCodes": ["supports_declared_intent"], "conflictingEvidenceCodes": [] },
+        { "dimension": "material_compatibility", "availability": "rated", "rating": 4, "confidence": 3, "supportingEvidenceCodes": ["material.similar_surface", "supports_declared_intent"], "conflictingEvidenceCodes": [] },
         { "dimension": "style_coherence", "availability": "rated", "rating": 4, "confidence": 4, "supportingEvidenceCodes": ["supports_declared_intent"], "conflictingEvidenceCodes": [] },
         { "dimension": "occasion_suitability", "availability": "rated", "rating": 4, "confidence": 4, "supportingEvidenceCodes": ["supports_declared_intent"], "conflictingEvidenceCodes": [] },
         { "dimension": "body_fit_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
@@ -130,7 +137,7 @@
       "schemaVersion": "expert-evaluation-v1",
       "evaluationId": "absolute-002",
       "outfitId": "outfit-001",
-      "rubricVersion": "expert-rubric-draft-v0.1",
+      "rubricVersion": "expert-rubric-draft-v0.2",
       "evaluatorId": "eval-002",
       "evaluatorGroup": "unknown",
       "dimensions": [
@@ -162,9 +169,9 @@
       "outfitIdB": "outfit-002",
       "contextCompatibility": "same_context",
       "preferred": "a",
-      "dimensions": [{ "dimension": "color_harmony", "preferred": "a", "confidence": 4, "evidenceCodes": ["color.achromatic_palette"] }],
+      "dimensions": [{ "dimension": "color_harmony", "preferred": "a", "confidence": 4, "evidenceCodes": [] }],
       "evaluatorId": "eval-001",
-      "rubricVersion": "expert-rubric-draft-v0.1",
+      "rubricVersion": "expert-rubric-draft-v0.2",
       "createdAt": "2026-07-01T02:00:00.000Z"
     },
     {
@@ -176,7 +183,7 @@
       "preferred": "b",
       "dimensions": [{ "dimension": "color_harmony", "preferred": "b", "confidence": 3, "evidenceCodes": [] }],
       "evaluatorId": "eval-002",
-      "rubricVersion": "expert-rubric-draft-v0.1",
+      "rubricVersion": "expert-rubric-draft-v0.2",
       "createdAt": "2026-07-01T02:05:00.000Z"
     },
     {
@@ -188,7 +195,7 @@
       "preferred": "tie",
       "dimensions": [{ "dimension": "style_coherence", "preferred": "not_comparable", "confidence": 2, "evidenceCodes": ["insufficient_context"] }],
       "evaluatorId": "eval-003",
-      "rubricVersion": "expert-rubric-draft-v0.1",
+      "rubricVersion": "expert-rubric-draft-v0.2",
       "createdAt": "2026-07-01T02:10:00.000Z"
     },
     {
@@ -200,7 +207,7 @@
       "preferred": "not_comparable",
       "dimensions": [],
       "evaluatorId": "eval-001",
-      "rubricVersion": "expert-rubric-draft-v0.1",
+      "rubricVersion": "expert-rubric-draft-v0.2",
       "createdAt": "2026-07-01T02:15:00.000Z"
     }
   ],
