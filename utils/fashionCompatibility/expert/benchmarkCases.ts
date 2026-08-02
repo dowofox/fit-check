@@ -5,11 +5,11 @@ import {
 } from "@/utils/fashionCompatibility/color/types";
 import { buildOutfitShapeFeatures } from "@/utils/fashionCompatibility/shape/shapeFeatures";
 import {
-  PERSONAL_FIT_FEATURE_VERSION,
   SHAPE_FEATURE_VERSION,
   SHAPE_PROFILE_VERSION,
 } from "@/utils/fashionCompatibility/shape/types";
 import type {
+  EvaluationInputAvailability,
   ExpertAbsoluteEvaluation,
   ExpertEvaluationDataset,
   ExpertOutfitSnapshot,
@@ -33,6 +33,7 @@ type CreateSnapshotInput = {
   compositionGroupKey?: string;
   includeColorFeatures?: boolean;
   includeShapeFeatures?: boolean;
+  inputAvailability: EvaluationInputAvailability;
   anonymizeItemId?: (itemId: string) => string;
   syntheticMode?: boolean;
   createdAt?: string;
@@ -73,6 +74,18 @@ export function createExpertOutfitSnapshot(input: CreateSnapshotInput): ExpertOu
   if (new Set(anonymousIds).size !== anonymousIds.length) {
     throw new Error("Item anonymization must produce unique IDs within an outfit.");
   }
+  if (input.inputAvailability.colorFeaturesAvailable !== Boolean(input.includeColorFeatures)) {
+    throw new Error("Color feature availability must match the exported color feature payload.");
+  }
+  if (input.inputAvailability.shapeFeaturesAvailable !== Boolean(input.includeShapeFeatures)) {
+    throw new Error("Shape feature availability must match the exported shape feature payload.");
+  }
+  if (
+    input.inputAvailability.bodyFitContextAvailable !==
+    (input.context.bodyFitContext === "available")
+  ) {
+    throw new Error("Body-fit context availability must match the snapshot context.");
+  }
   return {
     outfitId: input.outfitId,
     outfitGroupId: input.outfitGroupId,
@@ -87,10 +100,8 @@ export function createExpertOutfitSnapshot(input: CreateSnapshotInput): ExpertOu
       colorFeatureVersion: input.includeColorFeatures ? COLOR_FEATURE_VERSION : undefined,
       shapeProfileVersion: input.includeShapeFeatures ? SHAPE_PROFILE_VERSION : undefined,
       shapeFeatureVersion: input.includeShapeFeatures ? SHAPE_FEATURE_VERSION : undefined,
-      personalFitFeatureVersion: input.includeShapeFeatures
-        ? PERSONAL_FIT_FEATURE_VERSION
-        : undefined,
     },
+    inputAvailability: { ...input.inputAvailability },
     colorFeatures: input.includeColorFeatures
       ? sanitizeColorFeatures(input.items, anonymize)
       : undefined,

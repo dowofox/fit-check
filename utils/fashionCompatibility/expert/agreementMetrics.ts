@@ -4,11 +4,17 @@ import type {
   ExpertAbsoluteEvaluation,
   ExpertDimension,
   ExpertPairwiseEvaluation,
+  ExpertOutfitSnapshot,
   ExpertRating,
+  PairwiseAgreementResult,
   PairwisePreference,
 } from "@/utils/fashionCompatibility/expert/types";
 import { REQUIRED_EXPERT_DIMENSIONS } from "@/utils/fashionCompatibility/expert/rubricRegistry";
-import { getStablePairKey } from "@/utils/fashionCompatibility/expert/evaluationValidation";
+import {
+  getContextFingerprint,
+  getPairwiseContextFingerprint,
+  getStablePairEvaluationKey,
+} from "@/utils/fashionCompatibility/expert/evaluationValidation";
 
 function average(values: readonly number[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : undefined;
@@ -108,18 +114,42 @@ function normalizePreference(evaluation: ExpertPairwiseEvaluation): PairwisePref
   return evaluation.preferred === "a" ? "b" : "a";
 }
 
-export function calculatePairwiseAgreement(evaluations: readonly ExpertPairwiseEvaluation[]) {
+export function calculatePairwiseAgreement(
+  evaluations: readonly ExpertPairwiseEvaluation[],
+  snapshots: readonly ExpertOutfitSnapshot[]
+): PairwiseAgreementResult {
   const grouped = new Map<string, PairwisePreference[]>();
+  const snapshotMap = new Map(snapshots.map((snapshot) => [snapshot.outfitId, snapshot]));
   let ties = 0;
   let notComparable = 0;
+  let excludedContextMismatchCount = 0;
+  let excludedUnknownContextCount = 0;
   evaluations.forEach((evaluation) => {
     const normalized = normalizePreference(evaluation);
     if (normalized === "tie") ties += 1;
-    if (normalized === "not_comparable") {
-      notComparable += 1;
+    if (normalized === "not_comparable") notComparable += 1;
+    if (evaluation.contextCompatibility === "unknown") {
+      excludedUnknownContextCount += 1;
       return;
     }
-    const key = getStablePairKey(evaluation.outfitIdA, evaluation.outfitIdB);
+    const contextA = snapshotMap.get(evaluation.outfitIdA)?.context;
+    const contextB = snapshotMap.get(evaluation.outfitIdB)?.context;
+    if (
+      evaluation.contextCompatibility !== "same_context" ||
+      !contextA ||
+      !contextB ||
+      getContextFingerprint(contextA) !== getContextFingerprint(contextB)
+    ) {
+      excludedContextMismatchCount += 1;
+      return;
+    }
+    if (normalized === "not_comparable") return;
+    const key = getStablePairEvaluationKey({
+      outfitIdA: evaluation.outfitIdA,
+      outfitIdB: evaluation.outfitIdB,
+      rubricVersion: evaluation.rubricVersion,
+      contextFingerprint: getPairwiseContextFingerprint(evaluation, snapshotMap),
+    });
     const preferences = grouped.get(key) || [];
     preferences.push(normalized);
     grouped.set(key, preferences);
@@ -139,6 +169,8 @@ export function calculatePairwiseAgreement(evaluations: readonly ExpertPairwiseE
     comparisonCount: comparisons,
     tieRate: evaluations.length ? ties / evaluations.length : 0,
     notComparableRate: evaluations.length ? notComparable / evaluations.length : 0,
+    excludedContextMismatchCount,
+    excludedUnknownContextCount,
   };
 }
 

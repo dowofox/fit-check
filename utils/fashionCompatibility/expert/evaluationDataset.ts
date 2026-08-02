@@ -5,10 +5,14 @@ import {
   calculatePairwiseAgreement,
 } from "@/utils/fashionCompatibility/expert/agreementMetrics";
 import { validateExpertEvaluationDataset } from "@/utils/fashionCompatibility/expert/evaluationValidation";
-import { REQUIRED_EXPERT_DIMENSIONS } from "@/utils/fashionCompatibility/expert/rubricRegistry";
+import {
+  REQUIRED_EXPERT_DIMENSIONS,
+  getExpertEvidenceDefinition,
+} from "@/utils/fashionCompatibility/expert/rubricRegistry";
 import type {
   ExpertDatasetReport,
   ExpertDimension,
+  ExpertEvidenceOrigin,
   ExpertEvaluationDataset,
 } from "@/utils/fashionCompatibility/expert/types";
 
@@ -19,7 +23,7 @@ function average(values: readonly number[]) {
 export function createExpertDatasetReport(dataset: ExpertEvaluationDataset): ExpertDatasetReport {
   const validation = validateExpertEvaluationDataset(dataset);
   const agreementByDimension = calculateAgreementByDimension(dataset.absoluteEvaluations);
-  const pairwise = calculatePairwiseAgreement(dataset.pairwiseEvaluations);
+  const pairwise = calculatePairwiseAgreement(dataset.pairwiseEvaluations, dataset.snapshots);
   const coverageByDimension: Record<string, number> = {};
   const unavailableRateByDimension: Record<string, number> = {};
   const confidenceByDimension: Record<string, number> = {};
@@ -57,10 +61,40 @@ export function createExpertDatasetReport(dataset: ExpertEvaluationDataset): Exp
     ...dataset.absoluteEvaluations.map((evaluation) => evaluation.evaluatorId),
     ...dataset.pairwiseEvaluations.map((evaluation) => evaluation.evaluatorId),
   ]);
+  const evidenceCodes = [
+    ...dataset.absoluteEvaluations.flatMap((evaluation) => [
+      ...evaluation.dimensions.flatMap((entry) => [
+        ...entry.supportingEvidenceCodes,
+        ...entry.conflictingEvidenceCodes,
+      ]),
+      ...(evaluation.overallCompatibility
+        ? [
+            ...evaluation.overallCompatibility.supportingEvidenceCodes,
+            ...evaluation.overallCompatibility.conflictingEvidenceCodes,
+          ]
+        : []),
+    ]),
+    ...dataset.pairwiseEvaluations.flatMap((evaluation) =>
+      evaluation.dimensions.flatMap((entry) => entry.evidenceCodes)
+    ),
+  ];
+  const coverageByEvidenceOrigin: Record<ExpertEvidenceOrigin, number> = {
+    derived_color_feature: 0,
+    derived_shape_feature: 0,
+    human_observed_material: 0,
+    context_interpretation: 0,
+  };
+  evidenceCodes.forEach((code) => {
+    const origin = getExpertEvidenceDefinition(code)?.origin;
+    if (origin) coverageByEvidenceOrigin[origin] += 1;
+  });
+  const countIssue = (code: string) =>
+    [...validation.errors, ...validation.warnings].filter((entry) => entry.code === code).length;
 
   return {
     datasetId: dataset.datasetId,
     datasetVersion: dataset.datasetVersion,
+    rubricVersion: dataset.rubricVersion,
     valid: validation.valid,
     counts: {
       outfits: dataset.snapshots.length,
@@ -75,6 +109,13 @@ export function createExpertDatasetReport(dataset: ExpertEvaluationDataset): Exp
     pairwiseAgreement: pairwise.agreement,
     pairwiseTieRate: pairwise.tieRate,
     pairwiseNotComparableRate: pairwise.notComparableRate,
+    pairwiseExcludedContextMismatchCount: pairwise.excludedContextMismatchCount,
+    pairwiseExcludedUnknownContextCount: pairwise.excludedUnknownContextCount,
+    ratedWithoutRequiredContextCount: countIssue("rated_without_required_context"),
+    recommendedContextMissingCount: countIssue("rated_without_recommended_context"),
+    evidenceWithoutFeatureCount: countIssue("evidence_without_feature"),
+    coverageByEvidenceOrigin,
+    materialEvidenceUsageCount: coverageByEvidenceOrigin.human_observed_material,
     evaluatorBias: calculateEvaluatorBias(dataset.absoluteEvaluations),
     highDisagreementOutfitIds,
     validationErrors: validation.errors.length,
@@ -95,6 +136,7 @@ export function renderExpertDatasetReportMarkdown(report: ExpertDatasetReport) {
     `# Expert dataset report: ${report.datasetId}`,
     "",
     `- Dataset version: ${report.datasetVersion}`,
+    `- Rubric version: ${report.rubricVersion}`,
     `- Valid: ${report.valid ? "yes" : "no"}`,
     `- Outfits: ${report.counts.outfits}`,
     `- Evaluators: ${report.counts.evaluators}`,
@@ -114,6 +156,16 @@ export function renderExpertDatasetReportMarkdown(report: ExpertDatasetReport) {
     `- Agreement: ${percentage(report.pairwiseAgreement)}`,
     `- Tie rate: ${percentage(report.pairwiseTieRate)}`,
     `- Not comparable rate: ${percentage(report.pairwiseNotComparableRate)}`,
+    `- Excluded context mismatch: ${report.pairwiseExcludedContextMismatchCount}`,
+    `- Excluded unknown context: ${report.pairwiseExcludedUnknownContextCount}`,
+    "",
+    "## Pilot diagnostics",
+    "",
+    `- Rated without required context: ${report.ratedWithoutRequiredContextCount}`,
+    `- Recommended context missing: ${report.recommendedContextMissingCount}`,
+    `- Evidence without feature: ${report.evidenceWithoutFeatureCount}`,
+    `- Material evidence uses: ${report.materialEvidenceUsageCount}`,
+    `- Evidence by origin: ${Object.entries(report.coverageByEvidenceOrigin).map(([origin, count]) => `${origin}=${count}`).join(", ")}`,
     "",
     "## High disagreement outfits",
     "",

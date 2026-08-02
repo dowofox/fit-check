@@ -1,7 +1,7 @@
 import type { OutfitColorFeatures } from "@/utils/fashionCompatibility/color/types";
 import type { OutfitShapeFeatures } from "@/utils/fashionCompatibility/shape/types";
 
-export const EXPERT_RUBRIC_VERSION = "expert-rubric-draft-v0.1" as const;
+export const EXPERT_RUBRIC_VERSION = "expert-rubric-draft-v0.2" as const;
 export const EXPERT_EVALUATION_SCHEMA_VERSION = "expert-evaluation-v1" as const;
 export const EXPERT_PAIRWISE_SCHEMA_VERSION = "expert-pairwise-v1" as const;
 export const EXPERT_DATASET_SCHEMA_VERSION = "expert-dataset-v1" as const;
@@ -40,6 +40,40 @@ export type ExpertDimensionEvaluation = {
   notes?: string;
 };
 
+export type ExpertContextRequirement = {
+  field:
+    | "styleIntent"
+    | "occasion"
+    | "season"
+    | "temperatureContext"
+    | "rainContext"
+    | "windContext"
+    | "stylingState.topTucked"
+    | "stylingState.outerWorn"
+    | "stylingState.closureState"
+    | "bodyFitContext"
+    | "fitPreferenceContext"
+    | "exposurePreferenceContext";
+  policy: "required" | "recommended";
+  unavailableValues?: string[];
+};
+
+export type ExpertEvidenceOrigin =
+  | "derived_color_feature"
+  | "derived_shape_feature"
+  | "human_observed_material"
+  | "context_interpretation";
+
+export type ExpertEvidenceDefinition = {
+  code: string;
+  label: string;
+  description: string;
+  origin: ExpertEvidenceOrigin;
+  allowedDimensions: ExpertDimension[];
+  polarity: "neutral_observation" | "context_direction";
+  status: "draft" | "expert_review" | "validated" | "retired";
+};
+
 export type OverallCompatibilityEvaluation = Omit<
   ExpertDimensionEvaluation,
   "dimension"
@@ -52,7 +86,7 @@ export type ExpertRubricDimensionDefinition = {
   label: string;
   description: string;
   anchors: Record<ExpertRating, string>;
-  requiredContext: string[];
+  contextRequirements: ExpertContextRequirement[];
   allowedEvidenceCodes: string[];
   version: typeof EXPERT_RUBRIC_VERSION;
   status: "draft" | "expert_review" | "validated" | "retired";
@@ -86,6 +120,13 @@ export type OutfitEvaluationContext = {
     | "unknown";
   season?: string;
   temperatureContext?: string;
+  bodyFitContext: "available" | "not_available" | "not_applicable" | "unknown";
+  fitPreferenceContext: "available" | "not_available" | "unknown";
+  exposurePreferenceContext: "available" | "not_available" | "unknown";
+  weatherContext?: {
+    rain: "none" | "light" | "moderate" | "heavy" | "unknown";
+    wind: "calm" | "light" | "moderate" | "strong" | "unknown";
+  };
   stylingState: {
     topTucked: "tucked" | "untucked" | "partial" | "not_applicable" | "unknown";
     outerWorn: "yes" | "no" | "unknown";
@@ -109,6 +150,14 @@ export type SanitizedOutfitColorFeatures = Omit<
 
 export type SanitizedOutfitShapeFeatures = Omit<OutfitShapeFeatures, "version">;
 
+export type EvaluationInputAvailability = {
+  imageAvailable: boolean;
+  colorFeaturesAvailable: boolean;
+  shapeFeaturesAvailable: boolean;
+  materialContextAvailable: boolean;
+  bodyFitContextAvailable: boolean;
+};
+
 export type ExpertOutfitSnapshot = {
   outfitId: string;
   outfitGroupId?: string;
@@ -120,8 +169,8 @@ export type ExpertOutfitSnapshot = {
     colorFeatureVersion?: string;
     shapeProfileVersion?: string;
     shapeFeatureVersion?: string;
-    personalFitFeatureVersion?: string;
   };
+  inputAvailability: EvaluationInputAvailability;
   colorFeatures?: SanitizedOutfitColorFeatures;
   shapeFeatures?: SanitizedOutfitShapeFeatures;
   createdAt: string;
@@ -238,9 +287,19 @@ export type DimensionAgreement = {
   meanAbsoluteDifference?: number;
 };
 
+export type PairwiseAgreementResult = {
+  agreement?: number;
+  comparisonCount: number;
+  tieRate: number;
+  notComparableRate: number;
+  excludedContextMismatchCount: number;
+  excludedUnknownContextCount: number;
+};
+
 export type ExpertDatasetReport = {
   datasetId: string;
   datasetVersion: string;
+  rubricVersion: string;
   valid: boolean;
   counts: {
     outfits: number;
@@ -255,6 +314,13 @@ export type ExpertDatasetReport = {
   pairwiseAgreement?: number;
   pairwiseTieRate: number;
   pairwiseNotComparableRate: number;
+  pairwiseExcludedContextMismatchCount: number;
+  pairwiseExcludedUnknownContextCount: number;
+  ratedWithoutRequiredContextCount: number;
+  recommendedContextMissingCount: number;
+  evidenceWithoutFeatureCount: number;
+  coverageByEvidenceOrigin: Record<ExpertEvidenceOrigin, number>;
+  materialEvidenceUsageCount: number;
   evaluatorBias: Record<string, number>;
   highDisagreementOutfitIds: string[];
   validationErrors: number;

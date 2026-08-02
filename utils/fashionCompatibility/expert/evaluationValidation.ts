@@ -13,11 +13,14 @@ import {
   type ExpertDimensionEvaluation,
   type ExpertEvaluationDataset,
   type ExpertPairwiseEvaluation,
+  type ExpertOutfitSnapshot,
   type ExpertRating,
+  type OutfitEvaluationContext,
   type PairwisePreference,
 } from "@/utils/fashionCompatibility/expert/types";
 import {
   REQUIRED_EXPERT_DIMENSIONS,
+  getExpertEvidenceDefinition,
   getExpertRubricDimension,
   isKnownExpertEvidenceCode,
 } from "@/utils/fashionCompatibility/expert/rubricRegistry";
@@ -26,7 +29,6 @@ import {
   COLOR_PROFILE_VERSION,
 } from "@/utils/fashionCompatibility/color/types";
 import {
-  PERSONAL_FIT_FEATURE_VERSION,
   SHAPE_FEATURE_VERSION,
   SHAPE_PROFILE_VERSION,
 } from "@/utils/fashionCompatibility/shape/types";
@@ -69,6 +71,10 @@ const STYLE_INTENTS = new Set([
 const OCCASIONS = new Set([
   "daily", "date", "office", "formal_event", "travel", "outdoor", "exercise", "unknown",
 ]);
+const CONTEXT_AVAILABILITY = new Set(["available", "not_available", "not_applicable", "unknown"]);
+const PREFERENCE_CONTEXT_AVAILABILITY = new Set(["available", "not_available", "unknown"]);
+const RAIN_CONTEXTS = new Set(["none", "light", "moderate", "heavy", "unknown"]);
+const WIND_CONTEXTS = new Set(["calm", "light", "moderate", "strong", "unknown"]);
 const PROHIBITED_KEYS = new Set([
   "productname",
   "brand",
@@ -89,6 +95,36 @@ const PROHIBITED_KEYS = new Set([
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type EvidenceFeatureAvailability = {
+  color: boolean;
+  shape: boolean;
+  materialObservation: boolean;
+};
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .filter((key) => value[key] !== undefined)
+      .map((key) => [key, canonicalize(value[key])])
+  );
+}
+
+export function getContextFingerprint(context: OutfitEvaluationContext) {
+  return JSON.stringify(canonicalize(context));
+}
+
+export function getStablePairEvaluationKey(input: {
+  outfitIdA: string;
+  outfitIdB: string;
+  rubricVersion: string;
+  contextFingerprint: string;
+}) {
+  return `${getStablePairKey(input.outfitIdA, input.outfitIdB)}::${input.rubricVersion}::${input.contextFingerprint}`;
 }
 
 function isRating(value: unknown): value is ExpertRating {
@@ -146,7 +182,8 @@ function validateEvidenceCodes(
   codes: unknown,
   dimension: ExpertDimension,
   path: string,
-  issues: DatasetValidationIssue[]
+  issues: DatasetValidationIssue[],
+  features?: EvidenceFeatureAvailability
 ) {
   if (!Array.isArray(codes)) {
     issues.push(issue("error", "invalid_evidence", path, "Evidence codes must be an array."));
@@ -156,11 +193,27 @@ function validateEvidenceCodes(
   for (const [index, code] of codes.entries()) {
     if (typeof code !== "string" || !isKnownExpertEvidenceCode(code) || !allowed.has(code)) {
       issues.push(issue("error", "unknown_evidence_code", `${path}[${index}]`, "Evidence code is not allowed for this rubric dimension."));
+      continue;
+    }
+    const definition = getExpertEvidenceDefinition(code);
+    if (
+      features &&
+      ((definition?.origin === "derived_color_feature" && !features.color) ||
+        (definition?.origin === "derived_shape_feature" && !features.shape))
+    ) {
+      issues.push(issue("error", "evidence_without_feature", `${path}[${index}]`, "Derived evidence requires its corresponding snapshot feature payload."));
+    } else if (features && definition?.origin === "human_observed_material" && !features.materialObservation) {
+      issues.push(issue("error", "evidence_without_observation_input", `${path}[${index}]`, "Material evidence requires an available image or approved material context."));
     }
   }
 }
 
-function validateAnyEvidenceCodes(codes: unknown, path: string, issues: DatasetValidationIssue[]) {
+function validateAnyEvidenceCodes(
+  codes: unknown,
+  path: string,
+  issues: DatasetValidationIssue[],
+  features?: EvidenceFeatureAvailability
+) {
   if (!Array.isArray(codes)) {
     issues.push(issue("error", "invalid_evidence", path, "Evidence codes must be an array."));
     return;
@@ -168,6 +221,17 @@ function validateAnyEvidenceCodes(codes: unknown, path: string, issues: DatasetV
   codes.forEach((code, index) => {
     if (typeof code !== "string" || !isKnownExpertEvidenceCode(code)) {
       issues.push(issue("error", "unknown_evidence_code", `${path}[${index}]`, "Evidence code is not registered."));
+      return;
+    }
+    const definition = getExpertEvidenceDefinition(code);
+    if (
+      features &&
+      ((definition?.origin === "derived_color_feature" && !features.color) ||
+        (definition?.origin === "derived_shape_feature" && !features.shape))
+    ) {
+      issues.push(issue("error", "evidence_without_feature", `${path}[${index}]`, "Derived evidence requires its corresponding snapshot feature payload."));
+    } else if (features && definition?.origin === "human_observed_material" && !features.materialObservation) {
+      issues.push(issue("error", "evidence_without_observation_input", `${path}[${index}]`, "Material evidence requires an available image or approved material context."));
     }
   });
 }
@@ -176,7 +240,8 @@ function validateDimensionEvaluation(
   evaluation: unknown,
   path: string,
   issues: DatasetValidationIssue[],
-  allowOverall = false
+  allowOverall = false,
+  features?: EvidenceFeatureAvailability
 ): ExpertDimension | "overall_compatibility" | undefined {
   if (!isRecord(evaluation)) {
     issues.push(issue("error", "invalid_dimension_evaluation", path, "Expected a dimension evaluation object."));
@@ -202,11 +267,11 @@ function validateDimensionEvaluation(
     issues.push(issue("error", "invalid_confidence", `${path}.confidence`, "Confidence must be from 1 to 5."));
   }
   if (dimension !== "overall_compatibility") {
-    validateEvidenceCodes(evaluation.supportingEvidenceCodes, dimension as ExpertDimension, `${path}.supportingEvidenceCodes`, issues);
-    validateEvidenceCodes(evaluation.conflictingEvidenceCodes, dimension as ExpertDimension, `${path}.conflictingEvidenceCodes`, issues);
+    validateEvidenceCodes(evaluation.supportingEvidenceCodes, dimension as ExpertDimension, `${path}.supportingEvidenceCodes`, issues, features);
+    validateEvidenceCodes(evaluation.conflictingEvidenceCodes, dimension as ExpertDimension, `${path}.conflictingEvidenceCodes`, issues, features);
   } else {
-    validateAnyEvidenceCodes(evaluation.supportingEvidenceCodes, `${path}.supportingEvidenceCodes`, issues);
-    validateAnyEvidenceCodes(evaluation.conflictingEvidenceCodes, `${path}.conflictingEvidenceCodes`, issues);
+    validateAnyEvidenceCodes(evaluation.supportingEvidenceCodes, `${path}.supportingEvidenceCodes`, issues, features);
+    validateAnyEvidenceCodes(evaluation.conflictingEvidenceCodes, `${path}.conflictingEvidenceCodes`, issues, features);
   }
   validateNotes(evaluation.notes, `${path}.notes`, issues);
   return dimension as ExpertDimension | "overall_compatibility";
@@ -218,10 +283,59 @@ function validateSplit(value: unknown, path: string, issues: DatasetValidationIs
   }
 }
 
+function getContextRequirementValue(
+  context: OutfitEvaluationContext,
+  field: NonNullable<ReturnType<typeof getExpertRubricDimension>>["contextRequirements"][number]["field"]
+) {
+  switch (field) {
+    case "rainContext":
+      return context.weatherContext?.rain;
+    case "windContext":
+      return context.weatherContext?.wind;
+    case "stylingState.topTucked":
+      return context.stylingState.topTucked;
+    case "stylingState.outerWorn":
+      return context.stylingState.outerWorn;
+    case "stylingState.closureState":
+      return context.stylingState.closureState;
+    default:
+      return context[field];
+  }
+}
+
+function validateDimensionContext(
+  evaluation: Record<string, unknown>,
+  dimension: ExpertDimension,
+  context: OutfitEvaluationContext | undefined,
+  path: string,
+  issues: DatasetValidationIssue[]
+) {
+  if (evaluation.availability !== "rated") return;
+  const definition = getExpertRubricDimension(dimension);
+  for (const requirement of definition?.contextRequirements || []) {
+    const value = context ? getContextRequirementValue(context, requirement.field) : undefined;
+    const unavailable =
+      value === undefined ||
+      value === null ||
+      value === "" ||
+      requirement.unavailableValues?.includes(String(value));
+    if (!unavailable) continue;
+    const required = requirement.policy === "required";
+    issues.push(
+      issue(
+        required ? "error" : "warning",
+        required ? "rated_without_required_context" : "rated_without_recommended_context",
+        path,
+        `Rated ${dimension} requires ${requirement.policy} context field ${requirement.field}.`
+      )
+    );
+  }
+}
+
 function validateAbsoluteEvaluation(
   evaluation: unknown,
   path: string,
-  snapshotIds: Set<string>,
+  snapshots: Map<string, ExpertOutfitSnapshot>,
   issues: DatasetValidationIssue[]
 ) {
   if (!isRecord(evaluation)) {
@@ -233,7 +347,8 @@ function validateAbsoluteEvaluation(
   }
   validateIdentifier(evaluation.evaluationId, `${path}.evaluationId`, issues);
   validateIdentifier(evaluation.evaluatorId, `${path}.evaluatorId`, issues);
-  if (typeof evaluation.outfitId !== "string" || !snapshotIds.has(evaluation.outfitId)) {
+  const snapshot = typeof evaluation.outfitId === "string" ? snapshots.get(evaluation.outfitId) : undefined;
+  if (!snapshot) {
     issues.push(issue("error", "unknown_outfit_reference", `${path}.outfitId`, "Absolute evaluation references an unknown outfit."));
   }
   if (evaluation.rubricVersion !== EXPERT_RUBRIC_VERSION) {
@@ -246,13 +361,25 @@ function validateAbsoluteEvaluation(
     issues.push(issue("error", "invalid_dimensions", `${path}.dimensions`, "Dimensions must be an array."));
   } else {
     const seen = new Set<string>();
+    const features = {
+      color: Boolean(snapshot?.colorFeatures),
+      shape: Boolean(snapshot?.shapeFeatures),
+      materialObservation: Boolean(
+        snapshot?.inputAvailability?.imageAvailable ||
+          snapshot?.inputAvailability?.materialContextAvailable
+      ),
+    };
     evaluation.dimensions.forEach((dimension, index) => {
-      const id = validateDimensionEvaluation(dimension, `${path}.dimensions[${index}]`, issues);
+      const dimensionPath = `${path}.dimensions[${index}]`;
+      const id = validateDimensionEvaluation(dimension, dimensionPath, issues, false, features);
       if (!id) return;
       if (seen.has(id)) {
         issues.push(issue("error", "duplicate_dimension", `${path}.dimensions[${index}]`, `Dimension ${id} appears more than once.`));
       }
       seen.add(id);
+      if (id !== "overall_compatibility" && isRecord(dimension)) {
+        validateDimensionContext(dimension, id, snapshot?.context, dimensionPath, issues);
+      }
     });
     for (const dimension of REQUIRED_EXPERT_DIMENSIONS) {
       if (!seen.has(dimension)) {
@@ -261,7 +388,20 @@ function validateAbsoluteEvaluation(
     }
   }
   if (evaluation.overallCompatibility !== undefined) {
-    validateDimensionEvaluation(evaluation.overallCompatibility, `${path}.overallCompatibility`, issues, true);
+    validateDimensionEvaluation(
+      evaluation.overallCompatibility,
+      `${path}.overallCompatibility`,
+      issues,
+      true,
+      {
+        color: Boolean(snapshot?.colorFeatures),
+        shape: Boolean(snapshot?.shapeFeatures),
+        materialObservation: Boolean(
+          snapshot?.inputAvailability?.imageAvailable ||
+            snapshot?.inputAvailability?.materialContextAvailable
+        ),
+      }
+    );
   }
   if (!isRating(evaluation.evaluatorConfidence)) {
     issues.push(issue("error", "invalid_evaluator_confidence", `${path}.evaluatorConfidence`, "Evaluator confidence must be from 1 to 5."));
@@ -281,6 +421,26 @@ function validateAbsoluteEvaluation(
 
 export function getStablePairKey(outfitIdA: string, outfitIdB: string) {
   return [outfitIdA, outfitIdB].sort().join("::");
+}
+
+export function getPairwiseContextFingerprint(
+  evaluation: Pick<
+    ExpertPairwiseEvaluation,
+    "outfitIdA" | "outfitIdB" | "contextCompatibility"
+  >,
+  snapshots: Map<string, ExpertOutfitSnapshot>
+) {
+  const sortedIds = [evaluation.outfitIdA, evaluation.outfitIdB].sort();
+  if (evaluation.contextCompatibility === "same_context") {
+    const context = snapshots.get(sortedIds[0])?.context;
+    return context ? getContextFingerprint(context) : "missing-context";
+  }
+  return JSON.stringify(
+    canonicalize({
+      contextCompatibility: evaluation.contextCompatibility,
+      contexts: sortedIds.map((outfitId) => snapshots.get(outfitId)?.context || null),
+    })
+  );
 }
 
 function validatePairwiseEvaluation(
@@ -314,6 +474,17 @@ function validatePairwiseEvaluation(
   if (!new Set(["same_context", "different_context", "unknown"]).has(evaluation.contextCompatibility as string)) {
     issues.push(issue("error", "invalid_context_compatibility", `${path}.contextCompatibility`, "Unknown pairwise context compatibility."));
   }
+  const features = {
+    color: Boolean(snapshots.get(outfitIdA)?.colorFeatures && snapshots.get(outfitIdB)?.colorFeatures),
+    shape: Boolean(snapshots.get(outfitIdA)?.shapeFeatures && snapshots.get(outfitIdB)?.shapeFeatures),
+    materialObservation: [snapshots.get(outfitIdA), snapshots.get(outfitIdB)].every(
+      (snapshot) =>
+        Boolean(
+          snapshot?.inputAvailability?.imageAvailable ||
+            snapshot?.inputAvailability?.materialContextAvailable
+        )
+    ),
+  };
   if (!Array.isArray(evaluation.dimensions)) {
     issues.push(issue("error", "invalid_pairwise_dimensions", `${path}.dimensions`, "Pairwise dimensions must be an array."));
   } else {
@@ -330,15 +501,21 @@ function validatePairwiseEvaluation(
         issues.push(issue("error", "invalid_pairwise_preference", `${entryPath}.preferred`, "Unknown dimension preference."));
       }
       if (!isRating(entry.confidence)) issues.push(issue("error", "invalid_confidence", `${entryPath}.confidence`, "Confidence must be from 1 to 5."));
-      validateEvidenceCodes(entry.evidenceCodes, entry.dimension as ExpertDimension, `${entryPath}.evidenceCodes`, issues);
+      validateEvidenceCodes(entry.evidenceCodes, entry.dimension as ExpertDimension, `${entryPath}.evidenceCodes`, issues, features);
     });
   }
   validateTimestamp(evaluation.createdAt, `${path}.createdAt`, issues);
   validateSplit(evaluation.datasetSplit, `${path}.datasetSplit`, issues);
   const contextA = snapshots.get(outfitIdA)?.context;
   const contextB = snapshots.get(outfitIdB)?.context;
-  if (evaluation.contextCompatibility === "different_context" || (contextA && contextB && JSON.stringify(contextA) !== JSON.stringify(contextB))) {
-    issues.push(issue("warning", "pair_context_mismatch", path, "Pairwise outfits do not share identical evaluation context."));
+  const contextsMatch =
+    contextA && contextB && getContextFingerprint(contextA) === getContextFingerprint(contextB);
+  if (evaluation.contextCompatibility === "same_context" && contextA && contextB && !contextsMatch) {
+    issues.push(issue("error", "pair_context_mismatch", path, "same_context pairwise evaluations require identical snapshot contexts."));
+  } else if (evaluation.contextCompatibility === "different_context" && contextsMatch) {
+    issues.push(issue("warning", "pair_context_declared_different_but_equal", path, "Pairwise contexts are identical despite different_context declaration."));
+  } else if (evaluation.contextCompatibility === "different_context") {
+    issues.push(issue("warning", "pair_context_mismatch", path, "Pairwise outfits use different evaluation contexts and will be excluded from agreement."));
   }
 }
 
@@ -482,6 +659,17 @@ export function validateExpertEvaluationDataset(input: unknown): DatasetValidati
       } else {
         if (!STYLE_INTENTS.has(snapshot.context.styleIntent as string)) issues.push(issue("error", "invalid_style_intent", `${path}.context.styleIntent`, "Unknown style intent."));
         if (!OCCASIONS.has(snapshot.context.occasion as string)) issues.push(issue("error", "invalid_occasion", `${path}.context.occasion`, "Unknown occasion."));
+        if (!CONTEXT_AVAILABILITY.has(snapshot.context.bodyFitContext as string)) issues.push(issue("error", "invalid_body_fit_context", `${path}.context.bodyFitContext`, "Unknown body-fit context availability."));
+        if (!PREFERENCE_CONTEXT_AVAILABILITY.has(snapshot.context.fitPreferenceContext as string)) issues.push(issue("error", "invalid_fit_preference_context", `${path}.context.fitPreferenceContext`, "Unknown fit-preference context availability."));
+        if (!PREFERENCE_CONTEXT_AVAILABILITY.has(snapshot.context.exposurePreferenceContext as string)) issues.push(issue("error", "invalid_exposure_preference_context", `${path}.context.exposurePreferenceContext`, "Unknown exposure-preference context availability."));
+        if (snapshot.context.weatherContext !== undefined) {
+          if (!isRecord(snapshot.context.weatherContext)) {
+            issues.push(issue("error", "invalid_weather_context", `${path}.context.weatherContext`, "Weather context must be an object."));
+          } else {
+            if (!RAIN_CONTEXTS.has(snapshot.context.weatherContext.rain as string)) issues.push(issue("error", "invalid_rain_context", `${path}.context.weatherContext.rain`, "Unknown rain context."));
+            if (!WIND_CONTEXTS.has(snapshot.context.weatherContext.wind as string)) issues.push(issue("error", "invalid_wind_context", `${path}.context.weatherContext.wind`, "Unknown wind context."));
+          }
+        }
         if (!isRecord(snapshot.context.stylingState)) {
           issues.push(issue("error", "invalid_styling_state", `${path}.context.stylingState`, "Styling state is required."));
         } else {
@@ -499,23 +687,45 @@ export function validateExpertEvaluationDataset(input: unknown): DatasetValidati
           colorFeatureVersion: COLOR_FEATURE_VERSION,
           shapeProfileVersion: SHAPE_PROFILE_VERSION,
           shapeFeatureVersion: SHAPE_FEATURE_VERSION,
-          personalFitFeatureVersion: PERSONAL_FIT_FEATURE_VERSION,
         };
         Object.entries(expectedVersions).forEach(([key, expected]) => {
           const actual = featureVersions[key];
           if (actual !== undefined && actual !== expected) issues.push(issue("error", "unsupported_feature_version", `${path}.featureVersions.${key}`, `Expected ${expected}.`));
         });
+        if ("personalFitFeatureVersion" in featureVersions) {
+          issues.push(issue("error", "personal_fit_version_without_feature", `${path}.featureVersions.personalFitFeatureVersion`, "Personal-fit feature versions are not supported by this sanitized snapshot schema."));
+        }
+        const hasColorFeatures = isRecord(snapshot.colorFeatures);
+        const hasShapeFeatures = isRecord(snapshot.shapeFeatures);
+        const colorVersionsMatchPayload =
+          hasColorFeatures === Boolean(featureVersions.colorProfileVersion) &&
+          hasColorFeatures === Boolean(featureVersions.colorFeatureVersion);
+        const shapeVersionsMatchPayload =
+          hasShapeFeatures === Boolean(featureVersions.shapeProfileVersion) &&
+          hasShapeFeatures === Boolean(featureVersions.shapeFeatureVersion);
+        if (!colorVersionsMatchPayload) issues.push(issue("error", "feature_version_payload_mismatch", `${path}.featureVersions`, "Color feature payload and both versions must be present together."));
+        if (!shapeVersionsMatchPayload) issues.push(issue("error", "feature_version_payload_mismatch", `${path}.featureVersions`, "Shape feature payload and both versions must be present together."));
+      }
+      if (!isRecord(snapshot.inputAvailability)) {
+        issues.push(issue("error", "invalid_input_availability", `${path}.inputAvailability`, "Snapshot input availability is required."));
+      } else {
+        const fields = ["imageAvailable", "colorFeaturesAvailable", "shapeFeaturesAvailable", "materialContextAvailable", "bodyFitContextAvailable"] as const;
+        fields.forEach((field) => {
+          if (typeof snapshot.inputAvailability[field] !== "boolean") issues.push(issue("error", "invalid_input_availability", `${path}.inputAvailability.${field}`, "Input availability values must be boolean."));
+        });
+        if (snapshot.inputAvailability.colorFeaturesAvailable !== isRecord(snapshot.colorFeatures)) issues.push(issue("error", "input_availability_mismatch", `${path}.inputAvailability.colorFeaturesAvailable`, "Color feature availability must match the feature payload."));
+        if (snapshot.inputAvailability.shapeFeaturesAvailable !== isRecord(snapshot.shapeFeatures)) issues.push(issue("error", "input_availability_mismatch", `${path}.inputAvailability.shapeFeaturesAvailable`, "Shape feature availability must match the feature payload."));
+        if (isRecord(snapshot.context) && snapshot.inputAvailability.bodyFitContextAvailable !== (snapshot.context.bodyFitContext === "available")) issues.push(issue("error", "input_availability_mismatch", `${path}.inputAvailability.bodyFitContextAvailable`, "Body-fit availability must match the context flag."));
       }
     });
   }
 
-  const snapshotIds = new Set(snapshots.keys());
   const evaluationIds = new Set<string>();
   const absoluteReviewerKeys = new Set<string>();
   if (Array.isArray(dataset.absoluteEvaluations)) {
     dataset.absoluteEvaluations.forEach((evaluation, index) => {
       const path = `absoluteEvaluations[${index}]`;
-      validateAbsoluteEvaluation(evaluation, path, snapshotIds, issues);
+      validateAbsoluteEvaluation(evaluation, path, snapshots, issues);
       if (!isRecord(evaluation)) return;
       if (typeof evaluation.evaluationId === "string") {
         if (evaluationIds.has(evaluation.evaluationId)) issues.push(issue("error", "duplicate_evaluation_id", `${path}.evaluationId`, "Evaluation ID must be unique across the dataset."));
@@ -537,8 +747,15 @@ export function validateExpertEvaluationDataset(input: unknown): DatasetValidati
         if (evaluationIds.has(evaluation.evaluationId)) issues.push(issue("error", "duplicate_evaluation_id", `${path}.evaluationId`, "Evaluation ID must be unique across the dataset."));
         evaluationIds.add(evaluation.evaluationId);
       }
-      const pairKey = getStablePairKey(String(evaluation.outfitIdA || ""), String(evaluation.outfitIdB || ""));
-      const reviewerKey = `${evaluation.evaluatorId}::${pairKey}::${evaluation.rubricVersion}`;
+      const pair = evaluation as unknown as ExpertPairwiseEvaluation;
+      const contextFingerprint = getPairwiseContextFingerprint(pair, snapshots);
+      const pairKey = getStablePairEvaluationKey({
+        outfitIdA: String(evaluation.outfitIdA || ""),
+        outfitIdB: String(evaluation.outfitIdB || ""),
+        rubricVersion: String(evaluation.rubricVersion || ""),
+        contextFingerprint,
+      });
+      const reviewerKey = `${evaluation.evaluatorId}::${pairKey}`;
       if (pairReviewerKeys.has(reviewerKey)) issues.push(issue("error", "duplicate_pairwise_evaluation", path, "The same evaluator must not submit a reversed or duplicate pair twice."));
       pairReviewerKeys.add(reviewerKey);
     });
@@ -592,9 +809,17 @@ export function validateDimensionRecordForTest(evaluation: ExpertDimensionEvalua
   return issues;
 }
 
-export function validateAbsoluteRecordForTest(evaluation: ExpertAbsoluteEvaluation, outfitIds: string[]) {
+export function validateAbsoluteRecordForTest(
+  evaluation: ExpertAbsoluteEvaluation,
+  snapshots: ExpertEvaluationDataset["snapshots"]
+) {
   const issues: DatasetValidationIssue[] = [];
-  validateAbsoluteEvaluation(evaluation, "evaluation", new Set(outfitIds), issues);
+  validateAbsoluteEvaluation(
+    evaluation,
+    "evaluation",
+    new Map(snapshots.map((snapshot) => [snapshot.outfitId, snapshot])),
+    issues
+  );
   return issues;
 }
 
