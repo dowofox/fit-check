@@ -458,6 +458,11 @@ function createPilotServer(options) {
         response.end(fs.readFileSync(path.join(UI_DIR, "draftState.js")));
         return;
       }
+      if (url.pathname === "/presentation.js" && request.method === "GET") {
+        response.writeHead(200, securityHeaders("text/javascript; charset=utf-8"));
+        response.end(fs.readFileSync(path.join(UI_DIR, "presentation.js")));
+        return;
+      }
       if (url.pathname === "/styles.css" && request.method === "GET") {
         response.writeHead(200, securityHeaders("text/css; charset=utf-8"));
         response.end(fs.readFileSync(path.join(UI_DIR, "styles.css")));
@@ -478,6 +483,7 @@ function createPilotServer(options) {
             batchId: batchLock.batchId,
             batchFingerprintPrefix: batchLock.batchFingerprintSha256.slice(0, 12),
             evaluationContract: protocol.evaluationContract,
+            presentationContract: protocol.presentation,
             totalCases: session.orderedOutfitIds.length,
             completedCaseNumbers: session.orderedOutfitIds
               .map((outfitId, index) =>
@@ -508,10 +514,13 @@ function createPilotServer(options) {
             (assetId) => `/api/assets/${assetId}`
           ),
           rubric: getPilotRubricView(currentCase.snapshot),
-          evidence: EXPERT_EVIDENCE_REGISTRY.map((entry) => ({
-            code: entry.code,
-            label: entry.label,
-          })),
+          evidence: protocol.presentation.evidenceDisplayOrder.map((code) => {
+            const entry = EXPERT_EVIDENCE_REGISTRY.find(
+              (definition) => definition.code === code
+            );
+            if (!entry) fail("Presentation evidence is not registered.");
+            return { code, label: entry.label };
+          }),
           existingEvaluation: publicEvaluation(
             findPilotEvaluation(dataset, options.evaluatorId, currentCase.outfitId)
           ),

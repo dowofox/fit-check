@@ -49,20 +49,20 @@
             <div id="overall-fields" hidden>
               <div class="field-row">
                 <label>
-                  가용성
+                  <span data-presentation-field="availability">가용성</span>
                   <select id="overall-availability"></select>
                 </label>
                 <label>
-                  평점
+                  <span data-presentation-field="rating">평점</span>
                   <select id="overall-rating"></select>
                 </label>
                 <label>
-                  확신도
+                  <span data-presentation-field="confidence">확신도</span>
                   <select id="overall-confidence"></select>
                 </label>
               </div>
               <label>
-                메모
+                <span data-presentation-field="notes">메모</span>
                 <textarea id="overall-notes" maxlength="1000" rows="2"></textarea>
               </label>
             </div>
@@ -70,7 +70,7 @@
 
           <section class="submit-card">
             <label>
-              평가 전체 확신도
+              평가 전체 <span data-presentation-field="confidence">확신도</span>
               <select id="evaluator-confidence" required></select>
             </label>
             <p id="draft-status" class="draft-status" role="status"></p>
@@ -90,6 +90,7 @@
     </main>
 
     <script src="/draftState.js" defer></script>
+    <script src="/presentation.js" defer></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

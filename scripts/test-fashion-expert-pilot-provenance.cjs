@@ -24,7 +24,9 @@ const {
 const {
   EXPERT_EVALUATION_CONTRACT,
   EXPERT_EVIDENCE_REGISTRY,
+  EXPERT_PILOT_PRESENTATION_CONTRACT,
   EXPERT_RUBRIC_REGISTRY,
+  validateExpertPilotPresentationContract,
 } = require("../utils/fashionCompatibility/expert/rubricRegistry.ts");
 
 const datasetPath = path.join(__dirname, "fixtures", "fashion-expert-synthetic-valid.json");
@@ -140,7 +142,35 @@ async function main() {
     expectChange((value) => {
       value.evaluationContract.overallCompatibility.requiresImageWhenRated = false;
     });
+    expectChange((value) => { value.presentation.dimensionDisplayOrder.reverse(); });
+    expectChange((value) => {
+      [value.presentation.evidenceDisplayOrder[0], value.presentation.evidenceDisplayOrder[1]] =
+        [value.presentation.evidenceDisplayOrder[1], value.presentation.evidenceDisplayOrder[0]];
+    });
+    expectChange((value) => { value.presentation.labels.availability.not_enough_information += " changed"; });
+    expectChange((value) => { value.presentation.labels.evidenceGroups.supporting += " changed"; });
+    expectChange((value) => { value.presentation.labels.evidenceGroups.conflicting += " changed"; });
+    expectChange((value) => { value.presentation.version += " changed"; });
+    expectChange((value) => { value.presentation.locale = "en-US"; });
     assert.doesNotMatch(JSON.stringify(protocol), /reviewedBy|sourceReferences/);
+  });
+
+  await test("presentation contract rejects incomplete or ambiguous evaluator choices", () => {
+    const expectInvalid = (mutate, pattern) => {
+      const contract = structuredClone(EXPERT_PILOT_PRESENTATION_CONTRACT);
+      mutate(contract);
+      assert.throws(() => validateExpertPilotPresentationContract(contract), pattern);
+    };
+    expectInvalid((value) => value.dimensionDisplayOrder.push(value.dimensionDisplayOrder[0]), /duplicate/);
+    expectInvalid((value) => value.dimensionDisplayOrder.pop(), /exactly once/);
+    expectInvalid((value) => { value.dimensionDisplayOrder[0] = "unknown"; }, /exactly once/);
+    expectInvalid((value) => value.evidenceDisplayOrder.push(value.evidenceDisplayOrder[0]), /duplicate/);
+    expectInvalid((value) => value.evidenceDisplayOrder.pop(), /exactly once/);
+    expectInvalid((value) => { value.evidenceDisplayOrder[0] = "unknown"; }, /exactly once/);
+    expectInvalid((value) => { delete value.labels.availability.abstained; }, /exactly once/);
+    expectInvalid((value) => { value.labels.availability.rated = ""; }, /must not be empty/);
+    expectInvalid((value) => { value.version = ""; }, /version/);
+    expectInvalid((value) => { value.locale = ""; }, /locale/);
   });
 
   await test("batch fingerprint is path-independent and binds bytes, count, and order", () => {
@@ -156,7 +186,7 @@ async function main() {
         createAssets(secondDir, dataset, { prefix: "two" })
       );
       assert.equal(first.batchFingerprintSha256, sameBytesDifferentPath.batchFingerprintSha256);
-      assert.equal(first.schemaVersion, "expert-pilot-batch-lock-v2");
+      assert.equal(first.schemaVersion, "expert-pilot-batch-lock-v3");
       assert.equal("dimensions" in first.protocol, false);
       assert.equal(
         first.protocol.protocolDigestSha256,
@@ -207,6 +237,8 @@ async function main() {
 
       const unsupported = structuredClone(lock);
       unsupported.schemaVersion = "expert-pilot-batch-lock-v1";
+      assert.throws(() => validateBatchLock(unsupported), /unsupported schema/);
+      unsupported.schemaVersion = "expert-pilot-batch-lock-v2";
       assert.throws(() => validateBatchLock(unsupported), /unsupported schema/);
       const wrongBatch = structuredClone(lock);
       wrongBatch.batchId = "other-batch";
@@ -280,6 +312,55 @@ async function main() {
       );
       assert.equal(fs.existsSync(outputPath), false);
       assert.equal(fs.existsSync(`${outputPath}.pilot-provenance.json`), false);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  await test("runner rejects changed evaluator choice order or labels before writing output", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-pilot-presentation-"));
+    try {
+      const assetsPath = createAssets(directory, dataset);
+      const assets = validateAssetManifest(readJson(assetsPath), assetsPath, dataset);
+      const changedProtocols = [
+        (() => {
+          const protocol = structuredClone(getExpertPilotProtocolPayload());
+          [protocol.presentation.evidenceDisplayOrder[0], protocol.presentation.evidenceDisplayOrder[1]] =
+            [protocol.presentation.evidenceDisplayOrder[1], protocol.presentation.evidenceDisplayOrder[0]];
+          return protocol;
+        })(),
+        (() => {
+          const protocol = structuredClone(getExpertPilotProtocolPayload());
+          protocol.presentation.labels.availability.not_enough_information += " changed";
+          return protocol;
+        })(),
+      ];
+
+      changedProtocols.forEach((protocol, index) => {
+        const lockPath = path.join(directory, `batch-lock-${index}.json`);
+        fs.writeFileSync(lockPath, JSON.stringify(createBatchLock({
+          dataset,
+          assets,
+          batchId: `presentation-v3-${index}`,
+          protocol,
+        })));
+        const outputPath = path.join(directory, `output-${index}.json`);
+        assert.throws(
+          () => createPilotServer({
+            datasetPath,
+            assetsPath,
+            batchLockPath: lockPath,
+            outputPath,
+            evaluatorId: "presentation-reviewer",
+            evaluatorGroup: "pilot",
+            seed: "seed-v1",
+            port: 4317,
+          }),
+          /Annotation protocol does not match/
+        );
+        assert.equal(fs.existsSync(outputPath), false);
+        assert.equal(fs.existsSync(`${outputPath}.pilot-provenance.json`), false);
+      });
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

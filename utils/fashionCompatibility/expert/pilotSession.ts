@@ -13,9 +13,12 @@ import {
 import {
   EXPERT_EVALUATION_CONTRACT,
   EXPERT_EVIDENCE_REGISTRY,
+  EXPERT_PILOT_PRESENTATION_CONTRACT,
   EXPERT_RUBRIC_REGISTRY,
   REQUIRED_EXPERT_DIMENSIONS,
+  type ExpertPilotPresentationContract,
   getExpertRubricDimension,
+  validateExpertPilotPresentationContract,
 } from "@/utils/fashionCompatibility/expert/rubricRegistry";
 import { validateExpertEvaluationDataset } from "@/utils/fashionCompatibility/expert/evaluationValidation";
 
@@ -67,10 +70,19 @@ export function getExpertPilotProtocolPayload(input?: {
   rubricRegistry?: typeof EXPERT_RUBRIC_REGISTRY;
   evidenceRegistry?: typeof EXPERT_EVIDENCE_REGISTRY;
   evaluationContract?: typeof EXPERT_EVALUATION_CONTRACT;
+  presentationContract?: ExpertPilotPresentationContract;
 }) {
   const rubricRegistry = input?.rubricRegistry || EXPERT_RUBRIC_REGISTRY;
   const evidenceRegistry = input?.evidenceRegistry || EXPERT_EVIDENCE_REGISTRY;
   const evaluationContract = input?.evaluationContract || EXPERT_EVALUATION_CONTRACT;
+  const presentationContract = validateExpertPilotPresentationContract(
+    input?.presentationContract || EXPERT_PILOT_PRESENTATION_CONTRACT,
+    {
+      requiredDimensions: evaluationContract.requiredDimensions,
+      evidenceRegistry,
+      availabilityValues: evaluationContract.availabilityValues,
+    }
+  );
   const dimensionOrder = new Map(
     evaluationContract.requiredDimensions.map((dimension, index) => [dimension, index])
   );
@@ -127,6 +139,19 @@ export function getExpertPilotProtocolPayload(input?: {
       ratingScale: [...evaluationContract.ratingScale],
       availabilityValues: [...evaluationContract.availabilityValues],
       overallCompatibility: { ...evaluationContract.overallCompatibility },
+    },
+    presentation: {
+      version: presentationContract.version,
+      locale: presentationContract.locale,
+      dimensionDisplayOrder: [...presentationContract.dimensionDisplayOrder],
+      evidenceDisplayOrder: [...presentationContract.evidenceDisplayOrder],
+      labels: {
+        emptySelection: presentationContract.labels.emptySelection,
+        availability: { ...presentationContract.labels.availability },
+        fields: { ...presentationContract.labels.fields },
+        evidenceGroups: { ...presentationContract.labels.evidenceGroups },
+        ratingSuffix: presentationContract.labels.ratingSuffix,
+      },
     },
   };
 }

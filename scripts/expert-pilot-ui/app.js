@@ -1,11 +1,10 @@
 "use strict";
 
-const AVAILABILITY_LABELS = {
-  rated: "평가 가능",
-  not_enough_information: "정보 부족",
-  not_applicable: "해당 없음",
-  abstained: "판단 보류",
-};
+const {
+  getAvailabilityEntries: buildAvailabilityEntries,
+  orderEvidenceDefinitions,
+  orderRubricDefinitions,
+} = window.PilotPresentation;
 const draftStore = window.PilotDraftState.createDraftStore();
 const state = {
   token: "",
@@ -115,17 +114,27 @@ function populateSelect(select, entries) {
 }
 
 function getAvailabilityEntries() {
-  return [
-    ["", "선택하세요"],
-    ...state.session.evaluationContract.availabilityValues.map((value) => [
-      value,
-      AVAILABILITY_LABELS[value] || value,
-    ]),
-  ];
+  return buildAvailabilityEntries(
+    state.session.evaluationContract,
+    state.session.presentationContract
+  );
 }
 
 function getRatings() {
   return state.session.evaluationContract.ratingScale;
+}
+
+function getPresentationLabels() {
+  return state.session.presentationContract.labels;
+}
+
+function applyStaticPresentationLabels() {
+  const labels = getPresentationLabels();
+  document.querySelectorAll("[data-presentation-field]").forEach((element) => {
+    const field = element.dataset.presentationField;
+    if (!labels.fields[field]) throw new Error(`Unknown presentation field: ${field}`);
+    element.textContent = labels.fields[field];
+  });
 }
 
 function renderKeyValues(container, values) {
@@ -185,13 +194,14 @@ function updateRatingVisibility(card) {
   warning.hidden = !(rated && supporting + conflicting === 0);
 }
 
-function evidenceGroup(kind, codes, selected, dimension) {
+function evidenceGroup(kind, definitions, selected, dimension) {
   const fieldset = document.createElement("fieldset");
   fieldset.className = "evidence-group";
   const legend = document.createElement("legend");
-  legend.textContent = kind === "supporting" ? "지지 근거" : "충돌 근거";
+  legend.textContent = getPresentationLabels().evidenceGroups[kind];
   fieldset.append(legend);
-  codes.forEach((code) => {
+  definitions.forEach((definition) => {
+    const code = definition.code;
     const label = document.createElement("label");
     label.className = "evidence-option";
     const input = document.createElement("input");
@@ -210,8 +220,7 @@ function evidenceGroup(kind, codes, selected, dimension) {
       }
       updateRatingVisibility(fieldset.closest(".dimension-card"));
     });
-    const labelText = state.caseData.evidence.find((entry) => entry.code === code)?.label || code;
-    label.append(input, document.createTextNode(labelText));
+    label.append(input, document.createTextNode(definition.label));
     fieldset.append(label);
   });
   return fieldset;
@@ -257,22 +266,29 @@ function renderDimension(definition, existing) {
     `${definition.id}-availability`
   );
   availability.dataset.field = "availability";
+  const labels = getPresentationLabels();
   const rating = buildSelect(
-    [["", "선택하세요"], ...getRatings().map((value) => [value, `${value}점`])],
+    [
+      ["", labels.emptySelection],
+      ...getRatings().map((value) => [value, `${value}${labels.ratingSuffix}`]),
+    ],
     existing?.rating,
     `${definition.id}-rating`
   );
   rating.dataset.field = "rating";
   const confidence = buildSelect(
-    [["", "선택하세요"], ...getRatings().map((value) => [value, `${value}`])],
+    [
+      ["", labels.emptySelection],
+      ...getRatings().map((value) => [value, `${value}`]),
+    ],
     existing?.confidence,
     `${definition.id}-confidence`
   );
   confidence.dataset.field = "confidence";
   fields.append(
-    labelWithControl("가용성", availability),
-    labelWithControl("평점", rating),
-    labelWithControl("확신도", confidence)
+    labelWithControl(labels.fields.availability, availability),
+    labelWithControl(labels.fields.rating, rating),
+    labelWithControl(labels.fields.confidence, confidence)
   );
   card.append(fields);
 
@@ -287,16 +303,21 @@ function renderDimension(definition, existing) {
 
   const evidence = document.createElement("div");
   evidence.className = "evidence-columns";
+  const orderedEvidence = orderEvidenceDefinitions(
+    state.caseData.evidence,
+    state.session.presentationContract.evidenceDisplayOrder,
+    definition.allowedEvidenceCodes
+  );
   evidence.append(
     evidenceGroup(
       "supporting",
-      definition.allowedEvidenceCodes,
+      orderedEvidence,
       existing?.supportingEvidenceCodes || [],
       definition.id
     ),
     evidenceGroup(
       "conflicting",
-      definition.allowedEvidenceCodes,
+      orderedEvidence,
       existing?.conflictingEvidenceCodes || [],
       definition.id
     )
@@ -314,7 +335,7 @@ function renderDimension(definition, existing) {
   notes.maxLength = 1000;
   notes.rows = 2;
   notes.value = existing?.notes || "";
-  card.append(labelWithControl("선택 메모", notes));
+  card.append(labelWithControl(labels.fields.notes, notes));
   availability.addEventListener("change", () => updateRatingVisibility(card));
   updateRatingVisibility(card);
   return card;
@@ -324,8 +345,15 @@ function fillOverall(existing, enabled = Boolean(existing)) {
   elements.overallEnabled.checked = enabled;
   elements.overallFields.hidden = !enabled;
   populateSelect(elements.overallAvailability, getAvailabilityEntries());
-  populateSelect(elements.overallRating, [["", "선택하세요"], ...getRatings().map((v) => [v, `${v}점`])]);
-  populateSelect(elements.overallConfidence, [["", "선택하세요"], ...getRatings().map((v) => [v, `${v}`])]);
+  const labels = getPresentationLabels();
+  populateSelect(elements.overallRating, [
+    ["", labels.emptySelection],
+    ...getRatings().map((value) => [value, `${value}${labels.ratingSuffix}`]),
+  ]);
+  populateSelect(elements.overallConfidence, [
+    ["", labels.emptySelection],
+    ...getRatings().map((value) => [value, `${value}`]),
+  ]);
   elements.overallAvailability.value = existing?.availability || "";
   elements.overallRating.value = existing?.rating || "";
   elements.overallConfidence.value = existing?.confidence || "";
@@ -404,7 +432,10 @@ function renderCurrentCase() {
   state.elapsedMilliseconds = draft?.elapsedMilliseconds || 0;
   state.editStartedAt = null;
   elements.dimensionList.replaceChildren(
-    ...state.caseData.rubric.map((definition) =>
+    ...orderRubricDefinitions(
+      state.caseData.rubric,
+      state.session.presentationContract.dimensionDisplayOrder
+    ).map((definition) =>
       renderDimension(
         definition,
         dimensions?.find((entry) => entry.dimension === definition.id)
@@ -416,7 +447,7 @@ function renderCurrentCase() {
     draft ? draft.overall.enabled : Boolean(existing?.overallCompatibility)
   );
   populateSelect(elements.evaluatorConfidence, [
-    ["", "선택하세요"],
+    ["", getPresentationLabels().emptySelection],
     ...getRatings().map((value) => [value, `${value}`]),
   ]);
   elements.evaluatorConfidence.value = draft?.evaluatorConfidence || existing?.evaluatorConfidence || "";
@@ -626,6 +657,8 @@ async function initialize() {
     const payload = await request("/api/session");
     state.token = payload.token;
     state.session = payload.session;
+    getAvailabilityEntries();
+    applyStaticPresentationLabels();
     elements.batchId.textContent = `Batch ${payload.session.batchId}`;
     elements.batchFingerprint.textContent =
       `Fingerprint ${payload.session.batchFingerprintPrefix}`;

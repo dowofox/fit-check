@@ -1,5 +1,6 @@
 import {
   EXPERT_RUBRIC_VERSION,
+  type EvaluationAvailability,
   type ExpertContextRequirement,
   type ExpertDimension,
   type ExpertEvidenceDefinition,
@@ -168,7 +169,9 @@ function definition(
       groups: requirement.groups.map((group) => ({ ...group, signals: [...group.signals] })),
     })),
     allowedEvidenceCodes: EXPERT_EVIDENCE_REGISTRY
-      .filter((entry) => entry.allowedDimensions.includes(id))
+      .filter(
+        (entry) => entry.status !== "retired" && entry.allowedDimensions.includes(id)
+      )
       .map((entry) => entry.code),
     version: EXPERT_RUBRIC_VERSION,
     status: "draft",
@@ -211,6 +214,132 @@ export const EXPERT_EVALUATION_CONTRACT = Object.freeze({
     requiresImageWhenRated: true,
   }),
 });
+
+export type ExpertPilotPresentationContract = {
+  version: string;
+  locale: string;
+  dimensionDisplayOrder: readonly ExpertDimension[];
+  evidenceDisplayOrder: readonly string[];
+  labels: {
+    emptySelection: string;
+    availability: Record<EvaluationAvailability, string>;
+    fields: {
+      availability: string;
+      rating: string;
+      confidence: string;
+      notes: string;
+    };
+    evidenceGroups: {
+      supporting: string;
+      conflicting: string;
+    };
+    ratingSuffix: string;
+  };
+};
+
+export const EXPERT_PILOT_PRESENTATION_CONTRACT = Object.freeze({
+  version: "expert-pilot-presentation-v1",
+  locale: "ko-KR",
+  dimensionDisplayOrder: Object.freeze([...REQUIRED_EXPERT_DIMENSIONS]),
+  evidenceDisplayOrder: Object.freeze(
+    EXPERT_EVIDENCE_REGISTRY
+      .filter((definition) => definition.status !== "retired")
+      .map((definition) => definition.code)
+  ),
+  labels: Object.freeze({
+    emptySelection: "선택하세요",
+    availability: Object.freeze({
+      rated: "평가 가능",
+      not_enough_information: "정보 부족",
+      not_applicable: "해당 없음",
+      abstained: "판단 보류",
+    }),
+    fields: Object.freeze({
+      availability: "가용성",
+      rating: "평점",
+      confidence: "확신도",
+      notes: "선택 메모",
+    }),
+    evidenceGroups: Object.freeze({
+      supporting: "지지 근거",
+      conflicting: "충돌 근거",
+    }),
+    ratingSuffix: "점",
+  }),
+}) satisfies ExpertPilotPresentationContract;
+
+function assertExactMembers(
+  actual: readonly string[],
+  expected: readonly string[],
+  label: string
+) {
+  if (new Set(actual).size !== actual.length) {
+    throw new Error(`${label} contains duplicate values.`);
+  }
+  const expectedSet = new Set(expected);
+  if (
+    actual.length !== expected.length ||
+    actual.some((value) => !expectedSet.has(value))
+  ) {
+    throw new Error(`${label} must contain every registered value exactly once.`);
+  }
+}
+
+export function validateExpertPilotPresentationContract(
+  contract: ExpertPilotPresentationContract,
+  input?: {
+    requiredDimensions?: readonly ExpertDimension[];
+    evidenceRegistry?: readonly ExpertEvidenceDefinition[];
+    availabilityValues?: readonly EvaluationAvailability[];
+  }
+) {
+  const requiredDimensions = input?.requiredDimensions || REQUIRED_EXPERT_DIMENSIONS;
+  const evidenceRegistry = input?.evidenceRegistry || EXPERT_EVIDENCE_REGISTRY;
+  const availabilityValues =
+    input?.availabilityValues || EXPERT_EVALUATION_CONTRACT.availabilityValues;
+  const displayedEvidenceCodes = evidenceRegistry
+    .filter((definition) => definition.status !== "retired")
+    .map((definition) => definition.code);
+
+  if (!contract.version.trim()) throw new Error("Presentation contract version is required.");
+  if (!contract.locale.trim()) throw new Error("Presentation locale is required.");
+  assertExactMembers(
+    contract.dimensionDisplayOrder,
+    requiredDimensions,
+    "Dimension display order"
+  );
+  assertExactMembers(
+    contract.evidenceDisplayOrder,
+    displayedEvidenceCodes,
+    "Evidence display order"
+  );
+  assertExactMembers(
+    Object.keys(contract.labels.availability),
+    availabilityValues,
+    "Availability labels"
+  );
+  assertExactMembers(
+    Object.keys(contract.labels.fields),
+    ["availability", "rating", "confidence", "notes"],
+    "Field labels"
+  );
+  assertExactMembers(
+    Object.keys(contract.labels.evidenceGroups),
+    ["supporting", "conflicting"],
+    "Evidence group labels"
+  );
+  const labels = [
+    contract.labels.emptySelection,
+    ...Object.values(contract.labels.availability),
+    ...Object.values(contract.labels.fields),
+    ...Object.values(contract.labels.evidenceGroups),
+    contract.labels.ratingSuffix,
+  ];
+  if (labels.some((label) => !label.trim())) {
+    throw new Error("Presentation labels must not be empty.");
+  }
+  return contract;
+}
 
 export function getExpertRubricDimension(dimension: ExpertDimension) {
   return EXPERT_RUBRIC_REGISTRY.find((entry) => entry.id === dimension);

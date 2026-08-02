@@ -1,7 +1,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 
-const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v2";
+const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v3";
 const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v1";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 

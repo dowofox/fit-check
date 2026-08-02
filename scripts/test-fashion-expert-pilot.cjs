@@ -28,6 +28,15 @@ const {
   validatePilotOutput,
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
 const {
+  getAvailabilityEntries,
+  orderEvidenceDefinitions,
+  orderRubricDefinitions,
+} = require("./expert-pilot-ui/presentation.js");
+const {
+  EXPERT_EVALUATION_CONTRACT,
+  EXPERT_EVIDENCE_REGISTRY,
+  EXPERT_PILOT_PRESENTATION_CONTRACT,
+  EXPERT_RUBRIC_REGISTRY,
   REQUIRED_EXPERT_DIMENSIONS,
 } = require("../utils/fashionCompatibility/expert/rubricRegistry.ts");
 
@@ -151,6 +160,58 @@ async function main() {
     assert.equal(store.clearDraft(2, secondRevision), true);
     assert.equal(store.setDraft(2, first), 3);
     assert.equal("revision" in store.getDraft(2), false);
+  });
+
+  await test("presentation helpers lock evaluator-visible order and availability labels", () => {
+    assert.deepEqual(
+      orderRubricDefinitions(
+        [...EXPERT_RUBRIC_REGISTRY].reverse(),
+        EXPERT_PILOT_PRESENTATION_CONTRACT.dimensionDisplayOrder
+      ).map((definition) => definition.id),
+      EXPERT_PILOT_PRESENTATION_CONTRACT.dimensionDisplayOrder
+    );
+    const allowedCodes = EXPERT_RUBRIC_REGISTRY[0].allowedEvidenceCodes;
+    const supporting = orderEvidenceDefinitions(
+      [...EXPERT_EVIDENCE_REGISTRY].reverse(),
+      EXPERT_PILOT_PRESENTATION_CONTRACT.evidenceDisplayOrder,
+      allowedCodes
+    ).map((definition) => definition.code);
+    const conflicting = orderEvidenceDefinitions(
+      EXPERT_EVIDENCE_REGISTRY,
+      EXPERT_PILOT_PRESENTATION_CONTRACT.evidenceDisplayOrder,
+      [...allowedCodes].reverse()
+    ).map((definition) => definition.code);
+    assert.deepEqual(supporting, conflicting);
+    assert.deepEqual(
+      getAvailabilityEntries(
+        EXPERT_EVALUATION_CONTRACT,
+        EXPERT_PILOT_PRESENTATION_CONTRACT
+      ),
+      [
+        ["", "선택하세요"],
+        ["rated", "평가 가능"],
+        ["not_enough_information", "정보 부족"],
+        ["not_applicable", "해당 없음"],
+        ["abstained", "판단 보류"],
+      ]
+    );
+    assert.throws(
+      () => orderRubricDefinitions(EXPERT_RUBRIC_REGISTRY.slice(1), REQUIRED_EXPERT_DIMENSIONS),
+      /does not match/
+    );
+    assert.throws(
+      () => getAvailabilityEntries(
+        EXPERT_EVALUATION_CONTRACT,
+        {
+          ...EXPERT_PILOT_PRESENTATION_CONTRACT,
+          labels: {
+            ...EXPERT_PILOT_PRESENTATION_CONTRACT.labels,
+            availability: { rated: "평가 가능" },
+          },
+        }
+      ),
+      /does not match/
+    );
   });
 
   await test("navigation, save, failure, and discard preserve the intended draft", () => {
@@ -359,10 +420,19 @@ async function main() {
       const pageText = await page.text();
       assert.match(pageText, /절대평가 파일럿/);
       assert.match(pageText, /draftState\.js/);
+      assert.match(pageText, /presentation\.js/);
       assert.doesNotMatch(pageText, /pairwise|professionalScore/i);
       const draftScript = await fetch(`${origin}/draftState.js`);
       assert.equal(draftScript.status, 200);
       assert.match(await draftScript.text(), /createDraftStore/);
+      const presentationScript = await fetch(`${origin}/presentation.js`);
+      assert.equal(presentationScript.status, 200);
+      assert.match(await presentationScript.text(), /orderRubricDefinitions/);
+      const appScript = await fetch(`${origin}/app.js`);
+      const appScriptText = await appScript.text();
+      assert.match(appScriptText, /presentationContract\.dimensionDisplayOrder/);
+      assert.match(appScriptText, /presentationContract\.evidenceDisplayOrder/);
+      assert.doesNotMatch(appScriptText, /AVAILABILITY_LABELS/);
 
       const sessionResult = await fetchJson(`${origin}/api/session`);
       assert.equal(sessionResult.response.status, 200);
@@ -377,6 +447,18 @@ async function main() {
         "not_applicable",
         "abstained",
       ]);
+      assert.deepEqual(
+        sessionResult.payload.session.presentationContract.dimensionDisplayOrder,
+        REQUIRED_EXPERT_DIMENSIONS
+      );
+      assert.deepEqual(
+        sessionResult.payload.session.presentationContract.evidenceDisplayOrder,
+        EXPERT_PILOT_PRESENTATION_CONTRACT.evidenceDisplayOrder
+      );
+      assert.equal(
+        sessionResult.payload.session.presentationContract.labels.availability.not_enough_information,
+        "정보 부족"
+      );
       const provenancePath = getOutputProvenancePath(outputPath);
       assert.equal(fs.existsSync(provenancePath), true);
       const initialProvenance = readPilotJson(provenancePath, "Pilot output provenance");

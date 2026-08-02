@@ -45,7 +45,9 @@ npm run fashion:expert:pilot:freeze -- `
 
 Snapshot은 `outfitId` 순서로 canonicalize하므로 JSON key 순서, 공백, snapshot 배열 순서는 digest에 영향을 주지 않는다. Snapshot context·feature·input availability 또는 이미지 바이트·개수·표시 순서가 바뀌면 배치 fingerprint가 바뀐다. 평가는 snapshot digest에 포함하지 않는다.
 
-Annotation protocol digest는 실제 rubric/evidence registry에서 생성한다. 13개 dimension의 label·description·anchor·context/observation requirement·허용 evidence, evidence의 label·description·origin·polarity, 필수 dimension 순서, rating scale, availability 값과 overall image 정책을 포함한다. `reviewedBy`와 `sourceReferences`는 평가 화면이나 입력 가능 여부에 영향을 주지 않는 검토 metadata라 제외한다. Registry 순서는 정규화하지만 필수 dimension 순서는 평가 계약으로 보존한다. 기존 `expert-pilot-batch-lock-v1`은 자동 이관하지 않고 명시적으로 거부하므로 `freeze`로 v2 lock을 다시 만들어야 한다.
+Annotation protocol digest는 실제 rubric/evidence registry와 evaluator presentation contract에서 생성한다. 13개 dimension의 label·description·anchor·context/observation requirement·허용 evidence, evidence의 label·description·origin·polarity, rating/availability 계약과 overall image 정책을 포함한다. Dimension과 evidence의 표시 순서, availability·빈 선택·근거 그룹 문구도 순서가 의미 있는 presentation contract로 보존한다. `reviewedBy`와 `sourceReferences`는 평가 화면이나 입력 가능 여부에 영향을 주지 않는 검토 metadata라 제외한다. 기존 `expert-pilot-batch-lock-v1`과 `v2`는 자동 이관하지 않고 명시적으로 거부하므로 변경 의도를 확인하고 새 batch ID로 `freeze`하여 v3 lock을 만들어야 한다.
+
+`retired` evidence는 정의 이력에는 남지만 새 파일럿의 표시 순서와 선택 가능 목록에서는 제외한다. 그 외 `draft`, `expert_review`, `validated` evidence는 presentation contract에 정확히 한 번 포함되어야 한다.
 
 ```powershell
 npm run fashion:expert:pilot -- `
@@ -84,7 +86,7 @@ npm run fashion:expert:pilot -- `
 - `localStorage`, `sessionStorage`, IndexedDB, 쿠키, 서버 파일을 초안 저장에 사용하지 않는다.
 - 초안은 input dataset과 output JSON에 기록되지 않으며 이미지 경로, asset ID, session token, 원본 outfit ID를 포함하지 않는다.
 
-UI에는 pairwise 비교, 총점 계산, professional score가 없다. 평가는 registry의 dimension, anchor, evidence code를 동적으로 읽으므로 별도 화면 상수를 만들지 않는다.
+UI에는 pairwise 비교, 총점 계산, professional score가 없다. 평가는 registry의 dimension·anchor·evidence 정의와 protocol에 잠긴 presentation contract를 동적으로 읽으며, 선택지 순서와 문구를 별도 화면 상수로 복제하지 않는다.
 
 ## 저장과 재개
 
