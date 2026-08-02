@@ -696,6 +696,12 @@ type CompatibilityComparison = {
 
 Gate는 `ready_for_calibration_review`만 판정한다. Agreement, unavailable rate, confidence와 high-disagreement outfit은 사람이 calibration에서 검토할 진단이며 임의의 임계값으로 전문가 품질, `expert_validated`, production eligibility를 선언하지 않는다.
 
+### Phase 5B.6: expert pilot calibration review packet
+
+검증을 통과한 readiness 결과를 원본 notes나 상품 데이터 없이 결정적 JSON/Markdown 검토 패킷으로 변환한다. Dimension은 rated coverage 오름차순으로, high-disagreement outfit ID는 고정 순서로 정리해 사람이 같은 입력에서 같은 검토 순서를 재현할 수 있게 한다.
+
+패킷은 calibration review의 입력 자료일 뿐 결정 기록이나 승인 상태가 아니다. 차단된 readiness, 미완료 배정 coverage, 실패한 integrity check에서는 생성하지 않으며 `expert_validated`와 production eligibility를 변경하지 않는다.
+
 ### Phase 5B.2: multi-evaluator pilot merge
 
 각 평가자 output은 frozen source dataset을 기준으로 해당 evaluator의 absolute evaluation만 변경할 수 있다. 병합 경계에서 v3 batch fingerprint와 output provenance를 검증하고, source snapshot·pairwise·split·metadata 계약의 semantic equality를 확인한다. 완료된 evaluator별 delta만 evaluator/outfit/evaluation ID 순으로 합쳐 입력 순서와 무관한 분석용 dataset을 만든다.

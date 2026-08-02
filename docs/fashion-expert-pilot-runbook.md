@@ -180,3 +180,16 @@ npm run fashion:expert:pilot:readiness -- `
 ```
 
 `ready_for_calibration_review`는 입력 정합성과 배정 coverage가 완전하다는 뜻이다. Agreement, unavailable rate, confidence와 high-disagreement outfit은 진단으로만 기록하며 근거 없는 품질 임계값을 적용하지 않는다. 이 결과는 `expert_validated` 또는 production 적용 승인이 아니다.
+
+## Calibration review packet
+
+준비 완료 JSON에서 원본 평가 notes 없이 사람이 검토할 진단 패킷을 만든다. JSON과 Markdown은 같은 입력에 대해 결정적이며, coverage가 낮은 dimension부터 확인할 수 있게 정렬한다.
+
+```powershell
+npm run fashion:expert:pilot:review-packet -- `
+  --readiness calibration-readiness.json `
+  --format markdown `
+  --output calibration-review-packet.md
+```
+
+준비 상태가 차단되었거나 구조 검사 중 하나라도 실패한 입력에서는 패킷을 만들지 않는다. 패킷은 high-disagreement outfit과 dimension 진단을 검토 순서로 정리할 뿐 calibration 결정, `expert_validated`, production 적용을 대신하지 않는다.

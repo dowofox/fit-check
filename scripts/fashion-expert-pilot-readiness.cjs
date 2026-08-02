@@ -22,6 +22,15 @@ const {
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
 
 const READINESS_SCHEMA_VERSION = "expert-pilot-calibration-readiness-v1";
+const READINESS_CHECK_IDS = Object.freeze([
+  "dataset_valid",
+  "batch_identity_matches",
+  "assignment_identity_matches",
+  "merge_identity_matches",
+  "merged_dataset_digest_matches",
+  "assigned_evaluators_match",
+  "assignment_coverage_complete",
+]);
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
 function fail(message) {
@@ -249,6 +258,7 @@ function main() {
 if (require.main === module) main();
 
 module.exports = {
+  READINESS_CHECK_IDS,
   READINESS_SCHEMA_VERSION,
   assessPilotCalibrationFiles,
   assessPilotCalibrationReadiness,
