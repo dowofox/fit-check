@@ -21,6 +21,7 @@ function packetInput(fixture) {
     assignmentManifest: fixture.assignmentManifest,
     mergeProvenance: fixture.provenance,
     evaluatorInputs: fixture.inputs,
+    sourceDataset: fixture.sourceDataset,
   };
 }
 
@@ -81,12 +82,14 @@ async function main() {
     try {
       const fixture = createMergedPilot();
       const datasetPath = path.join(directory, "merged.json");
+      const sourceDatasetPath = path.join(directory, "source.json");
       const batchLockPath = path.join(directory, "batch-lock.json");
       const assignmentPath = path.join(directory, "assignment.json");
       const provenancePath = path.join(directory, "merge-provenance.json");
       const jsonPath = path.join(directory, "packet.json");
       const markdownPath = path.join(directory, "packet.md");
       writeJson(datasetPath, fixture.mergedDataset);
+      writeJson(sourceDatasetPath, fixture.sourceDataset);
       writeJson(batchLockPath, fixture.batchLock);
       writeJson(assignmentPath, fixture.assignmentManifest);
       writeJson(provenancePath, fixture.provenance);
@@ -98,6 +101,7 @@ async function main() {
       });
       const commonArguments = [
         "--dataset", datasetPath,
+        "--source-dataset", sourceDatasetPath,
         "--batch-lock", batchLockPath,
         "--assignment", assignmentPath,
         "--merge-provenance", provenancePath,

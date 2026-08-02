@@ -13,6 +13,9 @@ const {
   buildPilotAbsoluteEvaluation,
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
 const {
+  createMergeProvenance,
+} = require("./fashion-expert-pilot-merge.cjs");
+const {
   createMergedPilot,
   lockPath,
   safeEvaluation,
@@ -39,6 +42,7 @@ async function main() {
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
       evaluatorInputs: fixture.inputs,
+      sourceDataset: fixture.sourceDataset,
     });
     assert.equal(result.schemaVersion, READINESS_SCHEMA_VERSION);
     assert.equal(result.ready, true);
@@ -62,6 +66,7 @@ async function main() {
         assignmentManifest: fixture.assignmentManifest,
         mergeProvenance: fixture.provenance,
         evaluatorInputs: fixture.inputs,
+        sourceDataset: fixture.sourceDataset,
       }),
       result
     );
@@ -81,6 +86,7 @@ async function main() {
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
       evaluatorInputs: fixture.inputs,
+      sourceDataset: fixture.sourceDataset,
     });
     assert.equal(result.ready, false);
     assert.equal(result.status, "blocked");
@@ -118,6 +124,7 @@ async function main() {
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
       evaluatorInputs: fixture.inputs,
+      sourceDataset: fixture.sourceDataset,
     });
     assert.equal(result.ready, false);
     assert.equal(
@@ -140,6 +147,7 @@ async function main() {
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: wrongAssignment,
       evaluatorInputs: fixture.inputs,
+      sourceDataset: fixture.sourceDataset,
     });
     assert.equal(assignmentResult.ready, false);
 
@@ -151,6 +159,7 @@ async function main() {
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
       evaluatorInputs: fixture.inputs,
+      sourceDataset: fixture.sourceDataset,
     });
     assert.equal(snapshotResult.ready, false);
     assert.equal(
@@ -167,6 +176,7 @@ async function main() {
         assignmentManifest: fixture.assignmentManifest,
         mergeProvenance: unknownField,
         evaluatorInputs: fixture.inputs,
+        sourceDataset: fixture.sourceDataset,
       }),
       /unknown or missing fields/
     );
@@ -182,6 +192,37 @@ async function main() {
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: provenance,
       evaluatorInputs: fixture.inputs,
+      sourceDataset: fixture.sourceDataset,
+    });
+    assert.equal(result.ready, false);
+    assert.equal(
+      result.checks.find((entry) => entry.id === "merge_input_digests_match").passed,
+      false
+    );
+  });
+
+  await test("non-owner evaluation tampering is rejected even with refreshed input digests", () => {
+    const fixture = createMergedPilot();
+    const evaluatorInputs = structuredClone(fixture.inputs);
+    const changed = evaluatorInputs[0].dataset.absoluteEvaluations.find(
+      (evaluation) => evaluation.evaluatorId !== evaluatorInputs[0].provenance.evaluatorId
+    );
+    changed.durationSeconds += 1;
+    const mergeProvenance = createMergeProvenance({
+      batchLock: fixture.batchLock,
+      assignmentManifest: fixture.assignmentManifest,
+      sourceDataset: fixture.sourceDataset,
+      inputs: evaluatorInputs,
+      mergedDataset: fixture.mergedDataset,
+      now: fixture.provenance.createdAt,
+    });
+    const result = assessPilotCalibrationReadiness({
+      dataset: fixture.mergedDataset,
+      sourceDataset: fixture.sourceDataset,
+      batchLock: fixture.batchLock,
+      assignmentManifest: fixture.assignmentManifest,
+      mergeProvenance,
+      evaluatorInputs,
     });
     assert.equal(result.ready, false);
     assert.equal(
@@ -195,6 +236,7 @@ async function main() {
     try {
       const fixture = createMergedPilot();
       const datasetPath = path.join(directory, "merged.json");
+      const sourceDatasetPath = path.join(directory, "source.json");
       const assignmentPath = path.join(directory, "assignment.json");
       const provenancePath = path.join(directory, "merge-provenance.json");
       const outputPath = path.join(directory, "readiness.json");
@@ -205,10 +247,12 @@ async function main() {
         return inputPath;
       });
       writeJson(datasetPath, fixture.mergedDataset);
+      writeJson(sourceDatasetPath, fixture.sourceDataset);
       writeJson(assignmentPath, fixture.assignmentManifest);
       writeJson(provenancePath, fixture.provenance);
       const options = parseArguments([
         "--dataset", datasetPath,
+        "--source-dataset", sourceDatasetPath,
         "--batch-lock", lockPath,
         "--assignment", assignmentPath,
         "--merge-provenance", provenancePath,
@@ -220,6 +264,7 @@ async function main() {
       assert.equal(JSON.stringify(readJson(outputPath)), JSON.stringify(result));
       assert.throws(() => parseArguments([
         "--dataset", datasetPath,
+        "--source-dataset", sourceDatasetPath,
         "--batch-lock", lockPath,
         "--assignment", assignmentPath,
         "--merge-provenance", provenancePath,

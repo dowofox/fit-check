@@ -311,6 +311,7 @@ function createCalibrationReviewPacket({
   assignmentManifest,
   mergeProvenance,
   evaluatorInputs,
+  sourceDataset,
 }) {
   return createPacketFromReadiness(assessPilotCalibrationReadiness({
     dataset,
@@ -318,6 +319,7 @@ function createCalibrationReviewPacket({
     assignmentManifest,
     mergeProvenance,
     evaluatorInputs,
+    sourceDataset,
   }));
 }
 
@@ -360,7 +362,7 @@ function renderCalibrationReviewPacketMarkdown(packet) {
 }
 
 function parseArguments(argv) {
-  const required = ["--dataset", "--batch-lock", "--assignment", "--merge-provenance"];
+  const required = ["--dataset", "--source-dataset", "--batch-lock", "--assignment", "--merge-provenance"];
   const allowed = new Set([...required, "--input", "--format", "--output"]);
   const values = {};
   for (let index = 0; index < argv.length; index += 2) {
@@ -381,10 +383,14 @@ function parseArguments(argv) {
   }
   const inputPaths = {
     datasetPath: path.resolve(values["--dataset"]),
+    sourceDatasetPath: path.resolve(values["--source-dataset"]),
     batchLockPath: path.resolve(values["--batch-lock"]),
     assignmentPath: path.resolve(values["--assignment"]),
     mergeProvenancePath: path.resolve(values["--merge-provenance"]),
   };
+  if (inputPaths.datasetPath.toLowerCase() === inputPaths.sourceDatasetPath.toLowerCase()) {
+    fail("--source-dataset must be different from --dataset.");
+  }
   const evaluatorInputPaths = (values["--input"] || []).map((value) => path.resolve(value));
   if (evaluatorInputPaths.length < 2) fail("At least two --input paths are required.");
   if (new Set(evaluatorInputPaths.map((value) => value.toLowerCase())).size !== evaluatorInputPaths.length) {
@@ -406,6 +412,7 @@ function parseArguments(argv) {
 function createCalibrationReviewPacketFile(options) {
   const packet = createPacketFromReadiness(assessPilotCalibrationFiles({
     datasetPath: options.datasetPath,
+    sourceDatasetPath: options.sourceDatasetPath,
     batchLockPath: options.batchLockPath,
     assignmentPath: options.assignmentPath,
     mergeProvenancePath: options.mergeProvenancePath,

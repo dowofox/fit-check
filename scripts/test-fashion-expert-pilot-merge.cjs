@@ -176,8 +176,9 @@ async function main() {
       assert.deepEqual(first.provenance.evaluators.map((entry) => entry.evaluatorId), [
         "pilot-reviewer-a", "pilot-reviewer-b",
       ]);
-      assert.equal(first.provenance.schemaVersion, "expert-pilot-merge-provenance-v2");
+      assert.equal(first.provenance.schemaVersion, "expert-pilot-merge-provenance-v3");
       assert.match(first.provenance.assignmentDigestSha256, /^[a-f0-9]{64}$/);
+      assert.match(first.provenance.sourceDatasetDigestSha256, /^[a-f0-9]{64}$/);
       assert.equal(
         first.provenance.mergedDatasetDigestSha256,
         require("node:crypto").createHash("sha256")

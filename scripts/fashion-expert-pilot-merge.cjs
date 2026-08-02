@@ -22,7 +22,7 @@ const {
   validateAssignmentManifest,
 } = require("./fashion-expert-pilot-assignment.cjs");
 
-const MERGE_PROVENANCE_SCHEMA_VERSION = "expert-pilot-merge-provenance-v2";
+const MERGE_PROVENANCE_SCHEMA_VERSION = "expert-pilot-merge-provenance-v3";
 const ATOMIC_PAIR_TRANSACTION_SCHEMA_VERSION = "atomic-json-pair-v2";
 const ABSOLUTE_EVALUATION_KEYS = new Set([
   "schemaVersion", "evaluationId", "outfitId", "rubricVersion", "evaluatorId",
@@ -444,6 +444,7 @@ function createMergeProvenance({
     datasetId: sourceDataset.datasetId,
     datasetVersion: sourceDataset.datasetVersion,
     rubricVersion: sourceDataset.rubricVersion,
+    sourceDatasetDigestSha256: digest(getSemanticDatasetPayload(sourceDataset)),
     snapshotDigestSha256: batchLock.dataset.snapshotDigestSha256,
     protocolDigestSha256: batchLock.protocol.protocolDigestSha256,
     evaluators: [...inputs]

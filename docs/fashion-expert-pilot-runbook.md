@@ -173,6 +173,7 @@ npm run fashion:expert:report -- merged-expert-pilot.json
 ```powershell
 npm run fashion:expert:pilot:readiness -- `
   --dataset merged-expert-pilot.json `
+  --source-dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
   --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
   --assignment fashion-expert-pilot-output/assignment.json `
   --merge-provenance merged-expert-pilot.json.pilot-merge-provenance.json `
@@ -190,6 +191,7 @@ npm run fashion:expert:pilot:readiness -- `
 ```powershell
 npm run fashion:expert:pilot:review-packet -- `
   --dataset merged-expert-pilot.json `
+  --source-dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
   --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
   --assignment fashion-expert-pilot-output/assignment.json `
   --merge-provenance merged-expert-pilot.json.pilot-merge-provenance.json `
