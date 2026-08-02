@@ -87,8 +87,7 @@ function isValidSavedOutfit(value: unknown): value is SavedOutfit {
     typeof value.grade === "string" &&
     isStringArray(value.reasons) &&
     isStringArray(value.warnings) &&
-    typeof value.createdAt === "string" &&
-    Boolean(value.createdAt)
+    Boolean(normalizeCanonicalIsoTimestamp(value.createdAt))
   );
 }
 

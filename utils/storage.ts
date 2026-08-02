@@ -482,9 +482,16 @@ function isStoredSavedOutfit(value: unknown): value is SavedOutfit {
     value.reasons.every((reason) => typeof reason === "string") &&
     Array.isArray(value.warnings) &&
     value.warnings.every((warning) => typeof warning === "string") &&
-    typeof value.createdAt === "string" &&
-    Boolean(value.createdAt)
+    Boolean(normalizeCanonicalIsoTimestamp(value.createdAt))
   );
+}
+
+function serializeStoredSavedOutfits(outfits: SavedOutfit[]) {
+  if (!outfits.every(isStoredSavedOutfit)) {
+    throw new Error("Saved outfit data contains an invalid item");
+  }
+
+  return JSON.stringify(outfits);
 }
 
 function parseStoredSavedOutfits(rawValue: string | null) {
@@ -1292,7 +1299,7 @@ export function saveOutfit(outfit: SavedOutfit): Promise<SaveOutfitResult> {
         "savedOutfitRevision",
       ]);
       await persistStorageMutationEntries([
-        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+        [SAVED_OUTFITS_KEY, serializeStoredSavedOutfits(updatedOutfits)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
 
@@ -1613,7 +1620,7 @@ export async function deleteSavedOutfit(id: string): Promise<SavedOutfit[] | nul
       const filteredOutfits = savedOutfits.filter((outfit) => outfit.id !== id);
 
       await persistStorageMutationEntries([
-        [SAVED_OUTFITS_KEY, JSON.stringify(filteredOutfits)],
+        [SAVED_OUTFITS_KEY, serializeStoredSavedOutfits(filteredOutfits)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
 
@@ -1640,7 +1647,7 @@ export async function updateSavedOutfit(
       );
 
       await persistStorageMutationEntries([
-        [SAVED_OUTFITS_KEY, JSON.stringify(updatedOutfits)],
+        [SAVED_OUTFITS_KEY, serializeStoredSavedOutfits(updatedOutfits)],
         [RECOMMENDATION_REVISIONS_STORAGE_KEY, JSON.stringify(revisions)],
       ]);
 
@@ -1724,7 +1731,7 @@ export function restoreNaesBackupDataSnapshot(
       await AsyncStorage.multiSet([
         ...getClosetStorageEntries(snapshot.closetItems, revisions),
         [PROFILE_KEY, JSON.stringify(restoredProfile)],
-        [SAVED_OUTFITS_KEY, JSON.stringify(snapshot.savedOutfits)],
+        [SAVED_OUTFITS_KEY, serializeStoredSavedOutfits(snapshot.savedOutfits)],
         [OUTFIT_FEEDBACK_KEY, JSON.stringify(outfitFeedbacks)],
         [OUTFIT_WEAR_RECORDS_KEY, JSON.stringify(wearRecords)],
         [HOME_RECOMMENDATION_CACHE_STORAGE_KEY, ""],

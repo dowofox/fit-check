@@ -775,6 +775,12 @@ test("saved outfit reads distinguish storage failures from an empty list", async
   assert.deepEqual(failedResult, { status: "failed", outfits: [] });
   assert.equal((await getSavedOutfits()).length, 1);
 
+  storageMemory.set(
+    SAVED_OUTFITS_KEY,
+    JSON.stringify([outfit, { ...outfit, id: "corrupted-time", createdAt: "9999" }])
+  );
+  assert.deepEqual((await getSavedOutfitsLoadResult()).outfits, [outfit]);
+
   storageMemory.delete(SAVED_OUTFITS_KEY);
   assert.deepEqual(await getSavedOutfitsLoadResult(), {
     status: "loaded",
@@ -956,6 +962,31 @@ test("closet reads distinguish storage failures from an empty closet", async () 
     status: "loaded",
     items: [],
   });
+});
+
+test("saved outfit writes reject non-canonical creation timestamps", async () => {
+  const outfit = createSavedOutfit("canonical-saved-time", ["top-1", "bottom-1"]);
+  assert.equal((await saveOutfit(outfit)).status, "saved");
+  const snapshot = storageMemory.get(SAVED_OUTFITS_KEY);
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    assert.equal(
+      (
+        await saveOutfit({
+          ...createSavedOutfit("corrupted-saved-time", ["top-2", "bottom-2"]),
+          createdAt: "9999",
+        })
+      ).status,
+      "failed"
+    );
+    assert.equal(await updateSavedOutfit(outfit.id, { createdAt: "9999" }), null);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(storageMemory.get(SAVED_OUTFITS_KEY), snapshot);
 });
 
 test("closet timestamps must use the canonical ISO format", async () => {
