@@ -15,6 +15,7 @@ const {
 } = require("./run-fashion-expert-pilot.cjs");
 const {
   createBatchLock,
+  getOutputDatasetDigest,
   getOutputProvenancePath,
 } = require("./fashion-expert-pilot-provenance.cjs");
 const {
@@ -501,6 +502,7 @@ async function main() {
       assert.equal(initialProvenance.evaluatorId, options.evaluatorId);
       assert.equal(initialProvenance.assignmentDigestSha256, assignment.assignmentDigestSha256);
       assert.equal(initialProvenance.completedAt, null);
+      assert.equal(initialProvenance.completedDatasetDigestSha256, null);
       assert.doesNotMatch(
         JSON.stringify(initialProvenance),
         new RegExp(directory.replace(/\\/g, "\\\\"), "i")
@@ -657,6 +659,10 @@ async function main() {
       const completedProvenance = readPilotJson(provenancePath, "Pilot output provenance");
       assert.match(completedProvenance.completedAt, /^\d{4}-\d{2}-\d{2}T/);
       assert.equal(completedProvenance.completedAt, completedProvenance.updatedAt);
+      assert.equal(
+        completedProvenance.completedDatasetDigestSha256,
+        getOutputDatasetDigest(readJson(outputPath))
+      );
 
       const resaved = await fetchJson(`${origin}/api/evaluations/1`, {
         method: "POST",
@@ -668,6 +674,11 @@ async function main() {
         readPilotJson(provenancePath, "Pilot output provenance").completedAt,
         null
       );
+      assert.equal(
+        readPilotJson(provenancePath, "Pilot output provenance")
+          .completedDatasetDigestSha256,
+        null
+      );
       const recompleted = await fetchJson(`${origin}/api/complete`, {
         method: "POST",
         headers: resumedHeaders,
@@ -677,6 +688,11 @@ async function main() {
       assert.match(
         readPilotJson(provenancePath, "Pilot output provenance").completedAt,
         /^\d{4}-\d{2}-\d{2}T/
+      );
+      assert.equal(
+        readPilotJson(provenancePath, "Pilot output provenance")
+          .completedDatasetDigestSha256,
+        getOutputDatasetDigest(readJson(outputPath))
       );
 
       const finalOutput = readJson(outputPath);

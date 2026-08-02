@@ -14,6 +14,7 @@ const {
   createOutputProvenance,
   getDatasetSnapshotDigest,
   getExpertPilotProtocolDigest,
+  getOutputDatasetDigest,
   validateBatchLock,
 } = require("./fashion-expert-pilot-provenance.cjs");
 const { freezeBatch } = require("./freeze-fashion-expert-pilot.cjs");
@@ -409,7 +410,29 @@ async function main() {
         now: "2026-08-02T00:00:00.000Z",
       });
       assert.equal(provenance.completedAt, null);
+      assert.equal(provenance.completedDatasetDigestSha256, null);
+      assert.equal(provenance.schemaVersion, "expert-pilot-output-provenance-v4");
       assertOutputProvenanceMatches(provenance, provenance);
+      const completedDigest = getOutputDatasetDigest(dataset);
+      const completedProvenance = createOutputProvenance({
+        lock,
+        session,
+        assignmentDigestSha256: assignment.assignmentDigestSha256,
+        now: "2026-08-02T00:00:00.000Z",
+        completedAt: "2026-08-02T00:00:00.000Z",
+        completedDatasetDigestSha256: completedDigest,
+      });
+      assert.equal(completedProvenance.completedDatasetDigestSha256, completedDigest);
+      assert.throws(
+        () => createOutputProvenance({
+          lock,
+          session,
+          assignmentDigestSha256: assignment.assignmentDigestSha256,
+          now: "2026-08-02T00:00:00.000Z",
+          completedAt: "2026-08-02T00:00:00.000Z",
+        }),
+        /requires its dataset digest/
+      );
       assert.throws(
         () => assertOutputProvenanceMatches(
           provenance,

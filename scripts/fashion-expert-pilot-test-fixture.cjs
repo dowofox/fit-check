@@ -9,6 +9,7 @@ const {
 } = require("./fashion-expert-pilot-merge.cjs");
 const {
   createOutputProvenance,
+  getOutputDatasetDigest,
 } = require("./fashion-expert-pilot-provenance.cjs");
 const {
   buildPilotAbsoluteEvaluation,
@@ -78,6 +79,7 @@ function createMergedPilot(evaluatorIds = ["readiness-reviewer-a", "readiness-re
         assignmentDigestSha256: assignmentManifest.assignmentDigestSha256,
         now: "2026-08-02T00:00:00.000Z",
         completedAt: "2026-08-02T00:00:00.000Z",
+        completedDatasetDigestSha256: getOutputDatasetDigest(dataset),
       }),
     };
   });

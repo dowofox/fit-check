@@ -103,12 +103,12 @@ UI에는 pairwise 비교, 총점 계산, professional score가 없다. 평가는
 ## 저장과 재개
 
 - Output은 임시 파일에 write·fsync한 뒤 rename하는 방식으로 원자적으로 저장한다.
-- Output 옆의 `<output>.pilot-provenance.json`에는 batch fingerprint, evaluator ID, seed, Case 순서 digest와 생성·수정·완료 시각만 저장한다. 경로, asset ID, 이미지 바이트는 저장하지 않는다.
+- Output 옆의 `<output>.pilot-provenance.json`에는 batch fingerprint, evaluator ID, seed, Case 순서 digest, 생성·수정·완료 시각과 완료 당시 output digest만 저장한다. 경로, asset ID, 이미지 바이트는 저장하지 않는다.
 - 동일한 dataset, evaluator ID, seed, output 경로로 다시 실행하면 완료된 Case를 불러오고 첫 미완료 Case부터 재개한다.
 - Evaluation ID와 Case 순서는 dataset ID, evaluator ID, rubric version, seed를 기준으로 결정적이다.
 - 같은 evaluator + outfit + rubric 평가는 새 레코드를 추가하지 않고 교체한다.
 - 기존 output이 손상됐거나 provenance sidecar가 없거나 batch, evaluator, seed, Case 순서가 다르면 시작 전에 중단한다.
-- `completedAt`은 모든 Case를 저장한 뒤 완료 API가 성공할 때만 기록한다. 완료 후 평가를 다시 저장할 때는 데이터 교체보다 먼저 완료 표식을 지워 중단 시에도 병합을 닫아 두며, 재완료 전에는 병합하지 않는다. v2 sidecar도 병합하지 않는다.
+- `completedAt`과 완료 당시 output digest는 모든 Case를 저장한 뒤 완료 API가 성공할 때만 함께 기록한다. 완료 후 평가를 다시 저장할 때는 데이터 교체보다 먼저 둘을 지워 중단 시에도 병합을 닫아 두며, 재완료 전에는 병합하지 않는다. 이전 schema sidecar도 병합하지 않는다.
 - Input dataset은 수정하지 않는다.
 
 Output과 로컬 manifest 기본 패턴은 `.gitignore`에 포함된다. 실제 파일럿 자료를 repository에 커밋하지 않는다.

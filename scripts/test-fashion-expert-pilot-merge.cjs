@@ -14,6 +14,7 @@ const {
 const {
   canonicalJson,
   createOutputProvenance,
+  getOutputDatasetDigest,
   getOutputProvenancePath,
 } = require("./fashion-expert-pilot-provenance.cjs");
 const {
@@ -89,6 +90,7 @@ function createEvaluatorInput(directory, evaluatorId, options = {}) {
     assignmentDigestSha256: assignment.assignmentDigestSha256,
     now,
     completedAt: now,
+    completedDatasetDigestSha256: getOutputDatasetDigest(dataset),
   });
   writeJson(outputPath, dataset);
   writeJson(getOutputProvenancePath(outputPath), provenance);
@@ -125,6 +127,9 @@ function rewriteInput(input, mutateDataset, mutateProvenance) {
   const dataset = structuredClone(input.dataset);
   const provenance = structuredClone(input.provenance);
   mutateDataset?.(dataset);
+  if (mutateDataset && provenance.completedAt) {
+    provenance.completedDatasetDigestSha256 = getOutputDatasetDigest(dataset);
+  }
   mutateProvenance?.(provenance);
   writeJson(input.outputPath, dataset);
   writeJson(getOutputProvenancePath(input.outputPath), provenance);
@@ -223,6 +228,7 @@ async function main() {
       const options = mergeOptions(directory, inputs);
       rewriteInput(inputs[0], undefined, (provenance) => {
         provenance.completedAt = null;
+        provenance.completedDatasetDigestSha256 = null;
       });
       assert.throws(() => mergePilotFiles(options), /not marked complete/);
       assert.equal(fs.existsSync(options.outputPath), false);
@@ -261,7 +267,13 @@ async function main() {
       const pairwiseInputs = inputs.map((input) => {
         const dataset = structuredClone(input.dataset);
         dataset.pairwiseEvaluations[0].createdAt = pairwiseCreatedAt;
-        return { dataset, provenance: input.provenance };
+        return {
+          dataset,
+          provenance: {
+            ...input.provenance,
+            completedDatasetDigestSha256: getOutputDatasetDigest(dataset),
+          },
+        };
       });
       assert.throws(() => mergePilotDatasets({
         sourceDataset,
@@ -302,6 +314,24 @@ async function main() {
       const [first, second] = createEvaluatorInputs(directory, ["reviewer-a", "reviewer-b"]);
       rewriteInput(second, undefined, (value) => { value.evaluatorId = "reviewer-a"; });
       assert.throws(() => mergePilotFiles(mergeOptions(directory, [first, second])), /Duplicate evaluator/);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  await test("post-completion evaluator changes are rejected", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-merge-completed-digest-"));
+    try {
+      const [first, second] = createEvaluatorInputs(directory, ["reviewer-a", "reviewer-b"]);
+      const changedDataset = readJson(first.outputPath);
+      changedDataset.absoluteEvaluations.find(
+        (entry) => entry.evaluatorId === first.provenance.evaluatorId
+      ).evaluatorConfidence = 4;
+      writeJson(first.outputPath, changedDataset);
+      assert.throws(
+        () => mergePilotFiles(mergeOptions(directory, [first, second])),
+        /completed dataset digest/
+      );
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
@@ -476,6 +506,9 @@ async function main() {
         (evaluation) => evaluation.evaluatorId === "reviewer-b"
       ).durationSeconds += 1;
       writeJson(second.outputPath, changedInput);
+      const changedProvenance = readJson(getOutputProvenancePath(second.outputPath));
+      changedProvenance.completedDatasetDigestSha256 = getOutputDatasetDigest(changedInput);
+      writeJson(getOutputProvenancePath(second.outputPath), changedProvenance);
       assert.throws(
         () => mergePilotFiles(options),
         /does not match the current validated inputs/

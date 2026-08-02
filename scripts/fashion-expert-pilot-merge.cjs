@@ -8,6 +8,7 @@ const {
   getDatasetSnapshotDigest,
   getExpertPilotProtocolDigest,
   getOrderedOutfitIdsDigest,
+  getOutputDatasetDigest,
   getOutputProvenancePath,
   validateBatchLock,
   validateOutputProvenance,
@@ -364,6 +365,9 @@ function validateEvaluatorInput({
   }
   assertInputBase(sourceDataset, inputDataset);
   if (!provenance.completedAt) fail("Evaluator output is not marked complete.");
+  if (provenance.completedDatasetDigestSha256 !== getOutputDatasetDigest(inputDataset)) {
+    fail("Evaluator output does not match its completed dataset digest.");
+  }
   const outputCompletedAt = Date.parse(provenance.completedAt);
   if ([...inputDataset.absoluteEvaluations, ...inputDataset.pairwiseEvaluations].some(
     (evaluation) => Date.parse(evaluation.createdAt) > outputCompletedAt

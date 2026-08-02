@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 
 const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v3";
-const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v3";
+const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v4";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const OUTPUT_PROVENANCE_KEYS = [
   "schemaVersion",
@@ -18,6 +18,7 @@ const OUTPUT_PROVENANCE_KEYS = [
   "createdAt",
   "updatedAt",
   "completedAt",
+  "completedDatasetDigestSha256",
 ];
 
 function fail(message) {
@@ -195,11 +196,25 @@ function getOrderedOutfitIdsDigest(orderedOutfitIds) {
   return sha256(canonicalJson(orderedOutfitIds));
 }
 
+function getOutputDatasetDigest(dataset) {
+  if (!dataset || typeof dataset !== "object" || Array.isArray(dataset)) {
+    fail("Pilot output dataset is required for its completion digest.");
+  }
+  return sha256(canonicalJson(dataset));
+}
+
 function createOutputProvenance({
   lock, session, assignmentDigestSha256, now, createdAt, completedAt,
+  completedDatasetDigestSha256,
 }) {
   if (!SHA256_PATTERN.test(assignmentDigestSha256 || "")) {
     fail("Assignment digest is required for pilot output provenance.");
+  }
+  if (completedAt && !SHA256_PATTERN.test(completedDatasetDigestSha256 || "")) {
+    fail("Completed pilot output requires its dataset digest.");
+  }
+  if (!completedAt && completedDatasetDigestSha256 != null) {
+    fail("Incomplete pilot output cannot have a completed dataset digest.");
   }
   const timestamp = now || new Date().toISOString();
   return {
@@ -216,6 +231,7 @@ function createOutputProvenance({
     createdAt: createdAt || timestamp,
     updatedAt: timestamp,
     completedAt: completedAt || null,
+    completedDatasetDigestSha256: completedAt ? completedDatasetDigestSha256 : null,
   };
 }
 
@@ -269,6 +285,11 @@ function validateOutputProvenance(provenance) {
     if (completedAt.getTime() < Date.parse(provenance.updatedAt)) {
       fail("Pilot output provenance completion precedes its last update.");
     }
+    if (!SHA256_PATTERN.test(provenance.completedDatasetDigestSha256 || "")) {
+      fail("Pilot output provenance completed dataset digest is invalid.");
+    }
+  } else if (provenance.completedDatasetDigestSha256 !== null) {
+    fail("Incomplete pilot output cannot have a completed dataset digest.");
   }
   return provenance;
 }
@@ -307,6 +328,7 @@ module.exports = {
   getDatasetSnapshotDigest,
   getExpertPilotProtocolDigest,
   getOrderedOutfitIdsDigest,
+  getOutputDatasetDigest,
   getOutputProvenancePath,
   validateBatchLock,
   validateOutputProvenance,

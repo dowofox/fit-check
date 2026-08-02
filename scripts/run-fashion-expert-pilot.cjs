@@ -51,6 +51,7 @@ const {
   assertOutputProvenanceMatches,
   createBatchLock,
   createOutputProvenance,
+  getOutputDatasetDigest,
   getOutputProvenancePath,
 } = require("./fashion-expert-pilot-provenance.cjs");
 
@@ -435,6 +436,12 @@ function createPilotServer(options) {
   if (fs.existsSync(provenancePath)) {
     provenance = readJson(provenancePath, "Pilot output provenance");
     assertOutputProvenanceMatches(provenance, expectedProvenance);
+    if (
+      provenance.completedAt &&
+      provenance.completedDatasetDigestSha256 !== getOutputDatasetDigest(dataset)
+    ) {
+      fail("Completed pilot output does not match its completion digest.");
+    }
   } else {
     provenance = expectedProvenance;
     atomicWriteJson(provenancePath, provenance);
@@ -635,6 +642,7 @@ function createPilotServer(options) {
           now: completedAt,
           createdAt: provenance.createdAt,
           completedAt,
+          completedDatasetDigestSha256: getOutputDatasetDigest(dataset),
         });
         atomicWriteJson(provenancePath, provenance);
         sendJson(response, 200, {
