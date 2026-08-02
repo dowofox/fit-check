@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "expert-dataset-v1",
+  "datasetId": "synthetic-invalid",
+  "datasetVersion": "1.0.0",
+  "rubricVersion": "expert-rubric-draft-v0.1",
+  "createdAt": "2026-07-01T00:00:00.000Z",
+  "source": "synthetic_test",
+  "productName": "This prohibited field intentionally makes the fixture invalid",
+  "snapshots": [
+    {
+      "outfitId": "outfit-invalid",
+      "itemRefs": [{ "anonymousItemId": "anon-invalid", "category": "top" }],
+      "context": { "styleIntent": "unknown", "occasion": "unknown", "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" } },
+      "featureVersions": {},
+      "createdAt": "2026-07-01T00:00:00.000Z"
+    }
+  ],
+  "absoluteEvaluations": [],
+  "pairwiseEvaluations": [
+    {
+      "schemaVersion": "expert-pairwise-v1",
+      "evaluationId": "pair-invalid",
+      "outfitIdA": "outfit-invalid",
+      "outfitIdB": "outfit-invalid",
+      "contextCompatibility": "same_context",
+      "preferred": "a",
+      "dimensions": [],
+      "evaluatorId": "eval-invalid",
+      "rubricVersion": "expert-rubric-draft-v0.1",
+      "createdAt": "2026-07-01T00:01:00.000Z"
+    }
+  ],
+  "metadata": { "evaluatorCount": 1, "outfitCount": 1 }
+}
