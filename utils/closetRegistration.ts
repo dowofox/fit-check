@@ -9,11 +9,28 @@ const UNCERTAIN_VALUE_PATTERN = /확인\s*필요|판단\s*어려움|분석\s*전
 export { normalizeClosetSeasons } from "@/utils/closetSeason";
 
 export type RegistrationReviewField = "category" | "color" | "season";
+export type RegistrationCompletionAction = "closet" | "fit" | "measurement";
 export type RegistrationValidationResult = {
   valid: boolean;
   missingFields: RegistrationReviewField[];
   invalidFields: RegistrationReviewField[];
 };
+
+export function getRegistrationCompletionAction({
+  hasConfirmedProduct,
+  hasProductSizeGuide,
+  supportsFitResult,
+  supportsMeasurements,
+}: {
+  hasConfirmedProduct: boolean;
+  hasProductSizeGuide: boolean;
+  supportsFitResult: boolean;
+  supportsMeasurements: boolean;
+}): RegistrationCompletionAction {
+  if (!hasConfirmedProduct) return "closet";
+  if (!hasProductSizeGuide && supportsMeasurements) return "measurement";
+  return hasProductSizeGuide && supportsFitResult ? "fit" : "closet";
+}
 
 const REGISTRATION_FIELD_ORDER: RegistrationReviewField[] = [
   "category",

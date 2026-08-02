@@ -85,6 +85,7 @@ const {
 } = require("../utils/analysisImage.ts");
 const {
   createClosetItemId,
+  getRegistrationCompletionAction,
   getUniqueRegistrationImageUris,
   getClosetItemReviewFields,
   getProductRegistrationReviewFields,
@@ -214,6 +215,52 @@ const fixtureServer = http.createServer((request, response) => {
 });
 
 async function main() {
+  assert.equal(
+    getRegistrationCompletionAction({
+      hasConfirmedProduct: true,
+      hasProductSizeGuide: true,
+      supportsFitResult: true,
+      supportsMeasurements: true,
+    }),
+    "fit"
+  );
+  assert.equal(
+    getRegistrationCompletionAction({
+      hasConfirmedProduct: true,
+      hasProductSizeGuide: false,
+      supportsFitResult: true,
+      supportsMeasurements: true,
+    }),
+    "measurement"
+  );
+  assert.equal(
+    getRegistrationCompletionAction({
+      hasConfirmedProduct: false,
+      hasProductSizeGuide: false,
+      supportsFitResult: true,
+      supportsMeasurements: true,
+    }),
+    "closet"
+  );
+  assert.equal(
+    getRegistrationCompletionAction({
+      hasConfirmedProduct: true,
+      hasProductSizeGuide: true,
+      supportsFitResult: false,
+      supportsMeasurements: true,
+    }),
+    "closet"
+  );
+  assert.equal(
+    getRegistrationCompletionAction({
+      hasConfirmedProduct: true,
+      hasProductSizeGuide: false,
+      supportsFitResult: false,
+      supportsMeasurements: true,
+    }),
+    "measurement"
+  );
+
   const firstGeneratedItemId = createClosetItemId(1_720_000_000_000, 0.1);
   const secondGeneratedItemId = createClosetItemId(1_720_000_000_000, 0.2);
   assert.match(firstGeneratedItemId, /^1720000000000-[a-z0-9]{11}$/);

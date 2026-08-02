@@ -18,6 +18,7 @@ import {
 import { normalizeProductColor } from "@/utils/color";
 import {
   createClosetItemId,
+  getRegistrationCompletionAction,
   getUniqueRegistrationImageUris,
   getProductRegistrationReviewFields,
   getRegistrationReviewLabels,
@@ -1052,12 +1053,18 @@ export default function AddClothesScreen() {
       }
       didPersistClosetItem = true;
 
-      const needsManualSizeGuide =
-        Boolean(confirmedProduct) &&
-        supportsProductMeasurements(finalItem.category) &&
-        !confirmedProduct?.productSizeGuide?.sizes?.length;
+      const completionAction = getRegistrationCompletionAction({
+        hasConfirmedProduct: Boolean(confirmedProduct),
+        hasProductSizeGuide: Boolean(
+          confirmedProduct?.productSizeGuide?.sizes?.length
+        ),
+        supportsFitResult:
+          supportsProductMeasurements(finalItem.category) &&
+          !finalItem.category?.includes("신발"),
+        supportsMeasurements: supportsProductMeasurements(finalItem.category),
+      });
 
-      if (needsManualSizeGuide) {
+      if (completionAction === "measurement") {
         const sizeGuideNotice = getProductSizeGuideStatusMessage(
           extractedProduct?.sizeGuideStatus
         );
@@ -1071,6 +1078,25 @@ export default function AddClothesScreen() {
               router.replace({
                 pathname: "/clothes-detail",
                 params: { id: finalItem.id, openMeasurement: "1" },
+              }),
+          },
+        ]);
+      } else if (completionAction === "fit") {
+        const message = [
+          classificationNotice,
+          "상품 실측을 기준으로 내 체형에 맞는 사이즈와 핏을 확인할 수 있어요.",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+
+        Alert.alert("옷 저장 완료", message, [
+          { text: "옷장으로", onPress: () => router.replace("/closet") },
+          {
+            text: "핏 결과 보기",
+            onPress: () =>
+              router.replace({
+                pathname: "/clothes-detail",
+                params: { id: finalItem.id },
               }),
           },
         ]);
