@@ -457,6 +457,17 @@ test("backup snapshot rejects partially corrupted source arrays", async () => {
   const invalidSources = [
     ["naes_closet", [...snapshot.closetItems, { id: "broken-item" }]],
     [
+      "naes_closet",
+      [
+        ...snapshot.closetItems,
+        {
+          ...snapshot.closetItems[0],
+          id: "broken-created-at",
+          createdAt: "9999",
+        },
+      ],
+    ],
+    [
       "naes_saved_outfits",
       [...snapshot.savedOutfits, { id: "broken-outfit", itemIds: "not-an-array" }],
     ],

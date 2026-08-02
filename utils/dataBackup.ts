@@ -6,6 +6,7 @@ import type {
   SavedOutfit,
   UserProfile,
 } from "@/utils/storage";
+import { normalizeCanonicalIsoTimestamp } from "@/utils/dateTime";
 import { normalizeOutfitWearTimestamp } from "@/utils/outfitWear";
 import { normalizeOutfitFeedbackTimestamp } from "@/utils/outfitFeedback";
 
@@ -70,8 +71,7 @@ function isValidClosetItem(value: unknown): value is ClosetItem {
     typeof value.imageUri === "string" &&
     typeof value.category === "string" &&
     Boolean(value.category) &&
-    typeof value.createdAt === "string" &&
-    Boolean(value.createdAt)
+    Boolean(normalizeCanonicalIsoTimestamp(value.createdAt))
   );
 }
 

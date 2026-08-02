@@ -1,3 +1,5 @@
+import { normalizeCanonicalIsoTimestamp } from "@/utils/dateTime";
+
 export type OutfitWearRecord = {
   id: string;
   savedOutfitId?: string;
@@ -23,14 +25,7 @@ export function getLocalDateKey(date = new Date()) {
 }
 
 export function normalizeOutfitWearTimestamp(value: unknown) {
-  if (typeof value !== "string" || !value.trim()) return undefined;
-
-  const normalizedValue = value.trim();
-  const timestamp = new Date(normalizedValue).getTime();
-  if (Number.isNaN(timestamp)) return undefined;
-
-  const isoTimestamp = new Date(timestamp).toISOString();
-  return isoTimestamp === normalizedValue ? isoTimestamp : undefined;
+  return normalizeCanonicalIsoTimestamp(value);
 }
 
 export function normalizeOutfitWearRecords(value: unknown): OutfitWearRecord[] {

@@ -958,6 +958,29 @@ test("closet reads distinguish storage failures from an empty closet", async () 
   });
 });
 
+test("closet timestamps must use the canonical ISO format", async () => {
+  const validItem = createClosetItem("canonical-closet-time");
+  const corruptedItem = {
+    ...validItem,
+    id: "corrupted-closet-time",
+    createdAt: "9999",
+  };
+
+  storageMemory.set(CLOSET_KEY, JSON.stringify([validItem, corruptedItem]));
+  assert.deepEqual((await getClosetItemsLoadResult()).items, [validItem]);
+  storageMemory.set(CLOSET_KEY, JSON.stringify([validItem]));
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    assert.deepEqual(await saveClosetItem(corruptedItem), []);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(JSON.parse(storageMemory.get(CLOSET_KEY)), [validItem]);
+});
+
 test("closet mutations do not replace malformed stored data with an empty list", async () => {
   const malformedCloset = "{not-valid-json";
   storageMemory.set(CLOSET_KEY, malformedCloset);
@@ -1383,6 +1406,16 @@ test("손상되거나 오래된 인덱스는 사용하지 않는다", async () =
 
   const staleIndex = buildClosetRecommendationIndex([item], 2, "2026-07-17T00:00:00.000Z");
   assert.equal(parseClosetRecommendationIndex(JSON.stringify(staleIndex), 3).status, "stale");
+  assert.equal(
+    parseClosetRecommendationIndex(
+      JSON.stringify({
+        ...staleIndex,
+        recommendationItems: [{ ...item, createdAt: "9999" }],
+      }),
+      2
+    ).status,
+    "invalid"
+  );
   assert.equal(
     parseClosetRecommendationIndex(
       JSON.stringify({ ...staleIndex, version: 99 }),

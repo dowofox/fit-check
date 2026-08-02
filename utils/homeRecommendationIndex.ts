@@ -1,4 +1,5 @@
 import { toRecommendationInputItems } from "@/utils/recommendationInput";
+import { normalizeCanonicalIsoTimestamp } from "@/utils/dateTime";
 import type { ClosetItem } from "@/utils/storage";
 
 export const CLOSET_RECOMMENDATION_INDEX_STORAGE_KEY =
@@ -163,7 +164,7 @@ function isValidRecommendationItem(value: unknown): value is ClosetItem {
     typeof item.id === "string" &&
     typeof item.category === "string" &&
     typeof item.imageUri === "string" &&
-    typeof item.createdAt === "string" &&
+    Boolean(normalizeCanonicalIsoTimestamp(item.createdAt)) &&
     (!measurementRows || measurementRows.length <= 1)
   );
 }

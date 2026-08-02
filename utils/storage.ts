@@ -12,6 +12,7 @@ import {
   type RecommendationRevisionState,
 } from "@/utils/homeRecommendationIndex";
 import { normalizeClosetItemSeasonFields } from "@/utils/closetSeason";
+import { normalizeCanonicalIsoTimestamp } from "@/utils/dateTime";
 import {
   getOutfitFeedbackKey,
   normalizeOutfitFeedbackTimestamp,
@@ -418,8 +419,7 @@ function isStoredClosetItem(value: unknown): value is ClosetItem {
     typeof value.imageUri === "string" &&
     typeof value.category === "string" &&
     Boolean(value.category) &&
-    typeof value.createdAt === "string" &&
-    Boolean(value.createdAt)
+    Boolean(normalizeCanonicalIsoTimestamp(value.createdAt))
   );
 }
 
@@ -660,6 +660,10 @@ function getClosetStorageEntries(
   closet: ClosetItem[],
   revisions: RecommendationRevisionState
 ): [string, string][] {
+  if (!closet.every(isStoredClosetItem)) {
+    throw new Error("Closet data contains an invalid item");
+  }
+
   const recommendationIndex = buildClosetRecommendationIndex(
     closet,
     revisions.closetRevision
