@@ -25,8 +25,12 @@ export function getLocalDateKey(date = new Date()) {
 export function normalizeOutfitWearTimestamp(value: unknown) {
   if (typeof value !== "string" || !value.trim()) return undefined;
 
-  const timestamp = new Date(value).getTime();
-  return Number.isNaN(timestamp) ? undefined : new Date(timestamp).toISOString();
+  const normalizedValue = value.trim();
+  const timestamp = new Date(normalizedValue).getTime();
+  if (Number.isNaN(timestamp)) return undefined;
+
+  const isoTimestamp = new Date(timestamp).toISOString();
+  return isoTimestamp === normalizedValue ? isoTimestamp : undefined;
 }
 
 export function normalizeOutfitWearRecords(value: unknown): OutfitWearRecord[] {

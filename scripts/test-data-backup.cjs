@@ -475,7 +475,7 @@ test("backup snapshot rejects partially corrupted source arrays", async () => {
         {
           id: "broken-wear-time",
           itemIds: [snapshot.closetItems[0].id],
-          wornAt: "not-a-date",
+          wornAt: "9999",
           dateKey: "2026-07-17",
         },
       ],

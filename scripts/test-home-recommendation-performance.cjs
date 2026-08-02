@@ -602,7 +602,7 @@ test("wear record reads distinguish storage failures from empty history", async 
       {
         id: "broken-wear-timestamp",
         itemIds: [item.id],
-        wornAt: "not-a-date",
+        wornAt: "9999",
         dateKey: "2026-07-17",
       },
     ])
