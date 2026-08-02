@@ -11,55 +11,20 @@ const {
   renderCalibrationReviewPacketMarkdown,
 } = require("./fashion-expert-calibration-review-packet.cjs");
 const {
-  READINESS_CHECK_IDS,
-  READINESS_SCHEMA_VERSION,
-} = require("./fashion-expert-pilot-readiness.cjs");
-const {
-  REQUIRED_EXPERT_DIMENSIONS,
-} = require("../utils/fashionCompatibility/expert/rubricRegistry.ts");
+  createMergedPilot,
+} = require("./fashion-expert-pilot-test-fixture.cjs");
 
-function dimensionRecord(makeValue) {
-  return Object.fromEntries(REQUIRED_EXPERT_DIMENSIONS.map((dimension, index) => [
-    dimension,
-    makeValue(dimension, index),
-  ]));
+function packetInput(fixture) {
+  return {
+    dataset: fixture.mergedDataset,
+    batchLock: fixture.batchLock,
+    assignmentManifest: fixture.assignmentManifest,
+    mergeProvenance: fixture.provenance,
+  };
 }
 
-function validReadiness() {
-  return {
-    schemaVersion: READINESS_SCHEMA_VERSION,
-    ready: true,
-    status: "ready_for_calibration_review",
-    decisionScope: "calibration_review_only",
-    expertValidated: false,
-    productionEligible: false,
-    batchId: "pilot-batch-001",
-    batchFingerprintSha256: "1".repeat(64),
-    assignmentDigestSha256: "2".repeat(64),
-    mergedDatasetDigestSha256: "3".repeat(64),
-    counts: {
-      outfits: 5,
-      assignedEvaluators: 2,
-      expectedAssignedEvaluations: 10,
-      actualAssignedEvaluations: 10,
-      validationErrors: 0,
-      validationWarnings: 1,
-    },
-    checks: READINESS_CHECK_IDS.map((id) => ({ id, passed: true })),
-    diagnostics: {
-      coverageByDimension: dimensionRecord((_, index) => index === 0 ? 0.5 : 1),
-      unavailableRateByDimension: dimensionRecord((_, index) => index === 0 ? 0.5 : 0),
-      confidenceByDimension: dimensionRecord(() => 3),
-      agreementByDimension: dimensionRecord((_, index) => ({
-        responseCount: index === 0 ? 5 : 10,
-        comparisonCount: index === 0 ? 2 : 5,
-        exactAgreement: index === 0 ? 0.5 : 0.8,
-        adjacentAgreement: 1,
-        meanAbsoluteDifference: index === 0 ? 0.5 : 0.2,
-      })),
-      highDisagreementOutfitIds: ["outfit-003", "outfit-001", "outfit-003"],
-    },
-  };
+function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
 function test(name, run) {
@@ -67,147 +32,90 @@ function test(name, run) {
 }
 
 async function main() {
-  await test("ready input creates a deterministic review-only packet", () => {
-    const readiness = validReadiness();
-    readiness.rawNotes = "must not leak";
-    const packet = createCalibrationReviewPacket(readiness);
+  await test("verified pilot sources create a deterministic review-only packet", () => {
+    const fixture = createMergedPilot();
+    const input = packetInput(fixture);
+    const packet = createCalibrationReviewPacket(input);
     assert.equal(packet.schemaVersion, REVIEW_PACKET_SCHEMA_VERSION);
     assert.equal(packet.status, "ready_for_human_calibration_review");
+    assert.equal(packet.source.batchId, fixture.batchLock.batchId);
     assert.equal(packet.expertValidated, false);
     assert.equal(packet.productionEligible, false);
     assert.equal(packet.packetDigestSha256.length, 64);
-    assert.deepEqual(packet.reviewQueue.highDisagreementOutfitIds, [
-      "outfit-001",
-      "outfit-003",
-    ]);
-    assert.equal(packet.dimensions[0].coverage, 0.5);
-    assert.deepEqual(createCalibrationReviewPacket(readiness), packet);
-    assert.doesNotMatch(JSON.stringify(packet), /must not leak|rawNotes/);
+    assert.equal(packet.summary.reviewersPerOutfit, 2);
+    assert.deepEqual(createCalibrationReviewPacket(input), packet);
+    assert.doesNotMatch(
+      JSON.stringify(packet),
+      /(?:notes|productName|brandName|imageUri|token|base64|[A-Z]:\\)/i
+    );
   });
 
-  await test("blocked, incomplete, and malformed readiness cannot create a packet", () => {
-    const blocked = validReadiness();
-    blocked.ready = false;
-    blocked.status = "blocked";
-    assert.throws(() => createCalibrationReviewPacket(blocked), /not eligible/);
+  await test("tampered sources and incomplete assignment coverage cannot create a packet", () => {
+    const fixture = createMergedPilot();
+    const incomplete = structuredClone(fixture.mergedDataset);
+    incomplete.absoluteEvaluations.pop();
+    assert.throws(() => createCalibrationReviewPacket({
+      ...packetInput(fixture),
+      dataset: incomplete,
+    }), /not eligible/);
 
-    const failedCheck = validReadiness();
-    failedCheck.checks[0].passed = false;
-    assert.throws(() => createCalibrationReviewPacket(failedCheck), /must have passed/);
-
-    const incomplete = validReadiness();
-    incomplete.counts.actualAssignedEvaluations = 9;
-    assert.throws(() => createCalibrationReviewPacket(incomplete), /coverage is incomplete/);
-
-    const missingDimension = validReadiness();
-    delete missingDimension.diagnostics.coverageByDimension[REQUIRED_EXPERT_DIMENSIONS[0]];
-    assert.throws(() => createCalibrationReviewPacket(missingDimension), /do not match the rubric/);
-
-    const missingCheck = validReadiness();
-    missingCheck.checks.pop();
-    assert.throws(() => createCalibrationReviewPacket(missingCheck), /required gate checks/);
-
-    const invalidAgreement = validReadiness();
-    invalidAgreement.diagnostics.agreementByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ].exactAgreement = 1.2;
-    assert.throws(() => createCalibrationReviewPacket(invalidAgreement), /exact agreement/);
-
-    const invalidComparisonCount = validReadiness();
-    invalidComparisonCount.diagnostics.agreementByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ].comparisonCount = -1;
-    assert.throws(() => createCalibrationReviewPacket(invalidComparisonCount), /comparison count/);
-
-    const impossibleAgreement = validReadiness();
-    impossibleAgreement.diagnostics.agreementByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ].exactAgreement = 1;
-    impossibleAgreement.diagnostics.agreementByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ].adjacentAgreement = 0.8;
-    assert.throws(() => createCalibrationReviewPacket(impossibleAgreement), /cannot exceed/);
-
-    const impossiblePairCount = validReadiness();
-    impossiblePairCount.diagnostics.agreementByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = {
-      responseCount: 3,
-      comparisonCount: 2,
-      exactAgreement: 0.5,
-      adjacentAgreement: 1,
-      meanAbsoluteDifference: 0.5,
-    };
-    impossiblePairCount.diagnostics.coverageByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = 0.3;
-    impossiblePairCount.diagnostics.unavailableRateByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = 0.7;
-    assert.throws(() => createCalibrationReviewPacket(impossiblePairCount), /not possible/);
-
-    const metricsWithoutComparisons = validReadiness();
-    metricsWithoutComparisons.diagnostics.agreementByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = { responseCount: 1, comparisonCount: 0, exactAgreement: 0 };
-    metricsWithoutComparisons.diagnostics.coverageByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = 0.1;
-    metricsWithoutComparisons.diagnostics.unavailableRateByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = 0.9;
-    assert.throws(() => createCalibrationReviewPacket(metricsWithoutComparisons), /require comparisons/);
-
-    const impossibleZeroComparisons = validReadiness();
-    impossibleZeroComparisons.diagnostics.agreementByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = { responseCount: 6, comparisonCount: 0 };
-    impossibleZeroComparisons.diagnostics.coverageByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = 0.6;
-    impossibleZeroComparisons.diagnostics.unavailableRateByDimension[
-      REQUIRED_EXPERT_DIMENSIONS[0]
-    ] = 0.4;
-    assert.throws(() => createCalibrationReviewPacket(impossibleZeroComparisons), /not possible/);
+    const changedBatch = structuredClone(fixture.provenance);
+    changedBatch.batchId = "tampered-batch";
+    assert.throws(() => createCalibrationReviewPacket({
+      ...packetInput(fixture),
+      mergeProvenance: changedBatch,
+    }), /not eligible/);
   });
 
   await test("markdown keeps the review agenda readable without granting approval", () => {
-    const markdown = renderCalibrationReviewPacketMarkdown(
-      createCalibrationReviewPacket(validReadiness())
-    );
+    const packet = createCalibrationReviewPacket(packetInput(createMergedPilot()));
+    const markdown = renderCalibrationReviewPacketMarkdown(packet);
     assert.match(markdown, /Dimension review order/);
-    assert.match(markdown, /outfit-001/);
     assert.match(markdown, /Human calibration review only/);
     assert.match(markdown, /does not grant expert validation or production approval/);
   });
 
-  await test("CLI writes deterministic JSON or Markdown to a distinct path", () => {
+  await test("CLI recomputes readiness from four sources and rejects a readiness shortcut", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-calibration-packet-"));
     try {
-      const readinessPath = path.join(directory, "readiness.json");
+      const fixture = createMergedPilot();
+      const datasetPath = path.join(directory, "merged.json");
+      const batchLockPath = path.join(directory, "batch-lock.json");
+      const assignmentPath = path.join(directory, "assignment.json");
+      const provenancePath = path.join(directory, "merge-provenance.json");
       const jsonPath = path.join(directory, "packet.json");
       const markdownPath = path.join(directory, "packet.md");
-      fs.writeFileSync(readinessPath, `${JSON.stringify(validReadiness(), null, 2)}\n`);
+      writeJson(datasetPath, fixture.mergedDataset);
+      writeJson(batchLockPath, fixture.batchLock);
+      writeJson(assignmentPath, fixture.assignmentManifest);
+      writeJson(provenancePath, fixture.provenance);
+      const commonArguments = [
+        "--dataset", datasetPath,
+        "--batch-lock", batchLockPath,
+        "--assignment", assignmentPath,
+        "--merge-provenance", provenancePath,
+      ];
 
-      const jsonOptions = parseArguments([
-        "--readiness", readinessPath,
+      const jsonResult = createCalibrationReviewPacketFile(parseArguments([
+        ...commonArguments,
         "--format", "json",
         "--output", jsonPath,
-      ]);
-      const jsonResult = createCalibrationReviewPacketFile(jsonOptions);
+      ]));
       assert.deepEqual(JSON.parse(fs.readFileSync(jsonPath, "utf8")), jsonResult.packet);
 
-      const markdownOptions = parseArguments([
-        "--readiness", readinessPath,
+      createCalibrationReviewPacketFile(parseArguments([
+        ...commonArguments,
         "--format", "markdown",
         "--output", markdownPath,
-      ]);
-      createCalibrationReviewPacketFile(markdownOptions);
+      ]));
       assert.match(fs.readFileSync(markdownPath, "utf8"), /calibration review packet/);
       assert.throws(() => parseArguments([
-        "--readiness", readinessPath,
-        "--output", readinessPath,
-      ]), /different from --readiness/);
+        "--readiness", path.join(directory, "readiness.json"),
+      ]), /Invalid calibration review packet arguments/);
+      assert.throws(() => parseArguments([
+        ...commonArguments,
+        "--output", datasetPath,
+      ]), /different from all inputs/);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

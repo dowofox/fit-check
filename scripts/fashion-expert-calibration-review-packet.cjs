@@ -2,11 +2,12 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { readJson } = require("./run-fashion-expert-pilot.cjs");
 const { canonicalJson } = require("./fashion-expert-pilot-provenance.cjs");
 const {
   READINESS_CHECK_IDS,
   READINESS_SCHEMA_VERSION,
+  assessPilotCalibrationFiles,
+  assessPilotCalibrationReadiness,
 } = require("./fashion-expert-pilot-readiness.cjs");
 const {
   REQUIRED_EXPERT_DIMENSIONS,
@@ -239,7 +240,7 @@ function validateReadinessForReview(readiness) {
   return { dimensions, reviewersPerOutfit };
 }
 
-function createCalibrationReviewPacket(readiness) {
+function createPacketFromReadiness(readiness) {
   const { dimensions, reviewersPerOutfit } = validateReadinessForReview(readiness);
   const payload = {
     schemaVersion: REVIEW_PACKET_SCHEMA_VERSION,
@@ -266,20 +267,25 @@ function createCalibrationReviewPacket(readiness) {
     },
     integrityChecks: readiness.checks.map((check) => check.id).sort(),
     dimensions: dimensions
-      .map((dimension) => ({
-        dimension,
-        coverage: readiness.diagnostics.coverageByDimension[dimension],
-        unavailableRate: readiness.diagnostics.unavailableRateByDimension[dimension],
-        averageConfidence: readiness.diagnostics.confidenceByDimension[dimension],
-        agreement: {
+      .map((dimension) => {
+        const agreement = {
           responseCount: readiness.diagnostics.agreementByDimension[dimension].responseCount,
           comparisonCount: readiness.diagnostics.agreementByDimension[dimension].comparisonCount,
           exactAgreement: readiness.diagnostics.agreementByDimension[dimension].exactAgreement,
           adjacentAgreement: readiness.diagnostics.agreementByDimension[dimension].adjacentAgreement,
           meanAbsoluteDifference:
             readiness.diagnostics.agreementByDimension[dimension].meanAbsoluteDifference,
-        },
-      }))
+        };
+        return {
+          dimension,
+          coverage: readiness.diagnostics.coverageByDimension[dimension],
+          unavailableRate: readiness.diagnostics.unavailableRateByDimension[dimension],
+          averageConfidence: readiness.diagnostics.confidenceByDimension[dimension],
+          agreement: Object.fromEntries(
+            Object.entries(agreement).filter(([, value]) => value !== undefined)
+          ),
+        };
+      })
       .sort((left, right) =>
         left.coverage - right.coverage || (left.dimension < right.dimension ? -1 : 1)
       ),
@@ -294,6 +300,20 @@ function createCalibrationReviewPacket(readiness) {
     ...payload,
     packetDigestSha256: digest(payload),
   };
+}
+
+function createCalibrationReviewPacket({
+  dataset,
+  batchLock,
+  assignmentManifest,
+  mergeProvenance,
+}) {
+  return createPacketFromReadiness(assessPilotCalibrationReadiness({
+    dataset,
+    batchLock,
+    assignmentManifest,
+    mergeProvenance,
+  }));
 }
 
 function percentage(value) {
@@ -335,7 +355,8 @@ function renderCalibrationReviewPacketMarkdown(packet) {
 }
 
 function parseArguments(argv) {
-  const allowed = new Set(["--readiness", "--format", "--output"]);
+  const required = ["--dataset", "--batch-lock", "--assignment", "--merge-provenance"];
+  const allowed = new Set([...required, "--format", "--output"]);
   const values = {};
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index];
@@ -345,21 +366,38 @@ function parseArguments(argv) {
     }
     values[key] = value;
   }
-  if (!values["--readiness"]) fail("--readiness is required.");
+  required.forEach((key) => {
+    if (!values[key]) fail(`${key} is required.`);
+  });
   const format = values["--format"] || "markdown";
   if (!new Set(["json", "markdown"]).has(format)) {
     fail("--format must be json or markdown.");
   }
-  const readinessPath = path.resolve(values["--readiness"]);
+  const inputPaths = {
+    datasetPath: path.resolve(values["--dataset"]),
+    batchLockPath: path.resolve(values["--batch-lock"]),
+    assignmentPath: path.resolve(values["--assignment"]),
+    mergeProvenancePath: path.resolve(values["--merge-provenance"]),
+  };
   const outputPath = values["--output"] ? path.resolve(values["--output"]) : undefined;
-  if (outputPath?.toLowerCase() === readinessPath.toLowerCase()) {
-    fail("--output must be different from --readiness.");
+  if (
+    outputPath &&
+    Object.values(inputPaths).some((inputPath) =>
+      inputPath.toLowerCase() === outputPath.toLowerCase()
+    )
+  ) {
+    fail("--output must be different from all inputs.");
   }
-  return { readinessPath, format, outputPath };
+  return { ...inputPaths, format, outputPath };
 }
 
 function createCalibrationReviewPacketFile(options) {
-  const packet = createCalibrationReviewPacket(readJson(options.readinessPath, "Readiness result"));
+  const packet = createPacketFromReadiness(assessPilotCalibrationFiles({
+    datasetPath: options.datasetPath,
+    batchLockPath: options.batchLockPath,
+    assignmentPath: options.assignmentPath,
+    mergeProvenancePath: options.mergeProvenancePath,
+  }));
   const output = options.format === "json"
     ? `${JSON.stringify(packet, null, 2)}\n`
     : `${renderCalibrationReviewPacketMarkdown(packet)}\n`;
@@ -386,5 +424,4 @@ module.exports = {
   createCalibrationReviewPacketFile,
   parseArguments,
   renderCalibrationReviewPacketMarkdown,
-  validateReadinessForReview,
 };

@@ -183,11 +183,14 @@ npm run fashion:expert:pilot:readiness -- `
 
 ## Calibration review packet
 
-준비 완료 JSON에서 원본 평가 notes 없이 사람이 검토할 진단 패킷을 만든다. JSON과 Markdown은 같은 입력에 대해 결정적이며, coverage가 낮은 dimension부터 확인할 수 있게 정렬한다.
+동결된 네 입력을 다시 검증해 원본 평가 notes 없이 사람이 검토할 진단 패킷을 만든다. 외부 readiness JSON은 받지 않으며, JSON과 Markdown은 같은 입력에 대해 결정적이다. Dimension은 coverage가 낮은 순서로 정렬한다.
 
 ```powershell
 npm run fashion:expert:pilot:review-packet -- `
-  --readiness calibration-readiness.json `
+  --dataset merged-expert-pilot.json `
+  --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
+  --assignment fashion-expert-pilot-output/assignment.json `
+  --merge-provenance merged-expert-pilot.json.pilot-merge-provenance.json `
   --format markdown `
   --output calibration-review-packet.md
 ```
