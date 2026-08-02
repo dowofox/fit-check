@@ -1,7 +1,7 @@
 import type { OutfitColorFeatures } from "@/utils/fashionCompatibility/color/types";
 import type { OutfitShapeFeatures } from "@/utils/fashionCompatibility/shape/types";
 
-export const EXPERT_RUBRIC_VERSION = "expert-rubric-draft-v0.2" as const;
+export const EXPERT_RUBRIC_VERSION = "expert-rubric-draft-v0.3" as const;
 export const EXPERT_EVALUATION_SCHEMA_VERSION = "expert-evaluation-v1" as const;
 export const EXPERT_PAIRWISE_SCHEMA_VERSION = "expert-pairwise-v1" as const;
 export const EXPERT_DATASET_SCHEMA_VERSION = "expert-dataset-v1" as const;
@@ -74,6 +74,26 @@ export type ExpertEvidenceDefinition = {
   status: "draft" | "expert_review" | "validated" | "retired";
 };
 
+export type ExpertObservationSignal =
+  | "image_available"
+  | "color_features_available"
+  | "shape_features_available"
+  | "material_context_available"
+  | "body_fit_context_available"
+  | "fit_preference_context_available"
+  | "exposure_preference_context_available";
+
+export type ExpertObservationRequirementGroup = {
+  mode: "any_of" | "all_of";
+  signals: ExpertObservationSignal[];
+};
+
+export type ExpertObservationRequirement = {
+  policy: "required" | "recommended";
+  groups: ExpertObservationRequirementGroup[];
+  rationale: string;
+};
+
 export type OverallCompatibilityEvaluation = Omit<
   ExpertDimensionEvaluation,
   "dimension"
@@ -87,6 +107,7 @@ export type ExpertRubricDimensionDefinition = {
   description: string;
   anchors: Record<ExpertRating, string>;
   contextRequirements: ExpertContextRequirement[];
+  observationRequirements: ExpertObservationRequirement[];
   allowedEvidenceCodes: string[];
   version: typeof EXPERT_RUBRIC_VERSION;
   status: "draft" | "expert_review" | "validated" | "retired";
@@ -319,6 +340,10 @@ export type ExpertDatasetReport = {
   ratedWithoutRequiredContextCount: number;
   recommendedContextMissingCount: number;
   evidenceWithoutFeatureCount: number;
+  ratedWithoutObservationInputCount: number;
+  pairwiseDimensionWithoutObservationInputCount: number;
+  pairwiseOverallWithoutObservationInputCount: number;
+  ratedWithoutStructuredEvidenceCount: number;
   coverageByEvidenceOrigin: Record<ExpertEvidenceOrigin, number>;
   materialEvidenceUsageCount: number;
   evaluatorBias: Record<string, number>;

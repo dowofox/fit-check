@@ -4,6 +4,8 @@ import {
   type ExpertDimension,
   type ExpertEvidenceDefinition,
   type ExpertEvidenceOrigin,
+  type ExpertObservationRequirement,
+  type ExpertObservationSignal,
   type ExpertRating,
   type ExpertRubricDimensionDefinition,
 } from "@/utils/fashionCompatibility/expert/types";
@@ -75,7 +77,7 @@ export const EXPERT_EVIDENCE_REGISTRY = Object.freeze([
   evidence("material.similar_drape", "human_observed_material", ["material_compatibility"], "Observed drape appears similar."),
   evidence("material.mixed_drape", "human_observed_material", ["material_compatibility"], "Observed drape appears mixed."),
   evidence("material.weight_contrast", "human_observed_material", ["material_compatibility"], "An observed material-weight contrast is present."),
-  evidence("material.layering_weight_mismatch_observed", "human_observed_material", ["material_compatibility"], "The evaluator observed a layering-weight mismatch in this context."),
+  evidence("material.layering_weight_difference_observed", "human_observed_material", ["material_compatibility"], "A visible difference in layering material weight was observed; the observation itself does not determine compatibility."),
   evidence("material.seasonal_context_present", "human_observed_material", ["material_compatibility"], "Seasonal material context was available to the evaluator."),
   evidence("material.input_confidence_low", "human_observed_material", ["material_compatibility"], "The evaluator had low confidence in visible material cues."),
   evidence("material.not_visually_assessable", "human_observed_material", ["material_compatibility"], "Material qualities were not visually assessable."),
@@ -125,6 +127,28 @@ const requirements: Record<ExpertDimension, ExpertContextRequirement[]> = {
   season_suitability: [{ field: "season", policy: "required", unavailableValues: ["unknown"] }],
 };
 
+const anyOf = (...signals: ExpertObservationSignal[]) => ({ mode: "any_of" as const, signals });
+const allOf = (...signals: ExpertObservationSignal[]) => ({ mode: "all_of" as const, signals });
+
+const observationRequirements: Record<
+  ExpertDimension,
+  ExpertObservationRequirement[]
+> = {
+  color_harmony: [{ policy: "required", groups: [anyOf("image_available", "color_features_available")], rationale: "Color harmony requires a visible outfit or derived color features." }],
+  silhouette_balance: [{ policy: "required", groups: [anyOf("image_available", "shape_features_available")], rationale: "Silhouette balance requires a visible outfit or derived shape features." }],
+  proportion_coherence: [{ policy: "required", groups: [anyOf("image_available", "shape_features_available")], rationale: "Proportion coherence requires a visible outfit or derived shape features." }],
+  material_compatibility: [{ policy: "required", groups: [anyOf("image_available", "material_context_available")], rationale: "Material compatibility requires visible material cues or approved material context." }],
+  style_coherence: [{ policy: "required", groups: [allOf("image_available")], rationale: "The sanitized snapshot has no equivalent full style description." }],
+  occasion_suitability: [{ policy: "required", groups: [allOf("image_available")], rationale: "Occasion suitability requires the full visible outfit." }],
+  body_fit_suitability: [{ policy: "required", groups: [allOf("body_fit_context_available"), anyOf("image_available", "shape_features_available")], rationale: "Body-fit suitability needs non-sensitive fit context plus observable shape." }],
+  fit_preference_suitability: [{ policy: "required", groups: [allOf("fit_preference_context_available"), anyOf("image_available", "shape_features_available")], rationale: "Fit-preference suitability needs preference availability plus observable shape." }],
+  exposure_preference_suitability: [{ policy: "required", groups: [allOf("exposure_preference_context_available", "image_available")], rationale: "Exposure preference requires preference availability and a visible outfit." }],
+  temperature_suitability: [{ policy: "required", groups: [allOf("image_available")], rationale: "The expert snapshot does not expose the operational temperature engine result." }],
+  rain_suitability: [{ policy: "required", groups: [allOf("image_available")], rationale: "Rain suitability requires the visible outfit." }],
+  wind_suitability: [{ policy: "required", groups: [allOf("image_available")], rationale: "Wind suitability requires the visible outfit." }],
+  season_suitability: [{ policy: "required", groups: [allOf("image_available")], rationale: "Season suitability requires the visible outfit." }],
+};
+
 function definition(
   id: ExpertDimension,
   label: string,
@@ -138,6 +162,10 @@ function definition(
     contextRequirements: requirements[id].map((entry) => ({
       ...entry,
       unavailableValues: entry.unavailableValues ? [...entry.unavailableValues] : undefined,
+    })),
+    observationRequirements: observationRequirements[id].map((requirement) => ({
+      ...requirement,
+      groups: requirement.groups.map((group) => ({ ...group, signals: [...group.signals] })),
     })),
     allowedEvidenceCodes: EXPERT_EVIDENCE_REGISTRY
       .filter((entry) => entry.allowedDimensions.includes(id))

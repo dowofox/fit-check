@@ -14,6 +14,7 @@ import {
   type ExpertEvaluationDataset,
   type ExpertPairwiseEvaluation,
   type ExpertOutfitSnapshot,
+  type ExpertObservationSignal,
   type ExpertRating,
   type OutfitEvaluationContext,
   type PairwisePreference,
@@ -269,6 +270,15 @@ function validateDimensionEvaluation(
   if (dimension !== "overall_compatibility") {
     validateEvidenceCodes(evaluation.supportingEvidenceCodes, dimension as ExpertDimension, `${path}.supportingEvidenceCodes`, issues, features);
     validateEvidenceCodes(evaluation.conflictingEvidenceCodes, dimension as ExpertDimension, `${path}.conflictingEvidenceCodes`, issues, features);
+    if (
+      evaluation.availability === "rated" &&
+      Array.isArray(evaluation.supportingEvidenceCodes) &&
+      Array.isArray(evaluation.conflictingEvidenceCodes) &&
+      evaluation.supportingEvidenceCodes.length === 0 &&
+      evaluation.conflictingEvidenceCodes.length === 0
+    ) {
+      issues.push(issue("warning", "rated_without_structured_evidence", path, "Rated dimensions should include structured supporting or conflicting evidence for pilot diagnostics."));
+    }
   } else {
     validateAnyEvidenceCodes(evaluation.supportingEvidenceCodes, `${path}.supportingEvidenceCodes`, issues, features);
     validateAnyEvidenceCodes(evaluation.conflictingEvidenceCodes, `${path}.conflictingEvidenceCodes`, issues, features);
@@ -332,6 +342,73 @@ function validateDimensionContext(
   }
 }
 
+function getObservationSignalAvailability(
+  snapshot: ExpertOutfitSnapshot | undefined
+): Record<ExpertObservationSignal, boolean> {
+  return {
+    image_available: snapshot?.inputAvailability?.imageAvailable === true,
+    color_features_available:
+      snapshot?.inputAvailability?.colorFeaturesAvailable === true &&
+      Boolean(snapshot.colorFeatures),
+    shape_features_available:
+      snapshot?.inputAvailability?.shapeFeaturesAvailable === true &&
+      Boolean(snapshot.shapeFeatures),
+    material_context_available:
+      snapshot?.inputAvailability?.materialContextAvailable === true,
+    body_fit_context_available:
+      snapshot?.inputAvailability?.bodyFitContextAvailable === true &&
+      snapshot?.context?.bodyFitContext === "available",
+    fit_preference_context_available:
+      snapshot?.context?.fitPreferenceContext === "available",
+    exposure_preference_context_available:
+      snapshot?.context?.exposurePreferenceContext === "available",
+  };
+}
+
+function validateDimensionObservationInput({
+  dimension,
+  shouldValidate,
+  snapshot,
+  path,
+  issues,
+  code = "rated_without_observation_input",
+  side,
+  label,
+}: {
+  dimension: ExpertDimension;
+  shouldValidate: boolean;
+  snapshot: ExpertOutfitSnapshot | undefined;
+  path: string;
+  issues: DatasetValidationIssue[];
+  code?: string;
+  side?: "A" | "B";
+  label?: string;
+}) {
+  if (!shouldValidate) return;
+  const signals = getObservationSignalAvailability(snapshot);
+  for (const requirement of getExpertRubricDimension(dimension)?.observationRequirements || []) {
+    const missingGroups = requirement.groups.filter((group) =>
+      group.mode === "all_of"
+        ? group.signals.some((signal) => !signals[signal])
+        : group.signals.every((signal) => !signals[signal])
+    );
+    if (!missingGroups.length) continue;
+    const expected = missingGroups
+      .map((group) => group.signals.join(group.mode === "all_of" ? " and " : " or "))
+      .join("; and ");
+    issues.push(
+      issue(
+        requirement.policy === "required" ? "error" : "warning",
+        requirement.policy === "required"
+          ? code
+          : "rated_without_recommended_observation_input",
+        path,
+        `Rated ${label || dimension}${side ? ` for outfit ${side}` : ""} requires ${expected}.`
+      )
+    );
+  }
+}
+
 function validateAbsoluteEvaluation(
   evaluation: unknown,
   path: string,
@@ -352,7 +429,7 @@ function validateAbsoluteEvaluation(
     issues.push(issue("error", "unknown_outfit_reference", `${path}.outfitId`, "Absolute evaluation references an unknown outfit."));
   }
   if (evaluation.rubricVersion !== EXPERT_RUBRIC_VERSION) {
-    issues.push(issue("error", "unknown_rubric_version", `${path}.rubricVersion`, "Rubric version is not registered."));
+    issues.push(issue("error", "unknown_rubric_version", `${path}.rubricVersion`, `Unsupported rubric version. Expected ${EXPERT_RUBRIC_VERSION}.`));
   }
   if (evaluation.evaluatorGroup !== undefined && !EVALUATOR_GROUPS.has(evaluation.evaluatorGroup as string)) {
     issues.push(issue("error", "invalid_evaluator_group", `${path}.evaluatorGroup`, "Unknown evaluator group."));
@@ -379,6 +456,13 @@ function validateAbsoluteEvaluation(
       seen.add(id);
       if (id !== "overall_compatibility" && isRecord(dimension)) {
         validateDimensionContext(dimension, id, snapshot?.context, dimensionPath, issues);
+        validateDimensionObservationInput({
+          dimension: id,
+          shouldValidate: dimension.availability === "rated",
+          snapshot,
+          path: dimensionPath,
+          issues,
+        });
       }
     });
     for (const dimension of REQUIRED_EXPERT_DIMENSIONS) {
@@ -402,6 +486,17 @@ function validateAbsoluteEvaluation(
         ),
       }
     );
+    if (isRecord(evaluation.overallCompatibility)) {
+      validateDimensionObservationInput({
+        dimension: "style_coherence",
+        shouldValidate: evaluation.overallCompatibility.availability === "rated",
+        snapshot,
+        path: `${path}.overallCompatibility`,
+        issues,
+        code: "rated_without_observation_input",
+        label: "overall_compatibility",
+      });
+    }
   }
   if (!isRating(evaluation.evaluatorConfidence)) {
     issues.push(issue("error", "invalid_evaluator_confidence", `${path}.evaluatorConfidence`, "Evaluator confidence must be from 1 to 5."));
@@ -466,7 +561,7 @@ function validatePairwiseEvaluation(
     issues.push(issue("error", "same_pair_outfit", path, "A pairwise evaluation must compare two different outfits."));
   }
   if (evaluation.rubricVersion !== EXPERT_RUBRIC_VERSION) {
-    issues.push(issue("error", "unknown_rubric_version", `${path}.rubricVersion`, "Rubric version is not registered."));
+    issues.push(issue("error", "unknown_rubric_version", `${path}.rubricVersion`, `Unsupported rubric version. Expected ${EXPERT_RUBRIC_VERSION}.`));
   }
   if (typeof evaluation.preferred !== "string" || !PAIRWISE_PREFERENCES.has(evaluation.preferred as PairwisePreference)) {
     issues.push(issue("error", "invalid_pairwise_preference", `${path}.preferred`, "Unknown pairwise preference."));
@@ -474,10 +569,12 @@ function validatePairwiseEvaluation(
   if (!new Set(["same_context", "different_context", "unknown"]).has(evaluation.contextCompatibility as string)) {
     issues.push(issue("error", "invalid_context_compatibility", `${path}.contextCompatibility`, "Unknown pairwise context compatibility."));
   }
+  const snapshotA = snapshots.get(outfitIdA);
+  const snapshotB = snapshots.get(outfitIdB);
   const features = {
-    color: Boolean(snapshots.get(outfitIdA)?.colorFeatures && snapshots.get(outfitIdB)?.colorFeatures),
-    shape: Boolean(snapshots.get(outfitIdA)?.shapeFeatures && snapshots.get(outfitIdB)?.shapeFeatures),
-    materialObservation: [snapshots.get(outfitIdA), snapshots.get(outfitIdB)].every(
+    color: Boolean(snapshotA?.colorFeatures && snapshotB?.colorFeatures),
+    shape: Boolean(snapshotA?.shapeFeatures && snapshotB?.shapeFeatures),
+    materialObservation: [snapshotA, snapshotB].every(
       (snapshot) =>
         Boolean(
           snapshot?.inputAvailability?.imageAvailable ||
@@ -502,12 +599,52 @@ function validatePairwiseEvaluation(
       }
       if (!isRating(entry.confidence)) issues.push(issue("error", "invalid_confidence", `${entryPath}.confidence`, "Confidence must be from 1 to 5."));
       validateEvidenceCodes(entry.evidenceCodes, entry.dimension as ExpertDimension, `${entryPath}.evidenceCodes`, issues, features);
+      const comparable = entry.preferred !== "not_comparable";
+      validateDimensionObservationInput({
+        dimension: entry.dimension as ExpertDimension,
+        shouldValidate: comparable,
+        snapshot: snapshotA,
+        path: entryPath,
+        issues,
+        code: "pairwise_dimension_without_observation_input",
+        side: "A",
+      });
+      validateDimensionObservationInput({
+        dimension: entry.dimension as ExpertDimension,
+        shouldValidate: comparable,
+        snapshot: snapshotB,
+        path: entryPath,
+        issues,
+        code: "pairwise_dimension_without_observation_input",
+        side: "B",
+      });
+      if (comparable && Array.isArray(entry.evidenceCodes) && entry.evidenceCodes.length === 0) {
+        issues.push(issue("warning", "rated_without_structured_evidence", entryPath, "Comparable pairwise dimensions should include structured evidence for pilot diagnostics."));
+      }
+      if (evaluation.preferred === "not_comparable" && comparable) {
+        issues.push(issue("warning", "dimension_preference_with_not_comparable_overall", entryPath, "A comparable dimension preference was recorded under an overall not_comparable pair."));
+      }
+    });
+  }
+  if (
+    typeof evaluation.preferred === "string" &&
+    PAIRWISE_PREFERENCES.has(evaluation.preferred as PairwisePreference) &&
+    evaluation.preferred !== "not_comparable"
+  ) {
+    const pairSnapshots: Array<{ side: "A" | "B"; snapshot?: ExpertOutfitSnapshot }> = [
+      { side: "A", snapshot: snapshotA },
+      { side: "B", snapshot: snapshotB },
+    ];
+    pairSnapshots.forEach(({ side, snapshot }) => {
+      if (snapshot?.inputAvailability?.imageAvailable !== true) {
+        issues.push(issue("error", "pairwise_preference_without_observation_input", path, `Comparable pairwise preference requires image_available for outfit ${side}.`));
+      }
     });
   }
   validateTimestamp(evaluation.createdAt, `${path}.createdAt`, issues);
   validateSplit(evaluation.datasetSplit, `${path}.datasetSplit`, issues);
-  const contextA = snapshots.get(outfitIdA)?.context;
-  const contextB = snapshots.get(outfitIdB)?.context;
+  const contextA = snapshotA?.context;
+  const contextB = snapshotB?.context;
   const contextsMatch =
     contextA && contextB && getContextFingerprint(contextA) === getContextFingerprint(contextB);
   if (evaluation.contextCompatibility === "same_context" && contextA && contextB && !contextsMatch) {
@@ -613,7 +750,7 @@ export function validateExpertEvaluationDataset(input: unknown): DatasetValidati
     return { valid: false, errors: [error], warnings: [], statistics: getStatistics({}) };
   }
   if (input.schemaVersion !== EXPERT_DATASET_SCHEMA_VERSION) issues.push(issue("error", "invalid_dataset_schema", "schemaVersion", "Unsupported expert dataset schema version."));
-  if (input.rubricVersion !== EXPERT_RUBRIC_VERSION) issues.push(issue("error", "unknown_rubric_version", "rubricVersion", "Rubric version is not registered."));
+  if (input.rubricVersion !== EXPERT_RUBRIC_VERSION) issues.push(issue("error", "unknown_rubric_version", "rubricVersion", `Unsupported rubric version. Expected ${EXPERT_RUBRIC_VERSION}.`));
   if (typeof input.datasetVersion !== "string" || input.datasetVersion.trim() === "") issues.push(issue("error", "invalid_dataset_version", "datasetVersion", "Dataset version is required."));
   if (typeof input.source !== "string" || !DATASET_SOURCES.has(input.source)) issues.push(issue("error", "invalid_dataset_source", "source", "Unknown dataset source."));
   validateIdentifier(input.datasetId, "datasetId", issues);
