@@ -626,6 +626,16 @@ function createPilotServer(options) {
           });
         }
         const validation = validatePilotOutput(dataset);
+        const completedAt = provenance.completedAt || new Date().toISOString();
+        provenance = createOutputProvenance({
+          lock: batchLock,
+          session,
+          assignmentDigestSha256: assignment.assignmentDigestSha256,
+          now: completedAt,
+          createdAt: provenance.createdAt,
+          completedAt,
+        });
+        atomicWriteJson(provenancePath, provenance);
         sendJson(response, 200, {
           complete: true,
           warnings: validation.warnings.length,

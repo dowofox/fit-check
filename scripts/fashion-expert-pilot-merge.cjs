@@ -363,7 +363,8 @@ function validateEvaluatorInput({
     fail("Pilot output provenance order digest is invalid.");
   }
   assertInputBase(sourceDataset, inputDataset);
-  const outputCompletedAt = Date.parse(provenance.updatedAt);
+  if (!provenance.completedAt) fail("Evaluator output is not marked complete.");
+  const outputCompletedAt = Date.parse(provenance.completedAt);
   if ([...inputDataset.absoluteEvaluations, ...inputDataset.pairwiseEvaluations].some(
     (evaluation) => Date.parse(evaluation.createdAt) > outputCompletedAt
   )) {
@@ -493,7 +494,7 @@ function mergePilotDatasets({ sourceDataset, batchLock, assignmentManifest, inpu
         provenance: input.provenance,
         assignmentManifest,
       });
-      if (Date.parse(input.provenance.updatedAt) > parsedMergeCreatedAt.getTime()) {
+      if (Date.parse(input.provenance.completedAt) > parsedMergeCreatedAt.getTime()) {
         fail("Merge time cannot precede evaluator output completion.");
       }
       seenEvaluators.add(evaluatorId);

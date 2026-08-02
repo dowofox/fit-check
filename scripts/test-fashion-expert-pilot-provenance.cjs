@@ -408,6 +408,7 @@ async function main() {
         assignmentDigestSha256: assignment.assignmentDigestSha256,
         now: "2026-08-02T00:00:00.000Z",
       });
+      assert.equal(provenance.completedAt, null);
       assertOutputProvenanceMatches(provenance, provenance);
       assert.throws(
         () => assertOutputProvenanceMatches(

@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 
 const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v3";
-const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v2";
+const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v3";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const OUTPUT_PROVENANCE_KEYS = [
   "schemaVersion",
@@ -17,6 +17,7 @@ const OUTPUT_PROVENANCE_KEYS = [
   "orderedOutfitIdsDigestSha256",
   "createdAt",
   "updatedAt",
+  "completedAt",
 ];
 
 function fail(message) {
@@ -194,7 +195,9 @@ function getOrderedOutfitIdsDigest(orderedOutfitIds) {
   return sha256(canonicalJson(orderedOutfitIds));
 }
 
-function createOutputProvenance({ lock, session, assignmentDigestSha256, now, createdAt }) {
+function createOutputProvenance({
+  lock, session, assignmentDigestSha256, now, createdAt, completedAt,
+}) {
   if (!SHA256_PATTERN.test(assignmentDigestSha256 || "")) {
     fail("Assignment digest is required for pilot output provenance.");
   }
@@ -212,6 +215,7 @@ function createOutputProvenance({ lock, session, assignmentDigestSha256, now, cr
     orderedOutfitIdsDigestSha256: getOrderedOutfitIdsDigest(session.orderedOutfitIds),
     createdAt: createdAt || timestamp,
     updatedAt: timestamp,
+    completedAt: completedAt || null,
   };
 }
 
@@ -255,6 +259,16 @@ function validateOutputProvenance(provenance) {
   }
   if (Date.parse(provenance.updatedAt) < Date.parse(provenance.createdAt)) {
     fail("Pilot output provenance timestamps are out of order.");
+  }
+  if (provenance.completedAt !== null) {
+    const completedAt = new Date(provenance.completedAt);
+    if (!Number.isFinite(completedAt.getTime()) ||
+        completedAt.toISOString() !== provenance.completedAt) {
+      fail("Pilot output provenance completedAt is not a valid timestamp.");
+    }
+    if (completedAt.getTime() < Date.parse(provenance.updatedAt)) {
+      fail("Pilot output provenance completion precedes its last update.");
+    }
   }
   return provenance;
 }

@@ -88,6 +88,7 @@ function createEvaluatorInput(directory, evaluatorId, options = {}) {
     session,
     assignmentDigestSha256: assignment.assignmentDigestSha256,
     now,
+    completedAt: now,
   });
   writeJson(outputPath, dataset);
   writeJson(getOutputProvenancePath(outputPath), provenance);
@@ -220,7 +221,15 @@ async function main() {
     try {
       const inputs = createEvaluatorInputs(directory, ["reviewer-a", "reviewer-b"]);
       const options = mergeOptions(directory, inputs);
+      rewriteInput(inputs[0], undefined, (provenance) => {
+        provenance.completedAt = null;
+      });
+      assert.throws(() => mergePilotFiles(options), /not marked complete/);
+      assert.equal(fs.existsSync(options.outputPath), false);
+      assert.equal(fs.existsSync(options.provenancePath), false);
+
       options.now = "2026-08-01T23:59:59.999Z";
+      rewriteInput(inputs[0]);
       assert.throws(() => mergePilotFiles(options), /cannot precede evaluator output completion/);
       assert.equal(fs.existsSync(options.outputPath), false);
       assert.equal(fs.existsSync(options.provenancePath), false);

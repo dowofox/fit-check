@@ -77,6 +77,7 @@ function createMergedPilot(evaluatorIds = ["readiness-reviewer-a", "readiness-re
         session,
         assignmentDigestSha256: assignmentManifest.assignmentDigestSha256,
         now: "2026-08-02T00:00:00.000Z",
+        completedAt: "2026-08-02T00:00:00.000Z",
       }),
     };
   });

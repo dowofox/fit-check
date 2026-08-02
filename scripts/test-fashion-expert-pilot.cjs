@@ -500,6 +500,7 @@ async function main() {
       assert.equal(initialProvenance.seed, options.seed);
       assert.equal(initialProvenance.evaluatorId, options.evaluatorId);
       assert.equal(initialProvenance.assignmentDigestSha256, assignment.assignmentDigestSha256);
+      assert.equal(initialProvenance.completedAt, null);
       assert.doesNotMatch(
         JSON.stringify(initialProvenance),
         new RegExp(directory.replace(/\\/g, "\\\\"), "i")
@@ -653,6 +654,9 @@ async function main() {
       });
       assert.equal(completed.response.status, 200);
       assert.equal(completed.payload.complete, true);
+      const completedProvenance = readPilotJson(provenancePath, "Pilot output provenance");
+      assert.match(completedProvenance.completedAt, /^\d{4}-\d{2}-\d{2}T/);
+      assert.equal(completedProvenance.completedAt, completedProvenance.updatedAt);
 
       const finalOutput = readJson(outputPath);
       const pilotEvaluations = finalOutput.absoluteEvaluations.filter(
