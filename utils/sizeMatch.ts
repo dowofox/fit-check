@@ -1964,6 +1964,36 @@ function scoreSizeMeasurement(
   };
 }
 
+function getSizeRecommendationMeasurementRows(item: ClosetItem) {
+  return getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).filter(
+    (measurement) =>
+      Boolean(measurement.size) &&
+      [
+        measurement.totalLength,
+        measurement.shoulder,
+        measurement.chest,
+        measurement.sleeve,
+        measurement.waist,
+        measurement.hip,
+        measurement.thigh,
+      ].some((value) => typeof value === "number" && value > 0)
+  );
+}
+
+export function hasUsableSizeRecommendationMeasurements(item: ClosetItem) {
+  if (
+    isAccessoryOrBagItem(item) ||
+    isShoeCategory(item) ||
+    (!isBottomCategory(item) && !isUpperCategory(item))
+  ) {
+    return false;
+  }
+
+  return getSizeRecommendationMeasurementRows(item).some((measurement) =>
+    hasReliableProductMeasurements(item, measurement)
+  );
+}
+
 export function getRecommendedProductSize(
   item: ClosetItem,
   profile?: UserProfile | null,
@@ -1977,19 +2007,7 @@ export function getRecommendedProductSize(
     return { sizeRecommendations: [], missingFields: [] };
   }
 
-  const sizeRows = getValidProductSizeRows(item.confirmedProduct?.productSizeGuide).filter(
-    (measurement) =>
-      Boolean(measurement.size) &&
-      [
-        measurement.totalLength,
-        measurement.shoulder,
-        measurement.chest,
-        measurement.sleeve,
-        measurement.waist,
-        measurement.hip,
-        measurement.thigh,
-      ].some((value) => typeof value === "number" && value > 0)
-  );
+  const sizeRows = getSizeRecommendationMeasurementRows(item);
   const reliableSizeRows = sizeRows.filter((measurement) =>
     hasReliableProductMeasurements(item, measurement)
   );

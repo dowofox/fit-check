@@ -55,6 +55,7 @@ import { validateProductUrlInput } from "@/utils/productUrl";
 import {
   CLOSET_SIZE_NOT_ENTERED_LABEL,
   hasSelectedClosetSize,
+  hasUsableSizeRecommendationMeasurements,
   normalizeClosetItemSize,
 } from "@/utils/sizeMatch";
 import { saveClosetItem } from "@/utils/storage";
@@ -1055,9 +1056,8 @@ export default function AddClothesScreen() {
 
       const completionAction = getRegistrationCompletionAction({
         hasConfirmedProduct: Boolean(confirmedProduct),
-        hasProductSizeGuide: Boolean(
-          confirmedProduct?.productSizeGuide?.sizes?.length
-        ),
+        hasProductSizeGuide:
+          hasUsableSizeRecommendationMeasurements(finalItem),
         supportsFitResult:
           supportsProductMeasurements(finalItem.category) &&
           !finalItem.category?.includes("신발"),

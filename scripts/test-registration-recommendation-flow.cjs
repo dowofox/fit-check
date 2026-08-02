@@ -97,6 +97,9 @@ const {
 } = require("../utils/closetRegistration.ts");
 const { normalizeProductColor } = require("../utils/color.ts");
 const {
+  hasUsableSizeRecommendationMeasurements,
+} = require("../utils/sizeMatch.ts");
+const {
   getProductExtractionSummary,
 } = require("../utils/productExtractionSummary.ts");
 const {
@@ -215,10 +218,26 @@ const fixtureServer = http.createServer((request, response) => {
 });
 
 async function main() {
+  const validSizeGuideItem = createClosetItem("valid-size-guide", "상의", {
+    confirmedProduct: {
+      productSizeGuide: {
+        sizes: [{ size: "M", totalLength: 70, shoulder: 48, chest: 55 }],
+      },
+    },
+  });
+  const invalidSizeGuideItem = createClosetItem("invalid-size-guide", "상의", {
+    confirmedProduct: {
+      productSizeGuide: { sizes: [{ size: "M", chest: "-" }] },
+    },
+  });
+
+  assert.equal(hasUsableSizeRecommendationMeasurements(validSizeGuideItem), true);
+  assert.equal(hasUsableSizeRecommendationMeasurements(invalidSizeGuideItem), false);
   assert.equal(
     getRegistrationCompletionAction({
       hasConfirmedProduct: true,
-      hasProductSizeGuide: true,
+      hasProductSizeGuide:
+        hasUsableSizeRecommendationMeasurements(validSizeGuideItem),
       supportsFitResult: true,
       supportsMeasurements: true,
     }),
@@ -227,7 +246,8 @@ async function main() {
   assert.equal(
     getRegistrationCompletionAction({
       hasConfirmedProduct: true,
-      hasProductSizeGuide: false,
+      hasProductSizeGuide:
+        hasUsableSizeRecommendationMeasurements(invalidSizeGuideItem),
       supportsFitResult: true,
       supportsMeasurements: true,
     }),
