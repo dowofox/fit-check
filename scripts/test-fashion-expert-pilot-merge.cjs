@@ -7,6 +7,7 @@ const { execFileSync } = require("node:child_process");
 const {
   atomicWriteJsonPair,
   getSemanticDatasetPayload,
+  mergePilotDatasets,
   mergePilotFiles,
   parseMergeArguments,
 } = require("./fashion-expert-pilot-merge.cjs");
@@ -234,6 +235,22 @@ async function main() {
       assert.throws(() => mergePilotFiles(options), /cannot precede evaluation record creation/);
       assert.equal(fs.existsSync(options.outputPath), false);
       assert.equal(fs.existsSync(options.provenancePath), false);
+
+      const sourceDataset = readJson(sourcePath);
+      const pairwiseCreatedAt = "2026-08-02T02:00:00.000Z";
+      sourceDataset.pairwiseEvaluations[0].createdAt = pairwiseCreatedAt;
+      const pairwiseInputs = inputs.map((input) => {
+        const dataset = structuredClone(input.dataset);
+        dataset.pairwiseEvaluations[0].createdAt = pairwiseCreatedAt;
+        return { dataset, provenance: input.provenance };
+      });
+      assert.throws(() => mergePilotDatasets({
+        sourceDataset,
+        batchLock: readJson(lockPath),
+        assignmentManifest: readJson(inputs[0].assignmentPath),
+        inputs: pairwiseInputs,
+        now: options.now,
+      }), /cannot precede evaluation record creation/);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
