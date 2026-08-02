@@ -18,6 +18,17 @@ function isOutfitFeedbackValue(value: unknown): value is OutfitFeedbackValue {
   return value === "like" || value === "less";
 }
 
+export function normalizeOutfitFeedbackTimestamp(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  const normalizedValue = value.trim();
+  const timestamp = new Date(normalizedValue).getTime();
+  if (Number.isNaN(timestamp)) return undefined;
+
+  const isoTimestamp = new Date(timestamp).toISOString();
+  return isoTimestamp === normalizedValue ? isoTimestamp : undefined;
+}
+
 export function normalizeOutfitRecommendationFeedbacks(
   value: unknown
 ): OutfitRecommendationFeedback[] {
@@ -33,12 +44,12 @@ export function normalizeOutfitRecommendationFeedbacks(
       ? feedback.itemIds.filter((itemId): itemId is string => typeof itemId === "string")
       : [];
     const key = getOutfitFeedbackKey(itemIds);
+    const updatedAt = normalizeOutfitFeedbackTimestamp(feedback.updatedAt);
 
     if (
       !key ||
       !isOutfitFeedbackValue(feedback.value) ||
-      typeof feedback.updatedAt !== "string" ||
-      !feedback.updatedAt
+      !updatedAt
     ) {
       return;
     }
@@ -46,7 +57,7 @@ export function normalizeOutfitRecommendationFeedbacks(
     const normalizedFeedback: OutfitRecommendationFeedback = {
       itemIds: key.split("|"),
       value: feedback.value,
-      updatedAt: feedback.updatedAt,
+      updatedAt,
     };
     const currentFeedback = feedbackByKey.get(key);
 

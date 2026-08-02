@@ -7,6 +7,7 @@ import type {
   UserProfile,
 } from "@/utils/storage";
 import { normalizeOutfitWearTimestamp } from "@/utils/outfitWear";
+import { normalizeOutfitFeedbackTimestamp } from "@/utils/outfitFeedback";
 
 export const NAES_BACKUP_SCHEMA = "naes-data-backup";
 export const NAES_BACKUP_VERSION = 1;
@@ -98,8 +99,7 @@ function isValidFeedback(value: unknown): value is OutfitRecommendationFeedback 
     isStringArray(value.itemIds) &&
     value.itemIds.length > 0 &&
     (value.value === "like" || value.value === "less") &&
-    typeof value.updatedAt === "string" &&
-    Boolean(value.updatedAt)
+    Boolean(normalizeOutfitFeedbackTimestamp(value.updatedAt))
   );
 }
 

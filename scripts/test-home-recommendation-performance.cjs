@@ -492,6 +492,27 @@ test("feedback reads distinguish storage failures from no feedback", async () =>
   assert.deepEqual(failedResult, { status: "failed", feedbacks: [] });
   assert.equal((await getOutfitRecommendationFeedbacks()).length, 1);
 
+  storageMemory.set(
+    OUTFIT_FEEDBACK_KEY,
+    JSON.stringify([
+      {
+        itemIds: ["top-1", "bottom-1"],
+        value: "like",
+        updatedAt: "9999",
+      },
+    ])
+  );
+  const originalInvalidTimestampConsoleError = console.error;
+  console.error = () => {};
+  try {
+    assert.deepEqual(await getOutfitRecommendationFeedbacksLoadResult(), {
+      status: "failed",
+      feedbacks: [],
+    });
+  } finally {
+    console.error = originalInvalidTimestampConsoleError;
+  }
+
   storageMemory.delete(OUTFIT_FEEDBACK_KEY);
   assert.deepEqual(await getOutfitRecommendationFeedbacksLoadResult(), {
     status: "loaded",

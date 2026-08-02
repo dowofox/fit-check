@@ -14,6 +14,7 @@ import {
 import { normalizeClosetItemSeasonFields } from "@/utils/closetSeason";
 import {
   getOutfitFeedbackKey,
+  normalizeOutfitFeedbackTimestamp,
   normalizeOutfitRecommendationFeedbacks,
   type OutfitFeedbackValue,
   type OutfitRecommendationFeedback,
@@ -542,8 +543,7 @@ function parseStoredFeedbacksForMutation(rawValue: string | null) {
         candidate.itemIds.every((itemId) => typeof itemId === "string") &&
         Boolean(getOutfitFeedbackKey(candidate.itemIds as string[])) &&
         (candidate.value === "like" || candidate.value === "less") &&
-        typeof candidate.updatedAt === "string" &&
-        Boolean(candidate.updatedAt)
+        Boolean(normalizeOutfitFeedbackTimestamp(candidate.updatedAt))
       );
     })
   ) {
@@ -1532,15 +1532,9 @@ function parseStoredOutfitRecommendationFeedbacksLoadResult(
   if (rawValue === null) return { status: "loaded", feedbacks: [] };
 
   try {
-    const parsedValue = JSON.parse(rawValue) as unknown;
-
-    if (!Array.isArray(parsedValue)) {
-      return { status: "failed", feedbacks: [] };
-    }
-
     return {
       status: "loaded",
-      feedbacks: normalizeOutfitRecommendationFeedbacks(parsedValue),
+      feedbacks: parseStoredFeedbacksForMutation(rawValue),
     };
   } catch {
     return { status: "failed", feedbacks: [] };
