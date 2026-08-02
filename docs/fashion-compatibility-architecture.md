@@ -704,7 +704,7 @@ Gate는 `ready_for_calibration_review`만 판정한다. Agreement, unavailable r
 
 ### Phase 5B.7: expert pilot calibration decision record
 
-사람이 검토한 calibration 결정을 구조화된 disposition, 근거 코드, dimension action으로 기록한다. 결정 record는 source dataset과 evaluator output에서 review packet을 다시 생성해 packet digest에 결정을 묶으며, 모든 dimension과 high-disagreement outfit의 검토 여부를 확인한다.
+사람이 검토한 calibration 결정을 구조화된 disposition, 근거 코드, dimension action으로 기록한다. 결정 record는 source dataset과 evaluator output에서 review packet을 다시 생성해 packet digest에 결정을 묶으며, 검증된 merge provenance digest와 병합 시각도 함께 보존한다. 모든 dimension과 high-disagreement outfit의 검토 여부를 확인한다.
 
 결정 record는 다음 pilot의 후속 조치를 남기는 감사 자료다. 자동 임계값을 적용하거나 `expert_validated`, production eligibility를 승인하지 않는다.
 

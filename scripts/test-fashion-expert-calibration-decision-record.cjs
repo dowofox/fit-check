@@ -68,6 +68,8 @@ async function main() {
     assert.equal(record.expertValidated, false);
     assert.equal(record.productionEligible, false);
     assert.equal(record.source.batchId, fixture.batchLock.batchId);
+    assert.equal(record.source.mergeCreatedAt, fixture.provenance.createdAt);
+    assert.equal(record.source.mergeProvenanceDigestSha256.length, 64);
     assert.equal(record.recordDigestSha256.length, 64);
     assert.deepEqual(createCalibrationDecisionRecord(input), record);
     assert.doesNotMatch(

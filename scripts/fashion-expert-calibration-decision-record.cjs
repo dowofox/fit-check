@@ -11,7 +11,7 @@ const {
 } = require("./fashion-expert-calibration-review-packet.cjs");
 
 const DECISION_INPUT_SCHEMA_VERSION = "expert-pilot-calibration-decision-input-v1";
-const DECISION_RECORD_SCHEMA_VERSION = "expert-pilot-calibration-decision-record-v1";
+const DECISION_RECORD_SCHEMA_VERSION = "expert-pilot-calibration-decision-record-v2";
 const DECISIONS = new Set([
   "proceed_to_next_pilot",
   "revise_protocol",
@@ -163,6 +163,8 @@ function createCalibrationDecisionRecord({ decisionInput, ...pilotSources }) {
       batchFingerprintSha256: packet.source.batchFingerprintSha256,
       assignmentDigestSha256: packet.source.assignmentDigestSha256,
       mergedDatasetDigestSha256: packet.source.mergedDatasetDigestSha256,
+      mergeProvenanceDigestSha256: digest(pilotSources.mergeProvenance),
+      mergeCreatedAt: pilotSources.mergeProvenance.createdAt,
     },
     decision,
   };
