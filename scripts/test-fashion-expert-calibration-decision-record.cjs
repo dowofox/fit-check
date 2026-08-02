@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { execFile } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -55,6 +56,14 @@ function writeJson(filePath, value) {
 
 function test(name, run) {
   return Promise.resolve().then(run).then(() => console.log(`PASS ${name}`));
+}
+
+function runNode(script, args) {
+  return new Promise((resolve) => {
+    execFile(process.execPath, ["-e", script, ...args], (error, stdout, stderr) => {
+      resolve({ code: error?.code || 0, stdout, stderr });
+    });
+  });
 }
 
 async function main() {
@@ -179,7 +188,7 @@ async function main() {
     }), /not eligible/);
   });
 
-  await test("CLI writes the same record and protects every input", () => {
+  await test("CLI writes the same record and protects every input", async () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-calibration-decision-"));
     try {
       const fixture = createMergedPilot();
@@ -232,6 +241,39 @@ async function main() {
         /output already exists/
       );
       assert.equal(fs.readFileSync(paths.output, "utf8"), originalOutput);
+
+      const raceOutput = path.join(directory, "concurrent-decision-record.json");
+      const revisedDecisionPath = path.join(directory, "revised-decision.json");
+      writeJson(revisedDecisionPath, decisionInput({
+        decision: "revise_protocol",
+        rationaleCodes: ["protocol_clarification_needed"],
+        dimensionActions: revisedActions,
+      }));
+      const runnerPath = path.join(__dirname, "fashion-expert-calibration-decision-record.cjs");
+      const childScript = `
+        const fs = require("node:fs");
+        const outputPath = process.argv[1];
+        const options = JSON.parse(process.argv[2]);
+        const existsSync = fs.existsSync;
+        fs.existsSync = (candidate) => candidate === outputPath ? false : existsSync(candidate);
+        try {
+          require(${JSON.stringify(runnerPath)}).createCalibrationDecisionRecordFile(options);
+        } catch (error) {
+          console.error(error instanceof Error ? error.message : error);
+          process.exitCode = 1;
+        }
+      `;
+      const raceOptions = { ...options, outputPath: raceOutput };
+      const raceResults = await Promise.all([
+        runNode(childScript, [raceOutput, JSON.stringify(raceOptions)]),
+        runNode(childScript, [raceOutput, JSON.stringify({
+          ...raceOptions,
+          decisionPath: revisedDecisionPath,
+        })]),
+      ]);
+      assert.deepEqual(raceResults.map((result) => result.code).sort(), [0, 1]);
+      assert.equal(raceResults.some((result) => /output already exists/.test(result.stderr)), true);
+      assert.doesNotThrow(() => JSON.parse(fs.readFileSync(raceOutput, "utf8")));
       assert.throws(() => parseArguments([
         ...common,
         "--output", paths.decision,

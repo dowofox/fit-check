@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { atomicWriteJson, readJson } = require("./run-fashion-expert-pilot.cjs");
+const { readJson } = require("./run-fashion-expert-pilot.cjs");
 const {
   canonicalJson,
   getOutputProvenancePath,
@@ -48,6 +48,30 @@ function fail(message) {
 
 function digest(value) {
   return crypto.createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
+function atomicCreateJson(outputPath, value) {
+  const directory = path.dirname(outputPath);
+  fs.mkdirSync(directory, { recursive: true });
+  const temporaryPath = path.join(
+    directory,
+    `.${path.basename(outputPath)}.${process.pid}.${crypto.randomBytes(6).toString("hex")}.tmp`
+  );
+  let descriptor;
+  try {
+    descriptor = fs.openSync(temporaryPath, "wx");
+    fs.writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+    fs.linkSync(temporaryPath, outputPath);
+  } catch (error) {
+    if (error?.code === "EEXIST") fail("Calibration decision record output already exists.");
+    throw error;
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+    fs.rmSync(temporaryPath, { force: true });
+  }
 }
 
 function sameValues(left, right) {
@@ -245,7 +269,7 @@ function createCalibrationDecisionRecordFile(options) {
     evaluatorInputs,
     decisionInput: readJson(options.decisionPath, "Calibration decision"),
   });
-  atomicWriteJson(options.outputPath, record);
+  atomicCreateJson(options.outputPath, record);
   return record;
 }
 

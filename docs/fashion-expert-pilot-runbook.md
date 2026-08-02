@@ -249,4 +249,4 @@ npm run fashion:expert:pilot:decision-record -- `
 
 CLI는 검증된 원본들로 review packet을 다시 생성하고 그 digest에 결정을 묶는다. Record source에는 검증된 merge provenance digest와 병합 시각도 남겨 결정의 시간 기준을 재현한다. 이 record는 calibration 후속 조치만 기록하며 `expert_validated`나 production 승인을 만들지 않는다.
 
-결정 기록은 감사 이력을 보존하기 위해 기존 `--output`을 덮어쓰지 않는다. 결정을 다시 기록해야 하면 새 경로를 사용한다.
+결정 기록은 감사 이력을 보존하기 위해 기존 `--output`을 덮어쓰지 않는다. 동시 생성도 원자적으로 한 기록만 허용하며, 결정을 다시 기록해야 하면 새 경로를 사용한다.
