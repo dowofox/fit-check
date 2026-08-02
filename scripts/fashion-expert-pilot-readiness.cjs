@@ -90,9 +90,16 @@ function assessPilotCalibrationReadiness({
   const expectedEvaluatorIds = assignmentManifest.evaluators
     .filter((entry) => entry.outfitIds.length > 0)
     .map((entry) => entry.evaluatorId);
-  const expectedEvaluatorIdSet = new Set(expectedEvaluatorIds);
+  const assignedOutfitIdsByEvaluator = new Map(
+    assignmentManifest.evaluators.map((entry) => [
+      entry.evaluatorId,
+      new Set(entry.outfitIds),
+    ])
+  );
   const assignedEvaluations = dataset.absoluteEvaluations.filter(
-    (evaluation) => expectedEvaluatorIdSet.has(evaluation.evaluatorId)
+    (evaluation) => assignedOutfitIdsByEvaluator
+      .get(evaluation.evaluatorId)
+      ?.has(evaluation.outfitId)
   );
   const provenanceEvaluatorIds = mergeProvenance.evaluators.map((entry) => entry.evaluatorId);
   const coverageComplete = assignmentManifest.evaluators.every((assignment) => {

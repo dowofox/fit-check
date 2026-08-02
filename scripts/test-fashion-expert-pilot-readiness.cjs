@@ -52,10 +52,9 @@ function safeEvaluation() {
   };
 }
 
-function createMergedPilot() {
+function createMergedPilot(evaluatorIds = ["readiness-reviewer-a", "readiness-reviewer-b"]) {
   const sourceDataset = readJson(sourcePath);
   const batchLock = readJson(lockPath);
-  const evaluatorIds = ["readiness-reviewer-a", "readiness-reviewer-b"];
   const assignmentManifest = createAssignmentManifest(batchLock, {
     evaluatorIds,
     seed: "readiness-v1",
@@ -161,6 +160,45 @@ async function main() {
     assert.equal(
       result.checks.find((entry) => entry.id === "assignment_coverage_complete").passed,
       false
+    );
+  });
+
+  await test("unassigned evaluations block coverage without polluting assigned diagnostics", () => {
+    const fixture = createMergedPilot([
+      "readiness-reviewer-a",
+      "readiness-reviewer-b",
+      "readiness-reviewer-c",
+    ]);
+    const dataset = structuredClone(fixture.mergedDataset);
+    const assignment = fixture.assignmentManifest.evaluators.find(
+      (entry) => entry.outfitIds.length < dataset.snapshots.length
+    );
+    const unassignedOutfitId = dataset.snapshots.find(
+      (snapshot) => !assignment.outfitIds.includes(snapshot.outfitId)
+    ).outfitId;
+    dataset.absoluteEvaluations.push(buildPilotAbsoluteEvaluation({
+      dataset,
+      evaluatorId: assignment.evaluatorId,
+      evaluatorGroup: "pilot",
+      outfitId: unassignedOutfitId,
+      evaluation: safeEvaluation(),
+      now: "2026-08-02T00:30:00.000Z",
+    }));
+
+    const result = assessPilotCalibrationReadiness({
+      dataset,
+      batchLock: fixture.batchLock,
+      assignmentManifest: fixture.assignmentManifest,
+      mergeProvenance: fixture.provenance,
+    });
+    assert.equal(result.ready, false);
+    assert.equal(
+      result.checks.find((entry) => entry.id === "assignment_coverage_complete").passed,
+      false
+    );
+    assert.equal(
+      result.counts.actualAssignedEvaluations,
+      result.counts.expectedAssignedEvaluations
     );
   });
 
