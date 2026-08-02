@@ -325,14 +325,20 @@ export function createExpertPilotSession(input: {
   evaluatorId: string;
   evaluatorGroup?: ExpertPilotEvaluatorGroup;
   seed?: string;
+  outfitIds?: readonly string[];
   now?: string;
 }): ExpertPilotSession {
   const now = input.now || new Date().toISOString();
+  const availableOutfitIds = new Set(input.dataset.snapshots.map((snapshot) => snapshot.outfitId));
+  const outfitIds = input.outfitIds || [...availableOutfitIds];
+  if (new Set(outfitIds).size !== outfitIds.length || outfitIds.some((id) => !availableOutfitIds.has(id))) {
+    throw new Error("Pilot session outfit assignment is invalid.");
+  }
   const orderedOutfitIds = getDeterministicOutfitOrder({
     datasetId: input.dataset.datasetId,
     evaluatorId: input.evaluatorId,
     seed: input.seed || "pilot-v1",
-    outfitIds: input.dataset.snapshots.map((snapshot) => snapshot.outfitId),
+    outfitIds,
   });
   return {
     sessionVersion: EXPERT_PILOT_SESSION_VERSION,
@@ -449,16 +455,15 @@ export function validatePilotOutput(dataset: ExpertEvaluationDataset) {
 
 export function getPilotCompletion(
   dataset: ExpertEvaluationDataset,
-  evaluatorId: string
+  evaluatorId: string,
+  outfitIds: readonly string[] = dataset.snapshots.map((snapshot) => snapshot.outfitId)
 ) {
-  const completedOutfitIds = dataset.snapshots
-    .filter((snapshot) =>
-      Boolean(findPilotEvaluation(dataset, evaluatorId, snapshot.outfitId))
-    )
-    .map((snapshot) => snapshot.outfitId);
+  const completedOutfitIds = outfitIds.filter((outfitId) =>
+    Boolean(findPilotEvaluation(dataset, evaluatorId, outfitId))
+  );
   return {
-    complete: completedOutfitIds.length === dataset.snapshots.length,
+    complete: completedOutfitIds.length === outfitIds.length,
     completedOutfitIds,
-    remaining: dataset.snapshots.length - completedOutfitIds.length,
+    remaining: outfitIds.length - completedOutfitIds.length,
   };
 }

@@ -18,6 +18,9 @@ const {
 } = require("./fashion-expert-pilot-provenance.cjs");
 const { freezeBatch } = require("./freeze-fashion-expert-pilot.cjs");
 const {
+  createAssignmentManifest,
+} = require("./fashion-expert-pilot-assignment.cjs");
+const {
   createExpertPilotSession,
   getExpertPilotProtocolPayload,
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
@@ -81,6 +84,16 @@ function buildLock(dataset, manifestPath, batchId = "batch-v1") {
     batchId,
     protocol: getExpertPilotProtocolPayload(),
   });
+}
+
+function writeAssignment(directory, lock, evaluatorId, seed = "seed-v1") {
+  const assignment = createAssignmentManifest(lock, {
+    evaluatorIds: [evaluatorId, `${evaluatorId}-peer`],
+    seed,
+  });
+  const assignmentPath = path.join(directory, `assignment-${evaluatorId}.json`);
+  fs.writeFileSync(assignmentPath, JSON.stringify(assignment));
+  return { assignment, assignmentPath };
 }
 
 function test(name, run) {
@@ -260,6 +273,7 @@ async function main() {
       const lock = buildLock(dataset, assetsPath);
       const lockPath = path.join(directory, "batch-lock.json");
       fs.writeFileSync(lockPath, JSON.stringify(lock));
+      const { assignmentPath } = writeAssignment(directory, lock, "lock-reviewer");
       const manifest = readJson(assetsPath);
       const firstPath = manifest.outfits[dataset.snapshots[0].outfitId].images[0];
       fs.appendFileSync(firstPath, Buffer.from([9]));
@@ -268,6 +282,7 @@ async function main() {
           datasetPath,
           assetsPath,
           batchLockPath: lockPath,
+          assignmentPath,
           outputPath: path.join(directory, "output.json"),
           evaluatorId: "lock-reviewer",
           evaluatorGroup: "pilot",
@@ -290,18 +305,21 @@ async function main() {
       const changedProtocol = structuredClone(getExpertPilotProtocolPayload());
       changedProtocol.dimensions[0].anchors[4] += " changed";
       const lockPath = path.join(directory, "batch-lock.json");
-      fs.writeFileSync(lockPath, JSON.stringify(createBatchLock({
+      const lock = createBatchLock({
         dataset,
         assets,
         batchId: "protocol-v2",
         protocol: changedProtocol,
-      })));
+      });
+      fs.writeFileSync(lockPath, JSON.stringify(lock));
+      const { assignmentPath } = writeAssignment(directory, lock, "protocol-reviewer");
       const outputPath = path.join(directory, "output.json");
       assert.throws(
         () => createPilotServer({
           datasetPath,
           assetsPath,
           batchLockPath: lockPath,
+          assignmentPath,
           outputPath,
           evaluatorId: "protocol-reviewer",
           evaluatorGroup: "pilot",
@@ -338,20 +356,27 @@ async function main() {
 
       changedProtocols.forEach((protocol, index) => {
         const lockPath = path.join(directory, `batch-lock-${index}.json`);
-        fs.writeFileSync(lockPath, JSON.stringify(createBatchLock({
+        const lock = createBatchLock({
           dataset,
           assets,
           batchId: `presentation-v3-${index}`,
           protocol,
-        })));
+        });
+        fs.writeFileSync(lockPath, JSON.stringify(lock));
+        const { assignmentPath } = writeAssignment(
+          directory,
+          lock,
+          `presentation-reviewer-${index}`
+        );
         const outputPath = path.join(directory, `output-${index}.json`);
         assert.throws(
           () => createPilotServer({
             datasetPath,
             assetsPath,
             batchLockPath: lockPath,
+            assignmentPath,
             outputPath,
-            evaluatorId: "presentation-reviewer",
+            evaluatorId: `presentation-reviewer-${index}`,
             evaluatorGroup: "pilot",
             seed: "seed-v1",
             port: 4317,
@@ -370,6 +395,7 @@ async function main() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-pilot-sidecar-"));
     try {
       const lock = buildLock(dataset, createAssets(directory, dataset));
+      const { assignment } = writeAssignment(directory, lock, "reviewer-v1");
       const session = createExpertPilotSession({
         dataset,
         evaluatorId: "reviewer-v1",
@@ -379,6 +405,7 @@ async function main() {
       const provenance = createOutputProvenance({
         lock,
         session,
+        assignmentDigestSha256: assignment.assignmentDigestSha256,
         now: "2026-08-02T00:00:00.000Z",
       });
       assertOutputProvenanceMatches(provenance, provenance);
@@ -388,6 +415,7 @@ async function main() {
           createOutputProvenance({
             lock,
             session: { ...session, seed: "other-seed" },
+            assignmentDigestSha256: assignment.assignmentDigestSha256,
             now: "2026-08-02T00:00:00.000Z",
           })
         ),

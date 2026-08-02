@@ -88,11 +88,13 @@ function parsePilotArguments(argv) {
   const dataset = argumentValue(argv, "--dataset");
   const assets = argumentValue(argv, "--assets");
   const batchLock = argumentValue(argv, "--batch-lock");
+  const assignment = argumentValue(argv, "--assignment");
   const evaluatorId = argumentValue(argv, "--evaluator-id");
   const output = argumentValue(argv, "--output");
   if (!dataset) fail("Missing required --dataset path.");
   if (!assets) fail("Missing required --assets path.");
   if (!batchLock) fail("Missing required --batch-lock path.");
+  if (!assignment) fail("Missing required --assignment path.");
   if (!evaluatorId) fail("Missing required --evaluator-id.");
   if (!output) fail("Missing required --output path.");
   if (!ID_PATTERN.test(evaluatorId)) {
@@ -111,18 +113,23 @@ function parsePilotArguments(argv) {
   const datasetPath = path.resolve(dataset);
   const assetsPath = path.resolve(assets);
   const batchLockPath = path.resolve(batchLock);
+  const assignmentPath = path.resolve(assignment);
   const outputPath = path.resolve(output);
-  if (datasetPath.toLowerCase() === outputPath.toLowerCase()) {
-    fail("--output must be different from --dataset.");
+  const outputPaths = [outputPath, getOutputProvenancePath(outputPath)]
+    .map((value) => value.toLowerCase());
+  if ([datasetPath, assetsPath, batchLockPath, assignmentPath]
+    .some((value) => outputPaths.includes(value.toLowerCase()))) {
+    fail("--output and its provenance must be different from all inputs.");
   }
   return {
     datasetPath,
     assetsPath,
     batchLockPath,
+    assignmentPath,
     outputPath,
     evaluatorId,
     evaluatorGroup,
-    seed: argumentValue(argv, "--seed") || "pilot-v1",
+    seed: argumentValue(argv, "--seed"),
     port,
   };
 }
@@ -371,6 +378,7 @@ function publicEvaluation(evaluation) {
 
 function createPilotServer(options) {
   if (!options.batchLockPath) fail("Missing required batch lock path.");
+  if (!options.assignmentPath) fail("Missing required assignment path.");
   const sourceDataset = readJson(options.datasetPath, "Dataset");
   validateInputDataset(sourceDataset);
   const manifest = readJson(options.assetsPath, "Asset manifest");
@@ -384,6 +392,15 @@ function createPilotServer(options) {
     protocol,
   });
   assertBatchLockMatches(batchLock, currentBatchLock);
+  const assignment = readJson(options.assignmentPath, "Assignment manifest");
+  const { validateAssignmentManifest } = require("./fashion-expert-pilot-assignment.cjs");
+  validateAssignmentManifest(assignment, batchLock);
+  const evaluatorAssignment = assignment.evaluators.find(
+    (entry) => entry.evaluatorId === options.evaluatorId
+  );
+  if (!evaluatorAssignment) fail("Evaluator is not included in the assignment manifest.");
+  const assignedOutfitIds = evaluatorAssignment.outfitIds;
+  const assignedOutfitIdSet = new Set(assignedOutfitIds);
   const lockedOutfitById = new Map(batchLock.outfits.map((outfit) => [outfit.outfitId, outfit]));
   for (const [outfitId, assetIds] of assets.assetIdsByOutfit) {
     const lockedAssets = lockedOutfitById.get(outfitId)?.assets || [];
@@ -392,15 +409,25 @@ function createPilotServer(options) {
     });
   }
   let dataset = loadResumeDataset(sourceDataset, options.outputPath);
+  if (dataset.absoluteEvaluations.some(
+    (entry) => entry.evaluatorId === options.evaluatorId && !assignedOutfitIdSet.has(entry.outfitId)
+  )) {
+    fail("Existing pilot output contains an evaluation outside this evaluator assignment.");
+  }
   const token = crypto.randomBytes(24).toString("hex");
   const session = createExpertPilotSession({
     dataset,
     evaluatorId: options.evaluatorId,
     evaluatorGroup: options.evaluatorGroup,
-    seed: options.seed,
+    seed: options.seed || assignment.seed,
+    outfitIds: assignedOutfitIds,
   });
   const provenancePath = getOutputProvenancePath(options.outputPath);
-  const expectedProvenance = createOutputProvenance({ lock: batchLock, session });
+  const expectedProvenance = createOutputProvenance({
+    lock: batchLock,
+    session,
+    assignmentDigestSha256: assignment.assignmentDigestSha256,
+  });
   if (fs.existsSync(options.outputPath) && !fs.existsSync(provenancePath)) {
     fail("Existing pilot output is missing its provenance sidecar.");
   }
@@ -413,6 +440,9 @@ function createPilotServer(options) {
     atomicWriteJson(provenancePath, provenance);
   }
   const snapshotById = new Map(dataset.snapshots.map((snapshot) => [snapshot.outfitId, snapshot]));
+  const assignedAssetIds = new Set(
+    assignedOutfitIds.flatMap((outfitId) => assets.assetIdsByOutfit.get(outfitId) || [])
+  );
   const saveDelayMs = Number.isFinite(options.saveDelayMs) ? Math.max(0, options.saveDelayMs) : 0;
   let saveRequestCount = 0;
 
@@ -469,7 +499,7 @@ function createPilotServer(options) {
         return;
       }
       if (url.pathname === "/api/session" && request.method === "GET") {
-        const completion = getPilotCompletion(dataset, options.evaluatorId);
+        const completion = getPilotCompletion(dataset, options.evaluatorId, session.orderedOutfitIds);
         sendJson(response, 200, {
           token,
           session: {
@@ -529,7 +559,9 @@ function createPilotServer(options) {
       }
       const assetMatch = url.pathname.match(/^\/api\/assets\/([a-f0-9]{24})$/);
       if (assetMatch && request.method === "GET") {
-        const asset = assets.assetsById.get(assetMatch[1]);
+        const asset = assignedAssetIds.has(assetMatch[1])
+          ? assets.assetsById.get(assetMatch[1])
+          : undefined;
         if (!asset) return sendError(response, 404, "Asset not found.");
         const bytes = fs.readFileSync(asset.path);
         const digest = crypto.createHash("sha256").update(bytes).digest("hex");
@@ -567,6 +599,7 @@ function createPilotServer(options) {
         provenance = createOutputProvenance({
           lock: batchLock,
           session,
+          assignmentDigestSha256: assignment.assignmentDigestSha256,
           createdAt: provenance.createdAt,
         });
         atomicWriteJson(provenancePath, provenance);
@@ -578,14 +611,14 @@ function createPilotServer(options) {
             path: entry.path,
             message: entry.message,
           })),
-          completion: getPilotCompletion(dataset, options.evaluatorId),
+          completion: getPilotCompletion(dataset, options.evaluatorId, session.orderedOutfitIds),
         });
         return;
       }
       if (url.pathname === "/api/complete" && request.method === "POST") {
         assertMutationRequest(request);
         await readRequestJson(request);
-        const completion = getPilotCompletion(dataset, options.evaluatorId);
+        const completion = getPilotCompletion(dataset, options.evaluatorId, session.orderedOutfitIds);
         if (!completion.complete) {
           return sendJson(response, 409, {
             error: "All cases must be evaluated before completion.",

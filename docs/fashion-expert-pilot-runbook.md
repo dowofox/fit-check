@@ -43,6 +43,17 @@ npm run fashion:expert:pilot:freeze -- `
   --output scripts/fixtures/fashion-expert-pilot-batch-lock.json
 ```
 
+Freeze the evaluator assignment before collecting responses. Reuse the same assignment file for every evaluator and for the final merge.
+
+```powershell
+npm run fashion:expert:pilot:assign -- `
+  --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
+  --evaluator pilot-reviewer-01 `
+  --evaluator pilot-reviewer-02 `
+  --seed synthetic-pilot-v1 `
+  --output fashion-expert-pilot-output/assignment.json
+```
+
 Snapshot은 `outfitId` 순서로 canonicalize하므로 JSON key 순서, 공백, snapshot 배열 순서는 digest에 영향을 주지 않는다. Snapshot context·feature·input availability 또는 이미지 바이트·개수·표시 순서가 바뀌면 배치 fingerprint가 바뀐다. 평가는 snapshot digest에 포함하지 않는다.
 
 Annotation protocol digest는 실제 rubric/evidence registry와 evaluator presentation contract에서 생성한다. 13개 dimension의 label·description·anchor·context/observation requirement·허용 evidence, evidence의 label·description·origin·polarity, rating/availability 계약과 overall image 정책을 포함한다. Dimension과 evidence의 표시 순서, availability·빈 선택·근거 그룹 문구도 순서가 의미 있는 presentation contract로 보존한다. `reviewedBy`와 `sourceReferences`는 평가 화면이나 입력 가능 여부에 영향을 주지 않는 검토 metadata라 제외한다. 기존 `expert-pilot-batch-lock-v1`과 `v2`는 자동 이관하지 않고 명시적으로 거부하므로 변경 의도를 확인하고 새 batch ID로 `freeze`하여 v3 lock을 만들어야 한다.
@@ -54,6 +65,7 @@ npm run fashion:expert:pilot -- `
   --dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
   --assets scripts/fixtures/fashion-expert-pilot-assets.json `
   --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
+  --assignment fashion-expert-pilot-output/assignment.json `
   --evaluator-id pilot-reviewer-01 `
   --evaluator-group pilot `
   --output fashion-expert-pilot-output/reviewer-01.expert-pilot-output.json
@@ -129,6 +141,7 @@ Pilot test는 Case별 초안 격리·불변 복사·privacy, 인자 거부, asse
 npm run fashion:expert:pilot:merge -- `
   --dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
   --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
+  --assignment fashion-expert-pilot-output/assignment.json `
   --input reviewer-a.json `
   --input reviewer-b.json `
   --output merged-expert-pilot.json

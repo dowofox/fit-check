@@ -2,12 +2,13 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 
 const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v3";
-const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v1";
+const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v2";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const OUTPUT_PROVENANCE_KEYS = [
   "schemaVersion",
   "batchId",
   "batchFingerprintSha256",
+  "assignmentDigestSha256",
   "datasetId",
   "datasetVersion",
   "rubricVersion",
@@ -193,12 +194,16 @@ function getOrderedOutfitIdsDigest(orderedOutfitIds) {
   return sha256(canonicalJson(orderedOutfitIds));
 }
 
-function createOutputProvenance({ lock, session, now, createdAt }) {
+function createOutputProvenance({ lock, session, assignmentDigestSha256, now, createdAt }) {
+  if (!SHA256_PATTERN.test(assignmentDigestSha256 || "")) {
+    fail("Assignment digest is required for pilot output provenance.");
+  }
   const timestamp = now || new Date().toISOString();
   return {
     schemaVersion: OUTPUT_PROVENANCE_SCHEMA_VERSION,
     batchId: lock.batchId,
     batchFingerprintSha256: lock.batchFingerprintSha256,
+    assignmentDigestSha256,
     datasetId: lock.dataset.datasetId,
     datasetVersion: lock.dataset.datasetVersion,
     rubricVersion: lock.dataset.rubricVersion,
@@ -235,7 +240,9 @@ function validateOutputProvenance(provenance) {
       fail(`Pilot output provenance ${key} is invalid.`);
     }
   }
-  for (const key of ["batchFingerprintSha256", "orderedOutfitIdsDigestSha256"]) {
+  for (const key of [
+    "batchFingerprintSha256", "assignmentDigestSha256", "orderedOutfitIdsDigestSha256",
+  ]) {
     if (!SHA256_PATTERN.test(provenance[key] || "")) {
       fail(`Pilot output provenance ${key} is invalid.`);
     }
@@ -258,6 +265,7 @@ function assertOutputProvenanceMatches(actual, expected) {
   const identityKeys = [
     "batchId",
     "batchFingerprintSha256",
+    "assignmentDigestSha256",
     "datasetId",
     "datasetVersion",
     "rubricVersion",

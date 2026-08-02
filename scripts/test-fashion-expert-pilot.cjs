@@ -18,6 +18,9 @@ const {
   getOutputProvenancePath,
 } = require("./fashion-expert-pilot-provenance.cjs");
 const {
+  createAssignmentManifest,
+} = require("./fashion-expert-pilot-assignment.cjs");
+const {
   buildPilotAbsoluteEvaluation,
   createExpertPilotSession,
   getExpertPilotProtocolPayload,
@@ -107,6 +110,16 @@ function createBatchLockFile(directory, dataset, manifestPath, batchId = "synthe
   const lockPath = path.join(directory, "batch-lock.json");
   fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
   return lockPath;
+}
+
+function createAssignmentFile(directory, batchLockPath, evaluatorIds, seed = "server-seed") {
+  const assignment = createAssignmentManifest(readJson(batchLockPath), {
+    evaluatorIds,
+    seed,
+  });
+  const assignmentPath = path.join(directory, `assignment-${seed}.json`);
+  fs.writeFileSync(assignmentPath, `${JSON.stringify(assignment, null, 2)}\n`, "utf8");
+  return { assignment, assignmentPath };
 }
 
 async function fetchJson(url, options) {
@@ -263,12 +276,23 @@ async function main() {
       /--batch-lock/
     );
     assert.throws(
+      () => parsePilotArguments([
+        "--dataset", datasetPath,
+        "--assets", fixtureManifestPath,
+        "--batch-lock", fixtureManifestPath,
+        "--evaluator-id", "pilot-qa",
+        "--output", "output.json",
+      ]),
+      /--assignment/
+    );
+    assert.throws(
       () =>
         parsePilotArguments([
           "--dataset", datasetPath,
-          "--assets", fixtureManifestPath,
-          "--batch-lock", fixtureManifestPath,
-          "--evaluator-id", "person@example.com",
+        "--assets", fixtureManifestPath,
+        "--batch-lock", fixtureManifestPath,
+        "--assignment", fixtureManifestPath,
+        "--evaluator-id", "person@example.com",
           "--output", "output.json",
         ]),
       /pseudonymous|Email/
@@ -279,6 +303,7 @@ async function main() {
           "--dataset", datasetPath,
           "--assets", fixtureManifestPath,
           "--batch-lock", fixtureManifestPath,
+          "--assignment", fixtureManifestPath,
           "--evaluator-id", "pilot-qa",
           "--output", datasetPath,
         ]),
@@ -399,11 +424,21 @@ async function main() {
     const sourceBefore = fs.readFileSync(datasetPath, "utf8");
     const assetsPath = createTemporaryAssets(directory, dataset);
     const batchLockPath = createBatchLockFile(directory, dataset, assetsPath);
+    const { assignment, assignmentPath } = createAssignmentFile(
+      directory,
+      batchLockPath,
+      ["pilot-server-qa", "pilot-server-peer", "pilot-server-third"]
+    );
+    const assignedOutfitIds = assignment.evaluators.find(
+      (entry) => entry.evaluatorId === "pilot-server-qa"
+    ).outfitIds;
+    const assignedCount = assignedOutfitIds.length;
     const outputPath = path.join(directory, "pilot-output.json");
     const options = {
       datasetPath,
       assetsPath,
       batchLockPath,
+      assignmentPath,
       outputPath,
       evaluatorId: "pilot-server-qa",
       evaluatorGroup: "pilot",
@@ -437,7 +472,7 @@ async function main() {
       const sessionResult = await fetchJson(`${origin}/api/session`);
       assert.equal(sessionResult.response.status, 200);
       const token = sessionResult.payload.token;
-      assert.equal(sessionResult.payload.session.totalCases, dataset.snapshots.length);
+      assert.equal(sessionResult.payload.session.totalCases, assignedCount);
       assert.equal(sessionResult.payload.session.batchId, "synthetic-batch-v1");
       assert.match(sessionResult.payload.session.batchFingerprintPrefix, /^[a-f0-9]{12}$/);
       assert.deepEqual(sessionResult.payload.session.evaluationContract.ratingScale, [1, 2, 3, 4, 5]);
@@ -464,6 +499,7 @@ async function main() {
       const initialProvenance = readPilotJson(provenancePath, "Pilot output provenance");
       assert.equal(initialProvenance.seed, options.seed);
       assert.equal(initialProvenance.evaluatorId, options.evaluatorId);
+      assert.equal(initialProvenance.assignmentDigestSha256, assignment.assignmentDigestSha256);
       assert.doesNotMatch(
         JSON.stringify(initialProvenance),
         new RegExp(directory.replace(/\\/g, "\\\\"), "i")
@@ -471,12 +507,13 @@ async function main() {
       assert.doesNotMatch(JSON.stringify(initialProvenance), /file:|base64|assetId|token/i);
 
       let imageRoute;
-      for (let caseNumber = 1; caseNumber <= dataset.snapshots.length; caseNumber += 1) {
+      for (let caseNumber = 1; caseNumber <= assignedCount; caseNumber += 1) {
         const caseResult = await fetchJson(`${origin}/api/outfits/${caseNumber}`);
         assert.equal(caseResult.payload.rubric.length, 13);
         assert.equal("outfitId" in caseResult.payload, false);
         imageRoute ||= caseResult.payload.images[0];
       }
+      assert.equal((await fetch(`${origin}/api/outfits/${assignedCount + 1}`)).status, 404);
       assert.ok(imageRoute);
       const imageResponse = await fetch(`${origin}${imageRoute}`);
       assert.equal(imageResponse.status, 200);
@@ -512,13 +549,19 @@ async function main() {
         "X-Pilot-Token": token,
         Origin: origin,
       };
+      const unassignedSave = await fetchJson(`${origin}/api/evaluations/${assignedCount + 1}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(createSafeEvaluation()),
+      });
+      assert.equal(unassignedSave.response.status, 404);
       const firstSave = await fetchJson(`${origin}/api/evaluations/1`, {
         method: "POST",
         headers,
         body: JSON.stringify(createSafeEvaluation()),
       });
       assert.equal(firstSave.response.status, 200);
-      assert.equal(pilot.getSaveRequestCount(), 3);
+      assert.equal(pilot.getSaveRequestCount(), 4);
       assert.equal(firstSave.payload.completion.complete, false);
       const firstOutput = readJson(outputPath);
       const firstEvaluationId = firstOutput.absoluteEvaluations.find(
@@ -544,7 +587,7 @@ async function main() {
         /provenance does not match/
       );
       assert.throws(
-        () => createPilotServer({ ...options, evaluatorId: "different-evaluator" }),
+        () => createPilotServer({ ...options, evaluatorId: "pilot-server-peer" }),
         /provenance does not match/
       );
       const otherBatchLock = createBatchLock({
@@ -557,10 +600,26 @@ async function main() {
       fs.writeFileSync(otherBatchLockPath, JSON.stringify(otherBatchLock), "utf8");
       assert.throws(
         () => createPilotServer({ ...options, batchLockPath: otherBatchLockPath }),
-        /provenance does not match/
+        /does not match/
       );
       assert.equal(fs.readFileSync(outputPath, "utf8"), outputBeforeRejectedResume);
       assert.equal(fs.readFileSync(provenancePath, "utf8"), provenanceBeforeRejectedResume);
+
+      const unassignedOutfitId = dataset.snapshots.find(
+        (snapshot) => !assignedOutfitIds.includes(snapshot.outfitId)
+      ).outfitId;
+      const outputWithUnassignedCase = readJson(outputPath);
+      outputWithUnassignedCase.absoluteEvaluations.push(buildPilotAbsoluteEvaluation({
+        dataset: outputWithUnassignedCase,
+        evaluatorId: options.evaluatorId,
+        evaluatorGroup: options.evaluatorGroup,
+        outfitId: unassignedOutfitId,
+        evaluation: createSafeEvaluation(),
+        now: "2026-08-02T00:00:00.000Z",
+      }));
+      fs.writeFileSync(outputPath, JSON.stringify(outputWithUnassignedCase), "utf8");
+      assert.throws(() => createPilotServer(options), /outside this evaluator assignment/);
+      fs.writeFileSync(outputPath, outputBeforeRejectedResume, "utf8");
 
       fs.rmSync(provenancePath);
       assert.throws(() => createPilotServer(options), /missing its provenance sidecar/);
@@ -579,7 +638,7 @@ async function main() {
         "X-Pilot-Token": resumed.payload.token,
         Origin: origin,
       };
-      for (let caseNumber = 1; caseNumber <= dataset.snapshots.length; caseNumber += 1) {
+      for (let caseNumber = 1; caseNumber <= assignedCount; caseNumber += 1) {
         const save = await fetchJson(`${origin}/api/evaluations/${caseNumber}`, {
           method: "POST",
           headers: resumedHeaders,
@@ -599,8 +658,8 @@ async function main() {
       const pilotEvaluations = finalOutput.absoluteEvaluations.filter(
         (entry) => entry.evaluatorId === options.evaluatorId
       );
-      assert.equal(pilotEvaluations.length, dataset.snapshots.length);
-      assert.equal(new Set(pilotEvaluations.map((entry) => entry.evaluationId)).size, 5);
+      assert.equal(pilotEvaluations.length, assignedCount);
+      assert.equal(new Set(pilotEvaluations.map((entry) => entry.evaluationId)).size, assignedCount);
       assert.equal(
         pilotEvaluations.find((entry) => entry.evaluationId === firstEvaluationId)?.evaluationId,
         firstEvaluationId
