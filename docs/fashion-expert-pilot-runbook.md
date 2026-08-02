@@ -165,3 +165,18 @@ npm run fashion:expert:pilot:merge -- `
 npm run fashion:expert:validate -- merged-expert-pilot.json
 npm run fashion:expert:report -- merged-expert-pilot.json
 ```
+
+## Calibration readiness gate
+
+병합 결과를 calibration review에 전달하기 전 frozen batch, assignment, merge provenance와 평가 coverage를 함께 검증한다.
+
+```powershell
+npm run fashion:expert:pilot:readiness -- `
+  --dataset merged-expert-pilot.json `
+  --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
+  --assignment fashion-expert-pilot-output/assignment.json `
+  --merge-provenance merged-expert-pilot.json.pilot-merge-provenance.json `
+  --output calibration-readiness.json
+```
+
+`ready_for_calibration_review`는 입력 정합성과 배정 coverage가 완전하다는 뜻이다. Agreement, unavailable rate, confidence와 high-disagreement outfit은 진단으로만 기록하며 근거 없는 품질 임계값을 적용하지 않는다. 이 결과는 `expert_validated` 또는 production 적용 승인이 아니다.

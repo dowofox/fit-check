@@ -690,6 +690,12 @@ type CompatibilityComparison = {
 
 ## 테스트 전략
 
+### Phase 5B.5: expert pilot calibration readiness gate
+
+병합된 파일럿을 calibration review로 넘기기 전에 v3 batch lock, assignment manifest, merged dataset, merge provenance의 identity와 digest를 함께 검증한다. Assignment의 모든 non-empty evaluator가 정확히 배정된 outfit만 평가했는지 확인하고, 누락·추가 평가 또는 변조된 snapshot/provenance가 있으면 차단한다.
+
+Gate는 `ready_for_calibration_review`만 판정한다. Agreement, unavailable rate, confidence와 high-disagreement outfit은 사람이 calibration에서 검토할 진단이며 임의의 임계값으로 전문가 품질, `expert_validated`, production eligibility를 선언하지 않는다.
+
 ### Phase 5B.2: multi-evaluator pilot merge
 
 각 평가자 output은 frozen source dataset을 기준으로 해당 evaluator의 absolute evaluation만 변경할 수 있다. 병합 경계에서 v3 batch fingerprint와 output provenance를 검증하고, source snapshot·pairwise·split·metadata 계약의 semantic equality를 확인한다. 완료된 evaluator별 delta만 evaluator/outfit/evaluation ID 순으로 합쳐 입력 순서와 무관한 분석용 dataset을 만든다.
