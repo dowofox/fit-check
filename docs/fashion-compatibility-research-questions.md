@@ -1,5 +1,16 @@
 # Fashion Compatibility Research Questions
 
+## Phase 5A.2 minimum observation open questions
+
+1. Dimension별 최소 observation requirement가 실제 전문가 파일럿에서 과도한 abstention을 만들지 않는가?
+2. Image 없이 derived color/shape feature만으로 평가할 수 있는 범위를 더 좁히거나 넓혀야 하는가?
+3. Pairwise 전체 선호에 두 image를 항상 요구하는 정책이 파일럿 목적에 적절한가?
+4. Structured evidence warning이 평가자 학습 부담을 높이지 않으면서 누락 진단에 도움이 되는가?
+5. Observation requirement를 충족한 기록과 충족하지 못한 기록의 evaluator agreement 차이는 얼마인가?
+6. Material weight difference를 중립 관찰로 표현했을 때 supporting/conflicting 방향 선택이 일관적인가?
+
+이 질문이 검증되기 전까지 rubric은 `draft`이며 professional score나 production recommendation 입력으로 사용하지 않는다.
+
 ## Phase 5A.1 pilot readiness open questions
 
 1. 13개 dimension별 draft 1~5 anchor를 전문가가 같은 의미로 해석하는가?

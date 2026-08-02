@@ -4,7 +4,7 @@
 
 ## 목적
 
-Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평가할 때 사용할 데이터 계약이다. Codex나 현재 추천 엔진이 정답을 생성하는 규칙이 아니며, 어떤 feature도 그 자체로 긍정·부정 점수가 아니다. 구현 버전은 `expert-rubric-draft-v0.2`다.
+Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평가할 때 사용할 데이터 계약이다. Codex나 현재 추천 엔진이 정답을 생성하는 규칙이 아니며, 어떤 feature도 그 자체로 긍정·부정 점수가 아니다. 구현 버전은 `expert-rubric-draft-v0.3`다.
 
 ## 평가 차원
 
@@ -60,6 +60,30 @@ Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평�
 
 확인하지 못한 값은 추정하지 않고 `unknown`으로 둔다. `required` context가 없으면 rated 평가는 error이며 `recommended` context가 없으면 warning이다. 정보 부족을 3점으로 대체하지 않는다. 서로 다른 context의 pairwise 평가는 agreement에서 제외하며 원래 preference를 덮어쓰지 않는다.
 
+## Context와 observation input
+
+Context requirement는 어떤 상황을 기준으로 평가하는지 정의하고, observation requirement는 실제 코디를 판단할 입력이 있는지 정의한다. 둘은 독립적으로 검증한다. required context와 required observation이 모두 없으면 각각 별도 error가 기록된다. evidence 배열이 비어 있어도 observation 검증은 생략되지 않는다.
+
+| Dimension | 최소 observation input |
+| --- | --- |
+| `color_harmony` | image 또는 color features |
+| `silhouette_balance` | image 또는 shape features |
+| `proportion_coherence` | image 또는 shape features |
+| `material_compatibility` | image 또는 material context |
+| `style_coherence` | image |
+| `occasion_suitability` | image |
+| `body_fit_suitability` | body-fit context와 함께 image 또는 shape features |
+| `fit_preference_suitability` | fit-preference context와 함께 image 또는 shape features |
+| `exposure_preference_suitability` | exposure-preference context와 image |
+| `temperature_suitability` | image |
+| `rain_suitability` | image |
+| `wind_suitability` | image |
+| `season_suitability` | image |
+
+`overall_compatibility`를 rated로 기록하려면 image가 필요하다. Pairwise dimension은 A와 B가 각각 해당 dimension의 observation requirement를 충족해야 한다. Pairwise 전체 선호가 `a`, `b`, `tie`이면 A와 B 모두 image가 필요하고, `not_comparable`은 이 요건에서 제외한다.
+
+입력이 부족하면 rating 3을 만들지 말고 `not_enough_information`을 사용한다. Rated dimension의 supporting/conflicting evidence가 모두 비어 있으면 파일럿 진단용 `rated_without_structured_evidence` warning을 남기지만, warning 자체가 rating의 유효성을 자동으로 부정하지는 않는다.
+
 ## Evidence code
 
 색상과 shape feature는 관찰 코드다. 예를 들어 `shape.short_top_long_bottom`이나 `color.opposing_hue`는 좋음 또는 나쁨을 뜻하지 않는다. 평가자는 같은 관찰을 선언된 의도에 따라 `supportingEvidenceCodes` 또는 `conflictingEvidenceCodes`에 넣는다.
@@ -75,7 +99,7 @@ Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평�
 
 Evidence metadata는 `derived_color_feature`, `derived_shape_feature`, `human_observed_material`, `context_interpretation` origin을 구분한다. Derived code는 대응 feature payload가 있을 때만 사용할 수 있다. Material code는 이미지 또는 허가된 상품 context에서 사람이 관찰한 표면·구조·드레이프·무게의 중립 기록이며 `similar`나 `mixed` 자체가 좋음·나쁨을 뜻하지 않는다.
 
-Material draft code는 `material.similar_surface`, `material.mixed_surface`, `material.similar_structure`, `material.mixed_structure`, `material.similar_drape`, `material.mixed_drape`, `material.weight_contrast`, `material.layering_weight_mismatch_observed`, `material.seasonal_context_present`, `material.input_confidence_low`, `material.not_visually_assessable`이다.
+Material draft code는 `material.similar_surface`, `material.mixed_surface`, `material.similar_structure`, `material.mixed_structure`, `material.similar_drape`, `material.mixed_drape`, `material.weight_contrast`, `material.layering_weight_difference_observed`, `material.seasonal_context_present`, `material.input_confidence_low`, `material.not_visually_assessable`이다. Weight difference code는 중립 관찰이며 supporting/conflicting 배열이 해석 방향을 결정한다.
 
 Snapshot의 `inputAvailability`는 이미지, color/shape feature, material context, body-fit context의 이용 가능 여부만 기록한다. 이미지 URI, 사용자 치수, 선호 원문은 저장하지 않으며 availability는 권한이나 정확성을 보장하지 않는다.
 

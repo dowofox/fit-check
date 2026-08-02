@@ -26,6 +26,19 @@
 - 평가 전에 rubric의 `contextRequirements`를 확인한다. `required` context가 없으면 점수를 만들지 말고 `not_enough_information`을 사용한다.
 - `bodyFitContext`가 `available`이 아니면 body-fit 적합도를 평가하지 않는다. 실제 치수나 선호 원문을 dataset에 복사하지 않는다.
 
+## Observation input 확인
+
+평가자는 rating 전에 실제로 본 입력을 확인한다. Image가 없을 때 `color_harmony`는 color features, `silhouette_balance`와 `proportion_coherence`는 shape features, `material_compatibility`는 material context가 있으면 평가할 수 있다. 다른 dimension은 rubric registry의 observation requirement를 그대로 따른다.
+
+- Observation input이 없으면 evidence 배열을 비워 rating을 우회하지 말고 `not_enough_information`을 선택한다.
+- Derived feature를 사용할 수 없는 경우 해당 `color.*` 또는 `shape.*` evidence code도 사용하지 않는다.
+- Body fit, fit preference, exposure preference는 각각의 context availability를 먼저 확인한다.
+- Pairwise dimension은 A와 B를 독립적으로 확인한다. 한쪽만 입력이 부족해도 comparable preference를 기록하지 않는다.
+- Pairwise 전체 선호 `a`, `b`, `tie`는 두 코디 image가 모두 있을 때만 사용한다.
+- `material.layering_weight_difference_observed`는 차이가 보였다는 중립 관찰이다. 지지 또는 충돌 방향은 배열 위치로 표현한다.
+
+Rated dimension에 structured evidence가 없으면 warning이 기록된다. 초기 파일럿에서 evidence code가 어려운 지점을 찾기 위한 진단이며 점수나 전문가 자격을 자동 판정하지 않는다.
+
 ## Dimension 평가
 
 각 dimension의 상세 정의는 [Fashion Expert Rubric](./fashion-expert-rubric.md)을 따른다. 평가 가능한 중립 상태는 3점이다. 다음은 점수를 만들지 않는다.

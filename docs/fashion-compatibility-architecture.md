@@ -1,12 +1,35 @@
 # Fashion Compatibility Architecture
 
+## Phase 5A.2: Minimum observation input validation
+
+Phase 5A.2는 offline expert contract를 `expert-rubric-draft-v0.3`으로 올리고, context와 별도로 dimension별 최소 observation input을 검증한다.
+
+```text
+sanitized snapshot + input availability
+  -> v0.3 context requirements
+  -> v0.3 observation requirement registry
+  -> absolute / pairwise A+B / overall validation
+  -> origin-aware evidence validation
+  -> agreement and pilot diagnostics
+```
+
+- 모든 13개 dimension의 observation policy는 rubric registry에 선언된다.
+- Image 없이도 color/shape derived features 또는 material context가 명시적으로 허용된 dimension만 rated가 가능하다.
+- Pairwise dimension은 양쪽 snapshot을 독립적으로 검사하고 전체 선호에는 양쪽 image를 요구한다.
+- Empty evidence는 observation 검증을 우회하지 못하며 별도 warning으로 집계한다.
+- Dataset envelope는 `expert-dataset-v1`을 유지한다. `v0.2` 입력은 migration 없이 unsupported rubric error로 거부한다.
+- Material weight difference는 방향성이 없는 human observation으로 기록한다.
+- 이 모듈은 production recommendation, ranking, UI, storage, cache, backup과 연결되지 않는다. Professional score도 생성하지 않는다.
+
+Rollback은 Phase 5A.2의 expert contract, fixture, test, 문서만 되돌리면 된다. 운영 추천 parity에는 변경이 없다.
+
 ## Phase 5A.1: Expert pilot readiness hardening
 
 Phase 5A.1은 운영 추천과 계속 분리된 채 파일럿 입력 정합성을 강화한다.
 
 ```text
 sanitized snapshot + input availability
-  -> draft-v0.2 dimension-specific anchors
+  -> draft-v0.3 dimension-specific anchors
   -> required/recommended context validation
   -> origin-aware evidence validation
   -> canonical context fingerprint + rubric pair identity
@@ -18,7 +41,7 @@ sanitized snapshot + input availability
 - Evidence registry는 derived color/shape, human-observed material, context interpretation을 분리한다.
 - Snapshot은 실제 값 대신 입력 이용 가능 여부만 기록하며 URI, 사용자 치수, 선호 원문을 export하지 않는다.
 - Rubric과 material evidence는 모두 `draft`이며 professional score를 생성하지 않는다.
-- Dataset envelope는 `expert-dataset-v1`을 유지한다. 필수 pilot context와 input availability 계약은 rubric `draft-v0.2`로 구분하며 v0.1 데이터를 자동 해석하거나 migration하지 않는다.
+- Dataset envelope는 `expert-dataset-v1`을 유지한다. 현재 pilot context와 input availability 계약은 rubric `draft-v0.3`으로 구분하며 이전 rubric 데이터를 자동 해석하거나 migration하지 않는다.
 
 Rollback은 Phase 5A.1 expert 모듈·fixture·문서 변경을 되돌리면 된다. 운영 추천, storage, cache, backup migration은 없다.
 
@@ -42,7 +65,7 @@ explicit offline request
 - `benchmarkCases.ts`: 명시적 opt-in에서 `color-features-v1`, `shape-features-v1`을 익명 snapshot으로 변환
 - `expertShadowEvaluator.ts`: legacy-only 기본값과 score 없는 feature/label 비교 확장점
 
-Rubric은 `expert-rubric-draft-v0.2`이며 모든 dimension이 `draft`, `reviewedBy: []`, `sourceReferences: []`다. confidence를 rating과 분리하고, `not_enough_information`을 중립 3점과 구분한다. 합성 fixture는 `synthetic_test`로만 표시한다.
+Rubric은 `expert-rubric-draft-v0.3`이며 모든 dimension이 `draft`, `reviewedBy: []`, `sourceReferences: []`다. confidence를 rating과 분리하고, `not_enough_information`을 중립 3점과 구분한다. 합성 fixture는 `synthetic_test`로만 표시한다.
 
 이 경로는 `outfitRecommend.ts`, 홈, UI, cache, storage, backup에서 import하지 않는다. `professionalScore`와 `scoreDifference`를 계산하지 않으며 기존 점수·순위·문구를 변경하지 않는다. rollback은 expert 폴더, 세 CLI/test, fixture와 Phase 5A 문서만 제거하면 되고 data migration은 없다. 수집 계약은 [Fashion Expert Rubric](./fashion-expert-rubric.md), 운영 절차는 [Fashion Expert Evaluation Guide](./fashion-expert-evaluation-guide.md)를 따른다.
 
