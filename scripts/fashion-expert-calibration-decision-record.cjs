@@ -50,6 +50,24 @@ function digest(value) {
   return crypto.createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
+function fsyncPath(filePath, flags = "r") {
+  const descriptor = fs.openSync(filePath, flags);
+  try {
+    fs.fsyncSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function fsyncDirectory(directory) {
+  try {
+    fsyncPath(directory);
+  } catch (error) {
+    if (process.platform === "win32" && ["EINVAL", "EPERM"].includes(error?.code)) return;
+    throw error;
+  }
+}
+
 function atomicCreateJson(outputPath, value) {
   const directory = path.dirname(outputPath);
   fs.mkdirSync(directory, { recursive: true });
@@ -65,6 +83,8 @@ function atomicCreateJson(outputPath, value) {
     fs.closeSync(descriptor);
     descriptor = undefined;
     fs.linkSync(temporaryPath, outputPath);
+    fsyncPath(outputPath, "r+");
+    fsyncDirectory(directory);
   } catch (error) {
     if (error?.code === "EEXIST") fail("Calibration decision record output already exists.");
     throw error;

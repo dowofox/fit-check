@@ -226,7 +226,19 @@ async function main() {
         ...common,
         "--output", paths.output,
       ]);
-      const record = createCalibrationDecisionRecordFile(options);
+      const fsyncSync = fs.fsyncSync;
+      let directoryFsyncAttempts = 0;
+      fs.fsyncSync = (descriptor) => {
+        if (fs.fstatSync(descriptor).isDirectory()) directoryFsyncAttempts += 1;
+        return fsyncSync(descriptor);
+      };
+      let record;
+      try {
+        record = createCalibrationDecisionRecordFile(options);
+      } finally {
+        fs.fsyncSync = fsyncSync;
+      }
+      assert.equal(directoryFsyncAttempts, 1);
       assert.deepEqual(JSON.parse(fs.readFileSync(paths.output, "utf8")), record);
       const originalOutput = fs.readFileSync(paths.output, "utf8");
       const revisedActions = decisionInput().dimensionActions;
