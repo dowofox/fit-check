@@ -66,10 +66,6 @@ function recoverAtomicJsonPair(outputPath, provenancePath, expectedOperationDige
   try {
     transaction = JSON.parse(fs.readFileSync(transactionPath, "utf8"));
   } catch {
-    if (!fs.existsSync(outputPath) && !fs.existsSync(provenancePath)) {
-      fs.rmSync(transactionPath, { force: true });
-      return false;
-    }
     fail("Interrupted merge transaction is corrupt; manual cleanup is required.");
   }
   const expectedKeys = [

@@ -390,6 +390,29 @@ async function main() {
     }
   });
 
+  await test("a corrupt transaction preserves its journal and staged files", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-merge-corrupt-journal-"));
+    try {
+      const outputPath = path.join(directory, "merged.json");
+      const provenancePath = `${outputPath}.pilot-merge-provenance.json`;
+      const transactionPath = path.join(directory, `.${path.basename(outputPath)}.transaction.json`);
+      const stagedPath = path.join(directory, `.${path.basename(outputPath)}.staged.tmp`);
+      fs.writeFileSync(transactionPath, "{broken", "utf8");
+      fs.writeFileSync(stagedPath, "staged output", "utf8");
+
+      assert.throws(
+        () => atomicWriteJsonPair(outputPath, { ok: true }, provenancePath, { batchId: "batch" }),
+        /transaction is corrupt; manual cleanup is required/
+      );
+      assert.equal(fs.readFileSync(transactionPath, "utf8"), "{broken");
+      assert.equal(fs.readFileSync(stagedPath, "utf8"), "staged output");
+      assert.equal(fs.existsSync(outputPath), false);
+      assert.equal(fs.existsSync(provenancePath), false);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   console.log("Fashion expert pilot merge tests passed.");
 }
 
