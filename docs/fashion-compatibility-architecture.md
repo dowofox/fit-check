@@ -710,7 +710,7 @@ Gate는 `ready_for_calibration_review`만 판정한다. Agreement, unavailable r
 
 ### Phase 5B.2: multi-evaluator pilot merge
 
-각 평가자 output은 frozen source dataset을 기준으로 해당 evaluator의 absolute evaluation만 변경할 수 있다. 병합 경계에서 v3 batch fingerprint와 output provenance를 검증하고, 병합 시각이 모든 evaluator output 완료 시각과 absolute/pairwise 평가 레코드 생성 시각 이후인지 확인하며, source snapshot·pairwise·split·metadata 계약의 semantic equality를 확인한다. 완료된 evaluator별 delta만 evaluator/outfit/evaluation ID 순으로 합쳐 입력 순서와 무관한 분석용 dataset을 만든다.
+각 평가자 output은 frozen source dataset을 기준으로 해당 evaluator의 absolute evaluation만 변경할 수 있다. 병합 경계에서 v3 batch fingerprint와 output provenance를 검증하고, absolute/pairwise 평가 생성, evaluator output 완료, 병합 시각의 순서를 확인하며, source snapshot·pairwise·split·metadata 계약의 semantic equality를 확인한다. 완료된 evaluator별 delta만 evaluator/outfit/evaluation ID 순으로 합쳐 입력 순서와 무관한 분석용 dataset을 만든다.
 
 병합 provenance는 input과 결과의 canonical digest만 보관한다. 병합 결과의 source 값은 유지되며 professional score, pairwise 수집, 운영 추천과 연결되지 않는다. 이 단계의 결과는 agreement report 입력일 뿐 `expert_validated` 데이터가 아니다.
 

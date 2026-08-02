@@ -215,7 +215,7 @@ async function main() {
     }
   });
 
-  await test("merge time cannot precede output completion or evaluation creation", () => {
+  await test("evaluation creation, output completion, and merge time stay ordered", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-pilot-merge-time-"));
     try {
       const inputs = createEvaluatorInputs(directory, ["reviewer-a", "reviewer-b"]);
@@ -232,7 +232,7 @@ async function main() {
         evaluation.createdAt = "2026-08-02T02:00:00.000Z";
       });
       options.now = "2026-08-02T01:00:00.000Z";
-      assert.throws(() => mergePilotFiles(options), /cannot precede evaluation record creation/);
+      assert.throws(() => mergePilotFiles(options), /output completion cannot precede/);
       assert.equal(fs.existsSync(options.outputPath), false);
       assert.equal(fs.existsSync(options.provenancePath), false);
 
@@ -250,7 +250,7 @@ async function main() {
         assignmentManifest: readJson(inputs[0].assignmentPath),
         inputs: pairwiseInputs,
         now: options.now,
-      }), /cannot precede evaluation record creation/);
+      }), /output completion cannot precede/);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

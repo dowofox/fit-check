@@ -363,6 +363,12 @@ function validateEvaluatorInput({
     fail("Pilot output provenance order digest is invalid.");
   }
   assertInputBase(sourceDataset, inputDataset);
+  const outputCompletedAt = Date.parse(provenance.updatedAt);
+  if ([...inputDataset.absoluteEvaluations, ...inputDataset.pairwiseEvaluations].some(
+    (evaluation) => Date.parse(evaluation.createdAt) > outputCompletedAt
+  )) {
+    fail("Evaluator output completion cannot precede contained evaluation creation.");
+  }
 
   const sourceByKey = new Map(sourceDataset.absoluteEvaluations.map((entry) => [evaluationKey(entry), entry]));
   const inputByKey = new Map();
