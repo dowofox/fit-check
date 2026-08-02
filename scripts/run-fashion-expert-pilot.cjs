@@ -595,14 +595,15 @@ function createPilotServer(options) {
         });
         const candidate = upsertPilotEvaluation(dataset, evaluation);
         const validation = validatePilotOutput(candidate);
-        atomicWriteJson(options.outputPath, candidate);
-        provenance = createOutputProvenance({
+        const nextProvenance = createOutputProvenance({
           lock: batchLock,
           session,
           assignmentDigestSha256: assignment.assignmentDigestSha256,
           createdAt: provenance.createdAt,
         });
-        atomicWriteJson(provenancePath, provenance);
+        atomicWriteJson(provenancePath, nextProvenance);
+        atomicWriteJson(options.outputPath, candidate);
+        provenance = nextProvenance;
         dataset = candidate;
         sendJson(response, 200, {
           saved: true,

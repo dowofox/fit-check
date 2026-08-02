@@ -108,7 +108,7 @@ UI에는 pairwise 비교, 총점 계산, professional score가 없다. 평가는
 - Evaluation ID와 Case 순서는 dataset ID, evaluator ID, rubric version, seed를 기준으로 결정적이다.
 - 같은 evaluator + outfit + rubric 평가는 새 레코드를 추가하지 않고 교체한다.
 - 기존 output이 손상됐거나 provenance sidecar가 없거나 batch, evaluator, seed, Case 순서가 다르면 시작 전에 중단한다.
-- `completedAt`은 모든 Case를 저장한 뒤 완료 API가 성공할 때만 기록한다. 완료 후 평가를 다시 저장하면 표식을 지우고 재완료해야 하며, v2 sidecar는 병합하지 않는다.
+- `completedAt`은 모든 Case를 저장한 뒤 완료 API가 성공할 때만 기록한다. 완료 후 평가를 다시 저장할 때는 데이터 교체보다 먼저 완료 표식을 지워 중단 시에도 병합을 닫아 두며, 재완료 전에는 병합하지 않는다. v2 sidecar도 병합하지 않는다.
 - Input dataset은 수정하지 않는다.
 
 Output과 로컬 manifest 기본 패턴은 `.gitignore`에 포함된다. 실제 파일럿 자료를 repository에 커밋하지 않는다.

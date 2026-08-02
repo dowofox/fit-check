@@ -658,6 +658,27 @@ async function main() {
       assert.match(completedProvenance.completedAt, /^\d{4}-\d{2}-\d{2}T/);
       assert.equal(completedProvenance.completedAt, completedProvenance.updatedAt);
 
+      const resaved = await fetchJson(`${origin}/api/evaluations/1`, {
+        method: "POST",
+        headers: resumedHeaders,
+        body: JSON.stringify(createSafeEvaluation()),
+      });
+      assert.equal(resaved.response.status, 200);
+      assert.equal(
+        readPilotJson(provenancePath, "Pilot output provenance").completedAt,
+        null
+      );
+      const recompleted = await fetchJson(`${origin}/api/complete`, {
+        method: "POST",
+        headers: resumedHeaders,
+        body: "{}",
+      });
+      assert.equal(recompleted.response.status, 200);
+      assert.match(
+        readPilotJson(provenancePath, "Pilot output provenance").completedAt,
+        /^\d{4}-\d{2}-\d{2}T/
+      );
+
       const finalOutput = readJson(outputPath);
       const pilotEvaluations = finalOutput.absoluteEvaluations.filter(
         (entry) => entry.evaluatorId === options.evaluatorId
