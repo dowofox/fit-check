@@ -5,7 +5,10 @@ const { atomicWriteJson, readJson } = require("./run-fashion-expert-pilot.cjs");
 const {
   canonicalJson,
   getDatasetSnapshotDigest,
+  getOrderedOutfitIdsDigest,
+  getOutputProvenancePath,
   validateBatchLock,
+  validateOutputProvenance,
 } = require("./fashion-expert-pilot-provenance.cjs");
 const {
   validateAssignmentManifest,
@@ -18,6 +21,7 @@ const {
   createExpertDatasetReport,
 } = require("../utils/fashionCompatibility/expert/evaluationDataset.ts");
 const {
+  getDeterministicOutfitOrder,
   validatePilotOutput,
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
 
@@ -27,6 +31,7 @@ const READINESS_CHECK_IDS = Object.freeze([
   "batch_identity_matches",
   "assignment_identity_matches",
   "merge_identity_matches",
+  "merge_input_digests_match",
   "merged_dataset_digest_matches",
   "assigned_evaluators_match",
   "assignment_coverage_complete",
@@ -43,6 +48,14 @@ function digest(value) {
 
 function sameValues(left, right) {
   return canonicalJson([...left].sort()) === canonicalJson([...right].sort());
+}
+
+function sortedEvaluations(evaluations) {
+  return [...evaluations].sort((left, right) =>
+    `${left.evaluatorId}\u001f${left.outfitId}\u001f${left.evaluationId}`.localeCompare(
+      `${right.evaluatorId}\u001f${right.outfitId}\u001f${right.evaluationId}`
+    )
+  );
 }
 
 function validateMergeProvenance(provenance) {
@@ -85,11 +98,61 @@ function validateMergeProvenance(provenance) {
   return provenance;
 }
 
+function evaluatorInputsMatch(inputs, mergeProvenance, dataset, batchLock, assignmentManifest) {
+  if (!Array.isArray(inputs) || inputs.length < 2) {
+    fail("At least two evaluator inputs are required.");
+  }
+  const inputsByEvaluator = new Map();
+  inputs.forEach((input) => {
+    validatePilotOutput(input.dataset);
+    validateOutputProvenance(input.provenance);
+    const evaluatorId = input.provenance.evaluatorId;
+    if (inputsByEvaluator.has(evaluatorId)) fail("Evaluator inputs repeat an evaluator.");
+    inputsByEvaluator.set(evaluatorId, input);
+  });
+  if (!sameValues(
+    [...inputsByEvaluator.keys()],
+    mergeProvenance.evaluators.map((entry) => entry.evaluatorId)
+  )) return false;
+  return mergeProvenance.evaluators.every((entry) => {
+    const input = inputsByEvaluator.get(entry.evaluatorId);
+    const assignment = assignmentManifest.evaluators.find(
+      (candidate) => candidate.evaluatorId === entry.evaluatorId
+    );
+    if (!input || !assignment) return false;
+    const expectedOrder = getDeterministicOutfitOrder({
+      datasetId: dataset.datasetId,
+      evaluatorId: entry.evaluatorId,
+      seed: input.provenance.seed,
+      outfitIds: assignment.outfitIds,
+    });
+    const inputEvaluations = input.dataset.absoluteEvaluations.filter(
+      (evaluation) => evaluation.evaluatorId === entry.evaluatorId
+    );
+    const mergedEvaluations = dataset.absoluteEvaluations.filter(
+      (evaluation) => evaluation.evaluatorId === entry.evaluatorId
+    );
+    return input.provenance.batchId === batchLock.batchId &&
+      input.provenance.batchFingerprintSha256 === batchLock.batchFingerprintSha256 &&
+      input.provenance.assignmentDigestSha256 === assignmentManifest.assignmentDigestSha256 &&
+      input.provenance.datasetId === dataset.datasetId &&
+      input.provenance.datasetVersion === dataset.datasetVersion &&
+      input.provenance.rubricVersion === dataset.rubricVersion &&
+      input.provenance.orderedOutfitIdsDigestSha256 === getOrderedOutfitIdsDigest(expectedOrder) &&
+      getDatasetSnapshotDigest(input.dataset) === batchLock.dataset.snapshotDigestSha256 &&
+      entry.inputDatasetDigestSha256 === digest(getSemanticDatasetPayload(input.dataset)) &&
+      entry.inputProvenanceDigestSha256 === digest(input.provenance) &&
+      canonicalJson(sortedEvaluations(inputEvaluations)) ===
+        canonicalJson(sortedEvaluations(mergedEvaluations));
+  });
+}
+
 function assessPilotCalibrationReadiness({
   dataset,
   batchLock,
   assignmentManifest,
   mergeProvenance,
+  evaluatorInputs,
 }) {
   validateBatchLock(batchLock);
   validateAssignmentManifest(assignmentManifest, batchLock);
@@ -141,6 +204,12 @@ function assessPilotCalibrationReadiness({
         mergeProvenance.rubricVersion === dataset.rubricVersion &&
         mergeProvenance.snapshotDigestSha256 === batchLock.dataset.snapshotDigestSha256 &&
         mergeProvenance.protocolDigestSha256 === batchLock.protocol.protocolDigestSha256,
+    },
+    {
+      id: "merge_input_digests_match",
+      passed: evaluatorInputsMatch(
+        evaluatorInputs, mergeProvenance, dataset, batchLock, assignmentManifest
+      ),
     },
     {
       id: "merged_dataset_digest_matches",
@@ -206,7 +275,7 @@ function valueFor(argv, name, required = true) {
 
 function parseArguments(argv) {
   const allowed = new Set([
-    "--dataset", "--batch-lock", "--assignment", "--merge-provenance", "--output",
+    "--dataset", "--batch-lock", "--assignment", "--merge-provenance", "--input", "--output",
   ]);
   for (let index = 0; index < argv.length; index += 2) {
     if (!allowed.has(argv[index]) || !argv[index + 1] || argv[index + 1].startsWith("--")) {
@@ -218,12 +287,20 @@ function parseArguments(argv) {
     batchLockPath: path.resolve(valueFor(argv, "--batch-lock")),
     assignmentPath: path.resolve(valueFor(argv, "--assignment")),
     mergeProvenancePath: path.resolve(valueFor(argv, "--merge-provenance")),
+    inputPaths: argv.flatMap((value, index) =>
+      value === "--input" ? [path.resolve(argv[index + 1])] : []
+    ),
   };
+  if (options.inputPaths.length < 2) fail("At least two --input paths are required.");
+  if (new Set(options.inputPaths.map((value) => value.toLowerCase())).size !== options.inputPaths.length) {
+    fail("Duplicate --input paths are not allowed.");
+  }
   const output = valueFor(argv, "--output", false);
   if (output) options.outputPath = path.resolve(output);
   if (
     options.outputPath &&
-    [options.datasetPath, options.batchLockPath, options.assignmentPath, options.mergeProvenancePath]
+    [options.datasetPath, options.batchLockPath, options.assignmentPath, options.mergeProvenancePath,
+      ...options.inputPaths, ...options.inputPaths.map(getOutputProvenancePath)]
       .some((value) => value.toLowerCase() === options.outputPath.toLowerCase())
   ) {
     fail("--output must be different from all inputs.");
@@ -237,6 +314,10 @@ function assessPilotCalibrationFiles(options) {
     batchLock: readJson(options.batchLockPath, "Batch lock"),
     assignmentManifest: readJson(options.assignmentPath, "Assignment manifest"),
     mergeProvenance: readJson(options.mergeProvenancePath, "Merge provenance"),
+    evaluatorInputs: options.inputPaths.map((inputPath, index) => ({
+      dataset: readJson(inputPath, `Input ${index + 1} dataset`),
+      provenance: readJson(getOutputProvenancePath(inputPath), `Input ${index + 1} provenance`),
+    })),
   });
   if (options.outputPath) {
     atomicWriteJson(options.outputPath, readiness);

@@ -2,7 +2,10 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { canonicalJson } = require("./fashion-expert-pilot-provenance.cjs");
+const {
+  canonicalJson,
+  getOutputProvenancePath,
+} = require("./fashion-expert-pilot-provenance.cjs");
 const {
   READINESS_CHECK_IDS,
   READINESS_SCHEMA_VERSION,
@@ -307,12 +310,14 @@ function createCalibrationReviewPacket({
   batchLock,
   assignmentManifest,
   mergeProvenance,
+  evaluatorInputs,
 }) {
   return createPacketFromReadiness(assessPilotCalibrationReadiness({
     dataset,
     batchLock,
     assignmentManifest,
     mergeProvenance,
+    evaluatorInputs,
   }));
 }
 
@@ -356,15 +361,16 @@ function renderCalibrationReviewPacketMarkdown(packet) {
 
 function parseArguments(argv) {
   const required = ["--dataset", "--batch-lock", "--assignment", "--merge-provenance"];
-  const allowed = new Set([...required, "--format", "--output"]);
+  const allowed = new Set([...required, "--input", "--format", "--output"]);
   const values = {};
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index];
     const value = argv[index + 1];
-    if (!allowed.has(key) || !value || value.startsWith("--") || values[key]) {
+    if (!allowed.has(key) || !value || value.startsWith("--") || (key !== "--input" && values[key])) {
       fail("Invalid calibration review packet arguments.");
     }
-    values[key] = value;
+    if (key === "--input") (values[key] ||= []).push(value);
+    else values[key] = value;
   }
   required.forEach((key) => {
     if (!values[key]) fail(`${key} is required.`);
@@ -379,16 +385,22 @@ function parseArguments(argv) {
     assignmentPath: path.resolve(values["--assignment"]),
     mergeProvenancePath: path.resolve(values["--merge-provenance"]),
   };
+  const evaluatorInputPaths = (values["--input"] || []).map((value) => path.resolve(value));
+  if (evaluatorInputPaths.length < 2) fail("At least two --input paths are required.");
+  if (new Set(evaluatorInputPaths.map((value) => value.toLowerCase())).size !== evaluatorInputPaths.length) {
+    fail("Duplicate --input paths are not allowed.");
+  }
   const outputPath = values["--output"] ? path.resolve(values["--output"]) : undefined;
   if (
     outputPath &&
-    Object.values(inputPaths).some((inputPath) =>
+    [...Object.values(inputPaths), ...evaluatorInputPaths,
+      ...evaluatorInputPaths.map(getOutputProvenancePath)].some((inputPath) =>
       inputPath.toLowerCase() === outputPath.toLowerCase()
     )
   ) {
     fail("--output must be different from all inputs.");
   }
-  return { ...inputPaths, format, outputPath };
+  return { ...inputPaths, inputPaths: evaluatorInputPaths, format, outputPath };
 }
 
 function createCalibrationReviewPacketFile(options) {
@@ -397,6 +409,7 @@ function createCalibrationReviewPacketFile(options) {
     batchLockPath: options.batchLockPath,
     assignmentPath: options.assignmentPath,
     mergeProvenancePath: options.mergeProvenancePath,
+    inputPaths: options.inputPaths,
   }));
   const output = options.format === "json"
     ? `${JSON.stringify(packet, null, 2)}\n`

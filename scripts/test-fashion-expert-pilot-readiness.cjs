@@ -38,6 +38,7 @@ async function main() {
       batchLock: fixture.batchLock,
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
+      evaluatorInputs: fixture.inputs,
     });
     assert.equal(result.schemaVersion, READINESS_SCHEMA_VERSION);
     assert.equal(result.ready, true);
@@ -60,6 +61,7 @@ async function main() {
         batchLock: fixture.batchLock,
         assignmentManifest: fixture.assignmentManifest,
         mergeProvenance: fixture.provenance,
+        evaluatorInputs: fixture.inputs,
       }),
       result
     );
@@ -78,6 +80,7 @@ async function main() {
       batchLock: fixture.batchLock,
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
+      evaluatorInputs: fixture.inputs,
     });
     assert.equal(result.ready, false);
     assert.equal(result.status, "blocked");
@@ -114,6 +117,7 @@ async function main() {
       batchLock: fixture.batchLock,
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
+      evaluatorInputs: fixture.inputs,
     });
     assert.equal(result.ready, false);
     assert.equal(
@@ -135,6 +139,7 @@ async function main() {
       batchLock: fixture.batchLock,
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: wrongAssignment,
+      evaluatorInputs: fixture.inputs,
     });
     assert.equal(assignmentResult.ready, false);
 
@@ -145,6 +150,7 @@ async function main() {
       batchLock: fixture.batchLock,
       assignmentManifest: fixture.assignmentManifest,
       mergeProvenance: fixture.provenance,
+      evaluatorInputs: fixture.inputs,
     });
     assert.equal(snapshotResult.ready, false);
     assert.equal(
@@ -160,8 +166,27 @@ async function main() {
         batchLock: fixture.batchLock,
         assignmentManifest: fixture.assignmentManifest,
         mergeProvenance: unknownField,
+        evaluatorInputs: fixture.inputs,
       }),
       /unknown or missing fields/
+    );
+  });
+
+  await test("tampered merge input digests block readiness", () => {
+    const fixture = createMergedPilot();
+    const provenance = structuredClone(fixture.provenance);
+    provenance.evaluators[0].inputDatasetDigestSha256 = "0".repeat(64);
+    const result = assessPilotCalibrationReadiness({
+      dataset: fixture.mergedDataset,
+      batchLock: fixture.batchLock,
+      assignmentManifest: fixture.assignmentManifest,
+      mergeProvenance: provenance,
+      evaluatorInputs: fixture.inputs,
+    });
+    assert.equal(result.ready, false);
+    assert.equal(
+      result.checks.find((entry) => entry.id === "merge_input_digests_match").passed,
+      false
     );
   });
 
@@ -173,6 +198,12 @@ async function main() {
       const assignmentPath = path.join(directory, "assignment.json");
       const provenancePath = path.join(directory, "merge-provenance.json");
       const outputPath = path.join(directory, "readiness.json");
+      const inputPaths = fixture.inputs.map((input, index) => {
+        const inputPath = path.join(directory, `reviewer-${index + 1}.json`);
+        writeJson(inputPath, input.dataset);
+        writeJson(`${inputPath}.pilot-provenance.json`, input.provenance);
+        return inputPath;
+      });
       writeJson(datasetPath, fixture.mergedDataset);
       writeJson(assignmentPath, fixture.assignmentManifest);
       writeJson(provenancePath, fixture.provenance);
@@ -181,6 +212,7 @@ async function main() {
         "--batch-lock", lockPath,
         "--assignment", assignmentPath,
         "--merge-provenance", provenancePath,
+        ...inputPaths.flatMap((inputPath) => ["--input", inputPath]),
         "--output", outputPath,
       ]);
       const result = assessPilotCalibrationFiles(options);
@@ -191,6 +223,7 @@ async function main() {
         "--batch-lock", lockPath,
         "--assignment", assignmentPath,
         "--merge-provenance", provenancePath,
+        ...inputPaths.flatMap((inputPath) => ["--input", inputPath]),
         "--output", datasetPath,
       ]), /different from all inputs/);
     } finally {

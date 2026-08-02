@@ -176,6 +176,8 @@ npm run fashion:expert:pilot:readiness -- `
   --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
   --assignment fashion-expert-pilot-output/assignment.json `
   --merge-provenance merged-expert-pilot.json.pilot-merge-provenance.json `
+  --input reviewer-a.json `
+  --input reviewer-b.json `
   --output calibration-readiness.json
 ```
 
@@ -191,6 +193,8 @@ npm run fashion:expert:pilot:review-packet -- `
   --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
   --assignment fashion-expert-pilot-output/assignment.json `
   --merge-provenance merged-expert-pilot.json.pilot-merge-provenance.json `
+  --input reviewer-a.json `
+  --input reviewer-b.json `
   --format markdown `
   --output calibration-review-packet.md
 ```

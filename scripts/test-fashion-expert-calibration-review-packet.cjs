@@ -20,6 +20,7 @@ function packetInput(fixture) {
     batchLock: fixture.batchLock,
     assignmentManifest: fixture.assignmentManifest,
     mergeProvenance: fixture.provenance,
+    evaluatorInputs: fixture.inputs,
   };
 }
 
@@ -75,7 +76,7 @@ async function main() {
     assert.match(markdown, /does not grant expert validation or production approval/);
   });
 
-  await test("CLI recomputes readiness from four sources and rejects a readiness shortcut", () => {
+  await test("CLI recomputes readiness from source artifacts and rejects a readiness shortcut", () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-calibration-packet-"));
     try {
       const fixture = createMergedPilot();
@@ -89,11 +90,18 @@ async function main() {
       writeJson(batchLockPath, fixture.batchLock);
       writeJson(assignmentPath, fixture.assignmentManifest);
       writeJson(provenancePath, fixture.provenance);
+      const inputPaths = fixture.inputs.map((input, index) => {
+        const inputPath = path.join(directory, `reviewer-${index + 1}.json`);
+        writeJson(inputPath, input.dataset);
+        writeJson(`${inputPath}.pilot-provenance.json`, input.provenance);
+        return inputPath;
+      });
       const commonArguments = [
         "--dataset", datasetPath,
         "--batch-lock", batchLockPath,
         "--assignment", assignmentPath,
         "--merge-provenance", provenancePath,
+        ...inputPaths.flatMap((inputPath) => ["--input", inputPath]),
       ];
 
       const jsonResult = createCalibrationReviewPacketFile(parseArguments([

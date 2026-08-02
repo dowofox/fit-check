@@ -87,7 +87,7 @@ function createMergedPilot(evaluatorIds = ["readiness-reviewer-a", "readiness-re
     inputs,
     now: "2026-08-02T01:00:00.000Z",
   });
-  return { batchLock, assignmentManifest, sourceDataset, ...merged };
+  return { batchLock, assignmentManifest, sourceDataset, inputs, ...merged };
 }
 
 module.exports = {
