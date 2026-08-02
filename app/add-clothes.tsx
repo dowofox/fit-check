@@ -2120,7 +2120,7 @@ const styles = StyleSheet.create({
   linkFallbackNoticeText: {
     flex: 1,
     minWidth: 0,
-    color: colors.secondaryText,
+    color: colors.primaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
@@ -2258,7 +2258,7 @@ const styles = StyleSheet.create({
   extractionStatusLabel: {
     flex: 1,
     minWidth: 0,
-    color: colors.secondaryText,
+    color: colors.primaryText,
     fontSize: 11,
     lineHeight: 15,
     fontWeight: "700",
