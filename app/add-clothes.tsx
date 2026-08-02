@@ -5,6 +5,7 @@ import {
   isApiRequestTimeoutError,
 } from "@/utils/api";
 import { ScreenHeader } from "@/components/ui/NaesUi";
+import { colors, layout, radius, spacing } from "@/utils/theme";
 import { isAnalysisImageTooLargeError } from "@/utils/analysisImage";
 import {
   requestClothesAnalysis,
@@ -1135,7 +1136,7 @@ export default function AddClothesScreen() {
               <Image source={{ uri: imageUri }} style={styles.registrationSourceImage} />
             ) : (
               <View style={styles.registrationSourceIcon}>
-                <Feather name="edit-3" size={18} color="#8c6f47" />
+                <Feather name="edit-3" size={18} color={colors.accent} />
               </View>
             )}
             <View style={styles.registrationSourceTextWrap}>
@@ -1164,7 +1165,7 @@ export default function AddClothesScreen() {
           <>
         <View style={styles.linkHeroCard}>
           <View style={styles.recommendedBadge}>
-            <Feather name="check" size={12} color="#8c6f47" />
+            <Feather name="check" size={12} color={colors.accent} />
             <Text style={styles.recommendedBadgeText}>가장 정확해요</Text>
           </View>
           <Text style={styles.linkHeroTitle}>상품 링크로 정확하게 등록</Text>
@@ -1190,7 +1191,7 @@ export default function AddClothesScreen() {
             disabled={isSaving}
           >
             <View style={styles.modeOptionIcon}>
-              <Feather name="link" size={18} color="#8c6f47" />
+              <Feather name="link" size={18} color={colors.accent} />
             </View>
             <View style={styles.modeOptionTextWrap}>
               <View style={styles.modeOptionTitleRow}>
@@ -1201,7 +1202,7 @@ export default function AddClothesScreen() {
                 공식 상품 정보와 실측표를 가져와요.
               </Text>
             </View>
-            {addMode === "link" ? <Feather name="check-circle" size={18} color="#8c6f47" /> : null}
+            {addMode === "link" ? <Feather name="check-circle" size={18} color={colors.accent} /> : null}
           </Pressable>
 
           <Pressable
@@ -1216,7 +1217,7 @@ export default function AddClothesScreen() {
             disabled={isSaving}
           >
             <View style={styles.modeOptionIcon}>
-              <Feather name="camera" size={18} color="#8c6f47" />
+              <Feather name="camera" size={18} color={colors.accent} />
             </View>
             <View style={styles.modeOptionTextWrap}>
               <Text style={styles.modeOptionTitle}>사진으로 빠르게 추가</Text>
@@ -1224,7 +1225,7 @@ export default function AddClothesScreen() {
                 링크가 없는 옷을 사진으로 간단히 등록해요.
               </Text>
             </View>
-            {addMode === "photo" ? <Feather name="check-circle" size={18} color="#8c6f47" /> : null}
+            {addMode === "photo" ? <Feather name="check-circle" size={18} color={colors.accent} /> : null}
           </Pressable>
 
           <Pressable
@@ -1239,7 +1240,7 @@ export default function AddClothesScreen() {
             disabled={isSaving}
           >
             <View style={styles.modeOptionIcon}>
-              <Feather name="edit-3" size={18} color="#8c6f47" />
+              <Feather name="edit-3" size={18} color={colors.accent} />
             </View>
             <View style={styles.modeOptionTextWrap}>
               <Text style={styles.modeOptionTitle}>직접 입력해서 추가</Text>
@@ -1247,7 +1248,7 @@ export default function AddClothesScreen() {
                 링크와 사진이 없을 때 필요한 정보만 입력해요.
               </Text>
             </View>
-            {addMode === "manual" ? <Feather name="check-circle" size={18} color="#8c6f47" /> : null}
+            {addMode === "manual" ? <Feather name="check-circle" size={18} color={colors.accent} /> : null}
           </Pressable>
         </View>
 
@@ -1255,7 +1256,7 @@ export default function AddClothesScreen() {
           <>
         {extractedProduct ? (
           <View style={styles.linkFallbackNotice}>
-            <Feather name="check-circle" size={17} color="#8c6f47" />
+            <Feather name="check-circle" size={17} color={colors.accent} />
             <Text style={styles.linkFallbackNoticeText}>
               가져온 상품 정보는 유지됐어요. 옷 사진을 추가하면 함께 저장해요.
             </Text>
@@ -1272,7 +1273,7 @@ export default function AddClothesScreen() {
           ) : (
             <>
               <View style={styles.uploadIconCircle}>
-                <Feather name="image" size={28} color="#8c6f47" />
+                <Feather name="image" size={28} color={colors.accent} />
               </View>
               <Text style={styles.uploadTitle}>옷 사진 선택</Text>
               <Text style={styles.uploadText}>
@@ -1289,7 +1290,7 @@ export default function AddClothesScreen() {
             style={styles.photoButton}
             onPress={pickImage}
           >
-            <Feather name="image" size={18} color="#111" />
+            <Feather name="image" size={18} color={colors.primaryText} />
             <Text style={styles.photoButtonText}>앨범에서 선택</Text>
           </Pressable>
 
@@ -1299,7 +1300,7 @@ export default function AddClothesScreen() {
             style={styles.photoButton}
             onPress={takePhoto}
           >
-            <Feather name="camera" size={18} color="#111" />
+            <Feather name="camera" size={18} color={colors.primaryText} />
             <Text style={styles.photoButtonText}>카메라로 촬영</Text>
           </Pressable>
         </View>
@@ -1328,7 +1329,7 @@ export default function AddClothesScreen() {
           <View style={styles.linkAddCard}>
             <View style={styles.linkAddHeader}>
               <View style={styles.uploadIconCircle}>
-                <Feather name="link" size={24} color="#8c6f47" />
+                <Feather name="link" size={24} color={colors.accent} />
               </View>
               <View style={styles.linkAddHeaderText}>
                 <Text style={styles.uploadTitle}>상품 정보 불러오기</Text>
@@ -1344,7 +1345,7 @@ export default function AddClothesScreen() {
               value={productUrlInput}
               onChangeText={handleProductUrlInputChange}
               placeholder="무신사 등 상품 링크를 붙여넣어 주세요"
-              placeholderTextColor="#b2aaa1"
+              placeholderTextColor={colors.mutedText}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!isSaving}
@@ -1368,9 +1369,9 @@ export default function AddClothesScreen() {
               disabled={isExtractingProduct || isSaving}
             >
               {isExtractingProduct ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.surface} />
               ) : (
-                <Feather name="download" size={16} color="#fff" />
+                <Feather name="download" size={16} color={colors.surface} />
               )}
               <Text style={styles.linkExtractButtonText}>
                 {isExtractingProduct ? "가져오는 중..." : "상품 정보 가져오기"}
@@ -1380,7 +1381,7 @@ export default function AddClothesScreen() {
             {productLinkFailure ? (
               <View style={styles.linkErrorBox}>
                 <View style={styles.linkErrorHeader}>
-                  <Feather name="alert-circle" size={17} color="#b45309" />
+                  <Feather name="alert-circle" size={17} color={colors.warning} />
                   <Text style={styles.linkErrorTitle}>{productLinkFailure.title}</Text>
                 </View>
                 <Text style={styles.linkErrorText}>{productLinkFailure.message}</Text>
@@ -1426,7 +1427,7 @@ export default function AddClothesScreen() {
                         <Feather
                           name={extractionSummary.isComplete ? "check-circle" : "info"}
                           size={15}
-                          color="#8c6f47"
+                          color={colors.accent}
                         />
                         <Text style={styles.extractionSummaryTitle}>가져온 정보</Text>
                       </View>
@@ -1436,7 +1437,7 @@ export default function AddClothesScreen() {
                             <Feather
                               name={status.available ? "check" : "minus"}
                               size={13}
-                              color={status.available ? "#8c6f47" : "#a39a8f"}
+                              color={status.available ? colors.accent : colors.mutedText}
                             />
                             <Text style={styles.extractionStatusLabel}>{status.label}</Text>
                             <Text
@@ -1479,7 +1480,7 @@ export default function AddClothesScreen() {
 
             {analysis.source === "productFallback" ? (
               <View style={styles.partialExtractionNotice}>
-                <Feather name="alert-circle" size={14} color="#8c6f47" />
+                <Feather name="alert-circle" size={14} color={colors.accent} />
                 <Text style={styles.partialExtractionNoticeText}>
                   이미지 분석 없이 확인된 상품 정보로 계속해요. 종류, 색상, 계절을 저장 전에 확인해주세요.
                 </Text>
@@ -1488,7 +1489,7 @@ export default function AddClothesScreen() {
 
             {registrationReviewFields.length > 0 ? (
               <View style={styles.registrationReviewNotice}>
-                <Feather name="check-square" size={15} color="#b45309" />
+                <Feather name="check-square" size={15} color={colors.warning} />
                 <Text style={styles.registrationReviewNoticeText}>
                   저장 전 {getRegistrationReviewLabels(registrationReviewFields).join(", ")}을 확인해주세요.
                 </Text>
@@ -1523,7 +1524,7 @@ export default function AddClothesScreen() {
                   markClassificationFieldAsEdited("category");
                 }}
                 placeholder="상의 / 하의 / 신발 / 아우터 / 액세서리"
-                placeholderTextColor="#777064"
+                placeholderTextColor={colors.secondaryText}
               />
             )}
 
@@ -1536,13 +1537,13 @@ export default function AddClothesScreen() {
                 markClassificationFieldAsEdited("color");
               }}
               placeholder="예: 블랙, 화이트, 데님"
-              placeholderTextColor="#777064"
+              placeholderTextColor={colors.secondaryText}
             />
 
             <Text style={styles.requiredFieldLabel}>3. 입기 좋은 계절</Text>
             {seasonNeedsReview ? (
               <View style={styles.registrationReviewNotice}>
-                <Feather name="alert-circle" size={15} color="#b45309" />
+                <Feather name="alert-circle" size={15} color={colors.warning} />
                 <View style={styles.registrationReviewContent}>
                   <Text style={styles.registrationReviewNoticeText}>
                     계절을 정확히 판단하기 어려워요. 실제로 입는 계절을 확인해주세요.
@@ -1555,7 +1556,7 @@ export default function AddClothesScreen() {
                       style={styles.seasonConfirmButton}
                       onPress={confirmSelectedSeasons}
                     >
-                      <Feather name="check" size={13} color="#fff" />
+                      <Feather name="check" size={13} color={colors.surface} />
                       <Text style={styles.seasonConfirmButtonText}>선택한 계절로 확인</Text>
                     </Pressable>
                   ) : null}
@@ -1593,7 +1594,7 @@ export default function AddClothesScreen() {
               <Feather
                 name={showAdditionalInfo ? "chevron-up" : "chevron-down"}
                 size={18}
-                color="#8c6f47"
+                color={colors.accent}
               />
             </Pressable>
 
@@ -1608,7 +1609,7 @@ export default function AddClothesScreen() {
                     markClassificationFieldAsEdited("detailCategory");
                   }}
                   placeholder="예: 데님 셔츠, 와이드 슬랙스"
-                  placeholderTextColor="#777064"
+                  placeholderTextColor={colors.secondaryText}
                 />
 
                 {analysis.source !== "manual" ? (
@@ -1673,7 +1674,7 @@ export default function AddClothesScreen() {
                   value={selectedSize === DEFAULT_SIZE ? "" : selectedSize}
                   onChangeText={(value) => setSelectedSize(value.trim() || DEFAULT_SIZE)}
                   placeholder={DEFAULT_SIZE}
-                  placeholderTextColor="#777064"
+                  placeholderTextColor={colors.secondaryText}
                 />
               </View>
             ) : null}
@@ -1705,10 +1706,10 @@ export default function AddClothesScreen() {
           disabled={!canContinue || isSaving || isExtractingProduct}
         >
           {isSaving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.surface} />
           ) : (
             <>
-              <Feather name="save" size={18} color="#fff" />
+              <Feather name="save" size={18} color={colors.surface} />
               <Text style={styles.primaryButtonText}>
                 {analysis
                   ? "옷장에 저장"
@@ -1727,39 +1728,39 @@ export default function AddClothesScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f5f2ee" },
+  screen: { flex: 1, backgroundColor: colors.background },
   container: {
     flexGrow: 1,
     paddingTop: 34,
-    paddingHorizontal: 18,
+    paddingHorizontal: layout.screenPadding,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: spacing.lg,
   },
   backButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
   },
   headerSpacer: { width: 38 },
   headerEyebrow: {
     textAlign: "center",
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.2,
   },
   headerTitle: {
     textAlign: "center",
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 22,
     fontWeight: "800",
     marginTop: 2,
@@ -1769,24 +1770,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: "#e8ded2",
-    padding: 10,
+    borderColor: colors.divider,
+    padding: spacing.sm,
   },
   registrationSourceImage: {
     width: 56,
     height: 56,
-    borderRadius: 14,
-    backgroundColor: "#f4eee7",
+    borderRadius: radius.md,
+    backgroundColor: colors.softCard,
     resizeMode: "cover",
   },
   registrationSourceIcon: {
     width: 56,
     height: 56,
-    borderRadius: 14,
-    backgroundColor: "#f4eee7",
+    borderRadius: radius.md,
+    backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1795,92 +1796,92 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   registrationSourceEyebrow: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 10,
     fontWeight: "800",
     marginBottom: 3,
   },
   registrationSourceTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "800",
   },
   registrationSourceReset: {
     flexShrink: 0,
-    borderRadius: 999,
-    backgroundColor: "#f4eee7",
+    borderRadius: radius.round,
+    backgroundColor: colors.softCard,
     paddingVertical: 7,
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.sm,
   },
   registrationSourceResetText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "800",
   },
   linkHeroCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: "#e8ded2",
-    padding: 18,
-    marginBottom: 12,
+    borderColor: colors.divider,
+    padding: layout.cardPadding,
+    marginBottom: spacing.control,
   },
   recommendedBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#f4eee7",
-    borderRadius: 999,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.round,
     paddingVertical: 5,
     paddingHorizontal: 9,
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
   recommendedBadgeText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "900",
   },
   linkHeroTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 22,
     lineHeight: 29,
     fontWeight: "900",
   },
   linkHeroText: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: "600",
     marginTop: 8,
   },
   modeSelectionList: {
-    gap: 10,
-    marginBottom: 14,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   modeOptionCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    gap: spacing.control,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: "#e8ded2",
-    padding: 14,
+    borderColor: colors.divider,
+    padding: spacing.md,
   },
   modeOptionCardPrimary: {
     paddingVertical: 16,
   },
   modeOptionCardActive: {
-    borderColor: "#8c6f47",
-    backgroundColor: "#fbf8f3",
+    borderColor: colors.accent,
+    backgroundColor: colors.softCard,
   },
   modeOptionIcon: {
     width: 38,
     height: 38,
-    borderRadius: 999,
-    backgroundColor: "#f4eee7",
+    borderRadius: radius.round,
+    backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -1896,21 +1897,21 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   modeOptionTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 15,
     fontWeight: "900",
   },
   modeOptionBadge: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 10,
     fontWeight: "900",
-    backgroundColor: "#f4eee7",
-    borderRadius: 999,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.round,
     paddingVertical: 3,
     paddingHorizontal: 7,
   },
   modeOptionDescription: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "600",
@@ -1918,40 +1919,40 @@ const styles = StyleSheet.create({
   },
   modeSwitchCard: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     padding: 5,
-    gap: 6,
-    marginBottom: 12,
+    gap: spacing.xs,
+    marginBottom: spacing.control,
   },
   modeSwitchButton: {
     flex: 1,
     height: 42,
-    borderRadius: 14,
+    borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 7,
   },
   modeSwitchButtonActive: {
-    backgroundColor: "#111",
+    backgroundColor: colors.primaryText,
   },
   modeSwitchText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 13,
     fontWeight: "800",
   },
   modeSwitchTextActive: {
-    color: "#fff",
+    color: colors.surface,
   },
   uploadCard: {
     height: 280,
-    borderRadius: 24,
-    backgroundColor: "#fff",
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -1965,18 +1966,18 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: "#f4eee7",
+    backgroundColor: colors.softCard,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
   uploadTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 18,
     fontWeight: "800",
   },
   uploadText: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 13,
     lineHeight: 20,
     textAlign: "center",
@@ -1985,65 +1986,65 @@ const styles = StyleSheet.create({
   },
   photoButtonRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.control,
   },
   photoButton: {
     flex: 1,
     height: 48,
-    borderRadius: 16,
-    backgroundColor: "#fff",
+    borderRadius: radius.control,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
   photoButtonText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "700",
   },
   linkAddCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     padding: 16,
-    gap: 12,
+    gap: spacing.control,
   },
   linkAddHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: spacing.control,
   },
   linkAddHeaderText: {
     flex: 1,
     minWidth: 0,
   },
   linkAddDescription: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "600",
     marginTop: 5,
   },
   linkInput: {
-    backgroundColor: "#f7f2eb",
-    borderRadius: 16,
+    backgroundColor: colors.background,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#e8ded2",
-    paddingVertical: 12,
+    borderColor: colors.divider,
+    paddingVertical: spacing.control,
     paddingHorizontal: 13,
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 14,
     fontWeight: "700",
   },
   linkExtractButton: {
     height: 46,
-    borderRadius: 16,
-    backgroundColor: "#111",
+    borderRadius: radius.control,
+    backgroundColor: colors.primaryText,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -2053,12 +2054,12 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   linkExtractButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 13,
     fontWeight: "800",
   },
   linkSupportText: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 11,
     lineHeight: 17,
     fontWeight: "600",
@@ -2066,11 +2067,11 @@ const styles = StyleSheet.create({
   },
   linkErrorBox: {
     backgroundColor: "#fff7ed",
-    borderRadius: 16,
+    borderRadius: radius.control,
     borderWidth: 1,
     borderColor: "#f1d4b3",
-    padding: 12,
-    gap: 10,
+    padding: spacing.control,
+    gap: spacing.sm,
   },
   linkErrorHeader: {
     flexDirection: "row",
@@ -2080,28 +2081,28 @@ const styles = StyleSheet.create({
   linkErrorTitle: {
     flex: 1,
     minWidth: 0,
-    color: "#8a3f08",
+    color: colors.warning,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "900",
   },
   linkErrorText: {
-    color: "#b45309",
+    color: colors.warning,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
   },
   linkFallbackButton: {
     alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: "#fff",
+    borderRadius: radius.round,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     paddingVertical: 7,
     paddingHorizontal: 11,
   },
   linkFallbackButtonText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "900",
   },
@@ -2109,52 +2110,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: "#f4eee7",
-    borderRadius: 16,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.control,
     borderWidth: 1,
-    borderColor: "#e8ded2",
-    padding: 12,
-    marginBottom: 12,
+    borderColor: colors.divider,
+    padding: spacing.control,
+    marginBottom: spacing.control,
   },
   linkFallbackNoticeText: {
     flex: 1,
     minWidth: 0,
-    color: "#625a51",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
   },
   extractedProductCard: {
-    backgroundColor: "#faf8f5",
-    borderRadius: 18,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     overflow: "hidden",
   },
   linkPreviewImage: {
     width: "100%",
     height: 210,
     resizeMode: "cover",
-    backgroundColor: "#f4eee7",
+    backgroundColor: colors.softCard,
   },
   linkPreviewBody: {
-    padding: 12,
-    gap: 6,
+    padding: spacing.control,
+    gap: spacing.xs,
   },
   partialExtractionNotice: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 7,
-    backgroundColor: "#f4eee7",
+    backgroundColor: colors.softCard,
     borderRadius: 12,
     paddingVertical: 9,
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.sm,
     marginBottom: 4,
   },
   partialExtractionNoticeText: {
     flex: 1,
     minWidth: 0,
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "700",
@@ -2168,13 +2169,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f1d4b3",
     paddingVertical: 9,
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.sm,
     marginBottom: 4,
   },
   registrationReviewNoticeText: {
     flex: 1,
     minWidth: 0,
-    color: "#b45309",
+    color: colors.warning,
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "700",
@@ -2187,42 +2188,42 @@ const styles = StyleSheet.create({
   seasonConfirmButton: {
     minHeight: 32,
     borderRadius: 12,
-    backgroundColor: "#8c6f47",
+    backgroundColor: colors.accent,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingVertical: 7,
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.sm,
     marginTop: 8,
   },
   seasonConfirmButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 11,
     lineHeight: 15,
     fontWeight: "800",
   },
   linkProductBrand: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 12,
     fontWeight: "800",
   },
   linkProductName: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "800",
   },
   linkProductMeta: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "700",
   },
   extractionSummaryCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     padding: 11,
     gap: 9,
     marginTop: 4,
@@ -2233,7 +2234,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   extractionSummaryTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "900",
   },
@@ -2249,58 +2250,58 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#f4eee7",
-    borderRadius: 10,
+    backgroundColor: colors.softCard,
+    borderRadius: radius.sm,
     paddingVertical: 8,
     paddingHorizontal: 8,
   },
   extractionStatusLabel: {
     flex: 1,
     minWidth: 0,
-    color: "#625a51",
+    color: colors.secondaryText,
     fontSize: 11,
     lineHeight: 15,
     fontWeight: "700",
   },
   extractionStatusValue: {
     flexShrink: 0,
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 10,
     fontWeight: "900",
   },
   extractionStatusValueMissing: {
-    color: "#777064",
+    color: colors.secondaryText,
   },
   extractionSummaryMessage: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 11,
     lineHeight: 17,
     fontWeight: "600",
   },
   selectedListCard: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#e8ded2",
-    padding: 12,
-    marginTop: 12,
+    borderColor: colors.divider,
+    padding: spacing.control,
+    marginTop: spacing.control,
   },
   selectedListTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "800",
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
   thumbnailRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: spacing.sm,
   },
   thumbnailWrap: {
     width: 68,
     height: 68,
-    borderRadius: 14,
+    borderRadius: radius.md,
     overflow: "hidden",
-    backgroundColor: "#f4eee7",
+    backgroundColor: colors.softCard,
   },
   thumbnailImage: {
     width: "100%",
@@ -2313,63 +2314,63 @@ const styles = StyleSheet.create({
     right: 6,
     minWidth: 20,
     height: 20,
-    borderRadius: 10,
-    backgroundColor: "#111",
+    borderRadius: radius.sm,
+    backgroundColor: colors.primaryText,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 5,
   },
   thumbnailBadgeText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 10,
     fontWeight: "800",
   },
   analysisCard: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     padding: 16,
-    marginTop: 14,
+    marginTop: spacing.md,
   },
   analysisTitle: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1,
     marginBottom: 6,
   },
   analysisText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 18,
     fontWeight: "800",
     marginBottom: 8,
   },
   analysisSummaryText: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "600",
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
   requiredFieldLabel: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "800",
     marginBottom: 8,
-    marginTop: 12,
+    marginTop: spacing.control,
   },
   additionalInfoToggle: {
     minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    borderRadius: 16,
-    backgroundColor: "#f4eee7",
+    gap: spacing.sm,
+    borderRadius: radius.control,
+    backgroundColor: colors.softCard,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
     paddingVertical: 9,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.control,
     marginTop: 16,
   },
   additionalInfoToggleTextWrap: {
@@ -2377,12 +2378,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   additionalInfoToggleTitle: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "800",
   },
   additionalInfoToggleDescription: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 11,
     lineHeight: 16,
     fontWeight: "600",
@@ -2392,7 +2393,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   seasonLabel: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "800",
     marginBottom: 8,
@@ -2404,54 +2405,54 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   seasonChip: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.control,
     paddingVertical: 7,
-    backgroundColor: "#f4eee7",
+    backgroundColor: colors.softCard,
     borderWidth: 1,
-    borderColor: "#e8ded2",
+    borderColor: colors.divider,
   },
   seasonChipActive: {
-    backgroundColor: "#111",
-    borderColor: "#111",
+    backgroundColor: colors.primaryText,
+    borderColor: colors.primaryText,
   },
   seasonChipText: {
-    color: "#111",
+    color: colors.primaryText,
     fontSize: 12,
     fontWeight: "700",
   },
   seasonChipTextActive: {
-    color: "#fff",
+    color: colors.surface,
   },
   sizeInput: {
     height: 46,
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#e8ded2",
-    backgroundColor: "#f4eee7",
-    color: "#111",
+    borderColor: colors.divider,
+    backgroundColor: colors.softCard,
+    color: colors.primaryText,
     fontSize: 13,
     fontWeight: "700",
-    paddingHorizontal: 14,
-    marginTop: 10,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
   },
   analysisHint: {
-    color: "#777064",
+    color: colors.secondaryText,
     fontSize: 11,
     fontWeight: "600",
     marginTop: 8,
   },
   progressText: {
-    color: "#8c6f47",
+    color: colors.accent,
     fontSize: 13,
     fontWeight: "800",
     textAlign: "center",
-    marginTop: 14,
+    marginTop: spacing.md,
   },
   primaryButton: {
     height: 54,
-    borderRadius: 18,
-    backgroundColor: "#111",
+    borderRadius: radius.lg,
+    backgroundColor: colors.primaryText,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -2462,7 +2463,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   primaryButtonText: {
-    color: "#fff",
+    color: colors.surface,
     fontSize: 15,
     fontWeight: "800",
   },
