@@ -39,6 +39,16 @@ function assertRate(value, label) {
   }
 }
 
+function assertOptionalRate(value, label) {
+  if (value !== undefined) assertRate(value, label);
+}
+
+function assertNonNegativeInteger(value, label) {
+  if (!Number.isInteger(value) || value < 0) {
+    fail(`${label} must be a non-negative integer.`);
+  }
+}
+
 function validateReadinessForReview(readiness) {
   if (!isRecord(readiness)) fail("Readiness result must be an object.");
   if (readiness.schemaVersion !== READINESS_SCHEMA_VERSION) {
@@ -113,11 +123,32 @@ function validateReadinessForReview(readiness) {
     assertRate(diagnostics.coverageByDimension[dimension], `${dimension} coverage`);
     assertRate(diagnostics.unavailableRateByDimension[dimension], `${dimension} unavailable rate`);
     const confidence = diagnostics.confidenceByDimension[dimension];
-    if (typeof confidence !== "number" || !Number.isFinite(confidence)) {
+    if (
+      typeof confidence !== "number" ||
+      !Number.isFinite(confidence) ||
+      confidence < 0 ||
+      confidence > 5
+    ) {
       fail(`${dimension} confidence is invalid.`);
     }
-    if (!isRecord(diagnostics.agreementByDimension[dimension])) {
+    const agreement = diagnostics.agreementByDimension[dimension];
+    if (!isRecord(agreement)) {
       fail(`${dimension} agreement is missing.`);
+    }
+    assertNonNegativeInteger(agreement.responseCount, `${dimension} response count`);
+    assertNonNegativeInteger(agreement.comparisonCount, `${dimension} comparison count`);
+    assertOptionalRate(agreement.exactAgreement, `${dimension} exact agreement`);
+    assertOptionalRate(agreement.adjacentAgreement, `${dimension} adjacent agreement`);
+    if (
+      agreement.meanAbsoluteDifference !== undefined &&
+      (
+        typeof agreement.meanAbsoluteDifference !== "number" ||
+        !Number.isFinite(agreement.meanAbsoluteDifference) ||
+        agreement.meanAbsoluteDifference < 0 ||
+        agreement.meanAbsoluteDifference > 4
+      )
+    ) {
+      fail(`${dimension} mean absolute difference is invalid.`);
     }
   });
   return dimensions;

@@ -106,6 +106,18 @@ async function main() {
     const missingCheck = validReadiness();
     missingCheck.checks.pop();
     assert.throws(() => createCalibrationReviewPacket(missingCheck), /required gate checks/);
+
+    const invalidAgreement = validReadiness();
+    invalidAgreement.diagnostics.agreementByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ].exactAgreement = 1.2;
+    assert.throws(() => createCalibrationReviewPacket(invalidAgreement), /exact agreement/);
+
+    const invalidComparisonCount = validReadiness();
+    invalidComparisonCount.diagnostics.agreementByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ].comparisonCount = -1;
+    assert.throws(() => createCalibrationReviewPacket(invalidComparisonCount), /comparison count/);
   });
 
   await test("markdown keeps the review agenda readable without granting approval", () => {
