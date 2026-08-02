@@ -1,5 +1,29 @@
 # Fashion Compatibility Architecture
 
+## Phase 5A: Expert rubric and offline evaluation foundation
+
+Phase 5A는 기존 추천과 분리된 `utils/fashionCompatibility/expert/` 오프라인 경로를 추가한다.
+
+```text
+explicit offline request
+  -> anonymized color/shape feature snapshot
+  -> draft rubric absolute or pairwise labels
+  -> local validation and privacy scan
+  -> agreement and dataset report
+```
+
+- `types.ts`: draft rubric, context, snapshot, absolute/pairwise 평가와 dataset 계약
+- `rubricRegistry.ts`: 13개 필수 dimension, 1~5 anchor, 허용 evidence code의 단일 registry
+- `evaluationValidation.ts`: reference·중복·availability·privacy·split leakage 검증
+- `agreementMetrics.ts`: median 집계, exact/adjacent agreement, rating difference, pairwise agreement
+- `evaluationDataset.ts`: 원문 notes를 복사하지 않는 JSON/Markdown 품질 보고서
+- `benchmarkCases.ts`: 명시적 opt-in에서 `color-features-v1`, `shape-features-v1`을 익명 snapshot으로 변환
+- `expertShadowEvaluator.ts`: legacy-only 기본값과 score 없는 feature/label 비교 확장점
+
+Rubric은 `expert-rubric-draft-v0.1`이며 모든 dimension이 `draft`, `reviewedBy: []`, `sourceReferences: []`다. confidence를 rating과 분리하고, `not_enough_information`을 중립 3점과 구분한다. 합성 fixture는 `synthetic_test`로만 표시한다.
+
+이 경로는 `outfitRecommend.ts`, 홈, UI, cache, storage, backup에서 import하지 않는다. `professionalScore`와 `scoreDifference`를 계산하지 않으며 기존 점수·순위·문구를 변경하지 않는다. rollback은 expert 폴더, 세 CLI/test, fixture와 Phase 5A 문서만 제거하면 되고 data migration은 없다. 수집 계약은 [Fashion Expert Rubric](./fashion-expert-rubric.md), 운영 절차는 [Fashion Expert Evaluation Guide](./fashion-expert-evaluation-guide.md)를 따른다.
+
 ## Phase 4A: Professional shape foundation
 
 Phase 4A는 `utils/fashionCompatibility/shape/` 아래에 운영 점수와 분리된 shape 분석 경로를 추가한다.

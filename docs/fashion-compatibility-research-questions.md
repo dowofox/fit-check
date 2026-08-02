@@ -182,3 +182,18 @@ Phase 3A 이후 추가 검토:
 - [Krippendorff’s alpha](https://journal.r-project.org/articles/RJ-2021-046/)
 
 이 목록은 조사 시작점이다. 개별 NAES 점수 숫자를 검증한 자료 목록이 아니다.
+
+## Phase 5A expert evaluation open questions
+
+1. 실제 pilot의 최소 독립 평가자 수와 dimension별 충분한 coverage는 얼마인가?
+2. stylist, fashion student, trained reviewer 자격과 교육 이력을 누가 검증할 것인가?
+3. 문화권, 성별 표현, 연령, 체형, style segment를 어떤 표본 설계로 분리할 것인가?
+4. 절대 1~5 평가와 pairwise 평가의 비율 및 노출 순서는 어떻게 정할 것인가?
+5. 합의 수준을 판단할 지표와 threshold는 무엇이며 ordinal 결측 정책은 어떻게 검증할 것인가?
+6. disagreement가 전문 분야 차이, 취향, context 부족, rubric 모호성 중 무엇 때문인지 어떻게 코딩할 것인가?
+7. 유행 변화에 따라 rubric과 benchmark를 얼마나 자주 재검증할 것인가?
+8. 동일 source look, 촬영 세트, 파생 조합, 익명 사용자 그룹을 split에서 묶는 안전한 group key는 무엇인가?
+9. 평가 이미지의 사용 권한, 보존 기간, 동의 철회 및 폐기 책임자는 누구인가?
+10. expert label comparison을 운영 점수 후보로 승격하기 전에 어떤 blind benchmark와 rollback 조건이 필요한가?
+
+현재 simple agreement와 consensus threshold는 데이터 진단용 draft다. 전문가 수나 운영 승격 기준을 확정하지 않는다.
