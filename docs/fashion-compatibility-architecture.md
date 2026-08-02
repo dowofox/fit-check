@@ -702,6 +702,12 @@ Gate는 `ready_for_calibration_review`만 판정한다. Agreement, unavailable r
 
 패킷은 calibration review의 입력 자료일 뿐 결정 기록이나 승인 상태가 아니다. 차단된 readiness, 미완료 배정 coverage, 실패한 integrity check에서는 생성하지 않으며 `expert_validated`와 production eligibility를 변경하지 않는다.
 
+### Phase 5B.7: expert pilot calibration decision record
+
+사람이 검토한 calibration 결정을 구조화된 disposition, 근거 코드, dimension action으로 기록한다. 결정 record는 source dataset과 evaluator output에서 review packet을 다시 생성해 packet digest에 결정을 묶으며, 모든 dimension과 high-disagreement outfit의 검토 여부를 확인한다.
+
+결정 record는 다음 pilot의 후속 조치를 남기는 감사 자료다. 자동 임계값을 적용하거나 `expert_validated`, production eligibility를 승인하지 않는다.
+
 ### Phase 5B.2: multi-evaluator pilot merge
 
 각 평가자 output은 frozen source dataset을 기준으로 해당 evaluator의 absolute evaluation만 변경할 수 있다. 병합 경계에서 v3 batch fingerprint와 output provenance를 검증하고, source snapshot·pairwise·split·metadata 계약의 semantic equality를 확인한다. 완료된 evaluator별 delta만 evaluator/outfit/evaluation ID 순으로 합쳐 입력 순서와 무관한 분석용 dataset을 만든다.

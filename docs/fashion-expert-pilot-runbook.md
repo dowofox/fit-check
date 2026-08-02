@@ -202,3 +202,40 @@ npm run fashion:expert:pilot:review-packet -- `
 ```
 
 준비 상태가 차단되었거나 구조 검사 중 하나라도 실패한 입력에서는 패킷을 만들지 않는다. 패킷은 high-disagreement outfit과 dimension 진단을 검토 순서로 정리할 뿐 calibration 결정, `expert_validated`, production 적용을 대신하지 않는다.
+
+## Calibration decision record
+
+사람의 검토가 끝나면 자유 서술 대신 허용된 결정, 근거 코드와 dimension action을 JSON으로 작성한다. 모든 dimension과 패킷의 high-disagreement outfit을 빠짐없이 포함해야 한다.
+
+아래 JSON은 구조를 보여주는 축약 예시다. 실제 입력의 `dimensionActions`에는 검토 패킷의 모든 dimension을 넣는다.
+
+```json
+{
+  "schemaVersion": "expert-pilot-calibration-decision-input-v1",
+  "reviewerId": "calibration-lead-01",
+  "decidedAt": "2026-08-02T02:00:00.000Z",
+  "decision": "proceed_to_next_pilot",
+  "rationaleCodes": ["coverage_reviewed", "agreement_reviewed", "unavailable_rate_reviewed"],
+  "dimensionActions": [
+    { "dimension": "color_harmony", "action": "retain" }
+  ],
+  "reviewedHighDisagreementOutfitIds": []
+}
+```
+
+`dimensionActions`에는 실제 rubric의 모든 dimension을 넣는다. 결정은 `proceed_to_next_pilot`, `revise_protocol`, `collect_more_evaluations`, action은 `retain`, `clarify`, `retest` 중 하나다.
+
+```powershell
+npm run fashion:expert:pilot:decision-record -- `
+  --dataset merged-expert-pilot.json `
+  --source-dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
+  --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
+  --assignment fashion-expert-pilot-output/assignment.json `
+  --merge-provenance merged-expert-pilot.json.pilot-merge-provenance.json `
+  --input reviewer-a.json `
+  --input reviewer-b.json `
+  --decision calibration-decision.json `
+  --output calibration-decision-record.json
+```
+
+CLI는 검증된 원본들로 review packet을 다시 생성하고 그 digest에 결정을 묶는다. 이 record는 calibration 후속 조치만 기록하며 `expert_validated`나 production 승인을 만들지 않는다.
