@@ -155,6 +155,18 @@ async function main() {
     )));
   });
 
+  await test("decision time cannot precede the verified pilot merge", () => {
+    const fixture = createMergedPilot();
+    assert.throws(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({ decidedAt: "2026-08-02T00:59:59.999Z" })
+    )), /cannot precede/);
+    assert.doesNotThrow(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({ decidedAt: fixture.provenance.createdAt })
+    )));
+  });
+
   await test("tampered pilot sources cannot create a decision record", () => {
     const fixture = createMergedPilot();
     const provenance = structuredClone(fixture.provenance);

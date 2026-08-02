@@ -229,6 +229,8 @@ npm run fashion:expert:pilot:review-packet -- `
 
 `revise_protocol`의 dimension action은 `retain`과 `clarify`, `collect_more_evaluations`는 `retain`과 `retest`만 사용한다. 하나의 결정에 `clarify`와 `retest`를 함께 넣지 않는다.
 
+`decidedAt`은 검증된 merge provenance의 `createdAt`과 같거나 그 이후여야 한다.
+
 ```powershell
 npm run fashion:expert:pilot:decision-record -- `
   --dataset merged-expert-pilot.json `

@@ -60,7 +60,7 @@ function exactKeys(value, keys, label) {
   }
 }
 
-function validateDecisionInput(input, packet) {
+function validateDecisionInput(input, packet, mergeCreatedAt) {
   exactKeys(input, [
     "schemaVersion", "reviewerId", "decidedAt", "decision", "rationaleCodes",
     "dimensionActions", "reviewedHighDisagreementOutfitIds",
@@ -74,6 +74,13 @@ function validateDecisionInput(input, packet) {
   const decidedAt = new Date(input.decidedAt);
   if (!Number.isFinite(decidedAt.getTime()) || decidedAt.toISOString() !== input.decidedAt) {
     fail("Calibration decision decidedAt is invalid.");
+  }
+  const mergedAt = new Date(mergeCreatedAt);
+  if (!Number.isFinite(mergedAt.getTime()) || mergedAt.toISOString() !== mergeCreatedAt) {
+    fail("Merge provenance createdAt is invalid.");
+  }
+  if (decidedAt.getTime() < mergedAt.getTime()) {
+    fail("Calibration decision cannot precede the verified pilot merge.");
   }
   if (!DECISIONS.has(input.decision)) fail("Calibration decision is invalid.");
   if (!Array.isArray(input.rationaleCodes) || !input.rationaleCodes.length ||
@@ -138,7 +145,11 @@ function validateDecisionInput(input, packet) {
 
 function createCalibrationDecisionRecord({ decisionInput, ...pilotSources }) {
   const packet = createCalibrationReviewPacket(pilotSources);
-  const decision = validateDecisionInput(decisionInput, packet);
+  const decision = validateDecisionInput(
+    decisionInput,
+    packet,
+    pilotSources.mergeProvenance.createdAt
+  );
   const payload = {
     schemaVersion: DECISION_RECORD_SCHEMA_VERSION,
     status: "recorded_for_calibration_follow_up",
