@@ -419,7 +419,9 @@ function isStoredClosetItem(value: unknown): value is ClosetItem {
     typeof value.imageUri === "string" &&
     typeof value.category === "string" &&
     Boolean(value.category) &&
-    Boolean(normalizeCanonicalIsoTimestamp(value.createdAt))
+    Boolean(normalizeCanonicalIsoTimestamp(value.createdAt)) &&
+    (value.lastWornAt === undefined ||
+      Boolean(normalizeCanonicalIsoTimestamp(value.lastWornAt)))
   );
 }
 

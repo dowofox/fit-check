@@ -165,6 +165,8 @@ function isValidRecommendationItem(value: unknown): value is ClosetItem {
     typeof item.category === "string" &&
     typeof item.imageUri === "string" &&
     Boolean(normalizeCanonicalIsoTimestamp(item.createdAt)) &&
+    (item.lastWornAt === undefined ||
+      Boolean(normalizeCanonicalIsoTimestamp(item.lastWornAt))) &&
     (!measurementRows || measurementRows.length <= 1)
   );
 }
