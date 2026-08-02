@@ -309,6 +309,47 @@ async function main() {
     }
   });
 
+  await test("an interrupted pair commit is completed on the next run", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-merge-recovery-"));
+    try {
+      const outputPath = path.join(directory, "recovered.json");
+      const provenancePath = `${outputPath}.pilot-merge-provenance.json`;
+      const modulePath = path.join(__dirname, "fashion-expert-pilot-merge.cjs");
+      const childScript = `
+        const fs = require("node:fs");
+        const merge = require(${JSON.stringify(modulePath)});
+        const outputPath = process.argv[1];
+        const provenancePath = process.argv[2];
+        const renameSync = fs.renameSync;
+        fs.renameSync = (source, target) => {
+          renameSync(source, target);
+          if (target === provenancePath) process.exit(73);
+        };
+        merge.atomicWriteJsonPair(outputPath, { ok: true }, provenancePath, { batchId: "batch" });
+      `;
+      assert.throws(() => execFileSync(
+        process.execPath,
+        ["-e", childScript, outputPath, provenancePath],
+        { stdio: "pipe" }
+      ));
+      assert.equal(fs.existsSync(outputPath), false);
+      assert.equal(fs.existsSync(provenancePath), true);
+
+      assert.throws(() => parseMergeArguments([
+        "--dataset", sourcePath, "--batch-lock", lockPath,
+        "--input", "a.json", "--input", "b.json", "--output", outputPath,
+      ]), /interrupted merge was recovered/);
+      assert.deepEqual(readJson(outputPath), { ok: true });
+      assert.deepEqual(readJson(provenancePath), { batchId: "batch" });
+      assert.equal(
+        fs.existsSync(path.join(directory, `.${path.basename(outputPath)}.transaction.json`)),
+        false
+      );
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   console.log("Fashion expert pilot merge tests passed.");
 }
 

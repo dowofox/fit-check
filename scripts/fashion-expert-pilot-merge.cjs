@@ -20,6 +20,7 @@ const {
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
 
 const MERGE_PROVENANCE_SCHEMA_VERSION = "expert-pilot-merge-provenance-v1";
+const ATOMIC_PAIR_TRANSACTION_SCHEMA_VERSION = "atomic-json-pair-v1";
 const ABSOLUTE_EVALUATION_KEYS = new Set([
   "schemaVersion", "evaluationId", "outfitId", "rubricVersion", "evaluatorId",
   "evaluatorGroup", "dimensions", "overallCompatibility", "evaluatorConfidence",
@@ -43,6 +44,86 @@ function digest(value) {
 
 function samePath(left, right) {
   return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+}
+
+function textDigest(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function getAtomicPairTransactionPath(outputPath) {
+  return path.join(path.dirname(outputPath), `.${path.basename(outputPath)}.transaction.json`);
+}
+
+function recoverAtomicJsonPair(outputPath, provenancePath) {
+  const directory = path.dirname(outputPath);
+  if (!samePath(directory, path.dirname(provenancePath))) {
+    fail("Merge output and provenance must use the same directory.");
+  }
+  const transactionPath = getAtomicPairTransactionPath(outputPath);
+  if (!fs.existsSync(transactionPath)) return false;
+
+  let transaction;
+  try {
+    transaction = JSON.parse(fs.readFileSync(transactionPath, "utf8"));
+  } catch {
+    if (!fs.existsSync(outputPath) && !fs.existsSync(provenancePath)) {
+      fs.rmSync(transactionPath, { force: true });
+      return false;
+    }
+    fail("Interrupted merge transaction is corrupt; manual cleanup is required.");
+  }
+  const expectedKeys = [
+    "schemaVersion", "outputFile", "provenanceFile", "outputTempFile",
+    "provenanceTempFile", "outputDigestSha256", "provenanceDigestSha256", "ownerPid",
+  ];
+  if (
+    !transaction ||
+    Object.keys(transaction).sort().join("\0") !== expectedKeys.sort().join("\0") ||
+    transaction.schemaVersion !== ATOMIC_PAIR_TRANSACTION_SCHEMA_VERSION ||
+    transaction.outputFile !== path.basename(outputPath) ||
+    transaction.provenanceFile !== path.basename(provenancePath) ||
+    path.basename(transaction.outputTempFile) !== transaction.outputTempFile ||
+    path.basename(transaction.provenanceTempFile) !== transaction.provenanceTempFile ||
+    !transaction.outputTempFile.startsWith(`.${path.basename(outputPath)}.`) ||
+    !transaction.provenanceTempFile.startsWith(`.${path.basename(provenancePath)}.`) ||
+    !/^[a-f0-9]{64}$/.test(transaction.outputDigestSha256) ||
+    !/^[a-f0-9]{64}$/.test(transaction.provenanceDigestSha256) ||
+    !Number.isSafeInteger(transaction.ownerPid) ||
+    transaction.ownerPid <= 0
+  ) {
+    fail("Interrupted merge transaction is invalid; manual cleanup is required.");
+  }
+  try {
+    process.kill(transaction.ownerPid, 0);
+    fail("Another merge transaction is still active.");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Another merge transaction is still active.") {
+      throw error;
+    }
+    if (error?.code === "EPERM") fail("Another merge transaction is still active.");
+  }
+
+  const outputTemp = path.join(directory, transaction.outputTempFile);
+  const provenanceTemp = path.join(directory, transaction.provenanceTempFile);
+  const recoverFile = (targetPath, tempPath, expectedDigest) => {
+    if (fs.existsSync(targetPath)) {
+      if (textDigest(fs.readFileSync(targetPath)) !== expectedDigest) {
+        fail("Interrupted merge output does not match its transaction digest.");
+      }
+      return;
+    }
+    if (!fs.existsSync(tempPath) || textDigest(fs.readFileSync(tempPath)) !== expectedDigest) {
+      fail("Interrupted merge temporary file is missing or invalid; manual cleanup is required.");
+    }
+    fs.renameSync(tempPath, targetPath);
+  };
+
+  recoverFile(provenancePath, provenanceTemp, transaction.provenanceDigestSha256);
+  recoverFile(outputPath, outputTemp, transaction.outputDigestSha256);
+  fs.rmSync(outputTemp, { force: true });
+  fs.rmSync(provenanceTemp, { force: true });
+  fs.rmSync(transactionPath, { force: true });
+  return true;
 }
 
 function valuesFor(argv, name) {
@@ -88,6 +169,9 @@ function parseMergeArguments(argv) {
   }
   if (protectedPaths.some((value) => samePath(value, provenancePath))) {
     fail("Merge provenance path conflicts with a source or input file.");
+  }
+  if (recoverAtomicJsonPair(outputPath, provenancePath)) {
+    fail("Previous interrupted merge was recovered; merge output already exists.");
   }
   if (fs.existsSync(outputPath) || fs.existsSync(provenancePath)) {
     fail("Merge output already exists.");
@@ -404,6 +488,9 @@ function mergePilotDatasets({ sourceDataset, batchLock, inputs, now }) {
 }
 
 function atomicWriteJsonPair(outputPath, outputValue, provenancePath, provenanceValue) {
+  if (recoverAtomicJsonPair(outputPath, provenancePath)) {
+    fail("Previous interrupted merge was recovered; merge output already exists.");
+  }
   if (fs.existsSync(outputPath) || fs.existsSync(provenancePath)) {
     fail("Merge output already exists.");
   }
@@ -414,6 +501,10 @@ function atomicWriteJsonPair(outputPath, outputValue, provenancePath, provenance
   const suffix = `${process.pid}.${crypto.randomBytes(6).toString("hex")}.tmp`;
   const outputTemp = path.join(directory, `.${path.basename(outputPath)}.${suffix}`);
   const provenanceTemp = path.join(directory, `.${path.basename(provenancePath)}.${suffix}`);
+  const transactionPath = getAtomicPairTransactionPath(outputPath);
+  let ownsTransaction = false;
+  let publishedOutput = false;
+  let publishedProvenance = false;
   const writeTemp = (filePath, value) => {
     const descriptor = fs.openSync(filePath, "wx");
     try {
@@ -426,13 +517,28 @@ function atomicWriteJsonPair(outputPath, outputValue, provenancePath, provenance
   try {
     writeTemp(outputTemp, outputText);
     writeTemp(provenanceTemp, provenanceText);
+    writeTemp(transactionPath, `${JSON.stringify({
+      schemaVersion: ATOMIC_PAIR_TRANSACTION_SCHEMA_VERSION,
+      outputFile: path.basename(outputPath),
+      provenanceFile: path.basename(provenancePath),
+      outputTempFile: path.basename(outputTemp),
+      provenanceTempFile: path.basename(provenanceTemp),
+      outputDigestSha256: textDigest(outputText),
+      provenanceDigestSha256: textDigest(provenanceText),
+      ownerPid: process.pid,
+    }, null, 2)}\n`);
+    ownsTransaction = true;
     fs.renameSync(provenanceTemp, provenancePath);
-    try {
-      fs.renameSync(outputTemp, outputPath);
-    } catch (error) {
-      fs.rmSync(provenancePath, { force: true });
-      throw error;
-    }
+    publishedProvenance = true;
+    fs.renameSync(outputTemp, outputPath);
+    publishedOutput = true;
+    fs.rmSync(transactionPath, { force: true });
+    ownsTransaction = false;
+  } catch (error) {
+    if (publishedOutput) fs.rmSync(outputPath, { force: true });
+    if (publishedProvenance) fs.rmSync(provenancePath, { force: true });
+    if (ownsTransaction) fs.rmSync(transactionPath, { force: true });
+    throw error;
   } finally {
     fs.rmSync(outputTemp, { force: true });
     fs.rmSync(provenanceTemp, { force: true });
