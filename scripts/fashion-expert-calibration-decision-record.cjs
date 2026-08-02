@@ -1,4 +1,5 @@
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const { atomicWriteJson, readJson } = require("./run-fashion-expert-pilot.cjs");
@@ -228,6 +229,9 @@ function parseArguments(argv) {
 }
 
 function createCalibrationDecisionRecordFile(options) {
+  if (fs.existsSync(options.outputPath)) {
+    fail("Calibration decision record output already exists.");
+  }
   const evaluatorInputs = options.inputPaths.map((inputPath, index) => ({
     dataset: readJson(inputPath, `Input ${index + 1} dataset`),
     provenance: readJson(getOutputProvenancePath(inputPath), `Input ${index + 1} provenance`),

@@ -213,11 +213,25 @@ async function main() {
         ...inputPaths.flatMap((inputPath) => ["--input", inputPath]),
         "--decision", paths.decision,
       ];
-      const record = createCalibrationDecisionRecordFile(parseArguments([
+      const options = parseArguments([
         ...common,
         "--output", paths.output,
-      ]));
+      ]);
+      const record = createCalibrationDecisionRecordFile(options);
       assert.deepEqual(JSON.parse(fs.readFileSync(paths.output, "utf8")), record);
+      const originalOutput = fs.readFileSync(paths.output, "utf8");
+      const revisedActions = decisionInput().dimensionActions;
+      revisedActions[0] = { ...revisedActions[0], action: "clarify" };
+      writeJson(paths.decision, decisionInput({
+        decision: "revise_protocol",
+        rationaleCodes: ["protocol_clarification_needed"],
+        dimensionActions: revisedActions,
+      }));
+      assert.throws(
+        () => createCalibrationDecisionRecordFile(options),
+        /output already exists/
+      );
+      assert.equal(fs.readFileSync(paths.output, "utf8"), originalOutput);
       assert.throws(() => parseArguments([
         ...common,
         "--output", paths.decision,
