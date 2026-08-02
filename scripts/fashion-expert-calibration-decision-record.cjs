@@ -26,6 +26,20 @@ const RATIONALE_CODES = new Set([
   "protocol_clarification_needed",
   "additional_evaluations_needed",
 ]);
+const DECISION_RATIONALE_RULES = {
+  proceed_to_next_pilot: {
+    required: [],
+    forbidden: ["protocol_clarification_needed", "additional_evaluations_needed"],
+  },
+  revise_protocol: {
+    required: ["protocol_clarification_needed"],
+    forbidden: ["additional_evaluations_needed"],
+  },
+  collect_more_evaluations: {
+    required: ["additional_evaluations_needed"],
+    forbidden: ["protocol_clarification_needed"],
+  },
+};
 
 function fail(message) {
   throw new Error(message);
@@ -66,6 +80,12 @@ function validateDecisionInput(input, packet) {
       new Set(input.rationaleCodes).size !== input.rationaleCodes.length ||
       input.rationaleCodes.some((code) => !RATIONALE_CODES.has(code))) {
     fail("Calibration decision rationale codes are invalid.");
+  }
+  const rationaleCodes = new Set(input.rationaleCodes);
+  const rationaleRule = DECISION_RATIONALE_RULES[input.decision];
+  if (rationaleRule.required.some((code) => !rationaleCodes.has(code)) ||
+      rationaleRule.forbidden.some((code) => rationaleCodes.has(code))) {
+    fail("Calibration decision rationale codes conflict with its disposition.");
   }
   if (!Array.isArray(input.dimensionActions)) {
     fail("Calibration decision dimension actions are invalid.");

@@ -98,6 +98,43 @@ async function main() {
     )));
   });
 
+  await test("decision rationale codes agree with the recorded disposition", () => {
+    const fixture = createMergedPilot();
+    const clarifyActions = decisionInput().dimensionActions;
+    clarifyActions[0] = { ...clarifyActions[0], action: "clarify" };
+    const retestActions = decisionInput().dimensionActions;
+    retestActions[0] = { ...retestActions[0], action: "retest" };
+
+    assert.throws(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({ rationaleCodes: ["coverage_reviewed", "protocol_clarification_needed"] })
+    )), /rationale codes conflict/);
+    assert.throws(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({
+        decision: "revise_protocol",
+        rationaleCodes: ["additional_evaluations_needed"],
+        dimensionActions: clarifyActions,
+      })
+    )), /rationale codes conflict/);
+    assert.throws(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({
+        decision: "collect_more_evaluations",
+        rationaleCodes: ["protocol_clarification_needed"],
+        dimensionActions: retestActions,
+      })
+    )), /rationale codes conflict/);
+    assert.doesNotThrow(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({
+        decision: "collect_more_evaluations",
+        rationaleCodes: ["additional_evaluations_needed"],
+        dimensionActions: retestActions,
+      })
+    )));
+  });
+
   await test("tampered pilot sources cannot create a decision record", () => {
     const fixture = createMergedPilot();
     const provenance = structuredClone(fixture.provenance);
