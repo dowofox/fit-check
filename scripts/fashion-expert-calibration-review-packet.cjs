@@ -75,12 +75,6 @@ function validateAgreement(agreement, dimension, counts) {
     agreement.adjacentAgreement,
     agreement.meanAbsoluteDifference,
   ];
-  if (comparisonCount === 0) {
-    if (metrics.some((value) => value !== undefined)) {
-      fail(`${dimension} agreement metrics require comparisons.`);
-    }
-    return;
-  }
   if (!canDistributeResponses({
     outfitCount: counts.outfits,
     reviewersPerOutfit: counts.reviewersPerOutfit,
@@ -88,6 +82,12 @@ function validateAgreement(agreement, dimension, counts) {
     comparisonCount,
   })) {
     fail(`${dimension} response and comparison counts are not possible for this pilot.`);
+  }
+  if (comparisonCount === 0) {
+    if (metrics.some((value) => value !== undefined)) {
+      fail(`${dimension} agreement metrics require comparisons.`);
+    }
+    return;
   }
   assertRate(agreement.exactAgreement, `${dimension} exact agreement`);
   assertRate(agreement.adjacentAgreement, `${dimension} adjacent agreement`);

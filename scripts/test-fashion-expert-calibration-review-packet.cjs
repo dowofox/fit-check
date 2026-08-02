@@ -157,6 +157,18 @@ async function main() {
       REQUIRED_EXPERT_DIMENSIONS[0]
     ] = 0.9;
     assert.throws(() => createCalibrationReviewPacket(metricsWithoutComparisons), /require comparisons/);
+
+    const impossibleZeroComparisons = validReadiness();
+    impossibleZeroComparisons.diagnostics.agreementByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = { responseCount: 6, comparisonCount: 0 };
+    impossibleZeroComparisons.diagnostics.coverageByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = 0.6;
+    impossibleZeroComparisons.diagnostics.unavailableRateByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = 0.4;
+    assert.throws(() => createCalibrationReviewPacket(impossibleZeroComparisons), /not possible/);
   });
 
   await test("markdown keeps the review agenda readable without granting approval", () => {
