@@ -2,6 +2,8 @@
 
 > **Draft procedure. Expert review required. Not validated. Not a production scoring policy.**
 
+로컬 절대평가 도구의 실행·재개·자산 보안 절차는 [Fashion Expert Pilot Runbook](./fashion-expert-pilot-runbook.md)을 따른다.
+
 ## 평가 목적과 대상
 
 평가 목적은 NAES의 색상·shape 관찰 feature와 사람의 판단을 연결할 오프라인 benchmark를 만드는 것이다. 평가는 익명 item category와 허가된 평가 이미지, 명시된 context를 대상으로 한다. 운영 추천 점수, 사용자 프로필 원문, 상품명·브랜드·URL을 평가 파일에 넣지 않는다.

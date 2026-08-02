@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "expert-pilot-assets-v1",
+  "outfits": {
+    "outfit-001": {
+      "images": ["../../assets/design-preview/gray-hoodie.png"]
+    },
+    "outfit-002": {
+      "images": ["../../assets/design-preview/navy-shirt.png"]
+    },
+    "outfit-003": {
+      "images": ["../../assets/design-preview/blue-jeans.png"]
+    },
+    "outfit-004": {
+      "images": ["../../assets/design-preview/white-sneakers.png"]
+    }
+  }
+}

@@ -1,5 +1,27 @@
 # Fashion Compatibility Architecture
 
+## Phase 5B.0: Local absolute evaluation pilot runner
+
+Phase 5B.0은 Phase 5A의 익명 snapshot과 draft rubric을 실제 로컬 절대평가 세션으로 연결한다.
+
+```text
+validated expert dataset + separate local asset manifest
+  -> deterministic localhost session
+  -> one-outfit / 13-dimension absolute evaluation
+  -> context and observation rating lock
+  -> existing dataset validator
+  -> atomic, resumable expert-dataset-v1 output
+```
+
+- 서버는 Node 표준 모듈만 사용하고 `127.0.0.1`에만 bind한다.
+- 이미지 경로는 별도 manifest에서 검증하며 dataset, API payload, output에 로컬 경로를 넣지 않는다.
+- Evaluation ID와 노출 순서는 dataset/evaluator/rubric/seed로 결정적이다.
+- 저장할 때마다 전체 dataset validator를 실행하고 성공한 output만 원자적으로 교체한다.
+- 기존 absolute/pairwise 레코드는 보존하지만 UI는 절대평가만 제공한다.
+- Pairwise UI, professional score, 운영 추천·앱 UI·저장소 연결, 외부 전송은 구현하지 않는다.
+
+운영 절차와 보안·재개 정책은 [Fashion Expert Pilot Runbook](./fashion-expert-pilot-runbook.md)을 따른다. Rollback은 pilot session 모듈, 로컬 CLI/UI, fixture manifest, test, 문서와 npm script만 제거하면 되며 운영 추천에는 영향이 없다.
+
 ## Phase 5A.2: Minimum observation input validation
 
 Phase 5A.2는 offline expert contract를 `expert-rubric-draft-v0.3`으로 올리고, context와 별도로 dimension별 최소 observation input을 검증한다.

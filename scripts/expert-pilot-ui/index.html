@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NAES Expert Pilot</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">NAES RESEARCH</p>
+        <h1>절대평가 파일럿</h1>
+      </div>
+      <div class="session-meta">
+        <span id="rubric-version">불러오는 중</span>
+        <span id="case-progress">Case - / -</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="loading" class="status-card">평가 세션을 불러오고 있습니다.</section>
+      <section id="error" class="status-card error" hidden></section>
+
+      <div id="workspace" class="workspace" hidden>
+        <aside class="outfit-panel">
+          <div id="images" class="image-list"></div>
+          <section class="context-card">
+            <h2>평가 조건</h2>
+            <dl id="context-list"></dl>
+          </section>
+          <section class="context-card">
+            <h2>입력 가용성</h2>
+            <dl id="availability-list"></dl>
+          </section>
+        </aside>
+
+        <form id="evaluation-form" class="evaluation-panel">
+          <div id="dimension-list"></div>
+
+          <section class="overall-card">
+            <label class="toggle-row">
+              <input id="overall-enabled" type="checkbox" />
+              <span>전체 호환성도 평가</span>
+            </label>
+            <div id="overall-fields" hidden>
+              <div class="field-row">
+                <label>
+                  가용성
+                  <select id="overall-availability"></select>
+                </label>
+                <label>
+                  평점
+                  <select id="overall-rating"></select>
+                </label>
+                <label>
+                  확신도
+                  <select id="overall-confidence"></select>
+                </label>
+              </div>
+              <label>
+                메모
+                <textarea id="overall-notes" maxlength="1000" rows="2"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="submit-card">
+            <label>
+              평가 전체 확신도
+              <select id="evaluator-confidence" required></select>
+            </label>
+            <p id="save-status" role="status"></p>
+            <div class="actions">
+              <button id="previous-button" type="button" class="secondary">이전</button>
+              <button id="save-button" type="submit">현재 Case 저장</button>
+              <button id="next-button" type="button" class="secondary">다음</button>
+              <button id="complete-button" type="button" class="secondary">전체 완료 확인</button>
+            </div>
+          </section>
+        </form>
+      </div>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

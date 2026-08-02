@@ -37,6 +37,11 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Local expert pilot inputs and outputs
+*.expert-pilot-assets.local.json
+*.expert-pilot-output.json
+/fashion-expert-pilot-output/
+
 app-example
 
 # generated native folders
