@@ -20,7 +20,7 @@ const {
 } = require("../utils/fashionCompatibility/expert/pilotSession.ts");
 
 const MERGE_PROVENANCE_SCHEMA_VERSION = "expert-pilot-merge-provenance-v1";
-const ATOMIC_PAIR_TRANSACTION_SCHEMA_VERSION = "atomic-json-pair-v1";
+const ATOMIC_PAIR_TRANSACTION_SCHEMA_VERSION = "atomic-json-pair-v2";
 const ABSOLUTE_EVALUATION_KEYS = new Set([
   "schemaVersion", "evaluationId", "outfitId", "rubricVersion", "evaluatorId",
   "evaluatorGroup", "dimensions", "overallCompatibility", "evaluatorConfidence",
@@ -54,7 +54,7 @@ function getAtomicPairTransactionPath(outputPath) {
   return path.join(path.dirname(outputPath), `.${path.basename(outputPath)}.transaction.json`);
 }
 
-function recoverAtomicJsonPair(outputPath, provenancePath) {
+function recoverAtomicJsonPair(outputPath, provenancePath, expectedOperationDigest) {
   const directory = path.dirname(outputPath);
   if (!samePath(directory, path.dirname(provenancePath))) {
     fail("Merge output and provenance must use the same directory.");
@@ -74,7 +74,8 @@ function recoverAtomicJsonPair(outputPath, provenancePath) {
   }
   const expectedKeys = [
     "schemaVersion", "outputFile", "provenanceFile", "outputTempFile",
-    "provenanceTempFile", "outputDigestSha256", "provenanceDigestSha256", "ownerPid",
+    "provenanceTempFile", "outputDigestSha256", "provenanceDigestSha256",
+    "operationDigestSha256", "ownerPid",
   ];
   if (
     !transaction ||
@@ -88,10 +89,14 @@ function recoverAtomicJsonPair(outputPath, provenancePath) {
     !transaction.provenanceTempFile.startsWith(`.${path.basename(provenancePath)}.`) ||
     !/^[a-f0-9]{64}$/.test(transaction.outputDigestSha256) ||
     !/^[a-f0-9]{64}$/.test(transaction.provenanceDigestSha256) ||
+    !/^[a-f0-9]{64}$/.test(transaction.operationDigestSha256) ||
     !Number.isSafeInteger(transaction.ownerPid) ||
     transaction.ownerPid <= 0
   ) {
     fail("Interrupted merge transaction is invalid; manual cleanup is required.");
+  }
+  if (transaction.operationDigestSha256 !== expectedOperationDigest) {
+    fail("Interrupted merge transaction does not match the current validated inputs.");
   }
   try {
     process.kill(transaction.ownerPid, 0);
@@ -170,10 +175,10 @@ function parseMergeArguments(argv) {
   if (protectedPaths.some((value) => samePath(value, provenancePath))) {
     fail("Merge provenance path conflicts with a source or input file.");
   }
-  if (recoverAtomicJsonPair(outputPath, provenancePath)) {
-    fail("Previous interrupted merge was recovered; merge output already exists.");
-  }
-  if (fs.existsSync(outputPath) || fs.existsSync(provenancePath)) {
+  if (
+    !fs.existsSync(getAtomicPairTransactionPath(outputPath)) &&
+    (fs.existsSync(outputPath) || fs.existsSync(provenancePath))
+  ) {
     fail("Merge output already exists.");
   }
   return { datasetPath, batchLockPath, inputPaths, outputPath, provenancePath };
@@ -488,14 +493,17 @@ function mergePilotDatasets({ sourceDataset, batchLock, inputs, now }) {
 }
 
 function atomicWriteJsonPair(outputPath, outputValue, provenancePath, provenanceValue) {
-  if (recoverAtomicJsonPair(outputPath, provenancePath)) {
+  const outputText = `${JSON.stringify(outputValue, null, 2)}\n`;
+  const provenanceText = `${JSON.stringify(provenanceValue, null, 2)}\n`;
+  const stableProvenance = structuredClone(provenanceValue);
+  if (stableProvenance && typeof stableProvenance === "object") delete stableProvenance.createdAt;
+  const operationDigestSha256 = digest({ outputValue, provenanceValue: stableProvenance });
+  if (recoverAtomicJsonPair(outputPath, provenancePath, operationDigestSha256)) {
     fail("Previous interrupted merge was recovered; merge output already exists.");
   }
   if (fs.existsSync(outputPath) || fs.existsSync(provenancePath)) {
     fail("Merge output already exists.");
   }
-  const outputText = `${JSON.stringify(outputValue, null, 2)}\n`;
-  const provenanceText = `${JSON.stringify(provenanceValue, null, 2)}\n`;
   const directory = path.dirname(outputPath);
   fs.mkdirSync(directory, { recursive: true });
   const suffix = `${process.pid}.${crypto.randomBytes(6).toString("hex")}.tmp`;
@@ -525,6 +533,7 @@ function atomicWriteJsonPair(outputPath, outputValue, provenancePath, provenance
       provenanceTempFile: path.basename(provenanceTemp),
       outputDigestSha256: textDigest(outputText),
       provenanceDigestSha256: textDigest(provenanceText),
+      operationDigestSha256,
       ownerPid: process.pid,
     }, null, 2)}\n`);
     ownsTransaction = true;
@@ -546,9 +555,6 @@ function atomicWriteJsonPair(outputPath, outputValue, provenancePath, provenance
 }
 
 function mergePilotFiles(options) {
-  if (fs.existsSync(options.outputPath) || fs.existsSync(options.provenancePath)) {
-    fail("Merge output already exists.");
-  }
   const sourceDataset = readJson(options.datasetPath, "Source dataset");
   const batchLock = readJson(options.batchLockPath, "Batch lock");
   const inputs = options.inputPaths.map((inputPath, index) => ({

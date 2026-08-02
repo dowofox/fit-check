@@ -335,16 +335,56 @@ async function main() {
       assert.equal(fs.existsSync(outputPath), false);
       assert.equal(fs.existsSync(provenancePath), true);
 
-      assert.throws(() => parseMergeArguments([
-        "--dataset", sourcePath, "--batch-lock", lockPath,
-        "--input", "a.json", "--input", "b.json", "--output", outputPath,
-      ]), /interrupted merge was recovered/);
+      assert.throws(
+        () => atomicWriteJsonPair(outputPath, { ok: true }, provenancePath, { batchId: "batch" }),
+        /interrupted merge was recovered/
+      );
       assert.deepEqual(readJson(outputPath), { ok: true });
       assert.deepEqual(readJson(provenancePath), { batchId: "batch" });
       assert.equal(
         fs.existsSync(path.join(directory, `.${path.basename(outputPath)}.transaction.json`)),
         false
       );
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  await test("an interrupted pair is not recovered for changed validated inputs", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-merge-recovery-input-"));
+    try {
+      const first = createEvaluatorInput(directory, "reviewer-a");
+      const second = createEvaluatorInput(directory, "reviewer-b");
+      const options = mergeOptions(directory, [first, second]);
+      const modulePath = path.join(__dirname, "fashion-expert-pilot-merge.cjs");
+      const childScript = `
+        const fs = require("node:fs");
+        const merge = require(${JSON.stringify(modulePath)});
+        const options = JSON.parse(process.argv[1]);
+        const renameSync = fs.renameSync;
+        fs.renameSync = (source, target) => {
+          renameSync(source, target);
+          if (target === options.provenancePath) process.exit(73);
+        };
+        merge.mergePilotFiles(options);
+      `;
+      assert.throws(() => execFileSync(
+        process.execPath,
+        ["-e", childScript, JSON.stringify(options)],
+        { stdio: "pipe" }
+      ));
+
+      const changedInput = readJson(second.outputPath);
+      changedInput.absoluteEvaluations.find(
+        (evaluation) => evaluation.evaluatorId === "reviewer-b"
+      ).durationSeconds += 1;
+      writeJson(second.outputPath, changedInput);
+      assert.throws(
+        () => mergePilotFiles(options),
+        /does not match the current validated inputs/
+      );
+      assert.equal(fs.existsSync(options.outputPath), false);
+      assert.equal(fs.existsSync(options.provenancePath), true);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
