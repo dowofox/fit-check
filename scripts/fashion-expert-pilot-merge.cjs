@@ -501,6 +501,11 @@ function mergePilotDatasets({ sourceDataset, batchLock, assignmentManifest, inpu
     fail("Evaluator inputs do not cover the assignment manifest.");
   }
   const absoluteEvaluations = sortEvaluations([...evaluationsByKey.values()]);
+  if (absoluteEvaluations.some(
+    (evaluation) => Date.parse(evaluation.createdAt) > parsedMergeCreatedAt.getTime()
+  )) {
+    fail("Merge time cannot precede evaluation record creation.");
+  }
   const evaluatorIds = new Set([
     ...absoluteEvaluations.map((entry) => entry.evaluatorId),
     ...sourceDataset.pairwiseEvaluations.map((entry) => entry.evaluatorId),
