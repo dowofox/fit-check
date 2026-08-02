@@ -39,13 +39,54 @@ function assertRate(value, label) {
   }
 }
 
-function assertOptionalRate(value, label) {
-  if (value !== undefined) assertRate(value, label);
-}
-
 function assertNonNegativeInteger(value, label) {
   if (!Number.isInteger(value) || value < 0) {
     fail(`${label} must be a non-negative integer.`);
+  }
+}
+
+function validateAgreement(agreement, dimension) {
+  assertNonNegativeInteger(agreement.responseCount, `${dimension} response count`);
+  assertNonNegativeInteger(agreement.comparisonCount, `${dimension} comparison count`);
+  const { comparisonCount } = agreement;
+  const metrics = [
+    agreement.exactAgreement,
+    agreement.adjacentAgreement,
+    agreement.meanAbsoluteDifference,
+  ];
+  if (comparisonCount === 0) {
+    if (metrics.some((value) => value !== undefined)) {
+      fail(`${dimension} agreement metrics require comparisons.`);
+    }
+    return;
+  }
+  if (agreement.responseCount < 2 || comparisonCount > agreement.responseCount * (agreement.responseCount - 1) / 2) {
+    fail(`${dimension} comparison count is inconsistent with response count.`);
+  }
+  assertRate(agreement.exactAgreement, `${dimension} exact agreement`);
+  assertRate(agreement.adjacentAgreement, `${dimension} adjacent agreement`);
+  if (agreement.exactAgreement > agreement.adjacentAgreement) {
+    fail(`${dimension} exact agreement cannot exceed adjacent agreement.`);
+  }
+  if (
+    typeof agreement.meanAbsoluteDifference !== "number" ||
+    !Number.isFinite(agreement.meanAbsoluteDifference) ||
+    agreement.meanAbsoluteDifference < 0 ||
+    agreement.meanAbsoluteDifference > 4
+  ) {
+    fail(`${dimension} mean absolute difference is invalid.`);
+  }
+  const exactCount = agreement.exactAgreement * comparisonCount;
+  const adjacentCount = agreement.adjacentAgreement * comparisonCount;
+  const differenceTotal = agreement.meanAbsoluteDifference * comparisonCount;
+  const isWhole = (value) => Math.abs(value - Math.round(value)) < 1e-9;
+  if (![exactCount, adjacentCount, differenceTotal].every(isWhole)) {
+    fail(`${dimension} agreement metrics are inconsistent with comparison count.`);
+  }
+  const minimumDifference = adjacentCount - exactCount + 2 * (comparisonCount - adjacentCount);
+  const maximumDifference = adjacentCount - exactCount + 4 * (comparisonCount - adjacentCount);
+  if (differenceTotal < minimumDifference || differenceTotal > maximumDifference) {
+    fail(`${dimension} mean absolute difference is inconsistent with agreement rates.`);
   }
 }
 
@@ -135,21 +176,7 @@ function validateReadinessForReview(readiness) {
     if (!isRecord(agreement)) {
       fail(`${dimension} agreement is missing.`);
     }
-    assertNonNegativeInteger(agreement.responseCount, `${dimension} response count`);
-    assertNonNegativeInteger(agreement.comparisonCount, `${dimension} comparison count`);
-    assertOptionalRate(agreement.exactAgreement, `${dimension} exact agreement`);
-    assertOptionalRate(agreement.adjacentAgreement, `${dimension} adjacent agreement`);
-    if (
-      agreement.meanAbsoluteDifference !== undefined &&
-      (
-        typeof agreement.meanAbsoluteDifference !== "number" ||
-        !Number.isFinite(agreement.meanAbsoluteDifference) ||
-        agreement.meanAbsoluteDifference < 0 ||
-        agreement.meanAbsoluteDifference > 4
-      )
-    ) {
-      fail(`${dimension} mean absolute difference is invalid.`);
-    }
+    validateAgreement(agreement, dimension);
   });
   return dimensions;
 }

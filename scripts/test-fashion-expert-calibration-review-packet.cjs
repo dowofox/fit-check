@@ -118,6 +118,21 @@ async function main() {
       REQUIRED_EXPERT_DIMENSIONS[0]
     ].comparisonCount = -1;
     assert.throws(() => createCalibrationReviewPacket(invalidComparisonCount), /comparison count/);
+
+    const impossibleAgreement = validReadiness();
+    impossibleAgreement.diagnostics.agreementByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ].exactAgreement = 1;
+    impossibleAgreement.diagnostics.agreementByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ].adjacentAgreement = 0.8;
+    assert.throws(() => createCalibrationReviewPacket(impossibleAgreement), /cannot exceed/);
+
+    const metricsWithoutComparisons = validReadiness();
+    metricsWithoutComparisons.diagnostics.agreementByDimension[
+      REQUIRED_EXPERT_DIMENSIONS[0]
+    ] = { responseCount: 1, comparisonCount: 0, exactAgreement: 0 };
+    assert.throws(() => createCalibrationReviewPacket(metricsWithoutComparisons), /require comparisons/);
   });
 
   await test("markdown keeps the review agenda readable without granting approval", () => {
