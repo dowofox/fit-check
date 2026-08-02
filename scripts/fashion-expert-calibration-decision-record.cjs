@@ -116,12 +116,14 @@ function validateDecisionInput(input, packet) {
     fail("Proceed decisions require every dimension to be retained.");
   }
   if (input.decision === "revise_protocol" &&
-      ![...actions.values()].includes("clarify")) {
-    fail("Protocol revision requires a clarified dimension.");
+      (![...actions.values()].includes("clarify") ||
+       [...actions.values()].includes("retest"))) {
+    fail("Protocol revision requires clarification without retesting.");
   }
   if (input.decision === "collect_more_evaluations" &&
-      ![...actions.values()].includes("retest")) {
-    fail("Additional evaluation decisions require a retested dimension.");
+      (![...actions.values()].includes("retest") ||
+       [...actions.values()].includes("clarify"))) {
+    fail("Additional evaluation decisions require retesting without clarification.");
   }
   return {
     ...input,

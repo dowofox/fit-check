@@ -96,6 +96,26 @@ async function main() {
         dimensionActions: actions,
       })
     )));
+
+    const mixedActions = decisionInput().dimensionActions;
+    mixedActions[0] = { ...mixedActions[0], action: "clarify" };
+    mixedActions[1] = { ...mixedActions[1], action: "retest" };
+    assert.throws(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({
+        decision: "revise_protocol",
+        rationaleCodes: ["protocol_clarification_needed"],
+        dimensionActions: mixedActions,
+      })
+    )), /without retesting/);
+    assert.throws(() => createCalibrationDecisionRecord(recordInput(
+      fixture,
+      decisionInput({
+        decision: "collect_more_evaluations",
+        rationaleCodes: ["additional_evaluations_needed"],
+        dimensionActions: mixedActions,
+      })
+    )), /without clarification/);
   });
 
   await test("decision rationale codes agree with the recorded disposition", () => {

@@ -227,6 +227,8 @@ npm run fashion:expert:pilot:review-packet -- `
 
 `proceed_to_next_pilot`에는 교정·추가 수집 근거를 넣지 않는다. `revise_protocol`은 `protocol_clarification_needed`, `collect_more_evaluations`는 `additional_evaluations_needed`를 반드시 포함하며 서로의 근거를 함께 쓰지 않는다.
 
+`revise_protocol`의 dimension action은 `retain`과 `clarify`, `collect_more_evaluations`는 `retain`과 `retest`만 사용한다. 하나의 결정에 `clarify`와 `retest`를 함께 넣지 않는다.
+
 ```powershell
 npm run fashion:expert:pilot:decision-record -- `
   --dataset merged-expert-pilot.json `
