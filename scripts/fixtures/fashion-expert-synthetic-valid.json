@@ -2,7 +2,7 @@
   "schemaVersion": "expert-dataset-v1",
   "datasetId": "synthetic-fashion-expert",
   "datasetVersion": "1.0.0",
-  "rubricVersion": "expert-rubric-draft-v0.2",
+  "rubricVersion": "expert-rubric-draft-v0.3",
   "createdAt": "2026-07-01T00:00:00.000Z",
   "source": "synthetic_test",
   "snapshots": [
@@ -102,6 +102,73 @@
       "featureVersions": {},
       "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": false, "bodyFitContextAvailable": false },
       "createdAt": "2026-07-01T00:00:00.000Z"
+    },
+    {
+      "outfitId": "outfit-005",
+      "outfitGroupId": "group-005",
+      "compositionGroupKey": "composition-005",
+      "itemRefs": [
+        { "anonymousItemId": "anon-item-009", "category": "top" },
+        { "anonymousItemId": "anon-item-010", "category": "bottom" }
+      ],
+      "context": {
+        "styleIntent": "minimal",
+        "occasion": "daily",
+        "season": "spring",
+        "temperatureContext": "mild",
+        "bodyFitContext": "not_available",
+        "fitPreferenceContext": "not_available",
+        "exposurePreferenceContext": "not_available",
+        "weatherContext": { "rain": "none", "wind": "light" },
+        "stylingState": { "topTucked": "untucked", "outerWorn": "no", "closureState": "unknown" }
+      },
+      "featureVersions": {
+        "colorProfileVersion": "color-profile-v1",
+        "colorFeatureVersion": "color-features-v1",
+        "shapeProfileVersion": "shape-profile-v1",
+        "shapeFeatureVersion": "shape-features-v1"
+      },
+      "inputAvailability": { "imageAvailable": false, "colorFeaturesAvailable": true, "shapeFeaturesAvailable": true, "materialContextAvailable": true, "bodyFitContextAvailable": false },
+      "colorFeatures": {
+        "itemCount": 2,
+        "swatchCount": 2,
+        "averageLightness": 55,
+        "lightnessRange": 35,
+        "averageChroma": 4,
+        "chromaRange": 2,
+        "pairwiseDeltaE00": [{ "anonymousItemIdA": "anon-item-009", "anonymousItemIdB": "anon-item-010", "deltaE00": 36, "lightnessDifference": 35, "chromaDifference": 2 }],
+        "minDeltaE00": 36,
+        "maxDeltaE00": 36,
+        "meanDeltaE00": 36,
+        "dominantColorCount": 2,
+        "accentCandidateCount": 0,
+        "achromaticRatio": 1,
+        "warmRatio": 0,
+        "coolRatio": 0,
+        "possibleRelations": ["achromatic"],
+        "confidence": 0.9,
+        "usedFallback": false,
+        "warnings": []
+      },
+      "shapeFeatures": {
+        "itemCount": 2,
+        "layerCount": 1,
+        "topBottomVolumeDifference": 1,
+        "topBottomLengthRelation": "similar-length",
+        "upperVisualWeight": 4,
+        "lowerVisualWeight": 5,
+        "visualWeightDifference": -1,
+        "visualWeightCenter": "balanced",
+        "structureDifference": 1,
+        "drapeDifference": 1,
+        "layeringDepth": 1,
+        "availableMeasurementRatio": 0.7,
+        "profileConfidence": 0.8,
+        "usedFallback": false,
+        "observedRelations": ["low-volume-difference"],
+        "warnings": []
+      },
+      "createdAt": "2026-07-01T00:00:00.000Z"
     }
   ],
   "absoluteEvaluations": [
@@ -109,7 +176,7 @@
       "schemaVersion": "expert-evaluation-v1",
       "evaluationId": "absolute-001",
       "outfitId": "outfit-001",
-      "rubricVersion": "expert-rubric-draft-v0.2",
+      "rubricVersion": "expert-rubric-draft-v0.3",
       "evaluatorId": "eval-001",
       "evaluatorGroup": "unknown",
       "dimensions": [
@@ -137,27 +204,54 @@
       "schemaVersion": "expert-evaluation-v1",
       "evaluationId": "absolute-002",
       "outfitId": "outfit-001",
-      "rubricVersion": "expert-rubric-draft-v0.2",
+      "rubricVersion": "expert-rubric-draft-v0.3",
       "evaluatorId": "eval-002",
       "evaluatorGroup": "unknown",
       "dimensions": [
         { "dimension": "color_harmony", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
         { "dimension": "silhouette_balance", "availability": "rated", "rating": 1, "confidence": 3, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["shape.high_volume_difference"] },
-        { "dimension": "proportion_coherence", "availability": "rated", "rating": 3, "confidence": 3, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
-        { "dimension": "material_compatibility", "availability": "rated", "rating": 3, "confidence": 3, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "proportion_coherence", "availability": "rated", "rating": 3, "confidence": 3, "supportingEvidenceCodes": ["neutral_for_declared_intent"], "conflictingEvidenceCodes": [] },
+        { "dimension": "material_compatibility", "availability": "rated", "rating": 3, "confidence": 3, "supportingEvidenceCodes": ["neutral_for_declared_intent"], "conflictingEvidenceCodes": [] },
         { "dimension": "style_coherence", "availability": "rated", "rating": 4, "confidence": 4, "supportingEvidenceCodes": ["supports_declared_intent"], "conflictingEvidenceCodes": [] },
-        { "dimension": "occasion_suitability", "availability": "rated", "rating": 4, "confidence": 3, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "occasion_suitability", "availability": "rated", "rating": 4, "confidence": 3, "supportingEvidenceCodes": ["supports_declared_intent"], "conflictingEvidenceCodes": [] },
         { "dimension": "body_fit_suitability", "availability": "abstained", "confidence": 1, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
         { "dimension": "fit_preference_suitability", "availability": "not_enough_information", "confidence": 1, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
         { "dimension": "exposure_preference_suitability", "availability": "not_applicable", "confidence": 4, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
-        { "dimension": "temperature_suitability", "availability": "rated", "rating": 3, "confidence": 3, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "temperature_suitability", "availability": "rated", "rating": 3, "confidence": 3, "supportingEvidenceCodes": ["neutral_for_declared_intent"], "conflictingEvidenceCodes": [] },
         { "dimension": "rain_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
         { "dimension": "wind_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
-        { "dimension": "season_suitability", "availability": "rated", "rating": 4, "confidence": 3, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] }
+        { "dimension": "season_suitability", "availability": "rated", "rating": 4, "confidence": 3, "supportingEvidenceCodes": ["supports_declared_intent"], "conflictingEvidenceCodes": [] }
       ],
       "evaluatorConfidence": 3,
       "createdAt": "2026-07-01T01:10:00.000Z",
       "durationSeconds": 80,
+      "datasetSplit": "validation"
+    },
+    {
+      "schemaVersion": "expert-evaluation-v1",
+      "evaluationId": "absolute-003",
+      "outfitId": "outfit-005",
+      "rubricVersion": "expert-rubric-draft-v0.3",
+      "evaluatorId": "eval-003",
+      "evaluatorGroup": "unknown",
+      "dimensions": [
+        { "dimension": "color_harmony", "availability": "rated", "rating": 4, "confidence": 4, "supportingEvidenceCodes": ["color.achromatic_palette"], "conflictingEvidenceCodes": [] },
+        { "dimension": "silhouette_balance", "availability": "rated", "rating": 4, "confidence": 4, "supportingEvidenceCodes": ["shape.low_volume_difference"], "conflictingEvidenceCodes": [] },
+        { "dimension": "proportion_coherence", "availability": "rated", "rating": 4, "confidence": 4, "supportingEvidenceCodes": ["shape.short_top_long_bottom"], "conflictingEvidenceCodes": [] },
+        { "dimension": "material_compatibility", "availability": "rated", "rating": 3, "confidence": 3, "supportingEvidenceCodes": ["material.layering_weight_difference_observed"], "conflictingEvidenceCodes": [] },
+        { "dimension": "style_coherence", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "occasion_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "body_fit_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "fit_preference_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "exposure_preference_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "temperature_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "rain_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "wind_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] },
+        { "dimension": "season_suitability", "availability": "not_enough_information", "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": ["insufficient_context"] }
+      ],
+      "evaluatorConfidence": 4,
+      "createdAt": "2026-07-01T01:20:00.000Z",
+      "durationSeconds": 75,
       "datasetSplit": "validation"
     }
   ],
@@ -169,9 +263,9 @@
       "outfitIdB": "outfit-002",
       "contextCompatibility": "same_context",
       "preferred": "a",
-      "dimensions": [{ "dimension": "color_harmony", "preferred": "a", "confidence": 4, "evidenceCodes": [] }],
+      "dimensions": [{ "dimension": "color_harmony", "preferred": "a", "confidence": 4, "evidenceCodes": ["supports_declared_intent"] }],
       "evaluatorId": "eval-001",
-      "rubricVersion": "expert-rubric-draft-v0.2",
+      "rubricVersion": "expert-rubric-draft-v0.3",
       "createdAt": "2026-07-01T02:00:00.000Z"
     },
     {
@@ -181,9 +275,9 @@
       "outfitIdB": "outfit-001",
       "contextCompatibility": "same_context",
       "preferred": "b",
-      "dimensions": [{ "dimension": "color_harmony", "preferred": "b", "confidence": 3, "evidenceCodes": [] }],
+      "dimensions": [{ "dimension": "color_harmony", "preferred": "b", "confidence": 3, "evidenceCodes": ["supports_declared_intent"] }],
       "evaluatorId": "eval-002",
-      "rubricVersion": "expert-rubric-draft-v0.2",
+      "rubricVersion": "expert-rubric-draft-v0.3",
       "createdAt": "2026-07-01T02:05:00.000Z"
     },
     {
@@ -195,7 +289,7 @@
       "preferred": "tie",
       "dimensions": [{ "dimension": "style_coherence", "preferred": "not_comparable", "confidence": 2, "evidenceCodes": ["insufficient_context"] }],
       "evaluatorId": "eval-003",
-      "rubricVersion": "expert-rubric-draft-v0.2",
+      "rubricVersion": "expert-rubric-draft-v0.3",
       "createdAt": "2026-07-01T02:10:00.000Z"
     },
     {
@@ -207,13 +301,13 @@
       "preferred": "not_comparable",
       "dimensions": [],
       "evaluatorId": "eval-001",
-      "rubricVersion": "expert-rubric-draft-v0.2",
+      "rubricVersion": "expert-rubric-draft-v0.3",
       "createdAt": "2026-07-01T02:15:00.000Z"
     }
   ],
   "metadata": {
     "evaluatorCount": 3,
-    "outfitCount": 4,
+    "outfitCount": 5,
     "targetCulture": "unspecified synthetic fixture",
     "notes": "Synthetic records for schema and metric tests only. They are not expert judgements."
   },

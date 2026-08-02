@@ -1,7 +1,7 @@
 {
   "schemaVersion": "expert-dataset-v1",
   "datasetId": "synthetic-invalid",
-  "datasetVersion": "1.1.0",
+  "datasetVersion": "1.2.0",
   "rubricVersion": "expert-rubric-draft-v0.2",
   "createdAt": "2026-07-01T00:00:00.000Z",
   "source": "synthetic_test",
@@ -20,7 +20,7 @@
         "stylingState": { "topTucked": "unknown", "outerWorn": "unknown", "closureState": "unknown" }
       },
       "featureVersions": {},
-      "inputAvailability": { "imageAvailable": true, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": false, "bodyFitContextAvailable": false },
+      "inputAvailability": { "imageAvailable": false, "colorFeaturesAvailable": false, "shapeFeaturesAvailable": false, "materialContextAvailable": false, "bodyFitContextAvailable": false },
       "createdAt": "2026-07-01T00:00:00.000Z"
     },
     {
@@ -48,8 +48,21 @@
       "rubricVersion": "expert-rubric-draft-v0.2",
       "evaluatorId": "eval-invalid",
       "dimensions": [
-        { "dimension": "occasion_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] }
+        { "dimension": "color_harmony", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "silhouette_balance", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "proportion_coherence", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "material_compatibility", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": ["material.layering_weight_mismatch_observed"], "conflictingEvidenceCodes": [] },
+        { "dimension": "style_coherence", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "occasion_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "body_fit_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "fit_preference_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "exposure_preference_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "temperature_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "rain_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "wind_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
+        { "dimension": "season_suitability", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] }
       ],
+      "overallCompatibility": { "dimension": "overall_compatibility", "availability": "rated", "rating": 3, "confidence": 2, "supportingEvidenceCodes": [], "conflictingEvidenceCodes": [] },
       "evaluatorConfidence": 2,
       "createdAt": "2026-07-01T00:01:00.000Z"
     }
@@ -62,7 +75,7 @@
       "outfitIdB": "outfit-invalid-b",
       "contextCompatibility": "same_context",
       "preferred": "a",
-      "dimensions": [],
+      "dimensions": [{ "dimension": "color_harmony", "preferred": "a", "confidence": 2, "evidenceCodes": [] }],
       "evaluatorId": "eval-invalid",
       "rubricVersion": "expert-rubric-draft-v0.2",
       "createdAt": "2026-07-01T00:02:00.000Z"
