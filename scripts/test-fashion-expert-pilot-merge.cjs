@@ -214,6 +214,20 @@ async function main() {
     }
   });
 
+  await test("merge time cannot precede evaluator output completion", () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-pilot-merge-time-"));
+    try {
+      const inputs = createEvaluatorInputs(directory, ["reviewer-a", "reviewer-b"]);
+      const options = mergeOptions(directory, inputs);
+      options.now = "2026-08-01T23:59:59.999Z";
+      assert.throws(() => mergePilotFiles(options), /cannot precede evaluator output completion/);
+      assert.equal(fs.existsSync(options.outputPath), false);
+      assert.equal(fs.existsSync(options.provenancePath), false);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   await test("provenance and duplicate evaluator mismatches are rejected", () => {
     const cases = [
       ["batchId", (value) => { value.batchId = "other-batch"; }, /batchId/],

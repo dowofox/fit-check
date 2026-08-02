@@ -461,6 +461,12 @@ function createMergeProvenance({
 
 function mergePilotDatasets({ sourceDataset, batchLock, assignmentManifest, inputs, now }) {
   if (!Array.isArray(inputs) || inputs.length < 2) fail("At least two evaluator inputs are required.");
+  const mergeCreatedAt = now || new Date().toISOString();
+  const parsedMergeCreatedAt = new Date(mergeCreatedAt);
+  if (!Number.isFinite(parsedMergeCreatedAt.getTime()) ||
+      parsedMergeCreatedAt.toISOString() !== mergeCreatedAt) {
+    fail("Merge time is invalid.");
+  }
   assertSourceAndBatch(sourceDataset, batchLock);
   validateAssignmentManifest(assignmentManifest, batchLock);
   const seenEvaluators = new Set();
@@ -478,6 +484,9 @@ function mergePilotDatasets({ sourceDataset, batchLock, assignmentManifest, inpu
         provenance: input.provenance,
         assignmentManifest,
       });
+      if (Date.parse(input.provenance.updatedAt) > parsedMergeCreatedAt.getTime()) {
+        fail("Merge time cannot precede evaluator output completion.");
+      }
       seenEvaluators.add(evaluatorId);
       evaluations.forEach((evaluation) => evaluationsByKey.set(evaluationKey(evaluation), evaluation));
     } catch (error) {
@@ -509,7 +518,8 @@ function mergePilotDatasets({ sourceDataset, batchLock, assignmentManifest, inpu
   return {
     mergedDataset,
     provenance: createMergeProvenance({
-      batchLock, assignmentManifest, sourceDataset, inputs, mergedDataset, now,
+      batchLock, assignmentManifest, sourceDataset, inputs, mergedDataset,
+      now: mergeCreatedAt,
     }),
     validation,
   };
