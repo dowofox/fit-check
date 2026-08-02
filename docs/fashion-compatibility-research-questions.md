@@ -1,5 +1,17 @@
 # Fashion Compatibility Research Questions
 
+## Phase 5A.1 pilot readiness open questions
+
+1. 13개 dimension별 draft 1~5 anchor를 전문가가 같은 의미로 해석하는가?
+2. 각 dimension의 `required`와 `recommended` context 정책이 과도한 평가 차단이나 추정을 만들지 않는가?
+3. 이미지 기반 material 표면·구조·드레이프 관찰의 평가자 간 agreement는 충분한가?
+4. Pairwise를 same-context로만 제한할 때 필요한 표본 수와 context 다양성을 함께 확보할 수 있는가?
+5. Pilot의 dimension별 최소 독립 평가자 수와 중단 기준은 무엇인가?
+6. Evidence code가 평가자와 반복 session 사이에서 재현 가능한가?
+7. `inputAvailability`만으로 평가 provenance를 충분히 감사할 수 있는가?
+
+이 질문에 답하기 전 rubric이나 evidence를 `validated`로 승격하지 않고 professional score를 만들지 않는다.
+
 ## Phase 4A 이후 shape 검증 질문
 
 1. 공급처별 `chest`, `waist`, `hip`, `thigh`, `hem`은 언제 단면이고 언제 둘레인가?

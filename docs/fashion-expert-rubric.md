@@ -4,7 +4,7 @@
 
 ## 목적
 
-Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평가할 때 사용할 데이터 계약이다. Codex나 현재 추천 엔진이 정답을 생성하는 규칙이 아니며, 어떤 feature도 그 자체로 긍정·부정 점수가 아니다. 구현 버전은 `expert-rubric-draft-v0.1`이다.
+Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평가할 때 사용할 데이터 계약이다. Codex나 현재 추천 엔진이 정답을 생성하는 규칙이 아니며, 어떤 feature도 그 자체로 긍정·부정 점수가 아니다. 구현 버전은 `expert-rubric-draft-v0.2`다.
 
 ## 평가 차원
 
@@ -26,27 +26,39 @@ Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평�
 
 환경 차원은 평가 데이터에 기록할 수 있지만 현재 운영 온도·계절 hard block을 대체하지 않는다. 개인 적합도는 코디 자체의 호환성과 분리한다.
 
-## 1~5 ordinal 척도
+## 차원별 1~5 draft anchor
 
 숫자는 순서가 있는 범주이며 동일 간격의 연속값으로 확정하지 않는다. 집계는 median을 우선하고 mean은 보조 통계로만 제공한다.
 
-1. 선언된 style intent 또는 occasion 기준에서 명확한 충돌이 여러 개 존재한다.
-2. 일부 연결은 있지만 중요한 불일치가 존재한다.
-3. 큰 충돌이나 강한 장점이 없는 중립적이고 수용 가능한 상태다.
-4. 대부분의 요소가 선언된 의도 안에서 일관된다.
-5. 여러 요소가 의도적으로 연결되고 높은 완성도를 보인다.
+아래 문구는 파일럿용 초안이며 전문가 검토 전이다. 각 셀은 해당 context에서의 관찰을 뜻하며 특정 조합을 보편적 정답으로 선언하지 않는다.
+
+| Dimension | 1 | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- |
+| color | 반복 충돌 | 중요한 색 관계 불일치 | 중립적·수용 가능 | 대부분 명확히 연결 | 주·보조·포인트 색이 의도적으로 연결 |
+| silhouette | 여러 지점의 부피·무게 충돌 | 눈에 띄는 불균형 | 강한 불균형 없는 사용 가능 상태 | 의도에 대체로 균형 | 부피·무게가 의도를 명확히 지지 |
+| proportion | 길이·분할이 반복 방해 | 핵심 비율 하나가 약화 | 사용 가능한 중립 비율 | 대부분 의도에 부합 | 길이·분할·착용 상태가 의도적 |
+| material | 표면·구조·드레이프·무게가 반복 충돌 | 중요한 소재 불일치 | 명확한 충돌·연결 없음 | 소재 특성이 대체로 연결 | 소재 특성이 context를 의도적으로 강화 |
+| style | 여러 요소가 의도와 충돌 | 주요 요소 하나가 이탈 | 방향이 강하지 않은 사용 가능 상태 | 대부분 일관 | 모든 선택이 의도적으로 연결 |
+| occasion | 여러 요소가 상황에 부적합 | 주요 상황 요구 하나를 놓침 | 상황에 사용 가능 | 대부분 상황에 적합 | 상황을 의도적으로 충족 |
+| body fit | 이용 가능한 context에서 주요 충돌 다수 | 중요한 적합성 불일치 | 중립적·사용 가능 | 대체로 적합 | 핏 균형을 강하게 지지 |
+| fit preference | 선호와 반복 충돌 | 중요한 선호 불일치 | 선호 대비 중립 | 대부분 선호에 부합 | 선호를 일관되게 표현 |
+| exposure preference | 선호와 명확히 충돌 | 주목할 노출 불일치 | 선호 대비 중립 | 대부분 선호에 부합 | 선호를 일관되게 지지 |
+| temperature | 기록 기온에 반복 부적합 | 주요 보온·통기 불일치 | 기온에 사용 가능 | 대부분 기온에 적합 | 레이어·소재가 기온을 명확히 지지 |
+| rain | 강수 context와 여러 충돌 | 주요 강수 적합성 문제 | 강수 대비 중립 | 대부분 강수에 적합 | 강수를 의도적으로 고려 |
+| wind | 바람 context와 여러 충돌 | 주요 바람 적합성 문제 | 바람 대비 중립 | 대부분 바람에 적합 | 바람을 의도적으로 고려 |
+| season | 계절과 여러 충돌 | 주요 계절 불일치 | 계절에 사용 가능 | 대부분 계절에 적합 | 계절을 의도적으로 표현·지지 |
 
 `3`은 정보 부족이 아니다. 판단할 정보가 없으면 `not_enough_information`, 적용 대상이 아니면 `not_applicable`, 평가자가 판단을 유보하면 `abstained`를 사용한다. 모든 응답에는 1~5 confidence가 별도로 필요하다.
 
 ## Context
 
-각 snapshot은 `styleIntent`, `occasion`, 선택적인 계절·기온 문맥과 다음 styling state를 기록한다.
+각 snapshot은 `styleIntent`, `occasion`, 선택적인 계절·기온 문맥과 다음 styling state를 기록한다. 또한 민감한 원문 없이 `bodyFitContext`, `fitPreferenceContext`, `exposurePreferenceContext`의 이용 가능 여부와 rain/wind context를 기록한다.
 
 - 상의 넣어 입기: tucked / untucked / partial / not applicable / unknown
 - 아우터 착용: yes / no / unknown
 - 여밈: open / closed / mixed / unknown
 
-확인하지 못한 값은 추정하지 않고 `unknown`으로 둔다. 서로 다른 context의 pairwise 비교는 경고 대상이며 `not_comparable`을 `tie`로 바꾸지 않는다.
+확인하지 못한 값은 추정하지 않고 `unknown`으로 둔다. `required` context가 없으면 rated 평가는 error이며 `recommended` context가 없으면 warning이다. 정보 부족을 3점으로 대체하지 않는다. 서로 다른 context의 pairwise 평가는 agreement에서 제외하며 원래 preference를 덮어쓰지 않는다.
 
 ## Evidence code
 
@@ -60,6 +72,12 @@ Phase 5A rubric은 전문가가 같은 context의 코디를 독립적으로 평�
 - `insufficient_context`
 
 허용 코드는 `rubricRegistry.ts`에서 dimension별로 관리하며 등록되지 않은 코드는 validation error다. 자유 메모만으로 evidence를 대신하도록 강제하지 않지만, notes는 1,000자 이하의 평문이어야 하고 HTML·실행 문자열은 금지한다.
+
+Evidence metadata는 `derived_color_feature`, `derived_shape_feature`, `human_observed_material`, `context_interpretation` origin을 구분한다. Derived code는 대응 feature payload가 있을 때만 사용할 수 있다. Material code는 이미지 또는 허가된 상품 context에서 사람이 관찰한 표면·구조·드레이프·무게의 중립 기록이며 `similar`나 `mixed` 자체가 좋음·나쁨을 뜻하지 않는다.
+
+Material draft code는 `material.similar_surface`, `material.mixed_surface`, `material.similar_structure`, `material.mixed_structure`, `material.similar_drape`, `material.mixed_drape`, `material.weight_contrast`, `material.layering_weight_mismatch_observed`, `material.seasonal_context_present`, `material.input_confidence_low`, `material.not_visually_assessable`이다.
+
+Snapshot의 `inputAvailability`는 이미지, color/shape feature, material context, body-fit context의 이용 가능 여부만 기록한다. 이미지 URI, 사용자 치수, 선호 원문은 저장하지 않으며 availability는 권한이나 정확성을 보장하지 않는다.
 
 ## Version과 검토
 

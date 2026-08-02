@@ -23,6 +23,8 @@
 - tuck, 아우터 착용, 여밈이 보이지 않거나 기록되지 않았으면 `unknown`이다.
 - 개인 적합도는 코디 완성도 및 평가자 개인 취향과 분리한다.
 - 환경 적합도는 제공된 계절·기온·강수·바람 문맥이 없으면 `not_enough_information`을 사용한다.
+- 평가 전에 rubric의 `contextRequirements`를 확인한다. `required` context가 없으면 점수를 만들지 말고 `not_enough_information`을 사용한다.
+- `bodyFitContext`가 `available`이 아니면 body-fit 적합도를 평가하지 않는다. 실제 치수나 선호 원문을 dataset에 복사하지 않는다.
 
 ## Dimension 평가
 
@@ -38,6 +40,10 @@ confidence는 rating과 별개의 1~5 기록이다. 낮은 confidence를 높은 
 
 관찰 feature를 확인한 뒤 선언된 의도를 지지하면 supporting, 충돌하면 conflicting 배열에 넣는다. 같은 feature도 context에 따라 방향이 달라질 수 있다. notes는 구조화 코드로 표현할 수 없는 짧은 설명에만 사용하며 개인정보, 링크, 로컬 경로, HTML을 넣지 않는다.
 
+- `color.*`, `shape.*`는 제공된 derived feature를 읽은 경우에만 사용한다.
+- `material.*`은 이미지 또는 허가된 상품 context에서 직접 관찰한 중립 특성이다. `similar`, `mixed`, `weight_contrast`만으로 supporting/conflicting 방향을 고정하지 않는다.
+- `supports_declared_intent` 등 context interpretation은 관찰과 별개로 평가자가 정한 방향이다.
+
 ## Pairwise 평가
 
 - 두 코디가 같은 context인지 먼저 확인한다.
@@ -46,6 +52,7 @@ confidence는 rating과 별개의 1~5 기록이다. 낮은 confidence를 높은 
 - `not_comparable`은 context나 정보 때문에 유효 비교를 할 수 없는 경우다.
 - dimension별 선호는 전체 선호와 달라도 보존한다.
 - A/B 순서를 뒤집은 비교는 stable pair key로 같은 pair임을 식별한다.
+- Agreement는 `same_context`로 선언되고 실제 snapshot context와 rubric version이 같은 평가끼리만 계산한다. `different_context`와 `unknown` preference는 보존하되 agreement에서는 제외한다.
 
 Pairwise 판단은 ranking 학습의 한 입력 형태지만 Phase 5A는 Bradley-Terry 같은 모델이나 professional score를 만들지 않는다. Pairwise preference를 특징과 함께 학습하는 방법의 한 예는 [Saha & Rajkumar (2024)](https://proceedings.mlr.press/v244/saha24a.html)이며, 이 논문의 가정을 현재 데이터에 그대로 적용하지 않는다.
 
