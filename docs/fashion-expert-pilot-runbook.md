@@ -120,3 +120,35 @@ npx tsc --noEmit
 ```
 
 Pilot test는 Case별 초안 격리·불변 복사·privacy, 인자 거부, asset 경계, MIME spoofing, 결정적 순서·ID, 평가 잠금, localhost 보안 헤더, 원자 저장, 재개, 중복 방지, 전체 완료, input 불변과 output privacy를 확인한다.
+
+## 여러 평가자 결과 병합
+
+평가자는 같은 output 파일을 공유하지 않는다. 각자 별도 output과 인접한 `.pilot-provenance.json` sidecar를 만들고, 완료된 파일만 frozen source dataset 및 v3 batch lock과 함께 병합한다.
+
+```powershell
+npm run fashion:expert:pilot:merge -- `
+  --dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
+  --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
+  --input reviewer-a.json `
+  --input reviewer-b.json `
+  --output merged-expert-pilot.json
+```
+
+병합은 다음을 거부한다.
+
+- batch, snapshot, annotation/presentation protocol 또는 dataset identity가 다른 output
+- provenance sidecar가 없거나 손상된 output
+- 같은 evaluator ID의 중복 input
+- 모든 snapshot 평가를 마치지 않은 partial output
+- 다른 평가자의 기록, pairwise 평가, snapshot, metadata notes 또는 split policy를 바꾼 output
+
+입력 순서와 무관하게 absolute evaluation은 evaluator ID, outfit ID, evaluation ID 순으로 정렬된다. 최종 metadata count만 실제 평가 데이터로 다시 계산하며 source와 기존 평가를 보존한다. 병합 결과는 `expert_validated`로 자동 승격하지 않는다.
+
+`<output>.pilot-merge-provenance.json`에는 batch identity, snapshot/protocol digest, 평가자별 input dataset/provenance digest와 merged dataset digest만 기록한다. 경로, token, 이미지, notes, 평가 내용은 저장하지 않는다. source dataset, batch lock, 각 평가자의 output/sidecar 원본과 merge provenance는 분석 재현이 끝날 때까지 함께 보관하고, 폐기는 파일럿 데이터 보존 정책에 따른다.
+
+병합 후 기존 검증과 agreement report를 실행한다.
+
+```powershell
+npm run fashion:expert:validate -- merged-expert-pilot.json
+npm run fashion:expert:report -- merged-expert-pilot.json
+```

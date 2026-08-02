@@ -4,6 +4,19 @@ const fs = require("node:fs");
 const BATCH_LOCK_SCHEMA_VERSION = "expert-pilot-batch-lock-v3";
 const OUTPUT_PROVENANCE_SCHEMA_VERSION = "expert-pilot-output-provenance-v1";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const OUTPUT_PROVENANCE_KEYS = [
+  "schemaVersion",
+  "batchId",
+  "batchFingerprintSha256",
+  "datasetId",
+  "datasetVersion",
+  "rubricVersion",
+  "evaluatorId",
+  "seed",
+  "orderedOutfitIdsDigestSha256",
+  "createdAt",
+  "updatedAt",
+];
 
 function fail(message) {
   throw new Error(message);
@@ -204,6 +217,10 @@ function validateOutputProvenance(provenance) {
   if (provenance.schemaVersion !== OUTPUT_PROVENANCE_SCHEMA_VERSION) {
     fail("Pilot output provenance uses an unsupported schema.");
   }
+  const keys = Object.keys(provenance).sort();
+  if (canonicalJson(keys) !== canonicalJson([...OUTPUT_PROVENANCE_KEYS].sort())) {
+    fail("Pilot output provenance contains unknown or missing fields.");
+  }
   for (const key of [
     "batchId",
     "datasetId",
@@ -222,6 +239,15 @@ function validateOutputProvenance(provenance) {
     if (!SHA256_PATTERN.test(provenance[key] || "")) {
       fail(`Pilot output provenance ${key} is invalid.`);
     }
+  }
+  for (const key of ["createdAt", "updatedAt"]) {
+    const timestamp = new Date(provenance[key]);
+    if (!Number.isFinite(timestamp.getTime()) || timestamp.toISOString() !== provenance[key]) {
+      fail(`Pilot output provenance ${key} is not a valid timestamp.`);
+    }
+  }
+  if (Date.parse(provenance.updatedAt) < Date.parse(provenance.createdAt)) {
+    fail("Pilot output provenance timestamps are out of order.");
   }
   return provenance;
 }
