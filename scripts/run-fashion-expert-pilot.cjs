@@ -45,6 +45,13 @@ const {
 const {
   validateExpertEvaluationDataset,
 } = require("../utils/fashionCompatibility/expert/evaluationValidation.ts");
+const {
+  assertBatchLockMatches,
+  assertOutputProvenanceMatches,
+  createBatchLock,
+  createOutputProvenance,
+  getOutputProvenancePath,
+} = require("./fashion-expert-pilot-provenance.cjs");
 
 const HOST = "127.0.0.1";
 const DEFAULT_PORT = 4317;
@@ -79,10 +86,12 @@ function argumentValue(argv, name) {
 function parsePilotArguments(argv) {
   const dataset = argumentValue(argv, "--dataset");
   const assets = argumentValue(argv, "--assets");
+  const batchLock = argumentValue(argv, "--batch-lock");
   const evaluatorId = argumentValue(argv, "--evaluator-id");
   const output = argumentValue(argv, "--output");
   if (!dataset) fail("Missing required --dataset path.");
   if (!assets) fail("Missing required --assets path.");
+  if (!batchLock) fail("Missing required --batch-lock path.");
   if (!evaluatorId) fail("Missing required --evaluator-id.");
   if (!output) fail("Missing required --output path.");
   if (!ID_PATTERN.test(evaluatorId)) {
@@ -100,6 +109,7 @@ function parsePilotArguments(argv) {
 
   const datasetPath = path.resolve(dataset);
   const assetsPath = path.resolve(assets);
+  const batchLockPath = path.resolve(batchLock);
   const outputPath = path.resolve(output);
   if (datasetPath.toLowerCase() === outputPath.toLowerCase()) {
     fail("--output must be different from --dataset.");
@@ -107,6 +117,7 @@ function parsePilotArguments(argv) {
   return {
     datasetPath,
     assetsPath,
+    batchLockPath,
     outputPath,
     evaluatorId,
     evaluatorGroup,
@@ -358,10 +369,25 @@ function publicEvaluation(evaluation) {
 }
 
 function createPilotServer(options) {
+  if (!options.batchLockPath) fail("Missing required batch lock path.");
   const sourceDataset = readJson(options.datasetPath, "Dataset");
   validateInputDataset(sourceDataset);
   const manifest = readJson(options.assetsPath, "Asset manifest");
   const assets = validateAssetManifest(manifest, options.assetsPath, sourceDataset);
+  const batchLock = readJson(options.batchLockPath, "Batch lock");
+  const currentBatchLock = createBatchLock({
+    dataset: sourceDataset,
+    assets,
+    batchId: batchLock.batchId,
+  });
+  assertBatchLockMatches(batchLock, currentBatchLock);
+  const lockedOutfitById = new Map(batchLock.outfits.map((outfit) => [outfit.outfitId, outfit]));
+  for (const [outfitId, assetIds] of assets.assetIdsByOutfit) {
+    const lockedAssets = lockedOutfitById.get(outfitId)?.assets || [];
+    assetIds.forEach((assetId, index) => {
+      assets.assetsById.get(assetId).sha256 = lockedAssets[index].sha256;
+    });
+  }
   let dataset = loadResumeDataset(sourceDataset, options.outputPath);
   const token = crypto.randomBytes(24).toString("hex");
   const session = createExpertPilotSession({
@@ -370,6 +396,19 @@ function createPilotServer(options) {
     evaluatorGroup: options.evaluatorGroup,
     seed: options.seed,
   });
+  const provenancePath = getOutputProvenancePath(options.outputPath);
+  const expectedProvenance = createOutputProvenance({ lock: batchLock, session });
+  if (fs.existsSync(options.outputPath) && !fs.existsSync(provenancePath)) {
+    fail("Existing pilot output is missing its provenance sidecar.");
+  }
+  let provenance;
+  if (fs.existsSync(provenancePath)) {
+    provenance = readJson(provenancePath, "Pilot output provenance");
+    assertOutputProvenanceMatches(provenance, expectedProvenance);
+  } else {
+    provenance = expectedProvenance;
+    atomicWriteJson(provenancePath, provenance);
+  }
   const snapshotById = new Map(dataset.snapshots.map((snapshot) => [snapshot.outfitId, snapshot]));
   const saveDelayMs = Number.isFinite(options.saveDelayMs) ? Math.max(0, options.saveDelayMs) : 0;
   let saveRequestCount = 0;
@@ -433,6 +472,8 @@ function createPilotServer(options) {
             evaluatorId: session.evaluatorId,
             evaluatorGroup: session.evaluatorGroup,
             seed: session.seed,
+            batchId: batchLock.batchId,
+            batchFingerprintPrefix: batchLock.batchFingerprintSha256.slice(0, 12),
             totalCases: session.orderedOutfitIds.length,
             completedCaseNumbers: session.orderedOutfitIds
               .map((outfitId, index) =>
@@ -477,11 +518,16 @@ function createPilotServer(options) {
       if (assetMatch && request.method === "GET") {
         const asset = assets.assetsById.get(assetMatch[1]);
         if (!asset) return sendError(response, 404, "Asset not found.");
+        const bytes = fs.readFileSync(asset.path);
+        const digest = crypto.createHash("sha256").update(bytes).digest("hex");
+        if (bytes.length !== asset.size || digest !== asset.sha256) {
+          return sendError(response, 409, "Pilot asset changed after batch verification.");
+        }
         response.writeHead(200, {
           ...securityHeaders(asset.mimeType),
-          "Content-Length": asset.size,
+          "Content-Length": bytes.length,
         });
-        fs.createReadStream(asset.path).pipe(response);
+        response.end(bytes);
         return;
       }
       const evaluationMatch = url.pathname.match(/^\/api\/evaluations\/(\d+)$/);
@@ -505,6 +551,12 @@ function createPilotServer(options) {
         const candidate = upsertPilotEvaluation(dataset, evaluation);
         const validation = validatePilotOutput(candidate);
         atomicWriteJson(options.outputPath, candidate);
+        provenance = createOutputProvenance({
+          lock: batchLock,
+          session,
+          createdAt: provenance.createdAt,
+        });
+        atomicWriteJson(provenancePath, provenance);
         dataset = candidate;
         sendJson(response, 200, {
           saved: true,
@@ -553,6 +605,8 @@ function createPilotServer(options) {
   return {
     server,
     session,
+    batchLock,
+    provenancePath,
     getDataset: () => dataset,
     getSaveRequestCount: () => saveRequestCount,
     listen(port = options.port) {

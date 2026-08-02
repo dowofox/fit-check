@@ -28,6 +28,8 @@ const elements = {
   loading: document.querySelector("#loading"),
   error: document.querySelector("#error"),
   workspace: document.querySelector("#workspace"),
+  batchId: document.querySelector("#batch-id"),
+  batchFingerprint: document.querySelector("#batch-fingerprint"),
   rubricVersion: document.querySelector("#rubric-version"),
   caseProgress: document.querySelector("#case-progress"),
   caseState: document.querySelector("#case-state"),
@@ -612,6 +614,10 @@ async function initialize() {
     const payload = await request("/api/session");
     state.token = payload.token;
     state.session = payload.session;
+    elements.batchId.textContent = `Batch ${payload.session.batchId}`;
+    elements.batchFingerprint.textContent =
+      `Fingerprint ${payload.session.batchFingerprintPrefix}`;
+    elements.rubricVersion.textContent = payload.session.rubricVersion;
     elements.loading.hidden = true;
     elements.workspace.hidden = false;
     const firstIncomplete = Array.from(

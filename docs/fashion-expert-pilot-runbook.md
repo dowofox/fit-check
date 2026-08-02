@@ -33,10 +33,23 @@ Repository의 `scripts/fixtures/fashion-expert-pilot-assets.json`은 synthetic d
 
 ## 실행
 
+평가를 시작하기 전에 dataset snapshot과 실제 이미지 바이트를 하나의 배치로 고정한다. 잠금 파일에는 로컬 경로와 파일명이 들어가지 않는다.
+
+```powershell
+npm run fashion:expert:pilot:freeze -- `
+  --dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
+  --assets scripts/fixtures/fashion-expert-pilot-assets.json `
+  --batch-id synthetic-pilot-v1 `
+  --output scripts/fixtures/fashion-expert-pilot-batch-lock.json
+```
+
+Snapshot은 `outfitId` 순서로 canonicalize하므로 JSON key 순서, 공백, snapshot 배열 순서는 digest에 영향을 주지 않는다. Snapshot context·feature·input availability 또는 이미지 바이트·개수·표시 순서가 바뀌면 배치 fingerprint가 바뀐다. 평가는 snapshot digest에 포함하지 않는다.
+
 ```powershell
 npm run fashion:expert:pilot -- `
   --dataset scripts/fixtures/fashion-expert-synthetic-valid.json `
   --assets scripts/fixtures/fashion-expert-pilot-assets.json `
+  --batch-lock scripts/fixtures/fashion-expert-pilot-batch-lock.json `
   --evaluator-id pilot-reviewer-01 `
   --evaluator-group pilot `
   --output fashion-expert-pilot-output/reviewer-01.expert-pilot-output.json
@@ -74,10 +87,11 @@ UI에는 pairwise 비교, 총점 계산, professional score가 없다. 평가는
 ## 저장과 재개
 
 - Output은 임시 파일에 write·fsync한 뒤 rename하는 방식으로 원자적으로 저장한다.
+- Output 옆의 `<output>.pilot-provenance.json`에는 batch fingerprint, evaluator ID, seed, Case 순서 digest만 저장한다. 경로, asset ID, 이미지 바이트는 저장하지 않는다.
 - 동일한 dataset, evaluator ID, seed, output 경로로 다시 실행하면 완료된 Case를 불러오고 첫 미완료 Case부터 재개한다.
 - Evaluation ID와 Case 순서는 dataset ID, evaluator ID, rubric version, seed를 기준으로 결정적이다.
 - 같은 evaluator + outfit + rubric 평가는 새 레코드를 추가하지 않고 교체한다.
-- 기존 output이 손상됐거나 input dataset identity/snapshot과 다르면 시작 전에 중단한다.
+- 기존 output이 손상됐거나 provenance sidecar가 없거나 batch, evaluator, seed, Case 순서가 다르면 시작 전에 중단한다.
 - Input dataset은 수정하지 않는다.
 
 Output과 로컬 manifest 기본 패턴은 `.gitignore`에 포함된다. 실제 파일럿 자료를 repository에 커밋하지 않는다.

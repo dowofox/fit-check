@@ -40,6 +40,8 @@ yarn-error.*
 # Local expert pilot inputs and outputs
 *.expert-pilot-assets.local.json
 *.expert-pilot-output.json
+*.expert-pilot-batch-lock.local.json
+*.pilot-provenance.json
 /fashion-expert-pilot-output/
 
 app-example

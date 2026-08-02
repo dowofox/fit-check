@@ -10,8 +10,13 @@ const {
 const {
   createPilotServer,
   parsePilotArguments,
+  readJson: readPilotJson,
   validateAssetManifest,
 } = require("./run-fashion-expert-pilot.cjs");
+const {
+  createBatchLock,
+  getOutputProvenancePath,
+} = require("./fashion-expert-pilot-provenance.cjs");
 const {
   buildPilotAbsoluteEvaluation,
   createExpertPilotSession,
@@ -79,6 +84,14 @@ function createTemporaryAssets(directory, dataset) {
     JSON.stringify({ schemaVersion: "expert-pilot-assets-v1", outfits }, null, 2)
   );
   return manifestPath;
+}
+
+function createBatchLockFile(directory, dataset, manifestPath, batchId = "synthetic-batch-v1") {
+  const assets = validateAssetManifest(readJson(manifestPath), manifestPath, dataset);
+  const lock = createBatchLock({ dataset, assets, batchId });
+  const lockPath = path.join(directory, "batch-lock.json");
+  fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
+  return lockPath;
 }
 
 async function fetchJson(url, options) {
@@ -174,10 +187,20 @@ async function main() {
   await test("CLI arguments reject missing, unsafe, and colliding values", () => {
     assert.throws(() => parsePilotArguments([]), /--dataset/);
     assert.throws(
+      () => parsePilotArguments([
+        "--dataset", datasetPath,
+        "--assets", fixtureManifestPath,
+        "--evaluator-id", "pilot-qa",
+        "--output", "output.json",
+      ]),
+      /--batch-lock/
+    );
+    assert.throws(
       () =>
         parsePilotArguments([
           "--dataset", datasetPath,
           "--assets", fixtureManifestPath,
+          "--batch-lock", fixtureManifestPath,
           "--evaluator-id", "person@example.com",
           "--output", "output.json",
         ]),
@@ -188,6 +211,7 @@ async function main() {
         parsePilotArguments([
           "--dataset", datasetPath,
           "--assets", fixtureManifestPath,
+          "--batch-lock", fixtureManifestPath,
           "--evaluator-id", "pilot-qa",
           "--output", datasetPath,
         ]),
@@ -234,6 +258,15 @@ async function main() {
       assert.throws(
         () => validateAssetManifest(spoof, validPath, dataset),
         /MIME type/
+      );
+
+      const emptyPath = path.join(directory, "empty.png");
+      fs.writeFileSync(emptyPath, "");
+      const empty = structuredClone(valid);
+      empty.outfits["outfit-001"].images[0] = emptyPath;
+      assert.throws(
+        () => validateAssetManifest(empty, validPath, dataset),
+        /file size/
       );
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
@@ -298,10 +331,12 @@ async function main() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "naes-pilot-server-"));
     const sourceBefore = fs.readFileSync(datasetPath, "utf8");
     const assetsPath = createTemporaryAssets(directory, dataset);
+    const batchLockPath = createBatchLockFile(directory, dataset, assetsPath);
     const outputPath = path.join(directory, "pilot-output.json");
     const options = {
       datasetPath,
       assetsPath,
+      batchLockPath,
       outputPath,
       evaluatorId: "pilot-server-qa",
       evaluatorGroup: "pilot",
@@ -327,6 +362,18 @@ async function main() {
       assert.equal(sessionResult.response.status, 200);
       const token = sessionResult.payload.token;
       assert.equal(sessionResult.payload.session.totalCases, dataset.snapshots.length);
+      assert.equal(sessionResult.payload.session.batchId, "synthetic-batch-v1");
+      assert.match(sessionResult.payload.session.batchFingerprintPrefix, /^[a-f0-9]{12}$/);
+      const provenancePath = getOutputProvenancePath(outputPath);
+      assert.equal(fs.existsSync(provenancePath), true);
+      const initialProvenance = readPilotJson(provenancePath, "Pilot output provenance");
+      assert.equal(initialProvenance.seed, options.seed);
+      assert.equal(initialProvenance.evaluatorId, options.evaluatorId);
+      assert.doesNotMatch(
+        JSON.stringify(initialProvenance),
+        new RegExp(directory.replace(/\\/g, "\\\\"), "i")
+      );
+      assert.doesNotMatch(JSON.stringify(initialProvenance), /file:|base64|assetId|token/i);
 
       let imageRoute;
       for (let caseNumber = 1; caseNumber <= dataset.snapshots.length; caseNumber += 1) {
@@ -341,6 +388,11 @@ async function main() {
       assert.equal(imageResponse.headers.get("content-type"), "image/png");
       assert.equal((await imageResponse.arrayBuffer()).byteLength, onePixelPng.length);
       assert.equal((await fetch(`${origin}/api/assets/000000000000000000000000`)).status, 404);
+      const manifest = readJson(assetsPath);
+      const localAssetPaths = Object.values(manifest.outfits).flatMap((entry) => entry.images);
+      localAssetPaths.forEach((assetPath) => fs.appendFileSync(assetPath, Buffer.from([7])));
+      assert.equal((await fetch(`${origin}${imageRoute}`)).status, 409);
+      localAssetPaths.forEach((assetPath) => fs.writeFileSync(assetPath, onePixelPng));
 
       const rejected = await fetchJson(`${origin}/api/evaluations/1`, {
         method: "POST",
@@ -389,6 +441,37 @@ async function main() {
       });
       assert.equal(earlyComplete.response.status, 409);
       await pilot.close();
+
+      const outputBeforeRejectedResume = fs.readFileSync(outputPath, "utf8");
+      const provenanceBeforeRejectedResume = fs.readFileSync(provenancePath, "utf8");
+      assert.throws(
+        () => createPilotServer({ ...options, seed: "changed-seed" }),
+        /provenance does not match/
+      );
+      assert.throws(
+        () => createPilotServer({ ...options, evaluatorId: "different-evaluator" }),
+        /provenance does not match/
+      );
+      const otherBatchLock = createBatchLock({
+        dataset,
+        assets: validateAssetManifest(readJson(assetsPath), assetsPath, dataset),
+        batchId: "different-batch",
+      });
+      const otherBatchLockPath = path.join(directory, "other-batch-lock.json");
+      fs.writeFileSync(otherBatchLockPath, JSON.stringify(otherBatchLock), "utf8");
+      assert.throws(
+        () => createPilotServer({ ...options, batchLockPath: otherBatchLockPath }),
+        /provenance does not match/
+      );
+      assert.equal(fs.readFileSync(outputPath, "utf8"), outputBeforeRejectedResume);
+      assert.equal(fs.readFileSync(provenancePath, "utf8"), provenanceBeforeRejectedResume);
+
+      fs.rmSync(provenancePath);
+      assert.throws(() => createPilotServer(options), /missing its provenance sidecar/);
+      fs.writeFileSync(provenancePath, provenanceBeforeRejectedResume, "utf8");
+      fs.writeFileSync(provenancePath, "{broken", "utf8");
+      assert.throws(() => createPilotServer(options), /not valid JSON/);
+      fs.writeFileSync(provenancePath, provenanceBeforeRejectedResume, "utf8");
 
       pilot = createPilotServer(options);
       port = await pilot.listen(0);

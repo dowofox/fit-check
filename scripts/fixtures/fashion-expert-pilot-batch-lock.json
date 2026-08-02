@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "expert-pilot-batch-lock-v1",
+  "batchId": "synthetic-pilot-v1",
+  "dataset": {
+    "datasetId": "synthetic-fashion-expert",
+    "datasetVersion": "1.0.0",
+    "rubricVersion": "expert-rubric-draft-v0.3",
+    "snapshotDigestSha256": "69b343201383b2a04f7685aab3fe6d5c4b9e38af0e7710a4a4965dfeea1ab875"
+  },
+  "outfits": [
+    {
+      "outfitId": "outfit-001",
+      "assets": [
+        {
+          "sha256": "6559c8c3d874a055342b23ed45f880fe80143a66cf8ae91d7c388eb0b8a24e0d",
+          "byteLength": 235970,
+          "mimeType": "image/png"
+        }
+      ],
+      "orderedAssetsDigestSha256": "94fb7e529a01e9ed4b9625d0902fd35229f61293dd8b21a299af217f3922bff9"
+    },
+    {
+      "outfitId": "outfit-002",
+      "assets": [
+        {
+          "sha256": "7047674ffe03a0fc5d5fbdcd390bedd2ccc645dbfa62c2b0e44306440f974beb",
+          "byteLength": 225893,
+          "mimeType": "image/png"
+        }
+      ],
+      "orderedAssetsDigestSha256": "7470a47e07522c8020ddf13e398c591547d2a62726f87042f49cedb20f2ae2b1"
+    },
+    {
+      "outfitId": "outfit-003",
+      "assets": [
+        {
+          "sha256": "f1c5a207fdf159c9cec778a7bb27e2babe2b37b08f8f79716c0dd624b0cd86bd",
+          "byteLength": 248245,
+          "mimeType": "image/png"
+        }
+      ],
+      "orderedAssetsDigestSha256": "0ce7a316768ede2070c351c1ab4c68324bc86993abe950e1eaa7b53f14a53ee2"
+    },
+    {
+      "outfitId": "outfit-004",
+      "assets": [
+        {
+          "sha256": "50925b2c81d9518fa18707abbcf070fd806ebe07fe58101061ece6487705a605",
+          "byteLength": 204277,
+          "mimeType": "image/png"
+        }
+      ],
+      "orderedAssetsDigestSha256": "b7da22ee13963b2eb7f5f44a6588f65d6086d0e7baebfa51f44e54f303c69536"
+    },
+    {
+      "outfitId": "outfit-005",
+      "assets": [],
+      "orderedAssetsDigestSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "batchFingerprintSha256": "05340abb047f0e8921ca78b51d888fd39128bb6bae20b4f963c35b8c609b8dca"
+}
