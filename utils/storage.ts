@@ -22,6 +22,7 @@ import {
   getLocalDateKey,
   getOutfitWearItemKey,
   normalizeOutfitWearRecords,
+  normalizeOutfitWearTimestamp,
   wasOutfitWornOnDate,
   type OutfitWearRecord,
 } from "@/utils/outfitWear";
@@ -572,8 +573,7 @@ function parseStoredWearRecordsForMutation(rawValue: string | null) {
         Array.isArray(candidate.itemIds) &&
         candidate.itemIds.every((itemId) => typeof itemId === "string") &&
         Boolean(getOutfitWearItemKey(candidate.itemIds as string[])) &&
-        typeof candidate.wornAt === "string" &&
-        Boolean(candidate.wornAt) &&
+        Boolean(normalizeOutfitWearTimestamp(candidate.wornAt)) &&
         typeof candidate.dateKey === "string" &&
         /^\d{4}-\d{2}-\d{2}$/.test(candidate.dateKey) &&
         (candidate.savedOutfitId === undefined ||

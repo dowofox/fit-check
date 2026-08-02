@@ -596,6 +596,28 @@ test("wear record reads distinguish storage failures from empty history", async 
   assert.deepEqual(failedResult, { status: "failed", records: [] });
   assert.equal((await getOutfitWearRecordsLoadResult()).records.length, 1);
 
+  storageMemory.set(
+    OUTFIT_WEAR_RECORDS_KEY,
+    JSON.stringify([
+      {
+        id: "broken-wear-timestamp",
+        itemIds: [item.id],
+        wornAt: "not-a-date",
+        dateKey: "2026-07-17",
+      },
+    ])
+  );
+  const originalInvalidTimestampConsoleError = console.error;
+  console.error = () => {};
+  try {
+    assert.deepEqual(await getOutfitWearRecordsLoadResult(), {
+      status: "failed",
+      records: [],
+    });
+  } finally {
+    console.error = originalInvalidTimestampConsoleError;
+  }
+
   storageMemory.delete(OUTFIT_WEAR_RECORDS_KEY);
   assert.deepEqual(await getOutfitWearRecordsLoadResult(), {
     status: "loaded",

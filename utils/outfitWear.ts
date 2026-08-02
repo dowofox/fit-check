@@ -22,6 +22,13 @@ export function getLocalDateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+export function normalizeOutfitWearTimestamp(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? undefined : new Date(timestamp).toISOString();
+}
+
 export function normalizeOutfitWearRecords(value: unknown): OutfitWearRecord[] {
   if (!Array.isArray(value)) return [];
 
@@ -35,13 +42,13 @@ export function normalizeOutfitWearRecords(value: unknown): OutfitWearRecord[] {
       ? record.itemIds.filter((itemId): itemId is string => typeof itemId === "string")
       : [];
     const itemKey = getOutfitWearItemKey(itemIds);
+    const wornAt = normalizeOutfitWearTimestamp(record.wornAt);
 
     if (
       !itemKey ||
       typeof record.id !== "string" ||
       !record.id ||
-      typeof record.wornAt !== "string" ||
-      !record.wornAt ||
+      !wornAt ||
       typeof record.dateKey !== "string" ||
       !/^\d{4}-\d{2}-\d{2}$/.test(record.dateKey)
     ) {
@@ -55,7 +62,7 @@ export function normalizeOutfitWearRecords(value: unknown): OutfitWearRecord[] {
           ? record.savedOutfitId
           : undefined,
       itemIds: itemKey.split("|"),
-      wornAt: record.wornAt,
+      wornAt,
       dateKey: record.dateKey,
     };
     const recordKey = `${record.dateKey}|${itemKey}`;

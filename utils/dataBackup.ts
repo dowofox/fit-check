@@ -6,6 +6,7 @@ import type {
   SavedOutfit,
   UserProfile,
 } from "@/utils/storage";
+import { normalizeOutfitWearTimestamp } from "@/utils/outfitWear";
 
 export const NAES_BACKUP_SCHEMA = "naes-data-backup";
 export const NAES_BACKUP_VERSION = 1;
@@ -110,8 +111,7 @@ function isValidWearRecord(value: unknown): value is OutfitWearRecord {
     Boolean(value.id) &&
     isStringArray(value.itemIds) &&
     value.itemIds.length > 0 &&
-    typeof value.wornAt === "string" &&
-    Boolean(value.wornAt) &&
+    Boolean(normalizeOutfitWearTimestamp(value.wornAt)) &&
     typeof value.dateKey === "string" &&
     /^\d{4}-\d{2}-\d{2}$/.test(value.dateKey)
   );
