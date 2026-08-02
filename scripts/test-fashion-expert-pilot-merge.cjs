@@ -236,6 +236,16 @@ async function main() {
       assert.equal(fs.existsSync(options.outputPath), false);
       assert.equal(fs.existsSync(options.provenancePath), false);
 
+      rewriteInput(inputs[0], (dataset) => {
+        const evaluation = dataset.absoluteEvaluations.find(
+          (entry) => entry.evaluatorId === inputs[0].provenance.evaluatorId
+        );
+        evaluation.createdAt = "2026-08-01T23:59:59.999Z";
+      });
+      assert.throws(() => mergePilotFiles(options), /cannot precede the evaluator session start/);
+      assert.equal(fs.existsSync(options.outputPath), false);
+      assert.equal(fs.existsSync(options.provenancePath), false);
+
       const sourceDataset = readJson(sourcePath);
       const pairwiseCreatedAt = "2026-08-02T02:00:00.000Z";
       sourceDataset.pairwiseEvaluations[0].createdAt = pairwiseCreatedAt;

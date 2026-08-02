@@ -157,7 +157,7 @@ npm run fashion:expert:pilot:merge -- `
 
 입력 순서와 무관하게 absolute evaluation은 evaluator ID, outfit ID, evaluation ID 순으로 정렬된다. 최종 metadata count만 실제 평가 데이터로 다시 계산하며 source와 기존 평가를 보존한다. 병합 결과는 `expert_validated`로 자동 승격하지 않는다.
 
-각 evaluator output provenance의 `updatedAt`은 그 파일에 든 absolute/pairwise 평가의 `createdAt`과 같거나 이후여야 한다. 병합 시각은 모든 output `updatedAt`과 평가 `createdAt` 이후여야 하며, 순서가 어긋난 병합은 output을 쓰기 전에 거부한다.
+신규 평가는 evaluator output provenance의 `createdAt` 이후에 생성되어야 하고, `updatedAt`은 그 파일에 든 absolute/pairwise 평가의 `createdAt`과 같거나 이후여야 한다. Source에 이미 있던 평가는 세션 시작 전 시각을 유지할 수 있다. 병합 시각은 모든 output `updatedAt`과 평가 `createdAt` 이후여야 하며, 순서가 어긋난 병합은 output을 쓰기 전에 거부한다.
 
 `<output>.pilot-merge-provenance.json`에는 batch identity, snapshot/protocol digest, 평가자별 input dataset/provenance digest와 merged dataset digest만 기록한다. 경로, token, 이미지, notes, 평가 내용은 저장하지 않는다. source dataset, batch lock, 각 평가자의 output/sidecar 원본과 merge provenance는 분석 재현이 끝날 때까지 함께 보관하고, 폐기는 파일럿 데이터 보존 정책에 따른다.
 

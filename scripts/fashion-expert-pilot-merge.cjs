@@ -418,6 +418,9 @@ function validateEvaluatorInput({
     });
     if (evaluation.evaluationId !== expectedId) fail("Evaluator output has a non-deterministic evaluation ID.");
     const sourceEvaluation = sourceByKey.get(evaluationKey(evaluation));
+    if (!sourceEvaluation && Date.parse(evaluation.createdAt) < Date.parse(provenance.createdAt)) {
+      fail("New evaluation creation cannot precede the evaluator session start.");
+    }
     if (
       sourceEvaluation &&
       (sourceEvaluation.evaluationId !== evaluation.evaluationId ||
